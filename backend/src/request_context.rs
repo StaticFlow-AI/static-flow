@@ -6,7 +6,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use static_flow_shared::request_ids::{read_or_generate_id, REQUEST_ID_HEADER, TRACE_ID_HEADER};
+use static_flow_runtime::request_ids::{read_or_generate_id, REQUEST_ID_HEADER, TRACE_ID_HEADER};
 use tracing::Instrument;
 
 #[derive(Clone, Copy, Debug)]
