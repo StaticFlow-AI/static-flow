@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG_FILE=""
 REMOTE_SCRIPT_NAME="activate_llm_access_cloud_release.sh"
-RENDER_DIR="$(mktemp -d "$ROOT_DIR/tmp/llm-access-cloud-worker-only.XXXXXX")"
+RENDER_DIR="$(mktemp -d "$ROOT_DIR/tmp/llm-access-cloud-codex-image-only.XXXXXX")"
 
 cleanup() {
   rm -rf "$RENDER_DIR"
@@ -12,7 +12,7 @@ cleanup() {
 trap cleanup EXIT
 
 fail() {
-  printf '[llm-access-release-worker][ERROR] %s\n' "$*" >&2
+  printf '[llm-access-release-image][ERROR] %s\n' "$*" >&2
   exit 1
 }
 
@@ -63,15 +63,15 @@ fi
 GCP_SSH_KEY="$(expand_path "$GCP_SSH_KEY")"
 SSH_OPTS=(-i "$GCP_SSH_KEY" -o IdentitiesOnly=yes -o BatchMode=yes)
 
-LLM_ACCESS_ACTIVATE_TARGET=worker "$ROOT_DIR/scripts/prepare_llm_access_cloud_release.sh"
+# The image gateway does not run Postgres migrations itself. Apply llm-access
+# migrations 0030 and 0031 before activating this binary; its DSN needs read
+# access plus narrow writes to the Codex image key usage rollup columns.
+LLM_ACCESS_ACTIVATE_TARGET=image "$ROOT_DIR/scripts/prepare_llm_access_cloud_release.sh"
 "$ROOT_DIR/scripts/render_llm_access_cloud_bundle.sh" "$RENDER_DIR"
 
 scp "${SSH_OPTS[@]}" \
-  "$RENDER_DIR/llm-access-usage-worker.service" \
-  "$GCP_DEST:$REMOTE_RELEASE_DIR/llm-access-usage-worker.service.release"
-scp "${SSH_OPTS[@]}" \
-  "$RENDER_DIR/juicefs-llm-access-usage.service" \
-  "$GCP_DEST:$REMOTE_RELEASE_DIR/juicefs-llm-access-usage.service.release"
+  "$RENDER_DIR/llm-access-codex-image.service" \
+  "$GCP_DEST:$REMOTE_RELEASE_DIR/llm-access-codex-image.service.release"
 
 ssh "${SSH_OPTS[@]}" "$GCP_DEST" \
-  "LLM_ACCESS_ACTIVATE_TARGET=worker LLM_ACCESS_STAGED_WORKER_SERVICE_UNIT=$REMOTE_RELEASE_DIR/llm-access-usage-worker.service.release LLM_ACCESS_STAGED_USAGE_MOUNT_SERVICE_UNIT=$REMOTE_RELEASE_DIR/juicefs-llm-access-usage.service.release $REMOTE_RELEASE_DIR/$REMOTE_SCRIPT_NAME"
+  "LLM_ACCESS_ACTIVATE_TARGET=image LLM_ACCESS_STAGED_IMAGE_SERVICE_UNIT=$REMOTE_RELEASE_DIR/llm-access-codex-image.service.release $REMOTE_RELEASE_DIR/$REMOTE_SCRIPT_NAME"
