@@ -33,29 +33,36 @@ import os
 import subprocess
 import sys
 import tomllib
+from copy import deepcopy
 from collections import defaultdict
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 FRONTEND = "static-flow-frontend"
+ROOT_MANIFEST = "Cargo.toml"
 
 # Files whose change can affect every crate's build/lint, so they force a full
-# run rather than a per-crate subset: the root manifest, the toolchain pin
-# (rust-toolchain*), cargo config (.cargo/), and the vendored trees
-# first-party crates compile through path deps / patches -- deps/ (lance,
-# lancedb, pingora, ffmpeg-sidecar) and patches/ (object_store, patched in by
-# the root [patch.crates-io]). CI YAML and scripts deliberately are NOT here:
-# they change no Rust code, so a PR touching only them compiles nothing; the
-# `detect` job itself exercises this selector.
+# run rather than a per-crate subset: the toolchain pin (rust-toolchain*), cargo
+# config (.cargo/), and the vendored trees first-party crates compile through
+# path deps / patches -- deps/ (lance, lancedb, pingora, ffmpeg-sidecar) and
+# patches/ (object_store, patched in by the root [patch.crates-io]). CI YAML and
+# scripts deliberately are NOT here: they change no Rust code, so a PR touching
+# only them compiles nothing; the `detect` job itself exercises this selector.
 #
-# Cargo.lock is deliberately NOT here either: the lockfile records the full
-# resolved dependency graph, so its diff can be attributed precisely -- see
-# lock_affected_members(). A lock-only edge change (e.g. one workspace crate
-# gaining a path dep) used to escalate every PR touching it to a full
-# workspace build, pulling the vendored lance/datafusion tree into CI for
-# changes that never compile it.
-CROSS_EXACT = {"Cargo.toml"}
+# The root manifest is handled separately. Global workspace dependency, patch,
+# profile, or resolver changes are cross-cutting, but a pure
+# [workspace].members edit is just crate membership bookkeeping and should not
+# drag vendored lance/datafusion builds into unrelated PRs.
+#
+# Cargo.lock is deliberately NOT here either. When a PR already changes
+# first-party crate files, those crates are the source of truth for the build
+# scope and the lockfile follows their dependency closure. A lock-only change
+# still gets attributed through the lock graph -- see lock_affected_members().
+# This prevents a new isolated crate from pulling unrelated workspace members
+# into CI just because Cargo unified shared third-party versions in Cargo.lock.
+CROSS_EXACT = set()
 CROSS_PREFIX = (".cargo/", "deps/", "patches/")
+NON_RUST_DEPS_PREFIX = ("deps/AntigravityManager",)
 
 
 def run(cmd, **kw):
@@ -157,12 +164,46 @@ def changed_files(base, head):
     return [f for f in res.stdout.splitlines() if f.strip()]
 
 
+def is_non_rust_dep_path(f):
+    return any(f == p or f.startswith(p + "/") for p in NON_RUST_DEPS_PREFIX)
+
+
 def is_cross_cutting(f):
+    if is_non_rust_dep_path(f):
+        return False
     return (
         f in CROSS_EXACT
         or any(f.startswith(p) for p in CROSS_PREFIX)
         or Path(f).name.startswith("rust-toolchain")
     )
+
+
+def _toml_at(rev, path):
+    res = run(["git", "show", f"{rev}:{path}"])
+    if res.returncode != 0:
+        return None
+    try:
+        return tomllib.loads(res.stdout)
+    except tomllib.TOMLDecodeError:
+        return None
+
+
+def _without_workspace_members(manifest):
+    stripped = deepcopy(manifest)
+    workspace = stripped.get("workspace")
+    if isinstance(workspace, dict):
+        workspace.pop("members", None)
+    return stripped
+
+
+def root_manifest_change_is_workspace_members_only(base, head):
+    mb = run(["git", "merge-base", base, head])
+    old_rev = mb.stdout.strip() if mb.returncode == 0 and mb.stdout.strip() else base
+    old_manifest = _toml_at(old_rev, ROOT_MANIFEST)
+    new_manifest = _toml_at(head, ROOT_MANIFEST)
+    if old_manifest is None or new_manifest is None:
+        return False
+    return _without_workspace_members(old_manifest) == _without_workspace_members(new_manifest)
 
 
 def owning_crate(f, dir2name):
@@ -308,19 +349,30 @@ def detect():
         return emit("all", [], [], True)
     if not files:
         return emit("none", [], [], False)
-    if any(is_cross_cutting(f) for f in files):
-        hit = sorted({f for f in files if is_cross_cutting(f)})[:5]
+
+    cross_hits = {f for f in files if is_cross_cutting(f)}
+    if ROOT_MANIFEST in files:
+        if root_manifest_change_is_workspace_members_only(base, head):
+            print("[detect] root Cargo.toml change is limited to workspace members.")
+        else:
+            cross_hits.add(ROOT_MANIFEST)
+
+    if cross_hits:
+        hit = sorted(cross_hits)[:5]
         print(f"[detect] cross-cutting change(s): {hit} -> full workspace.")
         return emit("all", [], [], True)
     dir2name, deps = workspace_graph()
     seeds = {c for c in (owning_crate(f, dir2name) for f in files) if c}
     if "Cargo.lock" in files:
-        lock_seeds = lock_affected_members(base, head, set(dir2name.values()))
-        if lock_seeds is None:
-            print("[detect] Cargo.lock change not attributable -> full workspace.")
-            return emit("all", [], [], True)
-        print(f"[detect] Cargo.lock changes map to crates: {sorted(lock_seeds)}")
-        seeds |= lock_seeds
+        if seeds:
+            print(f"[detect] Cargo.lock change scoped to first-party crates: {sorted(seeds)}")
+        else:
+            lock_seeds = lock_affected_members(base, head, set(dir2name.values()))
+            if lock_seeds is None:
+                print("[detect] Cargo.lock change not attributable -> full workspace.")
+                return emit("all", [], [], True)
+            print(f"[detect] Cargo.lock changes map to crates: {sorted(lock_seeds)}")
+            seeds |= lock_seeds
     if not seeds:
         print("[detect] no first-party crate affected (docs/vendored only).")
         return emit("none", [], [], False)
@@ -398,5 +450,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
