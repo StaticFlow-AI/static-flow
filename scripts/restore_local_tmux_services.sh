@@ -233,7 +233,7 @@ start_ai_review() {
   [[ -f "$AI_REVIEW_ENV_FILE" ]] || fail "missing ai review env file: $AI_REVIEW_ENV_FILE"
   api_cmd="cd $(q "$ROOT_DIR") && if [[ -f /home/ts_user/.antigravity-agent/gui_config.json ]]; then export ANTIGRAVITY_MANAGER_API_KEY=\$(jq -r '.proxy.api_key // .api_key // empty' /home/ts_user/.antigravity-agent/gui_config.json); fi && exec $(q "$AI_REVIEW_BIN") --env-file $(q "$AI_REVIEW_ENV_FILE") serve --bind 127.0.0.1:19190"
   ui_cmd="cd $(q "$ROOT_DIR/crates/llm-access-ai-review/ui") && exec npm run dev -- --host 127.0.0.1"
-  pbmapper_cmd="cd $(q "$ROOT_DIR") && set -a && . .local/pbmapper/sf-backend.env && set +a && SERVICE_KEY=ai-review-ui LOCAL_ADDR=127.0.0.1:19191 exec pb-mapper-server-cli tcp-server --key \"\$SERVICE_KEY\" --addr \"\$LOCAL_ADDR\""
+  pbmapper_cmd="cd $(q "$ROOT_DIR") && set -a && . .local/pbmapper/sf-backend.env && set +a && SERVICE_KEY=ai-review-ui && LOCAL_ADDR=127.0.0.1:19191 && exec pb-mapper-server-cli tcp-server --key \"\$SERVICE_KEY\" --addr \"\$LOCAL_ADDR\""
 
   start_tmux "sf-ai-review" "$api_cmd"
   wait_http "sf-ai-review" "http://127.0.0.1:19190/api/ai-review/health" 60
