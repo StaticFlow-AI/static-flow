@@ -20,6 +20,7 @@ members = [
     "crates/llm-access-kiro",
     "crates/llm-access-migrations",
     "crates/llm-access-store",
+    "crates/llm-access-ai-review",
     "crates/llm-usage-journal",
 ]
 # Vendored forks under deps/ (lance, lancedb, pingora, ffmpeg-sidecar, ...) are
