@@ -27,3 +27,6 @@
 [submodule "deps/gpt2api_rs"]
 	path = deps/gpt2api_rs
 	url = git@github.com:acking-you/gpt2api_rs.git
+[submodule "deps/AntigravityManager"]
+	path = deps/AntigravityManager
+	url = git@github.com:acking-you/AntigravityManager.git
