@@ -5909,6 +5909,7 @@ dependencies = [
  "async-trait",
  "axum",
  "clap",
+ "jieba-rs",
  "llm-access-core",
  "llm-access-migrations",
  "llm-access-store",
