@@ -75,7 +75,7 @@ require_command() {
 }
 
 session_exists() {
-  tmux has-session -t "$1" 2>/dev/null
+  tmux has-session -t "=$1" 2>/dev/null
 }
 
 port_listening() {
