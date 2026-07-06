@@ -5995,6 +5995,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "base64 0.22.1",
+ "jieba-rs",
  "serde",
  "serde_json",
  "thiserror 2.0.17",
