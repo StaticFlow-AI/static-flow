@@ -5923,7 +5923,6 @@ dependencies = [
  "thiserror 2.0.17",
  "tokio",
  "tokio-stream",
- "tower-http 0.5.2",
  "tracing",
  "tracing-subscriber",
  "uuid",
