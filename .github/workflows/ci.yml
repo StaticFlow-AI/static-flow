@@ -144,35 +144,35 @@ jobs:
             echo "LD_LIBRARY_PATH=$lib_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
           } >> "$GITHUB_ENV"
 
-      - name: Check Neon CI credentials
+      - name: Detect Neon CI credentials
+        id: neon-ci-credentials
         if: >-
           (needs.changes.outputs.mode == 'all' ||
-            contains(needs.changes.outputs.test_crates, 'llm-access-store')) &&
-          (github.event_name != 'pull_request' ||
-            github.event.pull_request.head.repo.fork == false)
+            contains(needs.changes.outputs.test_crates, 'llm-access-store'))
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
         run: |
           set -euo pipefail
-          test -n "$NEON_API_KEY"
-          test -n "$NEON_PROJECT_ID"
+          if [ -n "$NEON_API_KEY" ] && [ -n "$NEON_PROJECT_ID" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Explain skipped Neon CI branch
         if: >-
           (needs.changes.outputs.mode == 'all' ||
             contains(needs.changes.outputs.test_crates, 'llm-access-store')) &&
-          github.event_name == 'pull_request' &&
-          github.event.pull_request.head.repo.fork == true
+          steps.neon-ci-credentials.outputs.available != 'true'
         run: |
-          echo "Skipping Neon-backed Postgres tests for fork pull request; repository secrets are unavailable."
+          echo "Skipping Neon-backed Postgres tests; NEON_API_KEY or NEON_PROJECT_ID is unavailable."
 
       - name: Compute Neon branch expiration
         if: >-
           (needs.changes.outputs.mode == 'all' ||
             contains(needs.changes.outputs.test_crates, 'llm-access-store')) &&
-          (github.event_name != 'pull_request' ||
-            github.event.pull_request.head.repo.fork == false)
+          steps.neon-ci-credentials.outputs.available == 'true'
         run: echo "NEON_BRANCH_EXPIRES_AT=$(date -u --date '+1 day' +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
 
       - name: Create Neon test branch
@@ -180,8 +180,7 @@ jobs:
         if: >-
           (needs.changes.outputs.mode == 'all' ||
             contains(needs.changes.outputs.test_crates, 'llm-access-store')) &&
-          (github.event_name != 'pull_request' ||
-            github.event.pull_request.head.repo.fork == false)
+          steps.neon-ci-credentials.outputs.available == 'true'
         uses: neondatabase/create-branch-action@v6
         with:
           project_id: ${{ vars.NEON_PROJECT_ID }}
