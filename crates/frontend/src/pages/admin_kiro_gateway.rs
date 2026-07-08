@@ -14,15 +14,16 @@ use crate::{
     api::{
         create_admin_kiro_account_group, create_admin_kiro_key, create_admin_kiro_manual_account,
         delete_admin_kiro_account, delete_admin_kiro_account_group, delete_admin_kiro_key,
-        fetch_admin_kiro_account_group_options, fetch_admin_kiro_account_groups_page,
-        fetch_admin_kiro_accounts, fetch_admin_kiro_accounts_page, fetch_admin_kiro_cache_stats,
-        fetch_admin_kiro_keys_page, fetch_admin_kiro_usage_event_detail,
-        fetch_admin_kiro_usage_events, fetch_admin_llm_gateway_config,
-        fetch_admin_llm_gateway_proxy_bindings, fetch_admin_llm_gateway_proxy_configs,
-        fetch_kiro_models, import_admin_kiro_account, patch_admin_kiro_account,
-        patch_admin_kiro_account_group, patch_admin_kiro_key, refresh_admin_kiro_account_balance,
-        update_admin_llm_gateway_config, AdminAccountGroupOptionView, AdminAccountGroupView,
-        AdminAccountsSummaryView, AdminKiroCacheStatsResponse,
+        fetch_admin_anthropic_upstream_channels, fetch_admin_kiro_account_group_options,
+        fetch_admin_kiro_account_groups_page, fetch_admin_kiro_accounts,
+        fetch_admin_kiro_accounts_page, fetch_admin_kiro_cache_stats, fetch_admin_kiro_keys_page,
+        fetch_admin_kiro_usage_event_detail, fetch_admin_kiro_usage_events,
+        fetch_admin_llm_gateway_config, fetch_admin_llm_gateway_proxy_bindings,
+        fetch_admin_llm_gateway_proxy_configs, fetch_kiro_models, import_admin_kiro_account,
+        patch_admin_kiro_account, patch_admin_kiro_account_group, patch_admin_kiro_key,
+        refresh_admin_kiro_account_balance, update_admin_llm_gateway_config,
+        AdminAccountGroupOptionView, AdminAccountGroupView, AdminAccountsSummaryView,
+        AdminAnthropicUpstreamChannelView, AdminKiroCacheStatsResponse,
         AdminKiroKeyCandidateCreditSummaryView, AdminLlmGatewayKeyView,
         AdminLlmGatewayKeysSummaryView, AdminLlmGatewayUsageEventDetailView,
         AdminLlmGatewayUsageEventView, AdminLlmGatewayUsageEventsQuery,
@@ -92,6 +93,10 @@ fn should_load_kiro_group_options(active_tab: &str) -> bool {
 }
 
 fn should_load_kiro_models_inventory(active_tab: &str) -> bool {
+    active_tab == TAB_KEYS
+}
+
+fn should_load_anthropic_channels_inventory(active_tab: &str) -> bool {
     active_tab == TAB_KEYS
 }
 
@@ -811,6 +816,33 @@ fn kiro_model_group_preferences_summary(
         entries.push(format!("+{}", preferences.len() - entries.len()));
     }
     format!("{} rules · {}", preferences.len(), entries.join(" · "))
+}
+
+fn kiro_model_channel_preferences_summary(preferences: &BTreeMap<String, String>) -> String {
+    if preferences.is_empty() {
+        return "0 channels".to_string();
+    }
+    let mut entries = preferences
+        .iter()
+        .take(3)
+        .map(|(model, channel)| format!("{model} -> {channel}"))
+        .collect::<Vec<_>>();
+    if preferences.len() > entries.len() {
+        entries.push(format!("+{}", preferences.len() - entries.len()));
+    }
+    format!("{} channels · {}", preferences.len(), entries.join(" · "))
+}
+
+fn kiro_model_routing_summary(
+    group_preferences: &BTreeMap<String, String>,
+    channel_preferences: &BTreeMap<String, String>,
+    account_groups: &[AdminAccountGroupOptionView],
+) -> String {
+    format!(
+        "groups: {}; direct channels: {}",
+        kiro_model_group_preferences_summary(group_preferences, account_groups),
+        kiro_model_channel_preferences_summary(channel_preferences)
+    )
 }
 
 fn kiro_pool_strategy_label(strategy: &str) -> &'static str {
@@ -1774,6 +1806,7 @@ struct KiroKeyEditorCardProps {
     persisted_global_billable_multiplier_json: String,
     available_models: Vec<KiroModelView>,
     account_groups: Vec<AdminAccountGroupOptionView>,
+    anthropic_channels: Vec<AdminAnthropicUpstreamChannelView>,
     on_reload: Callback<()>,
     on_copy: Callback<(String, String)>,
     on_flash: Callback<(String, bool)>,
@@ -1824,6 +1857,8 @@ fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
         use_state(|| props.key_item.kiro_anthropic_upstream_pool_mode.clone());
     let model_name_map = use_state(|| props.key_item.model_name_map.clone().unwrap_or_default());
     let model_group_preferences = use_state(|| props.key_item.kiro_model_group_preferences.clone());
+    let model_channel_preferences =
+        use_state(|| props.key_item.kiro_model_channel_preferences.clone());
     let moderation_enabled = use_state(|| props.key_item.moderation_enabled);
     let kiro_request_validation_enabled =
         use_state(|| props.key_item.kiro_request_validation_enabled);
@@ -1867,6 +1902,7 @@ fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
         let anthropic_upstream_pool_mode = anthropic_upstream_pool_mode.clone();
         let model_name_map = model_name_map.clone();
         let model_group_preferences = model_group_preferences.clone();
+        let model_channel_preferences = model_channel_preferences.clone();
         let moderation_enabled = moderation_enabled.clone();
         let kiro_request_validation_enabled = kiro_request_validation_enabled.clone();
         let kiro_cache_estimation_enabled = kiro_cache_estimation_enabled.clone();
@@ -1907,6 +1943,7 @@ fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
             anthropic_upstream_pool_mode.set(key_item.kiro_anthropic_upstream_pool_mode.clone());
             model_name_map.set(key_item.model_name_map.clone().unwrap_or_default());
             model_group_preferences.set(key_item.kiro_model_group_preferences.clone());
+            model_channel_preferences.set(key_item.kiro_model_channel_preferences.clone());
             moderation_enabled.set(key_item.moderation_enabled);
             kiro_request_validation_enabled.set(key_item.kiro_request_validation_enabled);
             kiro_cache_estimation_enabled.set(key_item.kiro_cache_estimation_enabled);
@@ -1952,6 +1989,7 @@ fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
         let anthropic_upstream_pool_mode = anthropic_upstream_pool_mode.clone();
         let model_name_map = model_name_map.clone();
         let model_group_preferences = model_group_preferences.clone();
+        let model_channel_preferences = model_channel_preferences.clone();
         let moderation_enabled = moderation_enabled.clone();
         let kiro_request_validation_enabled = kiro_request_validation_enabled.clone();
         let kiro_cache_estimation_enabled = kiro_cache_estimation_enabled.clone();
@@ -1988,6 +2026,7 @@ fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
             let anthropic_upstream_pool_mode_value = (*anthropic_upstream_pool_mode).clone();
             let model_name_map_value = (*model_name_map).clone();
             let model_group_preferences_value = (*model_group_preferences).clone();
+            let model_channel_preferences_value = (*model_channel_preferences).clone();
             let moderation_enabled_value = *moderation_enabled;
             let kiro_request_validation_enabled_value = *kiro_request_validation_enabled;
             let kiro_cache_estimation_enabled_value = *kiro_cache_estimation_enabled;
@@ -2070,6 +2109,7 @@ fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                     ),
                     model_name_map: Some(&model_name_map_value),
                     kiro_model_group_preferences: Some(&model_group_preferences_value),
+                    kiro_model_channel_preferences: Some(&model_channel_preferences_value),
                     request_max_concurrency: None,
                     request_min_start_interval_ms: None,
                     moderation_enabled: Some(moderation_enabled_value),
@@ -2133,6 +2173,7 @@ fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
         let anthropic_upstream_pool_mode = anthropic_upstream_pool_mode.clone();
         let model_name_map = model_name_map.clone();
         let model_group_preferences = model_group_preferences.clone();
+        let model_channel_preferences = model_channel_preferences.clone();
         let kiro_cache_estimation_enabled = kiro_cache_estimation_enabled.clone();
         let kiro_zero_cache_debug_enabled = kiro_zero_cache_debug_enabled.clone();
         let kiro_full_request_logging_enabled = kiro_full_request_logging_enabled.clone();
@@ -2153,6 +2194,7 @@ fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
             let anthropic_upstream_pool_mode_value = (*anthropic_upstream_pool_mode).clone();
             let model_name_map_value = (*model_name_map).clone();
             let model_group_preferences_value = (*model_group_preferences).clone();
+            let model_channel_preferences_value = (*model_channel_preferences).clone();
             let kiro_cache_estimation_enabled_value = *kiro_cache_estimation_enabled;
             let kiro_zero_cache_debug_enabled_value = *kiro_zero_cache_debug_enabled;
             let kiro_full_request_logging_enabled_value = *kiro_full_request_logging_enabled;
@@ -2189,6 +2231,7 @@ fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                     ),
                     model_name_map: Some(&model_name_map_value),
                     kiro_model_group_preferences: Some(&model_group_preferences_value),
+                    kiro_model_channel_preferences: Some(&model_channel_preferences_value),
                     request_max_concurrency: None,
                     request_min_start_interval_ms: None,
                     moderation_enabled: None,
@@ -2278,14 +2321,19 @@ fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
         let model_name_map = model_name_map.clone();
         Callback::from(move |_| model_name_map.set(BTreeMap::new()))
     };
-    let on_reset_model_group_preferences = {
+    let on_reset_model_routing_preferences = {
         let model_group_preferences = model_group_preferences.clone();
-        Callback::from(move |_| model_group_preferences.set(BTreeMap::new()))
+        let model_channel_preferences = model_channel_preferences.clone();
+        Callback::from(move |_| {
+            model_group_preferences.set(BTreeMap::new());
+            model_channel_preferences.set(BTreeMap::new());
+        })
     };
-    let on_save_model_group_preferences = {
+    let on_save_model_routing_preferences = {
         let key_id = props.key_item.id.clone();
         let key_name = props.key_item.name.clone();
         let model_group_preferences = model_group_preferences.clone();
+        let model_channel_preferences = model_channel_preferences.clone();
         let model_group_routing_open = model_group_routing_open.clone();
         let saving = saving.clone();
         let feedback = feedback.clone();
@@ -2297,7 +2345,8 @@ fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
             }
             let key_id = key_id.clone();
             let key_name = key_name.clone();
-            let preferences_value = (*model_group_preferences).clone();
+            let group_preferences_value = (*model_group_preferences).clone();
+            let channel_preferences_value = (*model_channel_preferences).clone();
             let model_group_routing_open = model_group_routing_open.clone();
             let saving = saving.clone();
             let feedback = feedback.clone();
@@ -2307,7 +2356,8 @@ fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                 saving.set(true);
                 feedback.set(None);
                 match patch_admin_kiro_key(&key_id, PatchAdminLlmGatewayKeyRequest {
-                    kiro_model_group_preferences: Some(&preferences_value),
+                    kiro_model_group_preferences: Some(&group_preferences_value),
+                    kiro_model_channel_preferences: Some(&channel_preferences_value),
                     ..PatchAdminLlmGatewayKeyRequest::default()
                 })
                 .await
@@ -2472,8 +2522,9 @@ fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
             .collect::<Vec<_>>()
             .join(" · ")
     };
-    let model_group_routing_summary = kiro_model_group_preferences_summary(
+    let model_routing_summary = kiro_model_routing_summary(
         &model_group_preferences,
+        &model_channel_preferences,
         props.account_groups.as_slice(),
     );
     html! {
@@ -3084,9 +3135,9 @@ fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                 <div class={classes!("md:col-span-2", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3")}>
                     <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
                         <div class={classes!("min-w-0")}>
-                            <div class={classes!("text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Model Group Routing" }</div>
+                            <div class={classes!("text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Model Routing" }</div>
                             <div class={classes!("mt-1", "text-xs", "text-[var(--muted)]", "break-words")}>
-                                { model_group_routing_summary.clone() }
+                                { model_routing_summary.clone() }
                             </div>
                         </div>
                         <button
@@ -3187,7 +3238,7 @@ fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                     <button
                         type="button"
                         class={classes!("absolute", "inset-0", "h-full", "w-full", "border-0", "bg-black/45", "p-0")}
-                        aria-label="Close model group routing"
+                        aria-label="Close model routing"
                         onclick={{
                             let model_group_routing_open = model_group_routing_open.clone();
                             Callback::from(move |_| model_group_routing_open.set(false))
@@ -3196,12 +3247,12 @@ fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                     <section class={classes!("absolute", "right-0", "top-0", "flex", "h-full", "w-full", "max-w-3xl", "flex-col", "border-l", "border-[var(--border)]", "bg-[var(--surface)]", "shadow-2xl")}>
                         <div class={classes!("flex", "items-start", "justify-between", "gap-3", "border-b", "border-[var(--border)]", "px-5", "py-4")}>
                             <div class={classes!("min-w-0")}>
-                                <div class={classes!("text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Model Group Routing" }</div>
+                                <div class={classes!("text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Model Routing" }</div>
                                 <h4 class={classes!("m-0", "mt-1", "text-base", "font-semibold", "text-[var(--text)]")}>
                                     { props.key_item.name.clone() }
                                 </h4>
                                 <div class={classes!("mt-1", "text-xs", "text-[var(--muted)]", "break-words")}>
-                                    { model_group_routing_summary.clone() }
+                                    { model_routing_summary.clone() }
                                 </div>
                             </div>
                             <button
@@ -3228,10 +3279,23 @@ fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                                             .get(&model_id)
                                             .cloned()
                                             .unwrap_or_default();
+                                        let selected_channel_name = (*model_channel_preferences)
+                                            .get(&model_id)
+                                            .cloned()
+                                            .unwrap_or_default();
+                                        let selected_channel_missing = !selected_channel_name.is_empty()
+                                            && !props
+                                                .anthropic_channels
+                                                .iter()
+                                                .any(|channel| channel.name == selected_channel_name);
+                                        let model_id_for_group = model_id.clone();
+                                        let model_id_for_channel = model_id.clone();
                                         let model_group_preferences = model_group_preferences.clone();
+                                        let model_channel_preferences = model_channel_preferences.clone();
                                         let account_groups = props.account_groups.clone();
+                                        let anthropic_channels = props.anthropic_channels.clone();
                                         html! {
-                                            <div class={classes!("grid", "gap-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "lg:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)]")}>
+                                            <div class={classes!("grid", "gap-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "lg:grid-cols-[minmax(0,1fr)_minmax(14rem,18rem)_minmax(14rem,18rem)]")}>
                                                 <div class={classes!("min-w-0")}>
                                                     <div class={classes!("text-sm", "font-semibold", "text-[var(--text)]")}>{ model.display_name.clone() }</div>
                                                     <div class={classes!("mt-1", "break-all", "font-mono", "text-[11px]", "text-[var(--muted)]")}>{ model.id.clone() }</div>
@@ -3246,9 +3310,9 @@ fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                                                             let selected = input.value();
                                                             let mut next = (*model_group_preferences).clone();
                                                             if selected.trim().is_empty() {
-                                                                next.remove(&model_id);
+                                                                next.remove(&model_id_for_group);
                                                             } else {
-                                                                next.insert(model_id.clone(), selected);
+                                                                next.insert(model_id_for_group.clone(), selected);
                                                             }
                                                             model_group_preferences.set(next);
                                                         })}
@@ -3257,6 +3321,36 @@ fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                                                         { for account_groups.iter().map(|group| html! {
                                                             <option value={group.id.clone()}>
                                                                 { format!("{} · {} accounts", group.name, group.account_count) }
+                                                            </option>
+                                                        }) }
+                                                    </select>
+                                                </label>
+                                                <label class={classes!("text-sm")}>
+                                                    <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Preferred Channel" }</div>
+                                                    <select
+                                                        class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2", "text-sm")}
+                                                        value={selected_channel_name.clone()}
+                                                        onchange={Callback::from(move |event: Event| {
+                                                            let input: HtmlSelectElement = event.target_unchecked_into();
+                                                            let selected = input.value();
+                                                            let mut next = (*model_channel_preferences).clone();
+                                                            if selected.trim().is_empty() {
+                                                                next.remove(&model_id_for_channel);
+                                                            } else {
+                                                                next.insert(model_id_for_channel.clone(), selected);
+                                                            }
+                                                            model_channel_preferences.set(next);
+                                                        })}
+                                                    >
+                                                        <option value="">{ "Default channel order" }</option>
+                                                        if selected_channel_missing {
+                                                            <option value={selected_channel_name.clone()}>
+                                                                { format!("{} · missing", selected_channel_name) }
+                                                            </option>
+                                                        }
+                                                        { for anthropic_channels.iter().map(|channel| html! {
+                                                            <option value={channel.name.clone()}>
+                                                                { format!("{} · {}", channel.name, channel.status) }
                                                             </option>
                                                         }) }
                                                     </select>
@@ -3271,7 +3365,7 @@ fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                             <button
                                 type="button"
                                 class={classes!("btn-terminal", "text-xs")}
-                                onclick={on_reset_model_group_preferences.clone()}
+                                onclick={on_reset_model_routing_preferences.clone()}
                                 disabled={*saving}
                             >
                                 { "Reset" }
@@ -3291,7 +3385,7 @@ fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                                 <button
                                     type="button"
                                     class={classes!("btn-terminal", "btn-terminal-primary", "text-xs")}
-                                    onclick={on_save_model_group_preferences.clone()}
+                                    onclick={on_save_model_routing_preferences.clone()}
                                     disabled={*saving}
                                 >
                                     { if *saving { "Saving..." } else { "Save Routing" } }
@@ -3614,6 +3708,7 @@ pub fn admin_kiro_gateway_page() -> Html {
     let account_groups_page_limit = use_state(|| DEFAULT_KIRO_GROUP_PAGE_SIZE);
     let account_groups_search = use_state(String::new);
     let kiro_models = use_state(Vec::<KiroModelView>::new);
+    let anthropic_channels = use_state(Vec::<AdminAnthropicUpstreamChannelView>::new);
     let usage_events = use_state(Vec::<AdminLlmGatewayUsageEventView>::new);
     let usage_retention_days = use_state(|| 7_u64);
     let usage_loading = use_state(|| false);
@@ -3959,6 +4054,7 @@ pub fn admin_kiro_gateway_page() -> Html {
         let account_groups = account_groups.clone();
         let account_groups_page_limit = account_groups_page_limit.clone();
         let kiro_models = kiro_models.clone();
+        let anthropic_channels = anthropic_channels.clone();
         let active_tab = active_tab.clone();
         let refresh_tick = refresh_tick.clone();
         let inventory_loading = inventory_loading.clone();
@@ -3984,6 +4080,7 @@ pub fn admin_kiro_gateway_page() -> Html {
                     let account_groups = account_groups.clone();
                     let account_groups_page_limit = account_groups_page_limit.clone();
                     let kiro_models = kiro_models.clone();
+                    let anthropic_channels = anthropic_channels.clone();
                     let inventory_loading = inventory_loading.clone();
                     let inventory_error = inventory_error.clone();
                     let inventory_loaded_for_refresh = inventory_loaded_for_refresh.clone();
@@ -4028,12 +4125,19 @@ pub fn admin_kiro_gateway_page() -> Html {
                                 } else {
                                     None
                                 };
+                            let anthropic_channels_resp =
+                                if should_load_anthropic_channels_inventory(&active_tab_value) {
+                                    Some(fetch_admin_anthropic_upstream_channels().await?)
+                                } else {
+                                    None
+                                };
                             Ok::<_, String>((
                                 accounts_resp,
                                 keys_resp,
                                 account_group_options_resp,
                                 account_groups_resp,
                                 models_resp,
+                                anthropic_channels_resp,
                             ))
                         }
                         .await;
@@ -4044,6 +4148,7 @@ pub fn admin_kiro_gateway_page() -> Html {
                                 account_group_options_resp,
                                 account_groups_resp,
                                 models_resp,
+                                anthropic_channels_resp,
                             )) => {
                                 if let Some(accounts_resp) = accounts_resp {
                                     accounts_summary.set(accounts_resp.summary);
@@ -4073,6 +4178,9 @@ pub fn admin_kiro_gateway_page() -> Html {
                                 }
                                 if let Some(models_resp) = models_resp {
                                     kiro_models.set(models_resp.data);
+                                }
+                                if let Some(anthropic_channels_resp) = anthropic_channels_resp {
+                                    anthropic_channels.set(anthropic_channels_resp.channels);
                                 }
                                 inventory_loaded_for_refresh.set(Some((
                                     active_tab_value,
@@ -5667,6 +5775,7 @@ pub fn admin_kiro_gateway_page() -> Html {
                                         }
                                         available_models={(*kiro_models).clone()}
                                         account_groups={(*account_group_options).clone()}
+                                        anthropic_channels={(*anthropic_channels).clone()}
                                         on_reload={on_reload.clone()}
                                         on_copy={on_copy.clone()}
                                         on_flash={notify.clone()}

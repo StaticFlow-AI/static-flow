@@ -1495,6 +1495,7 @@ fn key_editor_card(props: &KeyEditorCardProps) -> Html {
                     kiro_anthropic_upstream_pool_mode: None,
                     model_name_map: None,
                     kiro_model_group_preferences: None,
+                    kiro_model_channel_preferences: None,
                     request_max_concurrency: request_max_concurrency_value,
                     request_min_start_interval_ms: request_min_start_interval_ms_value,
                     moderation_enabled: Some(moderation_enabled_value),
