@@ -243,6 +243,20 @@ curl --noproxy '*' -sS \
 
 ## 8. 运行维护
 
+打开 Dario 终端控制界面：
+
+```bash
+ssh azureuser@20.115.164.89
+export NVM_DIR="$HOME/.nvm"
+. "$NVM_DIR/nvm.sh"
+set -a
+. /home/azureuser/.dario/dario.env
+set +a
+dario tui --port=3456 --api-key="$DARIO_API_KEY"
+```
+
+也可以直接运行 `dario`，因为 Dario v4 默认命令是 TUI；这里显式写 `dario tui` 是为了避免和后台 `dario proxy` 混淆。这个 TUI 是 SSH 里的终端界面，会读取本机正在运行的 proxy 状态、模型、账号和用量信息。它不是 Web UI，不能直接用浏览器访问 `http://20.115.164.89:3456` 管理服务。
+
 修改 env 后重启代理：
 
 ```bash
@@ -282,6 +296,15 @@ ssh azureuser@20.115.164.89
 sudo journalctl -u dario.service -f
 tail -f /home/azureuser/.dario/dario.jsonl
 ```
+
+可选的 headless admin API 需要在 env 里额外启用：
+
+```bash
+DARIO_ADMIN=1
+DARIO_ADMIN_TOKEN=<admin token>
+```
+
+启用后重启 `dario.service`，才会挂载 `/admin/*`。当前部署没有启用它；常规查看实时状态优先使用 TUI、`journalctl` 和 `dario.jsonl`。
 
 当前服务曾输出以下警告：
 
