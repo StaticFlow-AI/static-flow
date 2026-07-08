@@ -845,6 +845,9 @@ fn kiro_pool_strategy_options() -> Html {
 fn anthropic_upstream_pool_mode_label(mode: &str) -> &'static str {
     match llm_store::normalize_anthropic_upstream_pool_mode(mode) {
         Some(llm_store::ANTHROPIC_UPSTREAM_POOL_MODE_PREFERRED_BEFORE_KIRO) => "优先直连 Anthropic",
+        Some(llm_store::ANTHROPIC_UPSTREAM_POOL_MODE_KIRO_BEFORE_ANTHROPIC) => {
+            "Kiro 优先，不支持模型时直连"
+        },
         Some(llm_store::ANTHROPIC_UPSTREAM_POOL_MODE_ONLY) => "仅直连 Anthropic",
         _ => "关闭",
     }
@@ -855,6 +858,10 @@ fn anthropic_upstream_pool_mode_description(mode: &str) -> &'static str {
         Some(llm_store::ANTHROPIC_UPSTREAM_POOL_MODE_PREFERRED_BEFORE_KIRO) => {
             "先使用标准 Anthropic upstream channel；可重试上游失败时回落 Kiro。"
         },
+        Some(llm_store::ANTHROPIC_UPSTREAM_POOL_MODE_KIRO_BEFORE_ANTHROPIC) => {
+            "先使用 Kiro 账号池；仅当 Kiro 本地模型转换不支持该模型时，转发到标准 Anthropic \
+             upstream channel。"
+        },
         Some(llm_store::ANTHROPIC_UPSTREAM_POOL_MODE_ONLY) => {
             "只使用标准 Anthropic upstream channel；无可用 channel 时直接报错。"
         },
@@ -863,9 +870,10 @@ fn anthropic_upstream_pool_mode_description(mode: &str) -> &'static str {
 }
 
 fn anthropic_upstream_pool_mode_options() -> Html {
-    const MODES: [&str; 3] = [
+    const MODES: [&str; 4] = [
         llm_store::ANTHROPIC_UPSTREAM_POOL_MODE_DISABLED,
         llm_store::ANTHROPIC_UPSTREAM_POOL_MODE_PREFERRED_BEFORE_KIRO,
+        llm_store::ANTHROPIC_UPSTREAM_POOL_MODE_KIRO_BEFORE_ANTHROPIC,
         llm_store::ANTHROPIC_UPSTREAM_POOL_MODE_ONLY,
     ];
     html! {
