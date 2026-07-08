@@ -138,6 +138,14 @@ Traffic path:
 - Local `pbmapper-llm-access-aws` on `127.0.0.1:19182` subscribes cloud
   `llm-access` back for local dev/testing
 
+Additional external Dario proxy:
+- A separate Azure VM runs Dario at `http://20.115.164.89:3456`.
+- Its local source checkout for inspection is `/home/ts_user/llm_pro/dario`.
+- Its operational runbook is `docs/dario-azure-proxy-runbook.md`.
+- It is not the current AWS `llm-access` production path. Do not route
+  StaticFlow production LLM traffic to it unless the task explicitly asks for
+  that design change.
+
 Key rules:
 - Before any "publish online" / "release to production" action, classify the
   deployment plane first:

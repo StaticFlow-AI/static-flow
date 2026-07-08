@@ -8,6 +8,11 @@ Current production now runs on an AWS/Lightsail cloud host. Older GCP-specific
 notes are kept only where they are explicitly labeled historical, or where the
 ignored local env file still uses legacy `GCP_*` variable names.
 
+Related external proxy: a separate Azure VM runs Dario at
+`http://20.115.164.89:3456`, with local source at `/home/ts_user/llm_pro/dario`.
+It is documented in `docs/dario-azure-proxy-runbook.md` and is not the current
+AWS `llm-access` production path.
+
 ## Current Cloud Production Topology
 
 Current source-of-truth production facts verified on 2026-05-28:
