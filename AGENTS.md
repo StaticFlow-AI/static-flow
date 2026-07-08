@@ -77,6 +77,30 @@ existing binary, then use the rebuilt `target/release` or `target/debug`
 artifact. Do not prefer legacy `./bin/sf-cli` snapshots for
 storage-format-sensitive writes.
 
+## Temporary Local-Only Development Mode
+Current constraint: both GitHub accounts used for this project are falsely
+suspended by GitHub, so remote development, pushes, pull requests, and GitHub CI
+are blocked.
+
+Until the accounts are reinstated:
+- Treat this checkout as the source of truth for development work.
+- Do not assume GitHub remotes, PR workflows, or CI status checks are available.
+- Prefer local branches, local diffs, local tests, and explicit command output
+  for verification and handoff.
+- Do not require a remote push, PR link, or CI run to consider local work ready;
+  state clearly which local checks were run and which CI checks remain blocked.
+
+Completion rule:
+- When a task is fully complete on a non-`main` branch, squash-merge the result
+  back into `main` locally after required verification passes.
+- When a task is completed directly on `main`, create a local commit directly on
+  `main`.
+- Do not leave completed work only as an unmerged feature branch unless the user
+  explicitly asks to pause or keep it separate.
+
+After GitHub access is restored, return to the normal remote development plus CI
+workflow.
+
 ## Communication Preference
 Spend time thinking through the task before acting. Do not send optional
 commentary or routine progress/status updates unless they unblock the work,
