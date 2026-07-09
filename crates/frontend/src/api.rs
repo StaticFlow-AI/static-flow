@@ -6093,7 +6093,7 @@ fn default_kiro_cache_policy_json() -> String {
 }
 
 fn default_kiro_billable_model_multipliers_json() -> String {
-    r#"{"haiku":1.0,"opus":1.0,"sonnet":1.0}"#.to_string()
+    llm_store::default_kiro_billable_model_multipliers_json()
 }
 
 /// Admin-only editable representation of a gateway key.

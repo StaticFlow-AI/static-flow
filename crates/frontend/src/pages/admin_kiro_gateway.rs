@@ -576,11 +576,7 @@ fn build_kiro_cache_policy_override_patch(
 }
 
 fn default_kiro_billable_multiplier_map() -> BTreeMap<String, f64> {
-    BTreeMap::from([
-        ("haiku".to_string(), 1.0),
-        ("opus".to_string(), 1.0),
-        ("sonnet".to_string(), 1.0),
-    ])
+    llm_store::default_kiro_billable_model_multipliers()
 }
 
 fn parse_kiro_billable_multiplier_json_with_base(
@@ -591,9 +587,10 @@ fn parse_kiro_billable_multiplier_json_with_base(
         .map_err(|err| format!("Failed to parse kiro billable multiplier JSON: {err}"))?;
     let mut merged = base.clone();
     for (family, multiplier) in overrides {
-        if !matches!(family.as_str(), "opus" | "sonnet" | "haiku") {
+        if !llm_store::is_kiro_billable_model_family(&family) {
             return Err(format!(
-                "Unsupported multiplier family `{family}`. Use only `opus`, `sonnet`, `haiku`."
+                "Unsupported multiplier family `{family}`. Use only `fable`, `haiku`, `opus`, \
+                 `sonnet`."
             ));
         }
         if !multiplier.is_finite() || multiplier <= 0.0 {
@@ -612,7 +609,7 @@ fn build_kiro_billable_multiplier_override_json(
     let global = parse_kiro_billable_multiplier_json_with_base(global_raw, &defaults)?;
     let edited = parse_kiro_billable_multiplier_json_with_base(edited_raw, &global)?;
     let mut overrides = BTreeMap::new();
-    for family in ["haiku", "opus", "sonnet"] {
+    for family in llm_store::KIRO_BILLABLE_MODEL_FAMILIES {
         if edited.get(family) != global.get(family) {
             overrides.insert(
                 family.to_string(),
@@ -668,8 +665,9 @@ fn format_kiro_billable_multiplier_summary(uses_global: bool, effective_raw: &st
         &default_kiro_billable_multiplier_map(),
     ) {
         Ok(effective) => format!(
-            "{} · opus {} · sonnet {} · haiku {}",
+            "{} · fable {} · opus {} · sonnet {} · haiku {}",
             if uses_global { "inherit global" } else { "override" },
+            format_float4(*effective.get("fable").unwrap_or(&2.0)),
             format_float4(*effective.get("opus").unwrap_or(&1.0)),
             format_float4(*effective.get("sonnet").unwrap_or(&1.0)),
             format_float4(*effective.get("haiku").unwrap_or(&1.0)),
@@ -6330,7 +6328,8 @@ mod tests {
         admin_kiro_key_total_pages, anthropic_routing_summary,
         build_kiro_billable_multiplier_override_json,
         build_kiro_billable_multiplier_override_patch, build_kiro_cache_policy_override_json,
-        build_kiro_cache_policy_override_patch, format_compact_bytes,
+        build_kiro_cache_policy_override_patch, default_kiro_billable_multiplier_map,
+        format_compact_bytes, format_kiro_billable_multiplier_summary,
         format_kiro_cache_policy_summary, format_kiro_key_candidate_credit_summary,
         kiro_account_status_abnormal_href, kiro_account_status_cta_text, kiro_account_status_route,
         kiro_cache_token_percent, kiro_key_route_summary, kiro_preferred_pool_candidate_note,
@@ -6874,6 +6873,38 @@ mod tests {
             .expect("patch should build");
 
         assert_eq!(patch, Some(None));
+    }
+
+    #[test]
+    fn kiro_billable_multiplier_defaults_include_fable_at_twice_opus() {
+        let defaults = default_kiro_billable_multiplier_map();
+
+        assert_eq!(defaults.get("fable"), Some(&2.0));
+        assert_eq!(defaults.get("opus"), Some(&1.0));
+    }
+
+    #[test]
+    fn build_kiro_billable_multiplier_override_json_emits_fable_changes() {
+        let override_json = build_kiro_billable_multiplier_override_json(
+            r#"{"haiku":1.0,"opus":1.0,"sonnet":1.0}"#,
+            r#"{"fable":3.0,"haiku":1.0,"opus":1.0,"sonnet":1.0}"#,
+        )
+        .expect("override json should build")
+        .expect("changed fable multiplier should emit override json");
+        let override_value: serde_json::Value =
+            serde_json::from_str(&override_json).expect("override json should parse");
+
+        assert_eq!(override_value, json!({ "fable": 3.0 }));
+    }
+
+    #[test]
+    fn format_kiro_billable_multiplier_summary_includes_fable() {
+        let summary = format_kiro_billable_multiplier_summary(
+            true,
+            r#"{"haiku":1.0,"opus":1.0,"sonnet":1.0}"#,
+        );
+
+        assert!(summary.contains("fable 2"), "summary: {summary}");
     }
 
     #[test]

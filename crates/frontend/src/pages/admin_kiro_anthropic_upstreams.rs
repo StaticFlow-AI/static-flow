@@ -66,6 +66,103 @@ fn parse_proxy_choice(raw: &str) -> (String, Option<String>) {
     }
 }
 
+/// Build a full-field channel patch from the edit form's raw strings.
+fn build_channel_patch(
+    base_url: &str,
+    weight: &str,
+    max_concurrency: &str,
+    min_start_interval_ms: &str,
+    proxy_choice: &str,
+) -> Result<PatchAdminAnthropicUpstreamChannelInput, String> {
+    let base_url = base_url.trim();
+    if base_url.is_empty() {
+        return Err("Base URL must not be empty.".to_string());
+    }
+    let weight = weight
+        .trim()
+        .parse::<u64>()
+        .map_err(|_| "Weight must be an integer.".to_string())?;
+    let max_concurrency = max_concurrency
+        .trim()
+        .parse::<u64>()
+        .map_err(|_| "Concurrency must be an integer.".to_string())?;
+    let min_start_interval_ms = min_start_interval_ms
+        .trim()
+        .parse::<u64>()
+        .map_err(|_| "Min interval must be an integer.".to_string())?;
+    let (proxy_mode, proxy_config_id) = parse_proxy_choice(proxy_choice);
+    Ok(PatchAdminAnthropicUpstreamChannelInput {
+        base_url: Some(base_url.to_string()),
+        weight: Some(weight),
+        max_concurrency: Some(max_concurrency),
+        min_start_interval_ms: Some(min_start_interval_ms),
+        proxy_mode: Some(proxy_mode),
+        proxy_config_id: Some(proxy_config_id),
+        ..PatchAdminAnthropicUpstreamChannelInput::default()
+    })
+}
+
+/// The `<select>` value that represents a channel's current proxy setting.
+fn proxy_choice_for_channel(channel: &AdminAnthropicUpstreamChannelView) -> String {
+    match (channel.proxy_mode.as_str(), channel.proxy_config_id.as_deref()) {
+        ("fixed", Some(proxy_config_id)) => format!("fixed:{proxy_config_id}"),
+        ("direct", _) => "direct".to_string(),
+        _ => "inherit".to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{build_channel_patch, proxy_choice_for_channel};
+    use crate::api::AdminAnthropicUpstreamChannelView;
+
+    #[test]
+    fn build_channel_patch_parses_fields_and_fixed_proxy() {
+        let patch =
+            build_channel_patch(" https://api.anthropic.com ", "50", "2", "250", "fixed:proxy-1")
+                .expect("patch should build");
+
+        assert_eq!(patch.base_url.as_deref(), Some("https://api.anthropic.com"));
+        assert_eq!(patch.weight, Some(50));
+        assert_eq!(patch.max_concurrency, Some(2));
+        assert_eq!(patch.min_start_interval_ms, Some(250));
+        assert_eq!(patch.proxy_mode.as_deref(), Some("fixed"));
+        assert_eq!(patch.proxy_config_id, Some(Some("proxy-1".to_string())));
+        assert_eq!(patch.status, None);
+        assert_eq!(patch.api_key, None);
+        assert!(!patch.clear_last_error);
+    }
+
+    #[test]
+    fn build_channel_patch_clears_proxy_binding_for_inherit() {
+        let patch = build_channel_patch("https://api.anthropic.com", "100", "3", "0", "inherit")
+            .expect("patch should build");
+
+        assert_eq!(patch.proxy_mode.as_deref(), Some("inherit"));
+        assert_eq!(patch.proxy_config_id, Some(None));
+    }
+
+    #[test]
+    fn build_channel_patch_rejects_invalid_numbers_and_empty_base_url() {
+        assert!(build_channel_patch("https://x.dev", "abc", "3", "0", "direct").is_err());
+        assert!(build_channel_patch("https://x.dev", "1", "-2", "0", "direct").is_err());
+        assert!(build_channel_patch("  ", "1", "3", "0", "direct").is_err());
+    }
+
+    #[test]
+    fn proxy_choice_round_trips_channel_proxy_setting() {
+        let mut channel = AdminAnthropicUpstreamChannelView::default();
+        assert_eq!(proxy_choice_for_channel(&channel), "inherit");
+
+        channel.proxy_mode = "direct".to_string();
+        assert_eq!(proxy_choice_for_channel(&channel), "direct");
+
+        channel.proxy_mode = "fixed".to_string();
+        channel.proxy_config_id = Some("proxy-9".to_string());
+        assert_eq!(proxy_choice_for_channel(&channel), "fixed:proxy-9");
+    }
+}
+
 fn total_input(channel: &AdminAnthropicUpstreamChannelView) -> u64 {
     channel
         .usage
@@ -95,6 +192,13 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
     let refreshing_channel = use_state(|| None::<String>);
     let testing_channel = use_state(|| None::<String>);
     let selected_models = use_state(BTreeMap::<String, String>::new);
+    let editing_channel = use_state(|| None::<String>);
+    let edit_base_url = use_state(String::new);
+    let edit_weight = use_state(String::new);
+    let edit_max_concurrency = use_state(String::new);
+    let edit_min_start_interval_ms = use_state(String::new);
+    let edit_proxy_choice = use_state(|| "inherit".to_string());
+    let edit_saving = use_state(|| false);
 
     let notify = {
         let flash = flash.clone();
@@ -529,7 +633,105 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                                 });
                             })
                         };
+                        let is_editing = (*editing_channel).as_ref().is_some_and(|name| name == &channel_name);
+                        let on_toggle_edit = {
+                            let editing_channel = editing_channel.clone();
+                            let edit_base_url = edit_base_url.clone();
+                            let edit_weight = edit_weight.clone();
+                            let edit_max_concurrency = edit_max_concurrency.clone();
+                            let edit_min_start_interval_ms = edit_min_start_interval_ms.clone();
+                            let edit_proxy_choice = edit_proxy_choice.clone();
+                            let channel_name = channel_name.clone();
+                            let channel_base_url = channel.base_url.clone();
+                            let channel_weight = channel.weight.to_string();
+                            let channel_max_concurrency = channel.max_concurrency.to_string();
+                            let channel_min_start_interval_ms = channel.min_start_interval_ms.to_string();
+                            let channel_proxy_choice = proxy_choice_for_channel(channel);
+                            Callback::from(move |_| {
+                                if (*editing_channel).as_ref().is_some_and(|name| name == &channel_name) {
+                                    editing_channel.set(None);
+                                    return;
+                                }
+                                edit_base_url.set(channel_base_url.clone());
+                                edit_weight.set(channel_weight.clone());
+                                edit_max_concurrency.set(channel_max_concurrency.clone());
+                                edit_min_start_interval_ms.set(channel_min_start_interval_ms.clone());
+                                edit_proxy_choice.set(channel_proxy_choice.clone());
+                                editing_channel.set(Some(channel_name.clone()));
+                            })
+                        };
+                        let on_save_edit = {
+                            let notify = notify.clone();
+                            let reload = reload.clone();
+                            let editing_channel = editing_channel.clone();
+                            let edit_base_url = edit_base_url.clone();
+                            let edit_weight = edit_weight.clone();
+                            let edit_max_concurrency = edit_max_concurrency.clone();
+                            let edit_min_start_interval_ms = edit_min_start_interval_ms.clone();
+                            let edit_proxy_choice = edit_proxy_choice.clone();
+                            let edit_saving = edit_saving.clone();
+                            let channel_name = channel_name.clone();
+                            Callback::from(move |_| {
+                                if *edit_saving {
+                                    return;
+                                }
+                                let patch = match build_channel_patch(
+                                    &edit_base_url,
+                                    &edit_weight,
+                                    &edit_max_concurrency,
+                                    &edit_min_start_interval_ms,
+                                    &edit_proxy_choice,
+                                ) {
+                                    Ok(patch) => patch,
+                                    Err(message) => {
+                                        notify.emit((message, true));
+                                        return;
+                                    },
+                                };
+                                edit_saving.set(true);
+                                let notify = notify.clone();
+                                let reload = reload.clone();
+                                let editing_channel = editing_channel.clone();
+                                let edit_saving = edit_saving.clone();
+                                let channel_name = channel_name.clone();
+                                wasm_bindgen_futures::spawn_local(async move {
+                                    match patch_admin_anthropic_upstream_channel(&channel_name, &patch).await {
+                                        Ok(_) => {
+                                            notify.emit((format!("Updated `{channel_name}`."), false));
+                                            editing_channel.set(None);
+                                            reload.emit(());
+                                        },
+                                        Err(err) => notify.emit((format!("Update `{channel_name}` failed.\n{err}"), true)),
+                                    }
+                                    edit_saving.set(false);
+                                });
+                            })
+                        };
+                        let on_clear_error = {
+                            let notify = notify.clone();
+                            let reload = reload.clone();
+                            let channel_name = channel_name.clone();
+                            Callback::from(move |_| {
+                                let notify = notify.clone();
+                                let reload = reload.clone();
+                                let channel_name = channel_name.clone();
+                                wasm_bindgen_futures::spawn_local(async move {
+                                    let input = PatchAdminAnthropicUpstreamChannelInput {
+                                        clear_last_error: true,
+                                        ..PatchAdminAnthropicUpstreamChannelInput::default()
+                                    };
+                                    match patch_admin_anthropic_upstream_channel(&channel_name, &input).await {
+                                        Ok(_) => {
+                                            notify.emit((format!("Cleared error for `{channel_name}`."), false));
+                                            reload.emit(());
+                                        },
+                                        Err(err) => notify.emit((format!("Clear `{channel_name}` failed.\n{err}"), true)),
+                                    }
+                                });
+                            })
+                        };
                         html! {
+                            <>
                             <div class={classes!("grid", "min-w-[74rem]", "grid-cols-[1.2fr_1fr_1.1fr_1.1fr_1.3fr]", "gap-0", "border-b", "border-[var(--border)]", "px-4", "py-3", "text-sm", "last:border-b-0")}>
                                 <div class={classes!("min-w-0", "pr-4")}>
                                     <div class={classes!("flex", "items-center", "gap-2", "flex-wrap")}>
@@ -575,6 +777,7 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                                 <div class={classes!("space-y-2")}>
                                     <div class={classes!("flex", "gap-2", "flex-wrap")}>
                                         <button type="button" class={classes!("btn-terminal", "text-xs")} disabled={is_refreshing} onclick={on_refresh_models}>{ if is_refreshing { "Refreshing..." } else { "Refresh Status" } }</button>
+                                        <button type="button" class={classes!("btn-terminal", "text-xs")} onclick={on_toggle_edit.clone()}>{ if is_editing { "Close" } else { "Edit" } }</button>
                                         <button type="button" class={classes!("btn-terminal", "text-xs")} onclick={on_toggle}>{ if channel.status == "active" { "Disable" } else { "Enable" } }</button>
                                         <button type="button" class={classes!("btn-terminal", "text-xs")} onclick={on_rotate_key}>{ "Rotate" }</button>
                                         <button type="button" class={classes!("btn-terminal", "text-xs")} onclick={on_delete}>{ "Delete" }</button>
@@ -598,10 +801,84 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                                         </button>
                                     </div>
                                     if let Some(error) = channel.last_error.as_deref() {
-                                        <div class={classes!("font-mono", "text-xs", "text-red-700", "dark:text-red-200")}>{ error }</div>
+                                        <div class={classes!("flex", "items-start", "gap-2")}>
+                                            <div class={classes!("min-w-0", "break-words", "font-mono", "text-xs", "text-red-700", "dark:text-red-200")}>{ error }</div>
+                                            <button type="button" class={classes!("btn-terminal", "text-xs", "shrink-0")} onclick={on_clear_error}>{ "Clear" }</button>
+                                        </div>
                                     }
                                 </div>
                             </div>
+                            if is_editing {
+                                <div class={classes!("border-b", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-4", "py-3")}>
+                                    <div class={classes!("grid", "min-w-[74rem]", "gap-3", "lg:grid-cols-7")}>
+                                        <label class={classes!("block", "text-sm", "lg:col-span-2")}>
+                                            <div class={classes!("mb-1", "font-mono", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Base URL" }</div>
+                                            <input class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2", "font-mono", "text-sm")} value={(*edit_base_url).clone()} oninput={{
+                                                let edit_base_url = edit_base_url.clone();
+                                                Callback::from(move |event: InputEvent| {
+                                                    let input: HtmlInputElement = event.target_unchecked_into();
+                                                    edit_base_url.set(input.value());
+                                                })
+                                            }} />
+                                        </label>
+                                        <label class={classes!("block", "text-sm")}>
+                                            <div class={classes!("mb-1", "font-mono", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Weight" }</div>
+                                            <input class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2", "font-mono", "text-sm")} value={(*edit_weight).clone()} oninput={{
+                                                let edit_weight = edit_weight.clone();
+                                                Callback::from(move |event: InputEvent| {
+                                                    let input: HtmlInputElement = event.target_unchecked_into();
+                                                    edit_weight.set(input.value());
+                                                })
+                                            }} />
+                                        </label>
+                                        <label class={classes!("block", "text-sm")}>
+                                            <div class={classes!("mb-1", "font-mono", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Concurrency" }</div>
+                                            <input class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2", "font-mono", "text-sm")} value={(*edit_max_concurrency).clone()} oninput={{
+                                                let edit_max_concurrency = edit_max_concurrency.clone();
+                                                Callback::from(move |event: InputEvent| {
+                                                    let input: HtmlInputElement = event.target_unchecked_into();
+                                                    edit_max_concurrency.set(input.value());
+                                                })
+                                            }} />
+                                        </label>
+                                        <label class={classes!("block", "text-sm")}>
+                                            <div class={classes!("mb-1", "font-mono", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Min ms" }</div>
+                                            <input class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2", "font-mono", "text-sm")} value={(*edit_min_start_interval_ms).clone()} oninput={{
+                                                let edit_min_start_interval_ms = edit_min_start_interval_ms.clone();
+                                                Callback::from(move |event: InputEvent| {
+                                                    let input: HtmlInputElement = event.target_unchecked_into();
+                                                    edit_min_start_interval_ms.set(input.value());
+                                                })
+                                            }} />
+                                        </label>
+                                        <label class={classes!("block", "text-sm")}>
+                                            <div class={classes!("mb-1", "font-mono", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Proxy" }</div>
+                                            <select class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2", "text-sm")} value={(*edit_proxy_choice).clone()} onchange={{
+                                                let edit_proxy_choice = edit_proxy_choice.clone();
+                                                Callback::from(move |event: Event| {
+                                                    let input: HtmlSelectElement = event.target_unchecked_into();
+                                                    edit_proxy_choice.set(input.value());
+                                                })
+                                            }}>
+                                                <option value="inherit" selected={*edit_proxy_choice == "inherit"}>{ "Inherit" }</option>
+                                                <option value="direct" selected={*edit_proxy_choice == "direct"}>{ "Direct" }</option>
+                                                { for proxy_configs.iter().map(|proxy_config| {
+                                                    let value = format!("fixed:{}", proxy_config.id);
+                                                    let selected = *edit_proxy_choice == value;
+                                                    html! { <option value={value} selected={selected}>{ format!("Fixed · {}", proxy_config.name) }</option> }
+                                                }) }
+                                            </select>
+                                        </label>
+                                        <div class={classes!("flex", "items-end", "gap-2")}>
+                                            <button type="button" class={classes!("btn-terminal", "btn-terminal-primary", "w-full")} disabled={*edit_saving} onclick={on_save_edit}>
+                                                { if *edit_saving { "Saving..." } else { "Save" } }
+                                            </button>
+                                            <button type="button" class={classes!("btn-terminal", "w-full")} onclick={on_toggle_edit}>{ "Cancel" }</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            </>
                         }
                     }) }
                     if channels.is_empty() && !*loading {
