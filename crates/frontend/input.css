@@ -6461,3 +6461,694 @@ html {
     animation: none;
   }
 }
+
+/* ============================================================
+   admin-shell — ai-review design system (shadcn-neutral, OKLCH)
+   Scoped: tokens and element styles apply only inside a root
+   element carrying `.admin-shell`. Inside it, the legacy
+   `--muted`/`--surface` semantics are REPLACED by this system —
+   do not mix legacy admin component classes here without
+   checking their token usage.
+   ============================================================ */
+
+.admin-shell {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-2: oklch(0.985 0 0);
+  --popover: oklch(1 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.95 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.49 0 0);
+  --faint: oklch(0.62 0 0);
+  --accent: oklch(0.95 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.98 0 0);
+  --ring: oklch(0.708 0 0);
+
+  --destructive: oklch(0.577 0.245 27.325);
+  --success: oklch(0.596 0.145 163.225);
+  --warning: oklch(0.681 0.162 75.834);
+  --info: oklch(0.588 0.158 241.966);
+
+  --success-soft: color-mix(in oklch, var(--success) 14%, var(--card));
+  --warning-soft: color-mix(in oklch, var(--warning) 16%, var(--card));
+  --fail-soft: color-mix(in oklch, var(--destructive) 12%, var(--card));
+  --info-soft: color-mix(in oklch, var(--info) 12%, var(--card));
+  --accent-soft: color-mix(in oklch, var(--foreground) 5%, var(--card));
+
+  --skeleton-base: oklch(0.94 0 0);
+  --skeleton-highlight: oklch(0.98 0 0);
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.05);
+  --shadow: 0 4px 14px rgb(0 0 0 / 0.08);
+  --shadow-lg: 0 18px 48px rgb(0 0 0 / 0.16);
+
+  --r-card: 14px;
+  --r-field: 9px;
+  --r-pill: 999px;
+  --as-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --dur-fast: 130ms;
+  --dur: 220ms;
+  --dur-slow: 400ms;
+
+  background: var(--background);
+  color: var(--foreground);
+  font-family: "Public Sans Variable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+[data-theme="dark"] .admin-shell {
+  --background: oklch(0.235 0 0);
+  --foreground: oklch(0.965 0 0);
+  --card: oklch(0.285 0 0);
+  --card-2: oklch(0.315 0 0);
+  --popover: oklch(0.305 0 0);
+  --primary: oklch(0.965 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.335 0 0);
+  --muted: oklch(0.305 0 0);
+  --muted-foreground: oklch(0.78 0 0);
+  --faint: oklch(0.62 0 0);
+  --accent: oklch(0.365 0 0);
+  --border: oklch(1 0 0 / 11%);
+  --input: oklch(1 0 0 / 8%);
+  --ring: oklch(0.68 0 0);
+
+  --destructive: oklch(0.704 0.191 22.216);
+  --success: oklch(0.696 0.17 162.48);
+  --warning: oklch(0.769 0.188 70.08);
+  --info: oklch(0.68 0.17 237.323);
+
+  --success-soft: color-mix(in oklch, var(--success) 22%, var(--card));
+  --warning-soft: color-mix(in oklch, var(--warning) 22%, var(--card));
+  --fail-soft: color-mix(in oklch, var(--destructive) 22%, var(--card));
+  --info-soft: color-mix(in oklch, var(--info) 20%, var(--card));
+  --accent-soft: color-mix(in oklch, var(--foreground) 8%, var(--card));
+
+  --skeleton-base: oklch(0.335 0 0);
+  --skeleton-highlight: oklch(0.44 0 0);
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow: 0 6px 18px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 22px 56px rgb(0 0 0 / 0.55);
+}
+
+@layer components {
+  /* ---------- admin-shell base elements ---------- */
+
+  .admin-shell button {
+    align-items: center;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-field);
+    color: var(--foreground);
+    cursor: pointer;
+    display: inline-flex;
+    font: inherit;
+    gap: 7px;
+    justify-content: center;
+    min-height: 34px;
+    padding: 6px 12px;
+    font-weight: 500;
+    transition:
+      background var(--dur-fast) var(--ease),
+      border-color var(--dur-fast) var(--ease),
+      box-shadow var(--dur-fast) var(--ease),
+      transform var(--dur-fast) var(--ease);
+  }
+
+  .admin-shell button:hover:not(:disabled) {
+    background: var(--accent-soft);
+  }
+
+  .admin-shell button:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  .admin-shell button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  .admin-shell button:focus-visible,
+  .admin-shell input:focus-visible,
+  .admin-shell select:focus-visible,
+  .admin-shell textarea:focus-visible {
+    outline: none;
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 40%, transparent);
+  }
+
+  .admin-shell button.primary {
+    background: var(--primary);
+    border-color: transparent;
+    color: var(--primary-foreground);
+  }
+
+  .admin-shell button.primary:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--primary) 88%, var(--foreground));
+  }
+
+  .admin-shell button.ghost {
+    background: transparent;
+  }
+
+  .admin-shell button.danger {
+    color: var(--destructive);
+    background: var(--fail-soft);
+    border-color: transparent;
+  }
+
+  .admin-shell button.danger:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--destructive) 24%, var(--card));
+  }
+
+  .admin-shell button.icon-btn {
+    min-width: 34px;
+    padding: 6px;
+  }
+
+  .admin-shell input,
+  .admin-shell select,
+  .admin-shell textarea {
+    background: var(--input);
+    border: 1px solid var(--border);
+    border-radius: var(--r-field);
+    color: var(--foreground);
+    font: inherit;
+    min-height: 34px;
+    padding: 7px 10px;
+    width: 100%;
+    transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+  }
+
+  .admin-shell textarea {
+    min-height: 88px;
+    resize: vertical;
+    line-height: 1.55;
+  }
+
+  .admin-shell .mono {
+    font-family: var(--as-mono);
+    font-size: 12px;
+  }
+
+  .admin-shell .linkbtn {
+    align-items: center;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-field);
+    color: var(--foreground);
+    cursor: pointer;
+    display: inline-flex;
+    font-weight: 500;
+    gap: 7px;
+    justify-content: center;
+    min-height: 34px;
+    padding: 6px 12px;
+    text-decoration: none;
+    transition:
+      background var(--dur-fast) var(--ease),
+      border-color var(--dur-fast) var(--ease);
+  }
+
+  .admin-shell .linkbtn:hover {
+    background: var(--accent-soft);
+  }
+
+  .admin-shell .eyebrow {
+    color: var(--faint);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* ---------- command bar ---------- */
+
+  .admin-shell .commandbar {
+    align-items: center;
+    background: color-mix(in oklch, var(--card) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 12px;
+    min-height: 56px;
+    padding: 8px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+
+  .admin-shell .brand {
+    align-items: center;
+    display: flex;
+    font-weight: 700;
+    gap: 8px;
+    letter-spacing: -0.01em;
+  }
+
+  .admin-shell .spacer {
+    flex: 1;
+  }
+
+  .admin-shell .bar-actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    position: relative;
+  }
+
+  /* ---------- panel ---------- */
+
+  .admin-shell .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-card);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .admin-shell .panel-head {
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: space-between;
+    padding: 12px 14px;
+  }
+
+  .admin-shell .panel-head h1,
+  .admin-shell .panel-head h2,
+  .admin-shell .panel-head h3 {
+    font-size: 14px;
+    margin: 0;
+  }
+
+  .admin-shell .panel-body {
+    min-height: 0;
+    overflow: auto;
+    padding: 14px;
+  }
+
+  /* ---------- stat strip ---------- */
+
+  .admin-shell .stat-strip {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    padding: 12px 14px;
+  }
+
+  .admin-shell .stat {
+    background: var(--card-2);
+    border: 1px solid var(--border);
+    border-radius: var(--r-field);
+    padding: 9px 11px;
+  }
+
+  .admin-shell .stat span {
+    color: var(--muted-foreground);
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .admin-shell .stat b {
+    display: block;
+    font-size: 22px;
+    font-weight: 650;
+    margin-top: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .admin-shell .stat.ok b {
+    color: var(--success);
+  }
+  .admin-shell .stat.warn b {
+    color: var(--warning);
+  }
+  .admin-shell .stat.fail b {
+    color: var(--destructive);
+  }
+
+  /* ---------- badges & pills ---------- */
+
+  .admin-shell .badge {
+    align-items: center;
+    background: var(--muted);
+    border: 1px solid transparent;
+    border-radius: var(--r-pill);
+    color: var(--muted-foreground);
+    display: inline-flex;
+    font-size: 12px;
+    font-weight: 600;
+    gap: 6px;
+    line-height: 1;
+    padding: 5px 10px;
+    white-space: nowrap;
+  }
+
+  .admin-shell .badge.ok {
+    background: var(--success-soft);
+    color: var(--success);
+  }
+  .admin-shell .badge.warn {
+    background: var(--warning-soft);
+    color: var(--warning);
+  }
+  .admin-shell .badge.failed {
+    background: var(--fail-soft);
+    color: var(--destructive);
+  }
+  .admin-shell .badge.info {
+    background: var(--info-soft);
+    color: var(--info);
+  }
+  .admin-shell .badge.muted {
+    opacity: 0.55;
+  }
+  .admin-shell .badge.big {
+    font-size: 13px;
+    padding: 7px 13px;
+  }
+
+  .admin-shell .status-pill {
+    align-items: center;
+    border-radius: var(--r-pill);
+    display: inline-flex;
+    font-size: 11px;
+    font-weight: 600;
+    gap: 4px;
+    padding: 2px 8px;
+  }
+
+  .admin-shell .status-pill.ok {
+    background: var(--success-soft);
+    color: var(--success);
+  }
+  .admin-shell .status-pill.warn {
+    background: var(--warning-soft);
+    color: var(--warning);
+  }
+  .admin-shell .status-pill.fail {
+    background: var(--fail-soft);
+    color: var(--destructive);
+  }
+
+  /* ---------- segmented control ---------- */
+
+  .admin-shell .seg {
+    align-items: center;
+    background: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: var(--r-field);
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+  }
+
+  .admin-shell .seg button {
+    background: transparent;
+    border: none;
+    border-radius: calc(var(--r-field) - 3px);
+    color: var(--muted-foreground);
+    min-height: 26px;
+    min-width: 30px;
+    padding: 3px 7px;
+  }
+
+  .admin-shell .seg button:hover:not(:disabled) {
+    background: transparent;
+    color: var(--foreground);
+  }
+
+  .admin-shell .seg button.on {
+    background: var(--card);
+    box-shadow: var(--shadow-sm);
+    color: var(--foreground);
+  }
+
+  /* ---------- feedback lines ---------- */
+
+  .admin-shell .errorline {
+    align-items: center;
+    background: var(--fail-soft);
+    border: 1px solid color-mix(in oklch, var(--destructive) 40%, transparent);
+    border-radius: var(--r-field);
+    color: var(--destructive);
+    display: flex;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .admin-shell .okline {
+    align-items: center;
+    background: var(--success-soft);
+    border: 1px solid color-mix(in oklch, var(--success) 40%, transparent);
+    border-radius: var(--r-field);
+    color: var(--success);
+    display: flex;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  /* ---------- skeleton ---------- */
+
+  .admin-shell .skeleton {
+    display: grid;
+    gap: 8px;
+  }
+
+  .admin-shell .skeleton > i {
+    background: linear-gradient(90deg, var(--skeleton-base), var(--skeleton-highlight), var(--skeleton-base)) 0 0 / 220% 100%;
+    animation: as-sweep 1.4s linear infinite;
+    border-radius: 6px;
+    display: block;
+    height: 12px;
+  }
+
+  /* ---------- empty state ---------- */
+
+  .admin-shell .empty {
+    align-items: center;
+    color: var(--faint);
+    display: grid;
+    gap: 8px;
+    justify-items: center;
+    min-height: 160px;
+    padding: 30px;
+    text-align: center;
+  }
+
+  /* ---------- pager ---------- */
+
+  .admin-shell .pager {
+    align-items: center;
+    color: var(--muted-foreground);
+    display: flex;
+    font-size: 12px;
+    gap: 8px;
+    padding-top: 4px;
+  }
+
+  .admin-shell .pager button {
+    min-height: 30px;
+    padding: 5px 11px;
+  }
+
+  /* ---------- forms ---------- */
+
+  .admin-shell .form-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-shell .form-grid label {
+    color: var(--muted-foreground);
+    display: grid;
+    font-size: 12px;
+    gap: 5px;
+  }
+
+  .admin-shell .form-grid .wide {
+    grid-column: 1 / -1;
+  }
+
+  .admin-shell .form-grid .check {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+  }
+
+  .admin-shell .form-grid .check input {
+    min-height: 0;
+    width: auto;
+  }
+
+  /* ---------- definition list ---------- */
+
+  .admin-shell .dl {
+    display: grid;
+    gap: 7px 14px;
+    grid-template-columns: auto minmax(0, 1fr);
+    margin: 0;
+  }
+
+  .admin-shell .dl dt {
+    color: var(--faint);
+  }
+
+  .admin-shell .dl dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* ---------- drawer ---------- */
+
+  .admin-shell .scrim {
+    animation: as-fade-in var(--dur) var(--ease);
+    background: rgb(0 0 0 / 0.4);
+    inset: 0;
+    position: fixed;
+    z-index: 50;
+  }
+
+  .admin-shell .drawer {
+    animation: as-slide-left var(--dur-slow) var(--ease);
+    background: var(--card);
+    border-left: 1px solid var(--border);
+    bottom: 0;
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+    max-width: 94vw;
+    position: fixed;
+    right: 0;
+    top: 0;
+    width: 520px;
+    z-index: 51;
+  }
+
+  .admin-shell .drawer-head {
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+    padding: 14px 16px;
+  }
+
+  .admin-shell .drawer-head h2 {
+    font-size: 15px;
+    margin: 0;
+  }
+
+  .admin-shell .drawer-body {
+    display: grid;
+    gap: 14px;
+    overflow: auto;
+    padding: 16px;
+  }
+
+  /* ---------- toasts ---------- */
+
+  .admin-shell .toasts {
+    bottom: 18px;
+    display: grid;
+    gap: 8px;
+    justify-items: center;
+    left: 0;
+    pointer-events: none;
+    position: fixed;
+    right: 0;
+    z-index: 60;
+  }
+
+  .admin-shell .toast {
+    align-items: center;
+    animation: as-toast-in var(--dur) var(--ease);
+    background: var(--popover);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--foreground);
+    border-radius: var(--r-field);
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    gap: 9px;
+    max-width: 520px;
+    padding: 10px 14px;
+  }
+
+  .admin-shell .toast.ok {
+    border-left-color: var(--success);
+  }
+  .admin-shell .toast.error {
+    border-left-color: var(--destructive);
+  }
+
+  .admin-shell .spin {
+    animation: as-spin 0.9s linear infinite;
+  }
+}
+
+@keyframes as-sweep {
+  to {
+    background-position: -220% 0;
+  }
+}
+
+@keyframes as-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes as-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes as-slide-left {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes as-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-shell .skeleton > i,
+  .admin-shell .drawer,
+  .admin-shell .toast,
+  .admin-shell .scrim {
+    animation: none;
+  }
+}

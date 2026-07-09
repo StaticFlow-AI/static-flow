@@ -20,38 +20,11 @@ use crate::{
 
 fn status_classes(status: &str) -> Classes {
     if status == "ok" || status == "active" {
-        classes!(
-            "rounded-full",
-            "bg-emerald-500/10",
-            "px-2",
-            "py-1",
-            "font-mono",
-            "text-xs",
-            "text-emerald-700",
-            "dark:text-emerald-200"
-        )
+        classes!("badge", "ok")
     } else if status == "unchecked" || status.is_empty() {
-        classes!(
-            "rounded-full",
-            "border",
-            "border-[var(--border)]",
-            "px-2",
-            "py-1",
-            "font-mono",
-            "text-xs",
-            "text-[var(--muted)]"
-        )
+        classes!("badge")
     } else {
-        classes!(
-            "rounded-full",
-            "bg-amber-500/10",
-            "px-2",
-            "py-1",
-            "font-mono",
-            "text-xs",
-            "text-amber-700",
-            "dark:text-amber-200"
-        )
+        classes!("badge", "warn")
     }
 }
 
@@ -329,140 +302,146 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
         .count();
 
     html! {
-        <main class={classes!("min-h-screen", "bg-[var(--bg)]", "px-4", "py-8", "lg:px-6", "lg:py-10")}>
+        <main class={classes!("admin-shell", "min-h-screen", "px-4", "py-6", "lg:px-8")}>
             <div class={classes!("mx-auto", "max-w-7xl", "space-y-4")}>
-                <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                    <div class={classes!("flex", "items-start", "justify-between", "gap-4", "flex-wrap")}>
-                        <div>
-                            <div class={classes!("font-mono", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Kiro / Anthropic" }</div>
-                            <h1 class={classes!("mt-1", "mb-0", "font-mono", "text-xl", "font-bold", "text-[var(--text)]")}>{ "Upstream Channels" }</h1>
+                <header class={classes!("flex", "flex-wrap", "items-end", "justify-between", "gap-4")}>
+                    <div>
+                        <div class={classes!("eyebrow")}>{ "Kiro / Anthropic" }</div>
+                        <h1 class={classes!("m-0", "text-xl", "font-bold", "tracking-tight")}>{ "Upstream Channels" }</h1>
+                    </div>
+                    <div class={classes!("bar-actions")}>
+                        <Link<Route> to={Route::AdminKiroGateway} classes={classes!("linkbtn")}>{ "Kiro Overview" }</Link<Route>>
+                        <button
+                            type="button"
+                            class={classes!("primary")}
+                            disabled={*loading}
+                            onclick={{
+                                let reload = reload.clone();
+                                Callback::from(move |_| reload.emit(()))
+                            }}
+                        >
+                            { if *loading { "Loading..." } else { "Refresh" } }
+                        </button>
+                    </div>
+                </header>
+
+                if let Some(message) = (*flash).clone() {
+                    <div class={classes!("okline", "text-sm")}>{ message }</div>
+                }
+                if let Some(err) = (*error).clone() {
+                    <div class={classes!("errorline", "text-sm")}>{ err }</div>
+                }
+
+                <section class={classes!("panel")}>
+                    <div class={classes!("stat-strip")}>
+                        <div class={classes!("stat", (active_channels < channels.len()).then_some("warn"))}>
+                            <span>{ "Active / Total" }</span>
+                            <b>{ format!("{active_channels} / {}", channels.len()) }</b>
                         </div>
-                        <div class={classes!("flex", "gap-2", "flex-wrap")}>
-                            <Link<Route> to={Route::AdminKiroGateway} classes={classes!("btn-terminal")}>{ "Kiro Overview" }</Link<Route>>
-                            <button
-                                type="button"
-                                class={classes!("btn-terminal", "btn-terminal-primary")}
-                                disabled={*loading}
-                                onclick={{
-                                    let reload = reload.clone();
-                                    Callback::from(move |_| reload.emit(()))
-                                }}
-                            >
-                                { if *loading { "Loading..." } else { "Refresh" } }
-                            </button>
+                        <div class={classes!("stat")}>
+                            <span>{ "Tokens" }</span>
+                            <b>{ format_number_u64(total_tokens) }</b>
+                        </div>
+                        <div class={classes!("stat")}>
+                            <span>{ "Billable" }</span>
+                            <b>{ format_number_u64(total_billable) }</b>
                         </div>
                     </div>
-                    <div class={classes!("mt-4", "grid", "gap-3", "sm:grid-cols-3")}>
-                        <div class={classes!("rounded-lg", "border", "border-[var(--border)]", "px-3", "py-3")}>
-                            <div class={classes!("font-mono", "text-[11px]", "uppercase", "tracking-widest", "text-[var(--muted)]")}>{ "Active / Total" }</div>
-                            <div class={classes!("mt-1", "font-mono", "text-2xl", "font-black")}>{ format!("{active_channels} / {}", channels.len()) }</div>
-                        </div>
-                        <div class={classes!("rounded-lg", "border", "border-[var(--border)]", "px-3", "py-3")}>
-                            <div class={classes!("font-mono", "text-[11px]", "uppercase", "tracking-widest", "text-[var(--muted)]")}>{ "Tokens" }</div>
-                            <div class={classes!("mt-1", "font-mono", "text-2xl", "font-black")}>{ format_number_u64(total_tokens) }</div>
-                        </div>
-                        <div class={classes!("rounded-lg", "border", "border-[var(--border)]", "px-3", "py-3")}>
-                            <div class={classes!("font-mono", "text-[11px]", "uppercase", "tracking-widest", "text-[var(--muted)]")}>{ "Billable" }</div>
-                            <div class={classes!("mt-1", "font-mono", "text-2xl", "font-black")}>{ format_number_u64(total_billable) }</div>
-                        </div>
-                    </div>
-                    if let Some(message) = (*flash).clone() {
-                        <div class={classes!("mt-4", "rounded-lg", "bg-emerald-500/10", "px-3", "py-2", "text-sm", "text-emerald-700", "dark:text-emerald-200")}>{ message }</div>
-                    }
-                    if let Some(err) = (*error).clone() {
-                        <div class={classes!("mt-4", "rounded-lg", "bg-red-500/10", "px-3", "py-2", "text-sm", "text-red-700", "dark:text-red-200")}>{ err }</div>
-                    }
                 </section>
 
-                <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                    <div class={classes!("grid", "gap-3", "lg:grid-cols-8")}>
-                        <label class={classes!("block", "text-sm")}>
-                            <div class={classes!("mb-1", "font-mono", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Name" }</div>
-                            <input class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")} value={(*name).clone()} oninput={{
-                                let name = name.clone();
-                                Callback::from(move |event: InputEvent| {
-                                    let input: HtmlInputElement = event.target_unchecked_into();
-                                    name.set(input.value());
-                                })
-                            }} />
-                        </label>
-                        <label class={classes!("block", "text-sm", "lg:col-span-2")}>
-                            <div class={classes!("mb-1", "font-mono", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Base URL" }</div>
-                            <input class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")} value={(*base_url).clone()} oninput={{
-                                let base_url = base_url.clone();
-                                Callback::from(move |event: InputEvent| {
-                                    let input: HtmlInputElement = event.target_unchecked_into();
-                                    base_url.set(input.value());
-                                })
-                            }} />
-                        </label>
-                        <label class={classes!("block", "text-sm", "lg:col-span-2")}>
-                            <div class={classes!("mb-1", "font-mono", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "API Key" }</div>
-                            <input type="password" class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")} value={(*api_key).clone()} oninput={{
-                                let api_key = api_key.clone();
-                                Callback::from(move |event: InputEvent| {
-                                    let input: HtmlInputElement = event.target_unchecked_into();
-                                    api_key.set(input.value());
-                                })
-                            }} />
-                        </label>
-                        <label class={classes!("block", "text-sm")}>
-                            <div class={classes!("mb-1", "font-mono", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Proxy" }</div>
-                            <select class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "text-sm")} value={(*proxy_mode).clone()} onchange={{
-                                let proxy_mode = proxy_mode.clone();
-                                Callback::from(move |event: Event| {
-                                    let input: HtmlSelectElement = event.target_unchecked_into();
-                                    proxy_mode.set(input.value());
-                                })
-                            }}>
-                                <option value="inherit">{ "Inherit" }</option>
-                                <option value="direct">{ "Direct" }</option>
-                                { for proxy_configs.iter().map(|proxy_config| {
-                                    let value = format!("fixed:{}", proxy_config.id);
-                                    html! { <option value={value}>{ format!("Fixed · {}", proxy_config.name) }</option> }
-                                }) }
-                            </select>
-                        </label>
-                        <label class={classes!("block", "text-sm")}>
-                            <div class={classes!("mb-1", "font-mono", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Weight" }</div>
-                            <input class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")} value={(*weight).clone()} oninput={{
-                                let weight = weight.clone();
-                                Callback::from(move |event: InputEvent| {
-                                    let input: HtmlInputElement = event.target_unchecked_into();
-                                    weight.set(input.value());
-                                })
-                            }} />
-                        </label>
-                        <label class={classes!("block", "text-sm")}>
-                            <div class={classes!("mb-1", "font-mono", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Concurrency" }</div>
-                            <input class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")} value={(*max_concurrency).clone()} oninput={{
-                                let max_concurrency = max_concurrency.clone();
-                                Callback::from(move |event: InputEvent| {
-                                    let input: HtmlInputElement = event.target_unchecked_into();
-                                    max_concurrency.set(input.value());
-                                })
-                            }} />
-                        </label>
-                        <label class={classes!("block", "text-sm")}>
-                            <div class={classes!("mb-1", "font-mono", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Min ms" }</div>
-                            <input class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")} value={(*min_start_interval_ms).clone()} oninput={{
-                                let min_start_interval_ms = min_start_interval_ms.clone();
-                                Callback::from(move |event: InputEvent| {
-                                    let input: HtmlInputElement = event.target_unchecked_into();
-                                    min_start_interval_ms.set(input.value());
-                                })
-                            }} />
-                        </label>
-                        <div class={classes!("flex", "items-end")}>
-                            <button type="button" class={classes!("btn-terminal", "btn-terminal-primary", "w-full")} disabled={*saving} onclick={on_create}>
+                <section class={classes!("panel")}>
+                    <div class={classes!("panel-head")}>
+                        <h2>{ "New Channel" }</h2>
+                        <span class={classes!("text-xs", "text-[var(--muted-foreground)]")}>{ "直连 Anthropic 渠道；创建后可在下方列表随时编辑参数。" }</span>
+                    </div>
+                    <div class={classes!("panel-body")}>
+                        <div class={classes!("grid", "gap-3", "items-end", "sm:grid-cols-2", "lg:grid-cols-8")}>
+                            <label class={classes!("grid", "gap-1", "text-xs", "text-[var(--muted-foreground)]")}>
+                                { "Name" }
+                                <input value={(*name).clone()} oninput={{
+                                    let name = name.clone();
+                                    Callback::from(move |event: InputEvent| {
+                                        let input: HtmlInputElement = event.target_unchecked_into();
+                                        name.set(input.value());
+                                    })
+                                }} />
+                            </label>
+                            <label class={classes!("grid", "gap-1", "text-xs", "text-[var(--muted-foreground)]", "lg:col-span-2")}>
+                                { "Base URL" }
+                                <input class={classes!("mono")} value={(*base_url).clone()} oninput={{
+                                    let base_url = base_url.clone();
+                                    Callback::from(move |event: InputEvent| {
+                                        let input: HtmlInputElement = event.target_unchecked_into();
+                                        base_url.set(input.value());
+                                    })
+                                }} />
+                            </label>
+                            <label class={classes!("grid", "gap-1", "text-xs", "text-[var(--muted-foreground)]", "lg:col-span-2")}>
+                                { "API Key" }
+                                <input type="password" class={classes!("mono")} value={(*api_key).clone()} oninput={{
+                                    let api_key = api_key.clone();
+                                    Callback::from(move |event: InputEvent| {
+                                        let input: HtmlInputElement = event.target_unchecked_into();
+                                        api_key.set(input.value());
+                                    })
+                                }} />
+                            </label>
+                            <label class={classes!("grid", "gap-1", "text-xs", "text-[var(--muted-foreground)]")}>
+                                { "Proxy" }
+                                <select value={(*proxy_mode).clone()} onchange={{
+                                    let proxy_mode = proxy_mode.clone();
+                                    Callback::from(move |event: Event| {
+                                        let input: HtmlSelectElement = event.target_unchecked_into();
+                                        proxy_mode.set(input.value());
+                                    })
+                                }}>
+                                    <option value="inherit">{ "Inherit" }</option>
+                                    <option value="direct">{ "Direct" }</option>
+                                    { for proxy_configs.iter().map(|proxy_config| {
+                                        let value = format!("fixed:{}", proxy_config.id);
+                                        html! { <option value={value}>{ format!("Fixed · {}", proxy_config.name) }</option> }
+                                    }) }
+                                </select>
+                            </label>
+                            <label class={classes!("grid", "gap-1", "text-xs", "text-[var(--muted-foreground)]")}>
+                                { "Weight" }
+                                <input class={classes!("mono")} value={(*weight).clone()} oninput={{
+                                    let weight = weight.clone();
+                                    Callback::from(move |event: InputEvent| {
+                                        let input: HtmlInputElement = event.target_unchecked_into();
+                                        weight.set(input.value());
+                                    })
+                                }} />
+                            </label>
+                            <label class={classes!("grid", "gap-1", "text-xs", "text-[var(--muted-foreground)]")}>
+                                { "Concurrency" }
+                                <input class={classes!("mono")} value={(*max_concurrency).clone()} oninput={{
+                                    let max_concurrency = max_concurrency.clone();
+                                    Callback::from(move |event: InputEvent| {
+                                        let input: HtmlInputElement = event.target_unchecked_into();
+                                        max_concurrency.set(input.value());
+                                    })
+                                }} />
+                            </label>
+                            <label class={classes!("grid", "gap-1", "text-xs", "text-[var(--muted-foreground)]")}>
+                                { "Min ms" }
+                                <input class={classes!("mono")} value={(*min_start_interval_ms).clone()} oninput={{
+                                    let min_start_interval_ms = min_start_interval_ms.clone();
+                                    Callback::from(move |event: InputEvent| {
+                                        let input: HtmlInputElement = event.target_unchecked_into();
+                                        min_start_interval_ms.set(input.value());
+                                    })
+                                }} />
+                            </label>
+                            <button type="button" class={classes!("primary")} disabled={*saving} onclick={on_create}>
                                 { if *saving { "Creating..." } else { "Create" } }
                             </button>
                         </div>
                     </div>
                 </section>
 
-                <section class={classes!("overflow-x-auto", "rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]")}>
-                    <div class={classes!("grid", "min-w-[74rem]", "grid-cols-[1.2fr_1fr_1.1fr_1.1fr_1.3fr]", "gap-0", "border-b", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-4", "py-2", "font-mono", "text-[11px]", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>
+                <section class={classes!("panel", "overflow-x-auto")}>
+                    <div class={classes!("grid", "min-w-[74rem]", "grid-cols-[1.2fr_1fr_1.1fr_1.1fr_1.3fr]", "gap-0", "border-b", "border-[var(--border)]", "bg-[var(--card-2)]", "px-4", "py-2", "text-[11px]", "font-semibold", "uppercase", "tracking-[0.08em]", "text-[var(--muted-foreground)]")}>
                         <div>{ "Channel" }</div>
                         <div>{ "Usage" }</div>
                         <div>{ "Models" }</div>
@@ -735,55 +714,55 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                             <div class={classes!("grid", "min-w-[74rem]", "grid-cols-[1.2fr_1fr_1.1fr_1.1fr_1.3fr]", "gap-0", "border-b", "border-[var(--border)]", "px-4", "py-3", "text-sm", "last:border-b-0")}>
                                 <div class={classes!("min-w-0", "pr-4")}>
                                     <div class={classes!("flex", "items-center", "gap-2", "flex-wrap")}>
-                                        <span class={classes!("font-mono", "font-semibold", "text-[var(--text)]")}>{ channel.name.clone() }</span>
+                                        <span class={classes!("font-semibold")}>{ channel.name.clone() }</span>
                                         <span class={status_classes(&channel.status)}>{ channel.status.clone() }</span>
                                     </div>
-                                    <div class={classes!("mt-1", "break-all", "font-mono", "text-xs", "text-[var(--muted)]")}>{ channel.base_url.clone() }</div>
-                                    <div class={classes!("mt-1", "font-mono", "text-xs", "text-[var(--muted)]")}>
+                                    <div class={classes!("mono", "mt-1", "break-all", "text-[var(--muted-foreground)]")}>{ channel.base_url.clone() }</div>
+                                    <div class={classes!("mono", "mt-1", "text-[var(--muted-foreground)]")}>
                                         { format!("w={} · c={} · min={}ms · proxy={}", channel.weight, channel.max_concurrency, channel.min_start_interval_ms, channel.proxy_mode) }
                                     </div>
                                 </div>
-                                <div class={classes!("font-mono", "text-xs", "space-y-1")}>
-                                    <div>{ format!("input {}", format_number_u64(total_input(channel))) }</div>
-                                    <div>{ format!("cached {}", format_number_u64(channel.usage.input_cached_tokens)) }</div>
-                                    <div>{ format!("output {}", format_number_u64(channel.usage.output_tokens)) }</div>
-                                    <div class={classes!("font-semibold", "text-[var(--text)]")}>{ format!("billable {}", format_number_u64(channel.usage.billable_tokens)) }</div>
-                                    <div class={classes!("text-[var(--muted)]")}>{ format!("missing {} · {}", channel.usage.usage_missing_events, format_timestamp_opt(channel.usage.last_used_at)) }</div>
+                                <div class={classes!("mono", "space-y-1")}>
+                                    <div class={classes!("text-[var(--muted-foreground)]")}>{ format!("input {}", format_number_u64(total_input(channel))) }</div>
+                                    <div class={classes!("text-[var(--muted-foreground)]")}>{ format!("cached {}", format_number_u64(channel.usage.input_cached_tokens)) }</div>
+                                    <div class={classes!("text-[var(--muted-foreground)]")}>{ format!("output {}", format_number_u64(channel.usage.output_tokens)) }</div>
+                                    <div class={classes!("font-semibold")}>{ format!("billable {}", format_number_u64(channel.usage.billable_tokens)) }</div>
+                                    <div class={classes!("text-[var(--faint)]")}>{ format!("missing {} · {}", channel.usage.usage_missing_events, format_timestamp_opt(channel.usage.last_used_at)) }</div>
                                 </div>
-                                <div class={classes!("min-w-0", "pr-3", "font-mono", "text-xs", "space-y-2")}>
+                                <div class={classes!("mono", "min-w-0", "pr-3", "space-y-2")}>
                                     <div class={classes!("flex", "items-center", "gap-2", "flex-wrap")}>
                                         <span class={status_classes(&models_status)}>{ models_status }</span>
-                                        <span class={classes!("text-[var(--muted)]")}>{ format!("{} models", channel.models.len()) }</span>
+                                        <span class={classes!("text-[var(--muted-foreground)]")}>{ format!("{} models", channel.models.len()) }</span>
                                     </div>
-                                    <div class={classes!("text-[var(--muted)]")}>
+                                    <div class={classes!("text-[var(--faint)]")}>
                                         { format!("{} · {}", channel.last_models_latency_ms.map(|value| format!("{value}ms")).unwrap_or_else(|| "-".to_string()), format_timestamp_opt(channel.last_models_checked_at)) }
                                     </div>
                                     if let Some(error) = channel.last_models_error.as_deref() {
-                                        <div class={classes!("break-words", "text-amber-700", "dark:text-amber-200")}>{ error }</div>
+                                        <div class={classes!("break-words", "text-[var(--warning)]")}>{ error }</div>
                                     }
                                 </div>
-                                <div class={classes!("min-w-0", "pr-3", "font-mono", "text-xs", "space-y-2")}>
+                                <div class={classes!("mono", "min-w-0", "pr-3", "space-y-2")}>
                                     <div class={classes!("flex", "items-center", "gap-2", "flex-wrap")}>
                                         <span class={status_classes(&test_status)}>{ test_status }</span>
-                                        <span class={classes!("text-[var(--muted)]")}>{ channel.last_test_model.clone().unwrap_or_else(|| "-".to_string()) }</span>
+                                        <span class={classes!("text-[var(--muted-foreground)]")}>{ channel.last_test_model.clone().unwrap_or_else(|| "-".to_string()) }</span>
                                     </div>
-                                    <div class={classes!("text-[var(--muted)]")}>
+                                    <div class={classes!("text-[var(--faint)]")}>
                                         { format!("{} · {}", channel.last_test_latency_ms.map(|value| format!("{value}ms")).unwrap_or_else(|| "-".to_string()), format_timestamp_opt(channel.last_test_at)) }
                                     </div>
                                     if let Some(error) = channel.last_test_error.as_deref() {
-                                        <div class={classes!("break-words", "text-amber-700", "dark:text-amber-200")}>{ error }</div>
+                                        <div class={classes!("break-words", "text-[var(--warning)]")}>{ error }</div>
                                     }
                                 </div>
                                 <div class={classes!("space-y-2")}>
                                     <div class={classes!("flex", "gap-2", "flex-wrap")}>
-                                        <button type="button" class={classes!("btn-terminal", "text-xs")} disabled={is_refreshing} onclick={on_refresh_models}>{ if is_refreshing { "Refreshing..." } else { "Refresh Status" } }</button>
-                                        <button type="button" class={classes!("btn-terminal", "text-xs")} onclick={on_toggle_edit.clone()}>{ if is_editing { "Close" } else { "Edit" } }</button>
-                                        <button type="button" class={classes!("btn-terminal", "text-xs")} onclick={on_toggle}>{ if channel.status == "active" { "Disable" } else { "Enable" } }</button>
-                                        <button type="button" class={classes!("btn-terminal", "text-xs")} onclick={on_rotate_key}>{ "Rotate" }</button>
-                                        <button type="button" class={classes!("btn-terminal", "text-xs")} onclick={on_delete}>{ "Delete" }</button>
+                                        <button type="button" class={classes!("text-xs")} disabled={is_refreshing} onclick={on_refresh_models}>{ if is_refreshing { "Refreshing..." } else { "Refresh Status" } }</button>
+                                        <button type="button" class={classes!("text-xs")} onclick={on_toggle_edit.clone()}>{ if is_editing { "Close" } else { "Edit" } }</button>
+                                        <button type="button" class={classes!("text-xs")} onclick={on_toggle}>{ if channel.status == "active" { "Disable" } else { "Enable" } }</button>
+                                        <button type="button" class={classes!("text-xs", "ghost")} onclick={on_rotate_key}>{ "Rotate" }</button>
+                                        <button type="button" class={classes!("text-xs", "danger")} onclick={on_delete}>{ "Delete" }</button>
                                     </div>
                                     <div class={classes!("flex", "items-center", "gap-2")}>
-                                        <select class={classes!("min-w-0", "flex-1", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-2", "py-2", "font-mono", "text-xs")} value={selected_model.clone()} disabled={channel.models.is_empty() || is_testing} onchange={on_select_model}>
+                                        <select class={classes!("mono", "min-w-0", "flex-1")} value={selected_model.clone()} disabled={channel.models.is_empty() || is_testing} onchange={on_select_model}>
                                             {
                                                 if channel.models.is_empty() {
                                                     html! { <option value="">{ "Refresh to select model" }</option> }
@@ -796,24 +775,24 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                                                 }
                                             }
                                         </select>
-                                        <button type="button" class={classes!("btn-terminal", "btn-terminal-primary", "text-xs")} disabled={channel.models.is_empty() || is_testing} onclick={on_test_model}>
+                                        <button type="button" class={classes!("text-xs", "primary")} disabled={channel.models.is_empty() || is_testing} onclick={on_test_model}>
                                             { if is_testing { "Testing..." } else { "Test Model" } }
                                         </button>
                                     </div>
                                     if let Some(error) = channel.last_error.as_deref() {
-                                        <div class={classes!("flex", "items-start", "gap-2")}>
-                                            <div class={classes!("min-w-0", "break-words", "font-mono", "text-xs", "text-red-700", "dark:text-red-200")}>{ error }</div>
-                                            <button type="button" class={classes!("btn-terminal", "text-xs", "shrink-0")} onclick={on_clear_error}>{ "Clear" }</button>
+                                        <div class={classes!("errorline", "text-xs")}>
+                                            <span class={classes!("min-w-0", "break-words", "mono")}>{ error }</span>
+                                            <button type="button" class={classes!("text-xs", "ghost", "shrink-0")} onclick={on_clear_error}>{ "Clear" }</button>
                                         </div>
                                     }
                                 </div>
                             </div>
                             if is_editing {
-                                <div class={classes!("border-b", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-4", "py-3")}>
-                                    <div class={classes!("grid", "min-w-[74rem]", "gap-3", "lg:grid-cols-7")}>
-                                        <label class={classes!("block", "text-sm", "lg:col-span-2")}>
-                                            <div class={classes!("mb-1", "font-mono", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Base URL" }</div>
-                                            <input class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2", "font-mono", "text-sm")} value={(*edit_base_url).clone()} oninput={{
+                                <div class={classes!("border-b", "border-[var(--border)]", "bg-[var(--card-2)]", "px-4", "py-3")}>
+                                    <div class={classes!("grid", "min-w-[74rem]", "gap-3", "items-end", "lg:grid-cols-7")}>
+                                        <label class={classes!("grid", "gap-1", "text-xs", "text-[var(--muted-foreground)]", "lg:col-span-2")}>
+                                            { "Base URL" }
+                                            <input class={classes!("mono")} value={(*edit_base_url).clone()} oninput={{
                                                 let edit_base_url = edit_base_url.clone();
                                                 Callback::from(move |event: InputEvent| {
                                                     let input: HtmlInputElement = event.target_unchecked_into();
@@ -821,9 +800,9 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                                                 })
                                             }} />
                                         </label>
-                                        <label class={classes!("block", "text-sm")}>
-                                            <div class={classes!("mb-1", "font-mono", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Weight" }</div>
-                                            <input class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2", "font-mono", "text-sm")} value={(*edit_weight).clone()} oninput={{
+                                        <label class={classes!("grid", "gap-1", "text-xs", "text-[var(--muted-foreground)]")}>
+                                            { "Weight" }
+                                            <input class={classes!("mono")} value={(*edit_weight).clone()} oninput={{
                                                 let edit_weight = edit_weight.clone();
                                                 Callback::from(move |event: InputEvent| {
                                                     let input: HtmlInputElement = event.target_unchecked_into();
@@ -831,9 +810,9 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                                                 })
                                             }} />
                                         </label>
-                                        <label class={classes!("block", "text-sm")}>
-                                            <div class={classes!("mb-1", "font-mono", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Concurrency" }</div>
-                                            <input class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2", "font-mono", "text-sm")} value={(*edit_max_concurrency).clone()} oninput={{
+                                        <label class={classes!("grid", "gap-1", "text-xs", "text-[var(--muted-foreground)]")}>
+                                            { "Concurrency" }
+                                            <input class={classes!("mono")} value={(*edit_max_concurrency).clone()} oninput={{
                                                 let edit_max_concurrency = edit_max_concurrency.clone();
                                                 Callback::from(move |event: InputEvent| {
                                                     let input: HtmlInputElement = event.target_unchecked_into();
@@ -841,9 +820,9 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                                                 })
                                             }} />
                                         </label>
-                                        <label class={classes!("block", "text-sm")}>
-                                            <div class={classes!("mb-1", "font-mono", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Min ms" }</div>
-                                            <input class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2", "font-mono", "text-sm")} value={(*edit_min_start_interval_ms).clone()} oninput={{
+                                        <label class={classes!("grid", "gap-1", "text-xs", "text-[var(--muted-foreground)]")}>
+                                            { "Min ms" }
+                                            <input class={classes!("mono")} value={(*edit_min_start_interval_ms).clone()} oninput={{
                                                 let edit_min_start_interval_ms = edit_min_start_interval_ms.clone();
                                                 Callback::from(move |event: InputEvent| {
                                                     let input: HtmlInputElement = event.target_unchecked_into();
@@ -851,9 +830,9 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                                                 })
                                             }} />
                                         </label>
-                                        <label class={classes!("block", "text-sm")}>
-                                            <div class={classes!("mb-1", "font-mono", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Proxy" }</div>
-                                            <select class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2", "text-sm")} value={(*edit_proxy_choice).clone()} onchange={{
+                                        <label class={classes!("grid", "gap-1", "text-xs", "text-[var(--muted-foreground)]")}>
+                                            { "Proxy" }
+                                            <select value={(*edit_proxy_choice).clone()} onchange={{
                                                 let edit_proxy_choice = edit_proxy_choice.clone();
                                                 Callback::from(move |event: Event| {
                                                     let input: HtmlSelectElement = event.target_unchecked_into();
@@ -870,10 +849,10 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                                             </select>
                                         </label>
                                         <div class={classes!("flex", "items-end", "gap-2")}>
-                                            <button type="button" class={classes!("btn-terminal", "btn-terminal-primary", "w-full")} disabled={*edit_saving} onclick={on_save_edit}>
+                                            <button type="button" class={classes!("primary", "w-full")} disabled={*edit_saving} onclick={on_save_edit}>
                                                 { if *edit_saving { "Saving..." } else { "Save" } }
                                             </button>
-                                            <button type="button" class={classes!("btn-terminal", "w-full")} onclick={on_toggle_edit}>{ "Cancel" }</button>
+                                            <button type="button" class={classes!("w-full")} onclick={on_toggle_edit}>{ "Cancel" }</button>
                                         </div>
                                     </div>
                                 </div>
@@ -881,8 +860,15 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                             </>
                         }
                     }) }
-                    if channels.is_empty() && !*loading {
-                        <div class={classes!("px-4", "py-8", "text-sm", "text-[var(--muted)]")}>{ "No Anthropic upstream channels configured." }</div>
+                    if *loading && channels.is_empty() {
+                        <div class={classes!("skeleton", "px-4", "py-4")}>
+                            <i></i><i></i><i></i><i></i><i></i>
+                        </div>
+                    } else if channels.is_empty() {
+                        <div class={classes!("empty")}>
+                            <span>{ "还没有配置任何 Anthropic 上游渠道" }</span>
+                            <span class={classes!("text-xs")}>{ "用上面的 New Channel 表单创建第一个。" }</span>
+                        </div>
                     }
                 </section>
             </div>
