@@ -18,16 +18,14 @@ use crate::{
         check_admin_llm_gateway_proxy_config, check_admin_llm_gateway_proxy_config_full_chain,
         consume_admin_llm_gateway_account_rate_limit_reset_credit,
         create_admin_llm_gateway_account_group, create_admin_llm_gateway_account_import_job,
-        create_admin_llm_gateway_key, create_admin_llm_gateway_proxy_config,
-        delete_admin_llm_gateway_account, delete_admin_llm_gateway_account_group,
-        delete_admin_llm_gateway_key, delete_admin_llm_gateway_proxy_config,
-        delete_admin_llm_gateway_sponsor_request,
+        create_admin_llm_gateway_proxy_config, delete_admin_llm_gateway_account,
+        delete_admin_llm_gateway_account_group, delete_admin_llm_gateway_key,
+        delete_admin_llm_gateway_proxy_config, delete_admin_llm_gateway_sponsor_request,
         fetch_admin_llm_gateway_account_contribution_requests,
-        fetch_admin_llm_gateway_account_group_options, fetch_admin_llm_gateway_account_groups_page,
-        fetch_admin_llm_gateway_account_import_job, fetch_admin_llm_gateway_account_import_jobs,
-        fetch_admin_llm_gateway_accounts, fetch_admin_llm_gateway_accounts_page,
-        fetch_admin_llm_gateway_accounts_page_with_query, fetch_admin_llm_gateway_config,
-        fetch_admin_llm_gateway_keys_page, fetch_admin_llm_gateway_keys_page_with_query,
+        fetch_admin_llm_gateway_account_groups_page, fetch_admin_llm_gateway_account_import_job,
+        fetch_admin_llm_gateway_account_import_jobs, fetch_admin_llm_gateway_accounts,
+        fetch_admin_llm_gateway_accounts_page, fetch_admin_llm_gateway_accounts_page_with_query,
+        fetch_admin_llm_gateway_config, fetch_admin_llm_gateway_keys_page,
         fetch_admin_llm_gateway_proxy_bindings, fetch_admin_llm_gateway_proxy_configs,
         fetch_admin_llm_gateway_sponsor_requests, fetch_admin_llm_gateway_token_requests,
         fetch_llm_gateway_status, import_admin_legacy_kiro_proxy_configs,
@@ -40,19 +38,18 @@ use crate::{
         AccountSummaryView, AdminAccountGroupOptionView, AdminAccountGroupView,
         AdminAccountsSummaryView, AdminLlmGatewayAccountContributionRequestView,
         AdminLlmGatewayAccountContributionRequestsQuery, AdminLlmGatewayAccountPageQuery,
-        AdminLlmGatewayKeyPageQuery, AdminLlmGatewayKeyView, AdminLlmGatewayKeysSummaryView,
-        AdminLlmGatewaySponsorRequestView, AdminLlmGatewaySponsorRequestsQuery,
-        AdminLlmGatewayTokenRequestView, AdminLlmGatewayTokenRequestsQuery,
-        AdminProxyTrafficSnapshotView, AdminUpstreamProxyBindingView,
-        AdminUpstreamProxyCheckResponse, AdminUpstreamProxyCheckTargetView,
-        AdminUpstreamProxyConfigScopeView, AdminUpstreamProxyConfigView,
-        AdminUpstreamProxyEndpointCheckView, CodexAccountImportJobDetailView,
-        CodexAccountImportJobSummaryView, CreateAdminAccountGroupInput,
-        CreateAdminUpstreamProxyConfigInput, LlmGatewayRateLimitBucketView,
-        LlmGatewayRateLimitStatusResponse, LlmGatewayRateLimitWindowView, LlmGatewayRuntimeConfig,
-        PatchAdminAccountGroupInput, PatchAdminLlmGatewayAccountInput,
-        PatchAdminLlmGatewayKeyRequest, PatchAdminUpstreamProxyConfigInput,
-        DEFAULT_LLM_GATEWAY_CODEX_CLIENT_VERSION,
+        AdminLlmGatewayKeyView, AdminLlmGatewayKeysSummaryView, AdminLlmGatewaySponsorRequestView,
+        AdminLlmGatewaySponsorRequestsQuery, AdminLlmGatewayTokenRequestView,
+        AdminLlmGatewayTokenRequestsQuery, AdminProxyTrafficSnapshotView,
+        AdminUpstreamProxyBindingView, AdminUpstreamProxyCheckResponse,
+        AdminUpstreamProxyCheckTargetView, AdminUpstreamProxyConfigScopeView,
+        AdminUpstreamProxyConfigView, AdminUpstreamProxyEndpointCheckView,
+        CodexAccountImportJobDetailView, CodexAccountImportJobSummaryView,
+        CreateAdminAccountGroupInput, CreateAdminUpstreamProxyConfigInput,
+        LlmGatewayRateLimitBucketView, LlmGatewayRateLimitStatusResponse,
+        LlmGatewayRateLimitWindowView, LlmGatewayRuntimeConfig, PatchAdminAccountGroupInput,
+        PatchAdminLlmGatewayAccountInput, PatchAdminLlmGatewayKeyRequest,
+        PatchAdminUpstreamProxyConfigInput, DEFAULT_LLM_GATEWAY_CODEX_CLIENT_VERSION,
     },
     components::{
         empty_state::EmptyState, pagination::Pagination, search_box::SearchBox,
@@ -79,7 +76,6 @@ const SPONSOR_REQUEST_PAGE_SIZE: usize = 20;
 const PROXY_TRAFFIC_QUERY_WINDOW_DAYS: u64 = 30;
 const ADMIN_CODEX_IMPORT_JOB_LIST_LIMIT: usize = 10;
 const ACCOUNT_PAGE_SIZE: usize = 8;
-const KEY_PAGE_SIZE: usize = 8;
 /// Page size for the Usage tab's server-side key filter search.
 pub(crate) const USAGE_KEY_OPTION_LIMIT: usize = 20;
 const CODEX_IMAGE_DEFAULT_CONCURRENCY: u64 = 3;
@@ -101,21 +97,11 @@ const TAB_JOURNAL: &str = "journal";
 const TAB_REQUESTS: &str = "requests";
 const TAB_SETTINGS: &str = "settings";
 
-/// The Usage tab's key filter uses its own paged server-side search, so only
-/// the Keys tab loads the key inventory page.
-fn should_load_llm_gateway_keys_inventory(active_tab: &str) -> bool {
-    active_tab == TAB_KEYS
-}
-
-fn should_load_llm_gateway_group_options(active_tab: &str) -> bool {
-    active_tab == TAB_KEYS
-}
-
 fn should_load_llm_gateway_import_jobs(active_tab: &str) -> bool {
     active_tab == TAB_ACCOUNTS
 }
 
-fn admin_group_total_pages(total: usize, page_size: usize) -> usize {
+pub(crate) fn admin_group_total_pages(total: usize, page_size: usize) -> usize {
     total.max(1).div_ceil(page_size.max(1))
 }
 
@@ -286,15 +272,6 @@ enum AccountSortMode {
     PrimaryDesc,
     SecondaryAsc,
     SecondaryDesc,
-}
-
-#[derive(Clone, Copy, PartialEq)]
-enum KeySortMode {
-    None,
-    QuotaAsc,
-    QuotaDesc,
-    UsageAsc,
-    UsageDesc,
 }
 
 pub(crate) fn format_optional_latency_ms(latency_ms: Option<i32>) -> String {
@@ -1094,18 +1071,18 @@ pub(crate) fn pretty_json_text(raw: &str) -> String {
 }
 
 #[derive(Properties, PartialEq)]
-struct KeyEditorCardProps {
-    key_item: AdminLlmGatewayKeyView,
-    on_changed: Callback<()>,
-    on_refresh: Callback<(String, String)>,
-    on_copy: Callback<(String, String)>,
-    on_flash: Callback<(String, bool)>,
-    refreshing: bool,
-    account_groups: Vec<AdminAccountGroupOptionView>,
+pub(crate) struct KeyEditorCardProps {
+    pub(crate) key_item: AdminLlmGatewayKeyView,
+    pub(crate) on_changed: Callback<()>,
+    pub(crate) on_refresh: Callback<(String, String)>,
+    pub(crate) on_copy: Callback<(String, String)>,
+    pub(crate) on_flash: Callback<(String, bool)>,
+    pub(crate) refreshing: bool,
+    pub(crate) account_groups: Vec<AdminAccountGroupOptionView>,
 }
 
 #[function_component(KeyEditorCard)]
-fn key_editor_card(props: &KeyEditorCardProps) -> Html {
+pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
     let key_item = props.key_item.clone();
     let key_name_for_actions = key_item.name.clone();
     let name = use_state(|| key_item.name.clone());
@@ -2075,30 +2052,6 @@ impl ProxyForm {
     }
 }
 
-/// Inputs for the "create new API key" panel at the top of the Keys tab.
-/// Bundled so the submit callback and `.set(next)` paths read a single clone
-/// of the struct.
-#[derive(Clone, PartialEq)]
-struct CreateKeyForm {
-    name: String,
-    quota: String,
-    public: bool,
-    request_max_concurrency: String,
-    request_min_start_interval_ms: String,
-}
-
-impl Default for CreateKeyForm {
-    fn default() -> Self {
-        Self {
-            name: String::new(),
-            quota: "100000".to_string(),
-            public: true,
-            request_max_concurrency: String::new(),
-            request_min_start_interval_ms: String::new(),
-        }
-    }
-}
-
 #[function_component(ProxyConfigEditorCard)]
 fn proxy_config_editor_card(props: &ProxyConfigEditorCardProps) -> Html {
     let proxy_config = props.proxy_config.clone();
@@ -2609,15 +2562,7 @@ fn llm_tab_route(tab: &str) -> Route {
 #[function_component(AdminLlmGatewayPage)]
 pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
     let config = use_state(|| None::<LlmGatewayRuntimeConfig>);
-    let keys = use_state(Vec::<AdminLlmGatewayKeyView>::new);
     let keys_summary = use_state(AdminLlmGatewayKeysSummaryView::default);
-    let keys_search = use_state(String::new);
-    let keys_sort_mode = use_state(|| KeySortMode::None);
-    let keys_show_active_only = use_state(|| false);
-    let keys_page = use_state(|| 1_usize);
-    let keys_total = use_state(|| 0_usize);
-    let keys_page_limit = use_state(|| KEY_PAGE_SIZE);
-    let account_group_options = use_state(Vec::<AdminAccountGroupOptionView>::new);
     let account_groups_page_items = use_state(Vec::<AdminAccountGroupView>::new);
     let account_groups_total = use_state(|| 0_usize);
     let account_groups_page = use_state(|| 1_usize);
@@ -2692,15 +2637,10 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
     let proxy_config_active_query = use_state(String::new);
     let proxy_config_show_active_only = use_state(|| false);
     let saving_runtime_config = use_state(|| false);
-    // Group the create-key inputs into a single state. Saves juggling five
-    // separate `use_state` clones across the form and the submit callback.
-    let create_key = use_state(CreateKeyForm::default);
-    let creating = use_state(|| false);
     let create_account_group_name = use_state(String::new);
     let create_account_group_account_names = use_state(Vec::<String>::new);
     let creating_account_group = use_state(|| false);
     let account_group_form_expanded = use_state(|| false);
-    let refreshing_key_id = use_state(|| None::<String>);
     let toast = use_state(|| None::<(String, bool)>);
     let toast_timeout = use_mut_ref(|| None::<Timeout>);
     let flash = {
@@ -2922,11 +2862,7 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
     let reload_base_loaded = use_state(|| false);
     let reload = {
         let config = config.clone();
-        let keys = keys.clone();
         let keys_summary = keys_summary.clone();
-        let keys_total = keys_total.clone();
-        let keys_page_limit = keys_page_limit.clone();
-        let account_group_options = account_group_options.clone();
         let proxy_configs = proxy_configs.clone();
         let proxy_config_scope = proxy_config_scope.clone();
         let proxy_bindings = proxy_bindings.clone();
@@ -2988,10 +2924,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
         let account_image_concurrency_inputs = account_image_concurrency_inputs.clone();
         let account_group_candidate_accounts = account_group_candidate_accounts.clone();
         let account_group_candidate_loading = account_group_candidate_loading.clone();
-        let keys_search = keys_search.clone();
-        let keys_sort_mode = keys_sort_mode.clone();
-        let keys_show_active_only = keys_show_active_only.clone();
-        let keys_page = keys_page.clone();
         let account_active_query = account_active_query.clone();
         let account_sort_mode = account_sort_mode.clone();
         let account_show_unhealthy = account_show_unhealthy.clone();
@@ -3000,11 +2932,7 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
         let reload_base_loaded = reload_base_loaded.clone();
         Callback::from(move |force_base: bool| {
             let config = config.clone();
-            let keys = keys.clone();
             let keys_summary = keys_summary.clone();
-            let keys_total = keys_total.clone();
-            let keys_page_limit = keys_page_limit.clone();
-            let account_group_options = account_group_options.clone();
             let proxy_configs = proxy_configs.clone();
             let proxy_config_scope = proxy_config_scope.clone();
             let proxy_bindings = proxy_bindings.clone();
@@ -3067,10 +2995,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
             let account_image_concurrency_inputs = account_image_concurrency_inputs.clone();
             let account_group_candidate_accounts = account_group_candidate_accounts.clone();
             let account_group_candidate_loading = account_group_candidate_loading.clone();
-            let keys_search = keys_search.clone();
-            let keys_sort_mode = keys_sort_mode.clone();
-            let keys_show_active_only = keys_show_active_only.clone();
-            let keys_page = keys_page.clone();
             let account_active_query = account_active_query.clone();
             let account_sort_mode = account_sort_mode.clone();
             let account_show_unhealthy = account_show_unhealthy.clone();
@@ -3082,22 +3006,7 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
             wasm_bindgen_futures::spawn_local(async move {
                 let active_tab_value = active_tab.clone();
                 let current_group_page = (*account_groups_page).max(1);
-                let current_keys_page = (*keys_page).max(1);
                 let current_account_page = (*account_page).max(1);
-                let key_query = AdminLlmGatewayKeyPageQuery {
-                    q: Some((*keys_search).clone()),
-                    active_only: *keys_show_active_only,
-                    sort: Some(
-                        match *keys_sort_mode {
-                            KeySortMode::QuotaAsc => "quota_asc",
-                            KeySortMode::QuotaDesc => "quota_desc",
-                            KeySortMode::UsageAsc => "usage_asc",
-                            KeySortMode::UsageDesc => "usage_desc",
-                            KeySortMode::None => "",
-                        }
-                        .to_string(),
-                    ),
-                };
                 let account_query = AdminLlmGatewayAccountPageQuery {
                     q: Some((*account_active_query).clone()),
                     active_only: *account_show_active_only,
@@ -3140,22 +3049,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
                     } else {
                         None
                     };
-                    let keys_resp = if should_load_llm_gateway_keys_inventory(&active_tab_value) {
-                        let limit = KEY_PAGE_SIZE.max(1);
-                        let offset = current_keys_page.saturating_sub(1) * limit;
-                        Some(
-                            fetch_admin_llm_gateway_keys_page_with_query(limit, offset, &key_query)
-                                .await?,
-                        )
-                    } else {
-                        None
-                    };
-                    let account_group_options_resp =
-                        if should_load_llm_gateway_group_options(&active_tab_value) {
-                            Some(fetch_admin_llm_gateway_account_group_options().await?)
-                        } else {
-                            None
-                        };
                     let account_groups_page_resp = if active_tab_value == TAB_GROUPS {
                         let limit = *account_groups_page_limit;
                         let offset = current_group_page.saturating_sub(1) * limit.max(1);
@@ -3194,8 +3087,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
                     };
                     Ok::<_, String>((
                         base,
-                        keys_resp,
-                        account_group_options_resp,
                         account_groups_page_resp,
                         accounts_resp,
                         codex_status_resp,
@@ -3207,8 +3098,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
                 match result {
                     Ok((
                         base,
-                        keys_resp,
-                        account_group_options_resp,
                         account_groups_page_resp,
                         accounts_resp,
                         codex_status_resp,
@@ -3293,14 +3182,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
                             codex_proxy_binding_input.set(codex_bound);
                             kiro_proxy_binding_input.set(kiro_bound);
                             reload_base_loaded.set(true);
-                        }
-                        if let Some(keys_resp) = keys_resp {
-                            keys_total.set(keys_resp.total);
-                            keys_page_limit.set(keys_resp.limit.max(1));
-                            keys.set(keys_resp.keys);
-                        }
-                        if let Some(account_group_options_resp) = account_group_options_resp {
-                            account_group_options.set(account_group_options_resp);
                         }
                         if let Some(account_groups_page_resp) = account_groups_page_resp {
                             let effective_limit = account_groups_page_resp.limit.max(1);
@@ -3449,24 +3330,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
             reload.emit(false);
             || ()
         });
-    }
-
-    {
-        let reload = reload.clone();
-        let active_tab = active_tab.clone();
-        let keys_page = keys_page.clone();
-        let keys_search = keys_search.clone();
-        let keys_sort_mode = keys_sort_mode.clone();
-        let keys_show_active_only = keys_show_active_only.clone();
-        use_effect_with(
-            (*keys_page, (*keys_search).clone(), *keys_sort_mode, *keys_show_active_only),
-            move |_| {
-                if active_tab == TAB_KEYS {
-                    reload.emit(false);
-                }
-                || ()
-            },
-        );
     }
 
     {
@@ -4091,91 +3954,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
         })
     };
 
-    let on_create = {
-        let create_key = create_key.clone();
-        let creating = creating.clone();
-        let load_error = load_error.clone();
-        let flash = flash.clone();
-        let reload = reload.clone();
-        Callback::from(move |_| {
-            let current = (*create_key).clone();
-            let name = current.name.trim().to_string();
-            let quota = current.quota.trim().parse::<u64>();
-            let public_visible = current.public;
-            let request_max_concurrency = current.request_max_concurrency.trim().to_string();
-            let request_min_start_interval_ms =
-                current.request_min_start_interval_ms.trim().to_string();
-            let creating = creating.clone();
-            let load_error = load_error.clone();
-            let flash = flash.clone();
-            let reload = reload.clone();
-            let create_key = create_key.clone();
-            wasm_bindgen_futures::spawn_local(async move {
-                let Ok(quota) = quota else {
-                    let message = "主额度必须是正整数".to_string();
-                    load_error.set(Some(message.clone()));
-                    flash.emit((message, true));
-                    return;
-                };
-                let request_max_concurrency = if request_max_concurrency.is_empty() {
-                    None
-                } else {
-                    match request_max_concurrency.parse::<u64>() {
-                        Ok(value) => Some(value),
-                        Err(_) => {
-                            let message = "并发上限必须是整数，留空表示不限制".to_string();
-                            load_error.set(Some(message.clone()));
-                            flash.emit((message, true));
-                            return;
-                        },
-                    }
-                };
-                let request_min_start_interval_ms = if request_min_start_interval_ms.is_empty() {
-                    None
-                } else {
-                    match request_min_start_interval_ms.parse::<u64>() {
-                        Ok(value) => Some(value),
-                        Err(_) => {
-                            let message = "请求间隔必须是整数毫秒，留空表示不限制".to_string();
-                            load_error.set(Some(message.clone()));
-                            flash.emit((message, true));
-                            return;
-                        },
-                    }
-                };
-                creating.set(true);
-                match create_admin_llm_gateway_key(
-                    &name,
-                    quota,
-                    public_visible,
-                    request_max_concurrency,
-                    request_min_start_interval_ms,
-                )
-                .await
-                {
-                    Ok(_) => {
-                        // Reset the form inputs after a successful create;
-                        // leave `public` / `quota` defaults as-is so the next
-                        // create has the same baseline.
-                        let mut next = (*create_key).clone();
-                        next.name = String::new();
-                        next.request_max_concurrency = String::new();
-                        next.request_min_start_interval_ms = String::new();
-                        create_key.set(next);
-                        load_error.set(None);
-                        flash.emit((format!("已创建 key `{}`", name), false));
-                        reload.emit(true);
-                    },
-                    Err(err) => {
-                        load_error.set(Some(err.clone()));
-                        flash.emit((format!("创建 key `{}` 失败\n{err}", name), true));
-                    },
-                }
-                creating.set(false);
-            });
-        })
-    };
-
     let on_toggle_create_account_group_member = {
         let create_account_group_account_names = create_account_group_account_names.clone();
         Callback::from(move |account_name: String| {
@@ -4255,25 +4033,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
                     },
                 }
                 creating_account_group.set(false);
-            });
-        })
-    };
-
-    // A per-card refresh avoids reloading unrelated state while re-reading the
-    // latest counters for a single key.
-    let on_refresh_key = {
-        let reload = reload.clone();
-        let flash = flash.clone();
-        let refreshing_key_id = refreshing_key_id.clone();
-        Callback::from(move |(key_id, key_name): (String, String)| {
-            refreshing_key_id.set(Some(key_id.clone()));
-            let reload = reload.clone();
-            let flash = flash.clone();
-            let refreshing_key_id = refreshing_key_id.clone();
-            wasm_bindgen_futures::spawn_local(async move {
-                reload.emit(true);
-                flash.emit((format!("已触发 key `{}` 刷新", key_name), false));
-                refreshing_key_id.set(None);
             });
         })
     };
@@ -5409,13 +5168,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
     // Matches are case-insensitive. `use_memo` avoids re-filtering on unrelated
     // parent re-renders. These are pre-computed at component top-level because
     // the html! macro does not permit `let` bindings inside conditional branches.
-    let keys_total_pages = admin_group_total_pages(*keys_total, *keys_page_limit);
-    let keys_current_page = (*keys_page).clamp(1, keys_total_pages);
-    let keys_page_entries: Vec<&AdminLlmGatewayKeyView> = keys.iter().collect();
-    let on_keys_page_change = {
-        let keys_page = keys_page.clone();
-        Callback::from(move |p: usize| keys_page.set(p))
-    };
     let account_groups_query_lower = (*account_groups_search).trim().to_lowercase();
     let filtered_account_groups: Vec<AdminAccountGroupView> = {
         let q = account_groups_query_lower.clone();
@@ -5471,10 +5223,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
                 }
             });
         })
-    };
-    let on_keys_search_change = {
-        let keys_search = keys_search.clone();
-        Callback::from(move |v: String| keys_search.set(v))
     };
     let on_account_groups_search_change = {
         let account_groups_search = account_groups_search.clone();
@@ -6309,112 +6057,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
                     </section>
 
                     <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                        <h2 class={classes!("m-0", "font-mono", "text-base", "font-bold", "text-[var(--text)]")}>{ "Create Key" }</h2>
-                        <div class={classes!("mt-3", "grid", "gap-3")}>
-                            <div class={classes!("grid", "gap-3", "md:grid-cols-2")}>
-                                <label class={classes!("text-sm")}>
-                                    <span class={classes!("text-[var(--muted)]")}>{ "名称" }</span>
-                                    <input
-                                        type="text"
-                                        class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2")}
-                                        value={create_key.name.clone()}
-                                        oninput={{
-                                            let create_key = create_key.clone();
-                                            Callback::from(move |event: InputEvent| {
-                                                if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                    let mut next = (*create_key).clone();
-                                                    next.name = target.value();
-                                                    create_key.set(next);
-                                                }
-                                            })
-                                        }}
-                                    />
-                                </label>
-                                <label class={classes!("text-sm")}>
-                                    <span class={classes!("text-[var(--muted)]")}>{ "主额度上限" }</span>
-                                    <input
-                                        type="number"
-                                        class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2")}
-                                        value={create_key.quota.clone()}
-                                        oninput={{
-                                            let create_key = create_key.clone();
-                                            Callback::from(move |event: InputEvent| {
-                                                if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                    let mut next = (*create_key).clone();
-                                                    next.quota = target.value();
-                                                    create_key.set(next);
-                                                }
-                                            })
-                                        }}
-                                    />
-                                </label>
-                            </div>
-                            <div class={classes!("grid", "gap-3", "md:grid-cols-2")}>
-                                <label class={classes!("text-sm")}>
-                                    <span class={classes!("text-[var(--muted)]")}>{ "并发上限" }</span>
-                                    <input
-                                        type="number"
-                                        placeholder="留空表示不限制"
-                                        class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2")}
-                                        value={create_key.request_max_concurrency.clone()}
-                                        oninput={{
-                                            let create_key = create_key.clone();
-                                            Callback::from(move |event: InputEvent| {
-                                                if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                    let mut next = (*create_key).clone();
-                                                    next.request_max_concurrency = target.value();
-                                                    create_key.set(next);
-                                                }
-                                            })
-                                        }}
-                                    />
-                                </label>
-                                <label class={classes!("text-sm")}>
-                                    <span class={classes!("text-[var(--muted)]")}>{ "请求起始间隔 ms" }</span>
-                                    <input
-                                        type="number"
-                                        placeholder="留空表示不限制"
-                                        class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2")}
-                                        value={create_key.request_min_start_interval_ms.clone()}
-                                        oninput={{
-                                            let create_key = create_key.clone();
-                                            Callback::from(move |event: InputEvent| {
-                                                if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                    let mut next = (*create_key).clone();
-                                                    next.request_min_start_interval_ms = target.value();
-                                                    create_key.set(next);
-                                                }
-                                            })
-                                        }}
-                                    />
-                                </label>
-                            </div>
-                            <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
-                                <label class={classes!("flex", "items-center", "gap-2", "text-sm")}>
-                                    <input
-                                        type="checkbox"
-                                        checked={create_key.public}
-                                        onchange={{
-                                            let create_key = create_key.clone();
-                                            Callback::from(move |event: Event| {
-                                                if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                    let mut next = (*create_key).clone();
-                                                    next.public = target.checked();
-                                                    create_key.set(next);
-                                                }
-                                            })
-                                        }}
-                                    />
-                                    <span>{ "公开" }</span>
-                                </label>
-                                <button class={classes!("btn-terminal", "btn-terminal-primary")} onclick={on_create} disabled={*creating}>
-                                    { if *creating { "创建中..." } else { "创建" } }
-                                </button>
-                            </div>
-                        </div>
-                    </section>
-
-                    <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
                         <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
                             <h2 class={classes!("m-0", "font-mono", "text-base", "font-bold", "text-[var(--text)]")}>{ "Provider Proxy Bindings" }</h2>
                             <button class={classes!("btn-terminal")} onclick={{
@@ -6696,150 +6338,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
                     </section>
                 </div>
                 } // end TAB_SETTINGS
-
-                // ── Keys Tab ──
-                if active_tab == TAB_KEYS {
-                <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                    <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
-                        <h2 class={classes!("m-0", "font-mono", "text-base", "font-bold", "text-[var(--text)]")}>{ "Key Inventory" }</h2>
-                        <button class={classes!("btn-terminal")} onclick={{
-                            let reload = reload.clone();
-                            Callback::from(move |_| reload.emit(true))
-                        }}>
-                            { if *loading { "刷新中..." } else { "刷新" } }
-                        </button>
-                    </div>
-                    <div class={classes!("mt-4", "max-w-md")}>
-                        <SearchBox
-                            value={(*keys_search).clone()}
-                            on_change={on_keys_search_change.clone()}
-                            placeholder={AttrValue::Static("搜索 key 名称 / id / provider / 状态")}
-                        />
-                    </div>
-                    // Sort & filter toolbar
-                    <div class={classes!("mt-3", "flex", "items-center", "gap-2", "flex-wrap")}>
-                        <button
-                            type="button"
-                            class={classes!(
-                                "rounded-full", "px-3", "py-1.5", "text-xs", "font-semibold", "border", "transition-colors",
-                                if *keys_show_active_only {
-                                    "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-400/50"
-                                } else {
-                                    "bg-[var(--surface)] text-[var(--muted)] border-[var(--border)] hover:text-[var(--text)]"
-                                }
-                            )}
-                            onclick={{
-                                let keys_show_active_only = keys_show_active_only.clone();
-                                let keys_page = keys_page.clone();
-                                Callback::from(move |_| {
-                                    keys_show_active_only.set(!*keys_show_active_only);
-                                    keys_page.set(1);
-                                })
-                            }}
-                        >
-                            { "Active" }
-                        </button>
-                        <span class={classes!("w-px", "h-5", "bg-[var(--border)]")} />
-                        <button
-                            type="button"
-                            class={classes!(
-                                "rounded-full", "px-3", "py-1.5", "text-xs", "font-semibold", "border", "transition-colors",
-                                if matches!(*keys_sort_mode, KeySortMode::QuotaAsc | KeySortMode::QuotaDesc) {
-                                    "bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-400/50"
-                                } else {
-                                    "bg-[var(--surface)] text-[var(--muted)] border-[var(--border)] hover:text-[var(--text)]"
-                                }
-                            )}
-                            onclick={{
-                                let keys_sort_mode = keys_sort_mode.clone();
-                                let keys_page = keys_page.clone();
-                                Callback::from(move |_| {
-                                    let next = match *keys_sort_mode {
-                                        KeySortMode::QuotaAsc => KeySortMode::QuotaDesc,
-                                        KeySortMode::QuotaDesc => KeySortMode::None,
-                                        _ => KeySortMode::QuotaAsc,
-                                    };
-                                    keys_sort_mode.set(next);
-                                    keys_page.set(1);
-                                })
-                            }}
-                        >
-                            { match *keys_sort_mode {
-                                KeySortMode::QuotaAsc => "Quota \u{2191}",
-                                KeySortMode::QuotaDesc => "Quota \u{2193}",
-                                _ => "Quota",
-                            }}
-                        </button>
-                        <button
-                            type="button"
-                            class={classes!(
-                                "rounded-full", "px-3", "py-1.5", "text-xs", "font-semibold", "border", "transition-colors",
-                                if matches!(*keys_sort_mode, KeySortMode::UsageAsc | KeySortMode::UsageDesc) {
-                                    "bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-400/50"
-                                } else {
-                                    "bg-[var(--surface)] text-[var(--muted)] border-[var(--border)] hover:text-[var(--text)]"
-                                }
-                            )}
-                            onclick={{
-                                let keys_sort_mode = keys_sort_mode.clone();
-                                let keys_page = keys_page.clone();
-                                Callback::from(move |_| {
-                                    let next = match *keys_sort_mode {
-                                        KeySortMode::UsageAsc => KeySortMode::UsageDesc,
-                                        KeySortMode::UsageDesc => KeySortMode::None,
-                                        _ => KeySortMode::UsageAsc,
-                                    };
-                                    keys_sort_mode.set(next);
-                                    keys_page.set(1);
-                                })
-                            }}
-                        >
-                            { match *keys_sort_mode {
-                                KeySortMode::UsageAsc => "Usage \u{2191}",
-                                KeySortMode::UsageDesc => "Usage \u{2193}",
-                                _ => "Usage",
-                            }}
-                        </button>
-                    </div>
-                    <div class={classes!("mt-2", "flex", "items-center", "justify-between", "text-xs", "text-[var(--muted)]")}>
-                        <span>{ format!("总数 {} · 当前筛选 {} · 本页 {}", key_summary.total, *keys_total, keys.len()) }</span>
-                        if keys_total_pages > 1 {
-                            <span class={classes!("font-mono")}>{ format!("{}/{}", keys_current_page, keys_total_pages) }</span>
-                        }
-                    </div>
-                    <div class={classes!("mt-3", "grid", "gap-4", "2xl:grid-cols-2")}>
-                        if keys_page_entries.is_empty() {
-                            <div class={classes!("rounded-xl", "border", "border-dashed", "border-[var(--border)]", "px-4", "py-10", "text-center", "text-[var(--muted)]")}>
-                                { if keys.is_empty() {
-                                    "当前还没有可管理的 key。"
-                                } else {
-                                    "当前过滤条件下没有匹配的 key。"
-                                }}
-                            </div>
-                        } else {
-                            { for keys_page_entries.iter().map(|key_item| html! {
-                                <KeyEditorCard
-                                    key={key_item.id.clone()}
-                                    key_item={(*key_item).clone()}
-                                    on_changed={reload.reform(|_: ()| true)}
-                                    on_refresh={on_refresh_key.clone()}
-                                    on_copy={on_copy.clone()}
-                                    on_flash={flash.clone()}
-                                    refreshing={(*refreshing_key_id).as_deref() == Some(key_item.id.as_str())}
-                                    account_groups={(*account_group_options).clone()}
-                                />
-                            }) }
-                        }
-                    </div>
-                    <div class={classes!("mt-4")}>
-                        <Pagination
-                            current_page={keys_current_page}
-                            total_pages={keys_total_pages}
-                            on_page_change={on_keys_page_change.clone()}
-                        />
-                    </div>
-                </section>
-                } // end TAB_KEYS
 
                 if active_tab == TAB_GROUPS {
                 <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
@@ -8621,16 +8119,6 @@ mod tests {
 
     #[test]
     fn llm_inventory_load_helpers_follow_active_tab() {
-        assert!(should_load_llm_gateway_keys_inventory(TAB_KEYS));
-        // The Usage tab's key filter is served by a paged, server-side search
-        // instead of the full key inventory.
-        assert!(!should_load_llm_gateway_keys_inventory(TAB_USAGE));
-        assert!(!should_load_llm_gateway_keys_inventory(TAB_OVERVIEW));
-
-        assert!(should_load_llm_gateway_group_options(TAB_KEYS));
-        assert!(!should_load_llm_gateway_group_options(TAB_GROUPS));
-        assert!(!should_load_llm_gateway_group_options(TAB_ACCOUNTS));
-
         assert!(should_load_llm_gateway_import_jobs(TAB_ACCOUNTS));
         assert!(!should_load_llm_gateway_import_jobs(TAB_OVERVIEW));
     }

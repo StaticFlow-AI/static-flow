@@ -372,7 +372,7 @@ fn switch(route: Route) -> Html {
         Route::Admin => html! { <pages::admin::AdminPage /> },
         Route::AdminLlmGateway => html! { <pages::admin_llm_gateway::AdminLlmGatewayPage /> },
         Route::AdminLlmGatewayKeys => {
-            html! { <pages::admin_llm_gateway::AdminLlmGatewayPage tab="keys" /> }
+            html! { <pages::admin_llm_gateway_keys::AdminLlmGatewayKeysPage /> }
         },
         Route::AdminLlmGatewayGroups => {
             html! { <pages::admin_llm_gateway::AdminLlmGatewayPage tab="groups" /> }
