@@ -1,6 +1,6 @@
 //! Admin UI for managing Kiro accounts, keys, usage, and proxy bindings.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 
 use gloo_timers::callback::Timeout;
 use llm_access_core::store as llm_store;
@@ -12,21 +12,17 @@ use yew_router::prelude::{use_navigator, Link};
 
 use crate::{
     api::{
-        create_admin_kiro_account_group, create_admin_kiro_key, delete_admin_kiro_account,
-        delete_admin_kiro_account_group, delete_admin_kiro_key,
+        create_admin_kiro_key, delete_admin_kiro_account, delete_admin_kiro_key,
         fetch_admin_anthropic_upstream_channels, fetch_admin_kiro_account_group_options,
-        fetch_admin_kiro_account_groups_page, fetch_admin_kiro_accounts,
         fetch_admin_kiro_accounts_page, fetch_admin_kiro_cache_stats, fetch_admin_kiro_keys_page,
         fetch_admin_llm_gateway_config, fetch_admin_llm_gateway_proxy_bindings,
         fetch_admin_llm_gateway_proxy_configs, fetch_kiro_models, patch_admin_kiro_account,
-        patch_admin_kiro_account_group, patch_admin_kiro_key, refresh_admin_kiro_account_balance,
-        update_admin_llm_gateway_config, AdminAccountGroupOptionView, AdminAccountGroupView,
-        AdminAccountsSummaryView, AdminAnthropicUpstreamChannelView, AdminKiroCacheStatsResponse,
-        AdminKiroKeyCandidateCreditSummaryView, AdminLlmGatewayKeyView,
-        AdminLlmGatewayKeysSummaryView, AdminUpstreamProxyBindingView,
-        AdminUpstreamProxyConfigView, CreateAdminAccountGroupInput, KiroAccountView,
-        KiroBalanceView, KiroModelView, LlmGatewayRuntimeConfig, PatchAdminAccountGroupInput,
-        PatchAdminLlmGatewayKeyRequest, PatchKiroAccountInput,
+        patch_admin_kiro_key, refresh_admin_kiro_account_balance, update_admin_llm_gateway_config,
+        AdminAccountGroupOptionView, AdminAccountsSummaryView, AdminAnthropicUpstreamChannelView,
+        AdminKiroCacheStatsResponse, AdminKiroKeyCandidateCreditSummaryView,
+        AdminLlmGatewayKeyView, AdminLlmGatewayKeysSummaryView, AdminUpstreamProxyBindingView,
+        AdminUpstreamProxyConfigView, KiroAccountView, KiroBalanceView, KiroModelView,
+        LlmGatewayRuntimeConfig, PatchAdminLlmGatewayKeyRequest, PatchKiroAccountInput,
     },
     components::{
         empty_state::EmptyState, pagination::Pagination, search_box::SearchBox,
@@ -46,7 +42,6 @@ const TAB_KEYS: &str = "keys";
 const TAB_GROUPS: &str = "groups";
 const TAB_USAGE: &str = "usage";
 const DEFAULT_KIRO_KEY_PAGE_SIZE: usize = 24;
-const DEFAULT_KIRO_GROUP_PAGE_SIZE: usize = 24;
 
 pub(crate) fn kiro_account_status_route() -> Route {
     Route::AdminKiroAccountStatus
@@ -65,21 +60,11 @@ pub(crate) fn kiro_account_status_abnormal_href() -> &'static str {
 }
 
 fn should_load_kiro_inventory(active_tab: &str) -> bool {
-    matches!(active_tab, TAB_KEYS | TAB_GROUPS)
-}
-
-/// Full account inventory (with balances) backs only the group-membership
-/// pickers; the Accounts tab itself renders from mount-time summary counts.
-fn should_load_kiro_account_inventory(active_tab: &str) -> bool {
-    active_tab == TAB_GROUPS
+    active_tab == TAB_KEYS
 }
 
 fn should_load_kiro_key_inventory(active_tab: &str) -> bool {
     active_tab == TAB_KEYS
-}
-
-fn should_load_kiro_group_inventory(active_tab: &str) -> bool {
-    active_tab == TAB_GROUPS
 }
 
 fn should_load_kiro_group_options(active_tab: &str) -> bool {
@@ -95,10 +80,6 @@ fn should_load_anthropic_channels_inventory(active_tab: &str) -> bool {
 }
 
 fn admin_kiro_key_total_pages(total: usize, page_size: usize) -> usize {
-    total.max(1).div_ceil(page_size.max(1))
-}
-
-fn admin_kiro_group_total_pages(total: usize, page_size: usize) -> usize {
     total.max(1).div_ceil(page_size.max(1))
 }
 
@@ -3412,272 +3393,6 @@ fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
     }
 }
 
-#[derive(Properties, PartialEq)]
-struct KiroAccountGroupEditorCardProps {
-    group_item: AdminAccountGroupView,
-    accounts: Vec<KiroAccountView>,
-    on_reload: Callback<()>,
-    on_flash: Callback<(String, bool)>,
-}
-
-#[function_component(KiroAccountGroupEditorCard)]
-fn kiro_account_group_editor_card(props: &KiroAccountGroupEditorCardProps) -> Html {
-    let name = use_state(|| props.group_item.name.clone());
-    let expanded = use_state(|| false);
-    let account_names = use_state(|| {
-        let valid_names = props
-            .accounts
-            .iter()
-            .map(|account| account.name.as_str())
-            .collect::<HashSet<_>>();
-        let mut names = props
-            .group_item
-            .account_names
-            .iter()
-            .filter(|name| valid_names.contains(name.as_str()))
-            .cloned()
-            .collect::<Vec<_>>();
-        names.sort();
-        names.dedup();
-        names
-    });
-    let saving = use_state(|| false);
-    let feedback = use_state(|| None::<String>);
-
-    {
-        let group_item = props.group_item.clone();
-        let accounts = props.accounts.clone();
-        let name = name.clone();
-        let account_names = account_names.clone();
-        use_effect_with((props.group_item.clone(), props.accounts.clone()), move |_| {
-            let valid_names = accounts
-                .iter()
-                .map(|account| account.name.as_str())
-                .collect::<HashSet<_>>();
-            let mut names = group_item
-                .account_names
-                .iter()
-                .filter(|member| valid_names.contains(member.as_str()))
-                .cloned()
-                .collect::<Vec<_>>();
-            names.sort();
-            names.dedup();
-            name.set(group_item.name.clone());
-            account_names.set(names);
-            || ()
-        });
-    }
-
-    let on_toggle_account = {
-        let account_names = account_names.clone();
-        Callback::from(move |account_name: String| {
-            let mut names = (*account_names).clone();
-            if let Some(index) = names.iter().position(|name| name == &account_name) {
-                names.remove(index);
-            } else {
-                names.push(account_name);
-                names.sort();
-                names.dedup();
-            }
-            account_names.set(names);
-        })
-    };
-
-    let on_save = {
-        let group_id = props.group_item.id.clone();
-        let name = name.clone();
-        let account_names = account_names.clone();
-        let saving = saving.clone();
-        let feedback = feedback.clone();
-        let on_flash = props.on_flash.clone();
-        let on_reload = props.on_reload.clone();
-        Callback::from(move |_| {
-            if *saving {
-                return;
-            }
-            let group_id = group_id.clone();
-            let name_value = (*name).trim().to_string();
-            let account_names_value = (*account_names).clone();
-            let saving = saving.clone();
-            let feedback = feedback.clone();
-            let on_flash = on_flash.clone();
-            let on_reload = on_reload.clone();
-            wasm_bindgen_futures::spawn_local(async move {
-                if name_value.is_empty() {
-                    let message = "组名不能为空".to_string();
-                    feedback.set(Some(message.clone()));
-                    on_flash.emit((message, true));
-                    return;
-                }
-                if account_names_value.is_empty() {
-                    let message = "账号组至少需要选择一个账号".to_string();
-                    feedback.set(Some(message.clone()));
-                    on_flash.emit((message, true));
-                    return;
-                }
-                saving.set(true);
-                match patch_admin_kiro_account_group(&group_id, PatchAdminAccountGroupInput {
-                    name: Some(&name_value),
-                    account_names: Some(account_names_value.as_slice()),
-                })
-                .await
-                {
-                    Ok(_) => {
-                        feedback.set(Some("Saved.".to_string()));
-                        on_flash.emit((format!("已保存 Kiro 账号组 `{name_value}`"), false));
-                        on_reload.emit(());
-                    },
-                    Err(err) => {
-                        feedback.set(Some(err.clone()));
-                        on_flash.emit((format!("保存 Kiro 账号组失败\n{err}"), true));
-                    },
-                }
-                saving.set(false);
-            });
-        })
-    };
-
-    let on_delete = {
-        let group_id = props.group_item.id.clone();
-        let group_name = props.group_item.name.clone();
-        let saving = saving.clone();
-        let on_flash = props.on_flash.clone();
-        let on_reload = props.on_reload.clone();
-        Callback::from(move |_| {
-            if !confirm_destructive("确认删除这个 Kiro 账号组？") {
-                return;
-            }
-            let group_id = group_id.clone();
-            let group_name = group_name.clone();
-            let saving = saving.clone();
-            let on_flash = on_flash.clone();
-            let on_reload = on_reload.clone();
-            wasm_bindgen_futures::spawn_local(async move {
-                saving.set(true);
-                match delete_admin_kiro_account_group(&group_id).await {
-                    Ok(_) => {
-                        on_flash.emit((format!("已删除 Kiro 账号组 `{group_name}`"), false));
-                        on_reload.emit(());
-                    },
-                    Err(err) => {
-                        on_flash.emit((format!("删除 Kiro 账号组失败\n{err}"), true));
-                    },
-                }
-                saving.set(false);
-            });
-        })
-    };
-
-    html! {
-        <article class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-4")}>
-            <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
-                <div>
-                    <h3 class={classes!("m-0", "text-base", "font-semibold")}>{ props.group_item.name.clone() }</h3>
-                    <p class={classes!("mt-1", "mb-0", "text-xs", "text-[var(--muted)]")}>
-                        {
-                            if props.group_item.account_names.is_empty() {
-                                "没有成员账号".to_string()
-                            } else {
-                                format!("成员: {}", props.group_item.account_names.join(", "))
-                            }
-                        }
-                    </p>
-                </div>
-                <div class={classes!("flex", "items-center", "gap-2")}>
-                    <span class={classes!("text-xs", "text-[var(--muted)]")}>{ format!("{} 个账号", props.group_item.account_names.len()) }</span>
-                    <button
-                        type="button"
-                        class={classes!("btn-terminal")}
-                        onclick={{
-                            let expanded = expanded.clone();
-                            Callback::from(move |_| expanded.set(!*expanded))
-                        }}
-                    >
-                        { if *expanded { "收起 ▲" } else { "展开 ▼" } }
-                    </button>
-                    <button class={classes!("btn-terminal", "btn-terminal-danger")} onclick={on_delete} disabled={*saving}>
-                        { "删除" }
-                    </button>
-                </div>
-            </div>
-
-            if *expanded {
-                <label class={classes!("mt-3", "block", "text-sm")}>
-                    <span class={classes!("text-[var(--muted)]")}>{ "组名" }</span>
-                    <input
-                        type="text"
-                        class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2")}
-                        value={(*name).clone()}
-                        oninput={{
-                            let name = name.clone();
-                            Callback::from(move |event: InputEvent| {
-                                if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                    name.set(target.value());
-                                }
-                            })
-                        }}
-                    />
-                </label>
-
-                <div class={classes!("mt-3", "space-y-2")}>
-                    <div class={classes!("text-sm", "text-[var(--muted)]")}>{ "成员账号" }</div>
-                    <div class={classes!("grid", "gap-2", "xl:grid-cols-2")}>
-                        { for props.accounts.iter().map(|account| {
-                            let checked = account_names.iter().any(|name| name == &account.name);
-                            let account_name = account.name.clone();
-                            let on_toggle_account = on_toggle_account.clone();
-                            let balance_hint = account
-                                .balance
-                                .as_ref()
-                                .map(|balance| format!(
-                                    "remaining {} / {}",
-                                    format_float2(balance.remaining),
-                                    format_float2(balance.usage_limit)
-                                ))
-                                .unwrap_or_else(|| "balance loading".to_string());
-                            html! {
-                                <label class={classes!(
-                                    "flex", "cursor-pointer", "items-center", "gap-3", "rounded-lg", "border", "px-3", "py-2.5",
-                                    if checked {
-                                        "border-sky-500/30 bg-sky-500/8"
-                                    } else {
-                                        "border-[var(--border)] bg-[var(--surface-alt)]"
-                                    }
-                                )}>
-                                    <input
-                                        type="checkbox"
-                                        checked={checked}
-                                        onchange={Callback::from(move |_| on_toggle_account.emit(account_name.clone()))}
-                                    />
-                                    <div class={classes!("min-w-0", "flex-1")}>
-                                        <div class={classes!("font-semibold", "text-[var(--text)]")}>{ account.name.clone() }</div>
-                                        <div class={classes!("mt-1", "font-mono", "text-[11px]", "text-[var(--muted)]")}>
-                                            { balance_hint }
-                                        </div>
-                                    </div>
-                                </label>
-                            }
-                        }) }
-                    </div>
-                </div>
-
-                <div class={classes!("mt-4", "flex", "items-center", "justify-between", "gap-3")}>
-                    <span class={classes!("text-xs", "text-[var(--muted)]")}>
-                        { format!("当前成员: {}", if account_names.is_empty() { "无".to_string() } else { account_names.join(", ") }) }
-                    </span>
-                    <button class={classes!("btn-terminal", "btn-terminal-primary")} onclick={on_save} disabled={*saving}>
-                        { if *saving { "保存中..." } else { "保存账号组" } }
-                    </button>
-                </div>
-
-                if let Some(feedback) = (*feedback).clone() {
-                    <div class={classes!("mt-3", "text-sm", "text-[var(--muted)]")}>{ feedback }</div>
-                }
-            }
-        </article>
-    }
-}
-
 /// Props for [`AdminKiroGatewayPage`]. The active section is route-driven:
 /// `/admin/kiro-gateway` renders the overview and
 /// `/admin/kiro-gateway/{keys,groups,usage}` /
@@ -3705,7 +3420,6 @@ fn kiro_tab_route(tab: &str) -> Route {
 /// This page owns the full CRUD workflow for Kiro accounts and private keys,
 /// plus usage inspection and provider-level proxy context.
 pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
-    let accounts = use_state(Vec::<KiroAccountView>::new);
     let keys = use_state(Vec::<AdminLlmGatewayKeyView>::new);
     let accounts_summary = use_state(AdminAccountsSummaryView::default);
     let keys_summary = use_state(AdminLlmGatewayKeysSummaryView::default);
@@ -3714,12 +3428,6 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
     let keys_page_limit = use_state(|| DEFAULT_KIRO_KEY_PAGE_SIZE);
     let keys_search = use_state(String::new);
     let account_group_options = use_state(Vec::<AdminAccountGroupOptionView>::new);
-    let account_groups = use_state(Vec::<AdminAccountGroupView>::new);
-    let account_groups_page_items = use_state(Vec::<AdminAccountGroupView>::new);
-    let account_groups_total = use_state(|| 0usize);
-    let account_groups_page = use_state(|| 1usize);
-    let account_groups_page_limit = use_state(|| DEFAULT_KIRO_GROUP_PAGE_SIZE);
-    let account_groups_search = use_state(String::new);
     let kiro_models = use_state(Vec::<KiroModelView>::new);
     let anthropic_channels = use_state(Vec::<AdminAnthropicUpstreamChannelView>::new);
     let proxy_configs = use_state(Vec::<AdminUpstreamProxyConfigView>::new);
@@ -3808,10 +3516,6 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
     let new_key_name = use_state(|| "kiro-private".to_string());
     let new_key_quota = use_state(|| "1000000".to_string());
     let creating_key = use_state(|| false);
-    let create_account_group_name = use_state(String::new);
-    let create_account_group_account_names = use_state(Vec::<String>::new);
-    let creating_account_group = use_state(|| false);
-    let account_group_form_expanded = use_state(|| false);
 
     {
         let proxy_configs = proxy_configs.clone();
@@ -3984,16 +3688,12 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
     }
 
     {
-        let accounts = accounts.clone();
         let keys = keys.clone();
-        let accounts_summary = accounts_summary.clone();
         let keys_summary = keys_summary.clone();
         let keys_page = keys_page.clone();
         let keys_total = keys_total.clone();
         let keys_page_limit = keys_page_limit.clone();
         let account_group_options = account_group_options.clone();
-        let account_groups = account_groups.clone();
-        let account_groups_page_limit = account_groups_page_limit.clone();
         let kiro_models = kiro_models.clone();
         let anthropic_channels = anthropic_channels.clone();
         let active_tab = active_tab.clone();
@@ -4010,16 +3710,12 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
                     && (*inventory_loaded_for_refresh).as_ref()
                         != Some(&(active_tab.clone(), *refresh_tick, requested_page));
                 if should_fetch {
-                    let accounts = accounts.clone();
                     let keys = keys.clone();
-                    let accounts_summary = accounts_summary.clone();
                     let keys_summary = keys_summary.clone();
                     let keys_page = keys_page.clone();
                     let keys_total = keys_total.clone();
                     let keys_page_limit = keys_page_limit.clone();
                     let account_group_options = account_group_options.clone();
-                    let account_groups = account_groups.clone();
-                    let account_groups_page_limit = account_groups_page_limit.clone();
                     let kiro_models = kiro_models.clone();
                     let anthropic_channels = anthropic_channels.clone();
                     let inventory_loading = inventory_loading.clone();
@@ -4032,12 +3728,6 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
                         inventory_loading.set(true);
                         inventory_error.set(None);
                         let result = async {
-                            let accounts_resp =
-                                if should_load_kiro_account_inventory(&active_tab_value) {
-                                    Some(fetch_admin_kiro_accounts().await?)
-                                } else {
-                                    None
-                                };
                             let keys_resp = if should_load_kiro_key_inventory(&active_tab_value) {
                                 let limit = *keys_page_limit;
                                 let offset = requested_page_value
@@ -4050,13 +3740,6 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
                             let account_group_options_resp =
                                 if should_load_kiro_group_options(&active_tab_value) {
                                     Some(fetch_admin_kiro_account_group_options().await?)
-                                } else {
-                                    None
-                                };
-                            let account_groups_resp =
-                                if should_load_kiro_group_inventory(&active_tab_value) {
-                                    let limit = (*account_groups_page_limit).max(1);
-                                    Some(fetch_admin_kiro_account_groups_page(limit, 0).await?)
                                 } else {
                                     None
                                 };
@@ -4073,10 +3756,8 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
                                     None
                                 };
                             Ok::<_, String>((
-                                accounts_resp,
                                 keys_resp,
                                 account_group_options_resp,
-                                account_groups_resp,
                                 models_resp,
                                 anthropic_channels_resp,
                             ))
@@ -4084,17 +3765,11 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
                         .await;
                         match result {
                             Ok((
-                                accounts_resp,
                                 keys_resp,
                                 account_group_options_resp,
-                                account_groups_resp,
                                 models_resp,
                                 anthropic_channels_resp,
                             )) => {
-                                if let Some(accounts_resp) = accounts_resp {
-                                    accounts_summary.set(accounts_resp.summary);
-                                    accounts.set(accounts_resp.accounts);
-                                }
                                 if let Some(keys_resp) = keys_resp {
                                     let effective_limit = keys_resp.limit.max(1);
                                     let total_pages = admin_kiro_key_total_pages(
@@ -4113,9 +3788,6 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
                                 if let Some(account_group_options_resp) = account_group_options_resp
                                 {
                                     account_group_options.set(account_group_options_resp);
-                                }
-                                if let Some(account_groups_resp) = account_groups_resp {
-                                    account_groups.set(account_groups_resp.groups);
                                 }
                                 if let Some(models_resp) = models_resp {
                                     kiro_models.set(models_resp.data);
@@ -4141,53 +3813,6 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
         );
     }
 
-    {
-        let account_groups_page_items = account_groups_page_items.clone();
-        let account_groups_total = account_groups_total.clone();
-        let account_groups_page = account_groups_page.clone();
-        let account_groups_page_limit = account_groups_page_limit.clone();
-        let active_tab = active_tab.clone();
-        let refresh_tick = refresh_tick.clone();
-        let inventory_loading = inventory_loading.clone();
-        let inventory_error = inventory_error.clone();
-        use_effect_with(
-            (active_tab.clone(), *refresh_tick, *account_groups_page),
-            move |(active_tab, _, account_groups_page_value)| {
-                if active_tab == TAB_GROUPS {
-                    let account_groups_page_items = account_groups_page_items.clone();
-                    let account_groups_total = account_groups_total.clone();
-                    let account_groups_page = account_groups_page.clone();
-                    let account_groups_page_limit = account_groups_page_limit.clone();
-                    let inventory_loading = inventory_loading.clone();
-                    let inventory_error = inventory_error.clone();
-                    let requested_page = (*account_groups_page_value).max(1);
-                    wasm_bindgen_futures::spawn_local(async move {
-                        inventory_loading.set(true);
-                        let limit = (*account_groups_page_limit).max(1);
-                        let offset = requested_page.saturating_sub(1).saturating_mul(limit);
-                        match fetch_admin_kiro_account_groups_page(limit, offset).await {
-                            Ok(resp) => {
-                                let effective_limit = resp.limit.max(1);
-                                let total_pages =
-                                    admin_kiro_group_total_pages(resp.total, effective_limit);
-                                account_groups_total.set(resp.total);
-                                account_groups_page_limit.set(effective_limit);
-                                if requested_page > total_pages {
-                                    account_groups_page.set(total_pages);
-                                } else {
-                                    account_groups_page_items.set(resp.groups);
-                                }
-                                inventory_error.set(None);
-                            },
-                            Err(err) => inventory_error.set(Some(err)),
-                        }
-                        inventory_loading.set(false);
-                    });
-                }
-                || ()
-            },
-        );
-    }
 
     let on_reload = {
         let refresh_tick = refresh_tick.clone();
@@ -4534,77 +4159,6 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
         })
     };
 
-    let on_toggle_create_account_group_member = {
-        let create_account_group_account_names = create_account_group_account_names.clone();
-        Callback::from(move |account_name: String| {
-            let mut names = (*create_account_group_account_names).clone();
-            if let Some(index) = names.iter().position(|name| name == &account_name) {
-                names.remove(index);
-            } else {
-                names.push(account_name);
-                names.sort();
-                names.dedup();
-            }
-            create_account_group_account_names.set(names);
-        })
-    };
-
-    let on_create_account_group = {
-        let create_account_group_name = create_account_group_name.clone();
-        let create_account_group_account_names = create_account_group_account_names.clone();
-        let creating_account_group = creating_account_group.clone();
-        let notify = notify.clone();
-        let error = error.clone();
-        let on_reload = on_reload.clone();
-        Callback::from(move |_| {
-            if *creating_account_group {
-                return;
-            }
-            let group_name = (*create_account_group_name).trim().to_string();
-            let account_names = (*create_account_group_account_names).clone();
-            let create_account_group_name = create_account_group_name.clone();
-            let create_account_group_account_names = create_account_group_account_names.clone();
-            let creating_account_group = creating_account_group.clone();
-            let notify = notify.clone();
-            let error = error.clone();
-            let on_reload = on_reload.clone();
-            wasm_bindgen_futures::spawn_local(async move {
-                if group_name.is_empty() {
-                    let message = "账号组名称不能为空".to_string();
-                    error.set(Some(message.clone()));
-                    notify.emit((message, true));
-                    return;
-                }
-                if account_names.is_empty() {
-                    let message = "账号组至少需要选择一个账号".to_string();
-                    error.set(Some(message.clone()));
-                    notify.emit((message, true));
-                    return;
-                }
-                creating_account_group.set(true);
-                match create_admin_kiro_account_group(CreateAdminAccountGroupInput {
-                    name: &group_name,
-                    account_names: account_names.as_slice(),
-                })
-                .await
-                {
-                    Ok(_) => {
-                        error.set(None);
-                        create_account_group_name.set(String::new());
-                        create_account_group_account_names.set(Vec::new());
-                        notify.emit((format!("已创建 Kiro 账号组 `{group_name}`"), false));
-                        on_reload.emit(());
-                    },
-                    Err(err) => {
-                        error.set(Some(err.clone()));
-                        notify.emit((format!("创建 Kiro 账号组失败\n{err}"), true));
-                    },
-                }
-                creating_account_group.set(false);
-            });
-        })
-    };
-
     let account_summary = *accounts_summary;
     let key_summary = *keys_summary;
     let disabled_account_count = account_summary.disabled_count;
@@ -4639,36 +4193,8 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
         .as_ref()
         .clone()
     };
-    let account_groups_query_lower = (*account_groups_search).trim().to_lowercase();
-    let filtered_account_groups: Vec<AdminAccountGroupView> = {
-        let q = account_groups_query_lower.clone();
-        use_memo(((*account_groups_page_items).clone(), q.clone()), move |(items, q)| {
-            if q.is_empty() {
-                items.clone()
-            } else {
-                items
-                    .iter()
-                    .filter(|g| {
-                        if g.name.to_lowercase().contains(q)
-                            || g.id.to_lowercase().contains(q)
-                            || g.provider_type.to_lowercase().contains(q)
-                        {
-                            return true;
-                        }
-                        g.account_names.iter().any(|n| n.to_lowercase().contains(q))
-                    })
-                    .cloned()
-                    .collect()
-            }
-        })
-        .as_ref()
-        .clone()
-    };
     let keys_total_pages = admin_kiro_key_total_pages(*keys_total, *keys_page_limit);
     let keys_current_page = (*keys_page).clamp(1, keys_total_pages);
-    let account_groups_total_pages =
-        admin_kiro_group_total_pages(*account_groups_total, *account_groups_page_limit);
-    let account_groups_current_page = (*account_groups_page).clamp(1, account_groups_total_pages);
     let on_keys_search_change = {
         let keys_search = keys_search.clone();
         Callback::from(move |v: String| keys_search.set(v))
@@ -4676,14 +4202,6 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
     let on_keys_page_change = {
         let keys_page = keys_page.clone();
         Callback::from(move |page: usize| keys_page.set(page))
-    };
-    let on_account_groups_page_change = {
-        let account_groups_page = account_groups_page.clone();
-        Callback::from(move |page: usize| account_groups_page.set(page.max(1)))
-    };
-    let on_account_groups_search_change = {
-        let account_groups_search = account_groups_search.clone();
-        Callback::from(move |v: String| account_groups_search.set(v))
     };
 
     html! {
@@ -5282,220 +4800,6 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
             </section>
             } // end TAB_KEYS
 
-            if active_tab == TAB_GROUPS {
-            <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                <div class={classes!("flex", "items-start", "justify-between", "gap-3", "flex-wrap")}>
-                    <div>
-                        <h2 class={classes!("m-0", "font-mono", "text-base", "font-bold", "text-[var(--text)]")}>{ "Kiro Account Groups" }</h2>
-                        <p class={classes!("mt-2", "mb-0", "text-sm", "text-[var(--muted)]")}>
-                            { "先维护账号组，再让 key 选择组。固定路由请选择单账号组；自动路由可以选任意组，留空则继续使用全账号池。" }
-                        </p>
-                    </div>
-                    <button
-                        type="button"
-                        class={classes!("btn-terminal")}
-                        onclick={{
-                            let on_reload = on_reload.clone();
-                            Callback::from(move |_| on_reload.emit(()))
-                        }}
-                    >
-                        { if *inventory_loading { "Refreshing..." } else { "Refresh Groups" } }
-                    </button>
-                </div>
-
-                <div class={classes!("mt-4", "max-w-md")}>
-                    <SearchBox
-                        value={(*account_groups_search).clone()}
-                        on_change={on_account_groups_search_change.clone()}
-                        placeholder={AttrValue::Static("搜索账号组名 / id / 成员账号")}
-                    />
-                </div>
-                if !account_groups_query_lower.is_empty() {
-                    <p class={classes!("mt-2", "text-xs", "text-[var(--muted)]", "font-mono")}>
-                        { format!("当前页匹配 {}/{} · 总数 {}", filtered_account_groups.len(), account_groups_page_items.len(), *account_groups_total) }
-                    </p>
-                }
-
-                <div class={classes!("mt-4", "rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "p-4")}>
-                    <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
-                        <div>
-                            <h3 class={classes!("m-0", "text-sm", "font-semibold")}>{ "Create Kiro Account Group" }</h3>
-                            <p class={classes!("mt-1", "mb-0", "text-xs", "text-[var(--muted)]")}>
-                                { "默认收起，需要时再展开，不和 key 列表混在一起。" }
-                            </p>
-                        </div>
-                        <button
-                            type="button"
-                            class={classes!("btn-terminal")}
-                            onclick={{
-                                let account_group_form_expanded = account_group_form_expanded.clone();
-                                Callback::from(move |_| account_group_form_expanded.set(!*account_group_form_expanded))
-                            }}
-                        >
-                            { if *account_group_form_expanded { "收起 ▲" } else { "展开 ▼" } }
-                        </button>
-                    </div>
-                    if *account_group_form_expanded {
-                        <div class={classes!("mt-4", "grid", "gap-3")}>
-                            <label class={classes!("text-sm")}>
-                                <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Group Name" }</div>
-                                <input
-                                    class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2", "text-sm")}
-                                    value={(*create_account_group_name).clone()}
-                                    oninput={{
-                                        let create_account_group_name = create_account_group_name.clone();
-                                        Callback::from(move |event: InputEvent| {
-                                            let input: HtmlInputElement = event.target_unchecked_into();
-                                            create_account_group_name.set(input.value());
-                                        })
-                                    }}
-                                />
-                            </label>
-                            <div class={classes!("space-y-2")}>
-                                <div class={classes!("text-sm", "text-[var(--muted)]")}>{ "成员账号" }</div>
-                                if *inventory_loading && accounts.is_empty() {
-                                    <div class={classes!("rounded-lg", "border", "border-dashed", "border-[var(--border)]", "px-3", "py-3", "text-xs", "text-[var(--muted)]")}>
-                                        { "正在加载 Kiro 账号…" }
-                                    </div>
-                                } else if let Some(err) = (*inventory_error).clone() {
-                                    <EmptyState
-                                        tone="error"
-                                        icon="fa-triangle-exclamation"
-                                        title="Kiro 账号加载失败"
-                                        hint={Some(AttrValue::from(err))}
-                                    />
-                                } else if accounts.is_empty() {
-                                    <EmptyState
-                                        icon="fa-inbox"
-                                        title="当前没有可加入账号组的 Kiro 账号"
-                                    />
-                                } else {
-                                    <div class={classes!("grid", "gap-2", "xl:grid-cols-2")}>
-                                        { for accounts.iter().map(|account| {
-                                            let checked = create_account_group_account_names.iter().any(|name| name == &account.name);
-                                            let account_name = account.name.clone();
-                                            let on_toggle_create_account_group_member =
-                                                on_toggle_create_account_group_member.clone();
-                                            let balance_hint = account
-                                                .balance
-                                                .as_ref()
-                                                .map(|balance| format!(
-                                                    "remaining {} / {}",
-                                                    format_float2(balance.remaining),
-                                                    format_float2(balance.usage_limit)
-                                                ))
-                                                .unwrap_or_else(|| "balance loading".to_string());
-                                            html! {
-                                                <label class={classes!(
-                                                    "flex", "cursor-pointer", "items-center", "gap-3", "rounded-lg", "border", "px-3", "py-2.5",
-                                                    if checked {
-                                                        "border-sky-500/30 bg-sky-500/8"
-                                                    } else {
-                                                        "border-[var(--border)] bg-[var(--surface)]"
-                                                    }
-                                                )}>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={checked}
-                                                        onchange={Callback::from(move |_| {
-                                                            on_toggle_create_account_group_member.emit(account_name.clone())
-                                                        })}
-                                                    />
-                                                    <div class={classes!("min-w-0", "flex-1")}>
-                                                        <div class={classes!("font-semibold", "text-[var(--text)]")}>{ account.name.clone() }</div>
-                                                        <div class={classes!("mt-1", "font-mono", "text-[11px]", "text-[var(--muted)]")}>
-                                                            { balance_hint }
-                                                        </div>
-                                                    </div>
-                                                </label>
-                                            }
-                                        }) }
-                                    </div>
-                                }
-                            </div>
-                            <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
-                                <span class={classes!("text-xs", "text-[var(--muted)]")}>
-                                    { format!(
-                                        "当前成员: {}",
-                                        if create_account_group_account_names.is_empty() {
-                                            "无".to_string()
-                                        } else {
-                                            create_account_group_account_names.join(", ")
-                                        }
-                                    ) }
-                                </span>
-                                <button
-                                    type="button"
-                                    class={classes!("btn-terminal", "btn-terminal-primary")}
-                                    onclick={on_create_account_group}
-                                    disabled={*creating_account_group}
-                                >
-                                    { if *creating_account_group { "Creating..." } else { "Create Group" } }
-                                </button>
-                            </div>
-                        </div>
-                    }
-                </div>
-
-                <div class={classes!("mt-4", "grid", "gap-4", "xl:grid-cols-2")}>
-                    {
-                        if *inventory_loading && (*account_groups).is_empty() {
-                            html! {
-                                <div class={classes!("rounded-xl", "border", "border-dashed", "border-[var(--border)]", "bg-[var(--surface-alt)]", "p-5", "text-sm", "text-[var(--muted)]")}>
-                                    { "正在加载 Kiro 账号组…" }
-                                </div>
-                            }
-                        } else if let Some(err) = (*inventory_error).clone() {
-                            html! {
-                                <EmptyState
-                                    tone="error"
-                                    icon="fa-triangle-exclamation"
-                                    title="Kiro 账号组加载失败"
-                                    hint={Some(AttrValue::from(err))}
-                                />
-                            }
-                        } else if account_groups_page_items.is_empty() {
-                            html! {
-                                <EmptyState
-                                    icon="fa-inbox"
-                                    title="当前还没有 Kiro 账号组"
-                                />
-                            }
-                        } else if filtered_account_groups.is_empty() {
-                            html! {
-                                <EmptyState
-                                    icon="fa-magnifying-glass"
-                                    title="当前过滤条件下没有匹配的账号组"
-                                />
-                            }
-                        } else {
-                            html! {
-                                for filtered_account_groups.iter().map(|group_item| html! {
-                                    <KiroAccountGroupEditorCard
-                                        key={group_item.id.clone()}
-                                        group_item={group_item.clone()}
-                                        accounts={(*accounts).clone()}
-                                        on_reload={on_reload.clone()}
-                                        on_flash={notify.clone()}
-                                    />
-                                })
-                            }
-                        }
-                    }
-                </div>
-                <div class={classes!("mt-4")}>
-                    <div class={classes!("mb-2", "text-xs", "text-[var(--muted)]", "font-mono")}>
-                        { format!("总数 {} · 第 {}/{} 页 · 每页 {}", *account_groups_total, account_groups_current_page, account_groups_total_pages, *account_groups_page_limit) }
-                    </div>
-                    <Pagination
-                        current_page={account_groups_current_page}
-                        total_pages={account_groups_total_pages}
-                        on_page_change={on_account_groups_page_change}
-                    />
-                </div>
-            </section>
-            } // end TAB_GROUPS
-
             // ── Usage Tab ──
 
             if let Some((message, is_error)) = (*toast).clone() {
@@ -5592,7 +4896,6 @@ mod tests {
         kiro_cache_token_percent, kiro_key_route_summary, kiro_preferred_pool_candidate_note,
         kiro_preferred_pool_warning, kiro_tab_route, parse_kiro_cache_policy_form_json,
         parse_manual_usage_limit_input, sanitize_kiro_account_group_id,
-        should_load_kiro_account_inventory, should_load_kiro_group_inventory,
         should_load_kiro_group_options, should_load_kiro_inventory, should_load_kiro_key_inventory,
         should_load_kiro_models_inventory, should_reset_kiro_cache_policy_editor, TAB_ACCOUNTS,
         TAB_GROUPS, TAB_KEYS, TAB_OVERVIEW, TAB_USAGE,
@@ -6338,7 +5641,8 @@ mod tests {
         // inventory request at all.
         assert!(!should_load_kiro_inventory(TAB_ACCOUNTS));
         assert!(should_load_kiro_inventory(TAB_KEYS));
-        assert!(should_load_kiro_inventory(TAB_GROUPS));
+        // Groups and Usage are standalone routed pages now.
+        assert!(!should_load_kiro_inventory(TAB_GROUPS));
         assert!(!should_load_kiro_inventory(TAB_USAGE));
     }
 
@@ -6351,19 +5655,8 @@ mod tests {
 
     #[test]
     fn kiro_inventory_helpers_only_load_required_datasets() {
-        // Full account inventory exists solely for group-membership pickers,
-        // so only the Groups tab may pay for it.
-        assert!(!should_load_kiro_account_inventory(TAB_ACCOUNTS));
-        assert!(!should_load_kiro_account_inventory(TAB_KEYS));
-        assert!(should_load_kiro_account_inventory(TAB_GROUPS));
-        assert!(!should_load_kiro_account_inventory(TAB_OVERVIEW));
-
         assert!(should_load_kiro_key_inventory(TAB_KEYS));
         assert!(!should_load_kiro_key_inventory(TAB_ACCOUNTS));
-
-        assert!(should_load_kiro_group_inventory(TAB_GROUPS));
-        assert!(!should_load_kiro_group_inventory(TAB_KEYS));
-        assert!(!should_load_kiro_group_inventory(TAB_ACCOUNTS));
 
         assert!(should_load_kiro_group_options(TAB_KEYS));
         assert!(!should_load_kiro_group_options(TAB_GROUPS));
