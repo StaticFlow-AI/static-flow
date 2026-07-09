@@ -22,7 +22,6 @@ use crate::{
         AdminUpstreamProxyConfigView, KiroAccountView, KiroBalanceView, KiroModelView,
         LlmGatewayRuntimeConfig, PatchAdminLlmGatewayKeyRequest, PatchKiroAccountInput,
     },
-    components::tab_bar::render_tab_bar,
     pages::llm_access_shared::{
         confirm_destructive, format_float2, format_kiro_disabled_reason, format_ms,
         format_number_i64, format_number_u64, format_reset_hint, format_timestamp_opt,
@@ -31,7 +30,6 @@ use crate::{
     router::Route,
 };
 
-const TAB_OVERVIEW: &str = "overview";
 const TAB_ACCOUNTS: &str = "accounts";
 const TAB_KEYS: &str = "keys";
 const TAB_GROUPS: &str = "groups";
@@ -933,9 +931,9 @@ fn kiro_cache_policy_editor(props: &KiroCachePolicyEditorProps) -> Html {
         <div class={classes!("space-y-3")}>
             <div class={classes!("grid", "gap-3", "md:grid-cols-2")}>
                 <label class={classes!("block", "text-sm")}>
-                    <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Boost Target Tokens" }</div>
+                    <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted-foreground)]")}>{ "Boost Target Tokens" }</div>
                     <input
-                        class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")}
+                        class={classes!("mono")}
                         value={props.form.target_input_tokens.clone()}
                         oninput={{
                             let form = props.form.clone();
@@ -949,9 +947,9 @@ fn kiro_cache_policy_editor(props: &KiroCachePolicyEditorProps) -> Html {
                     />
                 </label>
                 <label class={classes!("block", "text-sm")}>
-                    <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Diagnostic Threshold" }</div>
+                    <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted-foreground)]")}>{ "Diagnostic Threshold" }</div>
                     <input
-                        class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")}
+                        class={classes!("mono")}
                         value={props.form.high_credit_diagnostic_threshold.clone()}
                         oninput={{
                             let form = props.form.clone();
@@ -965,9 +963,9 @@ fn kiro_cache_policy_editor(props: &KiroCachePolicyEditorProps) -> Html {
                     />
                 </label>
                 <label class={classes!("block", "text-sm")}>
-                    <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Anthropic Creation Ratio" }</div>
+                    <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted-foreground)]")}>{ "Anthropic Creation Ratio" }</div>
                     <input
-                        class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")}
+                        class={classes!("mono")}
                         value={props.form.anthropic_cache_creation_input_ratio.clone()}
                         oninput={{
                             let form = props.form.clone();
@@ -981,9 +979,9 @@ fn kiro_cache_policy_editor(props: &KiroCachePolicyEditorProps) -> Html {
                     />
                 </label>
                 <label class={classes!("block", "text-sm")}>
-                    <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Boost Credit Start" }</div>
+                    <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted-foreground)]")}>{ "Boost Credit Start" }</div>
                     <input
-                        class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")}
+                        class={classes!("mono")}
                         value={props.form.credit_start.clone()}
                         oninput={{
                             let form = props.form.clone();
@@ -997,9 +995,9 @@ fn kiro_cache_policy_editor(props: &KiroCachePolicyEditorProps) -> Html {
                     />
                 </label>
                 <label class={classes!("block", "text-sm")}>
-                    <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Boost Credit End" }</div>
+                    <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted-foreground)]")}>{ "Boost Credit End" }</div>
                     <input
-                        class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")}
+                        class={classes!("mono")}
                         value={props.form.credit_end.clone()}
                         oninput={{
                             let form = props.form.clone();
@@ -1014,15 +1012,15 @@ fn kiro_cache_policy_editor(props: &KiroCachePolicyEditorProps) -> Html {
                 </label>
             </div>
 
-            <div class={classes!("rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3")}>
+            <div class={classes!("rounded-[var(--r-field)]", "border", "border-[var(--border)]", "bg-[var(--card-2)]", "px-3", "py-3")}>
                 <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
                     <div>
-                        <div class={classes!("text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Prefix Tree Bands" }</div>
-                        <div class={classes!("mt-1", "text-xs", "text-[var(--muted)]")}>
+                        <div class={classes!("text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted-foreground)]")}>{ "Prefix Tree Bands" }</div>
+                        <div class={classes!("mt-1", "text-xs", "text-[var(--muted-foreground)]")}>
                             { "Bands replace as a whole when any row changes. Keep credit/rate continuity between adjacent rows." }
                         </div>
                     </div>
-                    <button type="button" class={classes!("btn-terminal", "text-xs")} onclick={on_add_band}>
+                    <button type="button" class={classes!("text-xs")} onclick={on_add_band}>
                         { "Add Band" }
                     </button>
                 </div>
@@ -1032,9 +1030,9 @@ fn kiro_cache_policy_editor(props: &KiroCachePolicyEditorProps) -> Html {
                         html! {
                             <div class={classes!("grid", "gap-2", "md:grid-cols-[repeat(4,minmax(0,1fr))_auto]", "items-end")}>
                                 <label class={classes!("block", "text-sm")}>
-                                    <div class={classes!("mb-1", "text-[11px]", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ format!("Band {} Credit Start", index + 1) }</div>
+                                    <div class={classes!("mb-1", "text-[11px]", "uppercase", "tracking-[0.16em]", "text-[var(--muted-foreground)]")}>{ format!("Band {} Credit Start", index + 1) }</div>
                                     <input
-                                        class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2", "font-mono", "text-sm")}
+                                        class={classes!("mono")}
                                         value={band.credit_start.clone()}
                                         oninput={{
                                             let form = props.form.clone();
@@ -1050,9 +1048,9 @@ fn kiro_cache_policy_editor(props: &KiroCachePolicyEditorProps) -> Html {
                                     />
                                 </label>
                                 <label class={classes!("block", "text-sm")}>
-                                    <div class={classes!("mb-1", "text-[11px]", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ format!("Band {} Credit End", index + 1) }</div>
+                                    <div class={classes!("mb-1", "text-[11px]", "uppercase", "tracking-[0.16em]", "text-[var(--muted-foreground)]")}>{ format!("Band {} Credit End", index + 1) }</div>
                                     <input
-                                        class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2", "font-mono", "text-sm")}
+                                        class={classes!("mono")}
                                         value={band.credit_end.clone()}
                                         oninput={{
                                             let form = props.form.clone();
@@ -1068,9 +1066,9 @@ fn kiro_cache_policy_editor(props: &KiroCachePolicyEditorProps) -> Html {
                                     />
                                 </label>
                                 <label class={classes!("block", "text-sm")}>
-                                    <div class={classes!("mb-1", "text-[11px]", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ format!("Band {} Ratio Start", index + 1) }</div>
+                                    <div class={classes!("mb-1", "text-[11px]", "uppercase", "tracking-[0.16em]", "text-[var(--muted-foreground)]")}>{ format!("Band {} Ratio Start", index + 1) }</div>
                                     <input
-                                        class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2", "font-mono", "text-sm")}
+                                        class={classes!("mono")}
                                         value={band.cache_ratio_start.clone()}
                                         oninput={{
                                             let form = props.form.clone();
@@ -1086,9 +1084,9 @@ fn kiro_cache_policy_editor(props: &KiroCachePolicyEditorProps) -> Html {
                                     />
                                 </label>
                                 <label class={classes!("block", "text-sm")}>
-                                    <div class={classes!("mb-1", "text-[11px]", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ format!("Band {} Ratio End", index + 1) }</div>
+                                    <div class={classes!("mb-1", "text-[11px]", "uppercase", "tracking-[0.16em]", "text-[var(--muted-foreground)]")}>{ format!("Band {} Ratio End", index + 1) }</div>
                                     <input
-                                        class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2", "font-mono", "text-sm")}
+                                        class={classes!("mono")}
                                         value={band.cache_ratio_end.clone()}
                                         oninput={{
                                             let form = props.form.clone();
@@ -1105,7 +1103,7 @@ fn kiro_cache_policy_editor(props: &KiroCachePolicyEditorProps) -> Html {
                                 </label>
                                 <button
                                     type="button"
-                                    class={classes!("btn-terminal", "text-xs")}
+                                    class={classes!("danger", "text-xs")}
                                     disabled={remove_disabled}
                                     onclick={{
                                         let form = props.form.clone();
@@ -3352,17 +3350,46 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
     }
 }
 
-/// Props for [`AdminKiroGatewayPage`]. The active section is route-driven:
-/// `/admin/kiro-gateway` renders the overview and
-/// `/admin/kiro-gateway/{keys,groups,usage}` /
-/// `/admin/kiro-gateway/accounts/manage` select the matching section.
-#[derive(Properties, PartialEq, Default)]
-pub struct AdminKiroGatewayPageProps {
-    #[prop_or_default]
-    pub tab: Option<AttrValue>,
+/// One navigation card on the Kiro overview linking to a dedicated section.
+fn overview_nav_card(title: &'static str, desc: &'static str, to: Route) -> Html {
+    html! {
+        <Link<Route>
+            to={to}
+            classes={classes!(
+                "panel", "p-4", "no-underline", "text-[var(--foreground)]",
+                "transition-colors", "hover:border-[var(--ring)]"
+            )}
+        >
+            <div class={classes!("flex", "items-center", "justify-between", "gap-2")}>
+                <span class={classes!("font-semibold")}>{ title }</span>
+                <span class={classes!("text-[var(--muted-foreground)]")}>{ "\u{2192}" }</span>
+            </div>
+            <div class={classes!("mt-1", "text-xs", "text-[var(--muted-foreground)]")}>{ desc }</div>
+        </Link<Route>>
+    }
 }
 
-/// The route for one Kiro admin section id (inverse of the router mapping).
+/// A labeled numeric/text config field bound to a string state handle, in the
+/// admin-shell form style.
+fn cache_cfg_field(label: &str, state: &UseStateHandle<String>) -> Html {
+    let handle = state.clone();
+    html! {
+        <label class={classes!("grid", "gap-1", "text-xs", "text-[var(--muted-foreground)]")}>
+            { label.to_string() }
+            <input
+                class={classes!("mono")}
+                value={(**state).clone()}
+                oninput={Callback::from(move |event: InputEvent| {
+                    let input: HtmlInputElement = event.target_unchecked_into();
+                    handle.set(input.value());
+                })}
+            />
+        </label>
+    }
+}
+
+/// The route for one Kiro admin section id (used to forward legacy `?tab=`
+/// deep links onto the dedicated per-section routes).
 fn kiro_tab_route(tab: &str) -> Route {
     match tab {
         TAB_ACCOUNTS => Route::AdminKiroGatewayAccountsManage,
@@ -3378,7 +3405,7 @@ fn kiro_tab_route(tab: &str) -> Route {
 ///
 /// This page owns the full CRUD workflow for Kiro accounts and private keys,
 /// plus usage inspection and provider-level proxy context.
-pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
+pub fn admin_kiro_gateway_page() -> Html {
     let accounts_summary = use_state(AdminAccountsSummaryView::default);
     let keys_summary = use_state(AdminLlmGatewayKeysSummaryView::default);
     let proxy_configs = use_state(Vec::<AdminUpstreamProxyConfigView>::new);
@@ -3406,15 +3433,12 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
     let kiro_cache_snapshot_max_anchor_entries = use_state(String::new);
     let loading = use_state(|| true);
     let error = use_state(|| None::<String>);
-    let flash = use_state(|| None::<String>);
     let toast = use_state(|| None::<(String, bool)>);
     let toast_timeout = use_mut_ref(|| None::<Timeout>);
     let notify = {
-        let flash = flash.clone();
         let toast = toast.clone();
         let toast_timeout = toast_timeout.clone();
         Callback::from(move |(message, is_error): (String, bool)| {
-            flash.set(Some(message.clone()));
             toast.set(Some((message, is_error)));
             toast_timeout.borrow_mut().take();
             let toast = toast.clone();
@@ -3427,38 +3451,24 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
         })
     };
     let refresh_tick = use_state(|| 0u32);
-    let navigator = use_navigator();
-    let active_tab = props
-        .tab
-        .as_ref()
-        .map(|tab| tab.to_string())
-        .unwrap_or_else(|| TAB_OVERVIEW.to_string());
-    // Legacy deep links used `?tab=`; forward them once onto the new routes.
+    let cache_config_expanded = use_state(|| false);
+    // Legacy deep links used `?tab=`; forward them once onto the dedicated
+    // per-section routes so old bookmarks keep working.
     {
-        let navigator = navigator.clone();
-        use_effect_with(props.tab.clone(), move |tab| {
-            if tab.is_none() {
-                let legacy = crate::pages::llm_access_shared::initial_tab_from_url(
-                    &[TAB_ACCOUNTS, TAB_KEYS, TAB_GROUPS, TAB_USAGE],
-                    "",
-                );
-                if !legacy.is_empty() {
-                    if let Some(navigator) = navigator {
-                        navigator.replace(&kiro_tab_route(&legacy));
-                    }
+        let navigator = use_navigator();
+        use_effect_with((), move |_| {
+            let legacy = crate::pages::llm_access_shared::initial_tab_from_url(
+                &[TAB_ACCOUNTS, TAB_KEYS, TAB_GROUPS, TAB_USAGE],
+                "",
+            );
+            if !legacy.is_empty() {
+                if let Some(navigator) = navigator {
+                    navigator.replace(&kiro_tab_route(&legacy));
                 }
             }
             || ()
         });
     }
-    let on_tab_click = {
-        let navigator = navigator.clone();
-        Callback::from(move |tab: String| {
-            if let Some(navigator) = navigator.clone() {
-                navigator.push(&kiro_tab_route(&tab));
-            }
-        })
-    };
 
 
     {
@@ -3929,478 +3939,286 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
 
 
     html! {
-        <main class={classes!(
-            "min-h-screen",
-            "bg-[var(--bg)]",
-            "px-4",
-            "py-8",
-            "lg:px-6",
-            "lg:py-10"
-        )}>
-            <div class={classes!("mx-auto", "max-w-6xl", "space-y-4")}>
-
-            // ── Header (always visible) ──
-            <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                <div class={classes!("flex", "items-center", "justify-between", "gap-4", "flex-wrap")}>
-                    <div class={classes!("flex", "items-center", "gap-3")}>
-                        <span class={kiro_badge()}>
-                            { "Kiro" }
-                        </span>
-                        <h1 class={classes!("m-0", "font-mono", "text-xl", "font-bold", "text-[var(--text)]")}>{ "Gateway Admin" }</h1>
+        <main class={classes!("admin-shell", "min-h-screen", "px-4", "py-6", "lg:px-8")}>
+            <div class={classes!("mx-auto", "max-w-7xl", "space-y-4")}>
+                <header class={classes!("flex", "flex-wrap", "items-end", "justify-between", "gap-4")}>
+                    <div>
+                        <div class={classes!("eyebrow")}>{ "Kiro Gateway" }</div>
+                        <h1 class={classes!("m-0", "text-xl", "font-bold", "tracking-tight")}>{ "Overview" }</h1>
                     </div>
-                    <div class={classes!("flex", "gap-2", "flex-wrap")}>
-                        <Link<Route> to={Route::KiroAccess} classes={classes!("btn-terminal")}>{ "Kiro Access" }</Link<Route>>
-                        <Link<Route> to={Route::LlmAccess} classes={classes!("btn-terminal")}>{ "LLM Access" }</Link<Route>>
-                        <button
-                            type="button"
-                            class={classes!("btn-terminal", "btn-terminal-primary")}
-                            onclick={{
-                                let on_reload = on_reload.clone();
-                                Callback::from(move |_| on_reload.emit(()))
-                            }}
-                        >
+                    <div class={classes!("bar-actions")}>
+                        <Link<Route> to={Route::KiroAccess} classes={classes!("linkbtn")}>{ "Kiro Access" }</Link<Route>>
+                        <Link<Route> to={Route::LlmAccess} classes={classes!("linkbtn")}>{ "LLM Access" }</Link<Route>>
+                        <button type="button" class={classes!("primary")} disabled={*loading} onclick={{
+                            let on_reload = on_reload.clone();
+                            Callback::from(move |_| on_reload.emit(()))
+                        }}>
                             { if *loading { "Loading..." } else { "Refresh" } }
                         </button>
                     </div>
-                </div>
-                if let Some(message) = (*flash).clone() {
-                    <div class={classes!("mt-4", "rounded-lg", "bg-emerald-500/10", "px-3", "py-2", "text-sm", "text-emerald-700", "dark:text-emerald-200")}>
-                        { message }
-                    </div>
-                }
+                </header>
+
                 if let Some(err) = (*error).clone() {
-                    <div class={classes!("mt-4", "rounded-lg", "bg-red-500/10", "px-3", "py-2", "text-sm", "text-red-700", "dark:text-red-200")}>
-                        { err }
-                    </div>
+                    <div class={classes!("errorline", "text-sm")}>{ err }</div>
                 }
 
-                <div class={classes!("mt-4", "grid", "gap-3", "grid-cols-2", "xl:grid-cols-4")}>
-                    <div class={classes!("rounded-lg", "border", "border-[var(--border)]", "px-3", "py-3")}>
-                        <div class={classes!("font-mono", "text-[11px]", "uppercase", "tracking-widest", "text-[var(--muted)]")}>{ "Accounts" }</div>
-                        <div class={classes!("mt-1", "font-mono", "text-2xl", "font-black")}>{ account_summary.total }</div>
-                    </div>
-                    <div class={classes!("rounded-lg", "border", "border-[var(--border)]", "px-3", "py-3")}>
-                        <div class={classes!("font-mono", "text-[11px]", "uppercase", "tracking-widest", "text-[var(--muted)]")}>{ "Disabled" }</div>
-                        <div class={classes!("mt-1", "font-mono", "text-2xl", "font-black", if disabled_account_count > 0 { "text-amber-600" } else { "" })}>{ disabled_account_count }</div>
-                    </div>
-                    <div class={classes!("rounded-lg", "border", "border-[var(--border)]", "px-3", "py-3")}>
-                        <div class={classes!("font-mono", "text-[11px]", "uppercase", "tracking-widest", "text-[var(--muted)]")}>{ "Keys" }</div>
-                        <div class={classes!("mt-1", "font-mono", "text-2xl", "font-black")}>{ key_summary.total }</div>
-                    </div>
-                    <div class={classes!("rounded-lg", "border", "border-[var(--border)]", "px-3", "py-3")}>
-                        <div class={classes!("font-mono", "text-[11px]", "uppercase", "tracking-widest", "text-[var(--muted)]")}>{ "Active Keys" }</div>
-                        <div class={classes!("mt-1", "font-mono", "text-2xl", "font-black")}>{ active_key_count }</div>
-                    </div>
-                </div>
-            </section>
-
-            // ── Tab Bar (always visible) ──
-            { render_tab_bar(&active_tab, &[
-                (TAB_OVERVIEW, "Overview"),
-                (TAB_ACCOUNTS, "Accounts"),
-                (TAB_KEYS, "Keys"),
-                (TAB_GROUPS, "Groups"),
-                (TAB_USAGE, "Usage"),
-            ], &on_tab_click, None) }
-
-            // ── Overview Tab ──
-            if active_tab == TAB_OVERVIEW {
-            <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                <h2 class={classes!("m-0", "font-mono", "text-base", "font-bold", "text-[var(--text)]")}>{ "Effective Upstream Proxy" }</h2>
-                {
-                    if let Some(binding) = proxy_bindings.iter().find(|item| item.provider_type == "kiro") {
-                        html! {
-                            <div class={classes!("mt-4", "space-y-2", "text-sm")}>
-                                <div class={classes!("font-mono", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>
-                                    { format!("source: {}", binding.effective_source) }
-                                </div>
-                                <div class={classes!("rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3")}>
-                                    <div class={classes!("font-mono", "text-xs", "break-all")}>
-                                        { binding.effective_proxy_url.clone().unwrap_or_else(|| "-".to_string()) }
-                                    </div>
-                                    if let Some(name) = binding.effective_proxy_config_name.as_deref() {
-                                        <div class={classes!("mt-2", "text-xs", "text-[var(--muted)]")}>{ format!("config: {}", name) }</div>
-                                    }
-                                    if let Some(error_message) = binding.error_message.as_deref() {
-                                        <div class={classes!("mt-2", "text-xs", "text-red-600", "dark:text-red-300")}>{ error_message }</div>
-                                    }
-                                </div>
-                                <p class={classes!("m-0", "text-xs", "text-[var(--muted)]")}>
-                                    { "这里是 Kiro 的默认 provider 级代理。账号没有单独指定时继承它；账号改成 direct/fixed 之后，会覆盖这里的默认值。" }
-                                </p>
-                            </div>
-                        }
-                    } else {
-                        html! {
-                            <p class={classes!("mt-4", "text-sm", "text-[var(--muted)]")}>
-                                { "当前还没有拿到 Kiro provider 代理绑定状态。" }
-                            </p>
-                        }
-                    }
-                }
-            </section>
-            <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                <div class={classes!("flex", "items-start", "justify-between", "gap-3", "flex-wrap")}>
-                    <div>
-                        <h2 class={classes!("m-0", "font-mono", "text-base", "font-bold", "text-[var(--text)]")}>
-                            { "Anthropic Upstream Channels" }
-                        </h2>
-                        <p class={classes!("mt-2", "mb-0", "text-sm", "text-[var(--muted)]")}>
-                            { "直连 channel 管理、模型刷新、模型测试和 channel token rollup 已移到独立页面，Overview 不再首屏加载完整 channel 列表。" }
-                        </p>
-                    </div>
-                    <Link<Route> to={Route::AdminKiroAnthropicUpstreams} classes={classes!("btn-terminal", "btn-terminal-primary")}>
-                        { "Open Channels" }
-                    </Link<Route>>
-                </div>
-            </section>
-            <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                <div class={classes!("flex", "items-start", "justify-between", "gap-3", "flex-wrap")}>
-                    <div>
-                        <h2 class={classes!("m-0", "font-mono", "text-base", "font-bold", "text-[var(--text)]")}>{ "Kiro Cache Simulation" }</h2>
-                        <p class={classes!("mt-2", "mb-0", "text-sm", "text-[var(--muted)]")}>
-                            { "这里统一管理 Kiro 的全局 cache policy、cache 模拟模式、prefix tree 容量/TTL，以及按模型的保守 Kmodel 系数。prefix tree 模式会基于修正后的 ConversationState 做共享前缀匹配；formula 模式继续走旧的保守 credit 反推。这个入口是 Kiro cache 全局参数的唯一前端编辑面。" }
-                        </p>
-                    </div>
-                    <button
-                        type="button"
-                        class={classes!("btn-terminal", "btn-terminal-primary")}
-                        disabled={*saving_kmodel_config}
-                        onclick={on_save_kiro_cache_kmodels}
-                    >
-                        { if *saving_kmodel_config { "Saving..." } else { "Save Cache Settings" } }
-                        </button>
-                    </div>
-                    {
-                        if let Some(stats) = (*kiro_cache_stats).clone() {
-                            let token_percent = kiro_cache_token_percent(
-                                stats.prefix_tree.resident_tokens,
-                                stats.prefix_tree.max_tokens,
-                            );
-                            let estimated_bytes = stats
-                                .prefix_tree
-                                .estimated_memory_bytes
-                                .saturating_add(stats.conversation_anchors.estimated_memory_bytes);
-                            html! {
-                                <div class={classes!("mt-4", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3")}>
-                                    <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
-                                        <div>
-                                            <div class={classes!("text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Runtime Cache Footprint" }</div>
-                                            <div class={classes!("mt-1", "font-mono", "text-sm", "text-[var(--text)]")}>
-                                                { format!("mode={} · page={} tokens", stats.mode, stats.page_size_tokens) }
-                                            </div>
-                                        </div>
-                                        <div class={classes!("font-mono", "text-sm", "font-semibold", "text-[var(--text)]")}>
-                                            { format!("{:.2}% tokens", token_percent) }
-                                        </div>
-                                    </div>
-                                    <div class={classes!("mt-3", "h-2", "overflow-hidden", "rounded-full", "bg-[var(--border)]")}>
-                                        <div
-                                            class={classes!("h-full", "bg-emerald-500")}
-                                            style={format!("width: {:.2}%;", token_percent)}
-                                        />
-                                    </div>
-                                    <div class={classes!("mt-3", "grid", "gap-2", "sm:grid-cols-2", "xl:grid-cols-5")}>
-                                        <div class={classes!("font-mono", "text-xs")}>
-                                            <div class={classes!("text-[var(--muted)]")}>{ "resident / max" }</div>
-                                            <div>{ format!("{} / {}", format_number_u64(stats.prefix_tree.resident_tokens), format_number_u64(stats.prefix_tree.max_tokens)) }</div>
-                                        </div>
-                                        <div class={classes!("font-mono", "text-xs")}>
-                                            <div class={classes!("text-[var(--muted)]")}>{ "estimated memory" }</div>
-                                            <div>{ format_compact_bytes(estimated_bytes) }</div>
-                                        </div>
-                                        <div class={classes!("font-mono", "text-xs")}>
-                                            <div class={classes!("text-[var(--muted)]")}>{ "nodes / leaves" }</div>
-                                            <div>{ format!("{} / {}", format_number_u64(stats.prefix_tree.node_count as u64), format_number_u64(stats.prefix_tree.leaf_count as u64)) }</div>
-                                        </div>
-                                        <div class={classes!("font-mono", "text-xs")}>
-                                            <div class={classes!("text-[var(--muted)]")}>{ "anchors" }</div>
-                                            <div>{ format!("{} / {}", format_number_u64(stats.conversation_anchors.entries as u64), format_number_u64(stats.conversation_anchors.max_entries as u64)) }</div>
-                                        </div>
-                                        <div class={classes!("font-mono", "text-xs")}>
-                                            <div class={classes!("text-[var(--muted)]")}>{ "process rss" }</div>
-                                            <div>{ stats.process_memory.rss_bytes.map(format_compact_bytes).unwrap_or_else(|| "-".to_string()) }</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            }
-                        } else if let Some(err) = (*kiro_cache_stats_error).clone() {
-                            html! {
-                                <div class={classes!("mt-4", "rounded-lg", "border", "border-dashed", "border-red-400/50", "bg-red-500/10", "px-3", "py-3", "font-mono", "text-xs", "text-red-700", "dark:text-red-200")}>
-                                    { format!("Runtime cache stats unavailable: {err}") }
-                                </div>
-                            }
-                        } else {
-                            html! {
-                                <div class={classes!("mt-4", "rounded-lg", "border", "border-dashed", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "font-mono", "text-xs", "text-[var(--muted)]")}>
-                                    { "Runtime cache stats are loading." }
-                                </div>
-                            }
-                        }
-                    }
-                    <div class={classes!("mt-4", "grid", "gap-3", "lg:grid-cols-2")}>
-                        <div class={classes!("lg:col-span-2", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "space-y-3")}>
-                        <div class={classes!("space-y-1")}>
-                            <div class={classes!("text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Global Cache Policy" }</div>
-                            <div class={classes!("text-sm", "text-[var(--muted)]")}>
-                                { "Key 级 override 只覆盖变化过的标量字段，bands 则整段替换。未覆盖的字段继续继承全局默认。" }
-                            </div>
-                            <div class={classes!("text-xs", "font-mono", "text-[var(--muted)]")}>
-                                { format_kiro_cache_policy_summary(&kiro_cache_policy_form, &kiro_cache_policy_form) }
-                            </div>
+                <section class={classes!("panel")}>
+                    <div class={classes!("stat-strip")}>
+                        <div class={classes!("stat")}>
+                            <span>{ "Accounts" }</span>
+                            <b>{ account_summary.total }</b>
                         </div>
-                        <KiroCachePolicyEditor form={kiro_cache_policy_form.clone()} />
+                        <div class={classes!("stat", (disabled_account_count > 0).then_some("warn"))}>
+                            <span>{ "Disabled" }</span>
+                            <b>{ disabled_account_count }</b>
+                        </div>
+                        <div class={classes!("stat")}>
+                            <span>{ "Keys" }</span>
+                            <b>{ key_summary.total }</b>
+                        </div>
+                        <div class={classes!("stat")}>
+                            <span>{ "Active Keys" }</span>
+                            <b>{ active_key_count }</b>
+                        </div>
                     </div>
-                    <label class={classes!("block", "text-sm")}>
-                        <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "contextUsage Min Request Tokens" }</div>
-                        <input
-                            class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")}
-                            value={(*kiro_context_usage_min_request_tokens).clone()}
-                            oninput={{
-                                let kiro_context_usage_min_request_tokens =
-                                    kiro_context_usage_min_request_tokens.clone();
-                                Callback::from(move |event: InputEvent| {
-                                    let input: HtmlInputElement = event.target_unchecked_into();
-                                    kiro_context_usage_min_request_tokens.set(input.value());
-                                })
-                            }}
-                        />
-                    </label>
-                    <label class={classes!("block", "text-sm")}>
-                        <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Compaction Trigger Tokens (0 disables)" }</div>
-                        <input
-                            class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")}
-                            value={(*kiro_compact_trigger_tokens).clone()}
-                            oninput={{
-                                let kiro_compact_trigger_tokens =
-                                    kiro_compact_trigger_tokens.clone();
-                                Callback::from(move |event: InputEvent| {
-                                    let input: HtmlInputElement = event.target_unchecked_into();
-                                    kiro_compact_trigger_tokens.set(input.value());
-                                })
-                            }}
-                        />
-                    </label>
-                    <label class={classes!("block", "text-sm")}>
-                        <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Simulation Mode" }</div>
-                        <select
-                            class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "text-sm")}
-                            value={(*kiro_prefix_cache_mode).clone()}
-                            onchange={{
-                                let kiro_prefix_cache_mode = kiro_prefix_cache_mode.clone();
-                                Callback::from(move |event: Event| {
-                                    let input: HtmlSelectElement = event.target_unchecked_into();
-                                    kiro_prefix_cache_mode.set(input.value());
-                                })
+                </section>
+
+                <section class={classes!("grid", "gap-3", "sm:grid-cols-2", "xl:grid-cols-3")}>
+                    { overview_nav_card("Accounts", "导入 / 手动创建 Kiro 账号", Route::AdminKiroGatewayAccountsManage) }
+                    { overview_nav_card("Account Status", "分页浏览账号余额与异常状态", Route::AdminKiroAccountStatus) }
+                    { overview_nav_card("Keys", "创建与管理私钥、路由与缓存策略", Route::AdminKiroGatewayKeys) }
+                    { overview_nav_card("Groups", "维护账号组，供 key 选择固定/自动路由", Route::AdminKiroGatewayGroups) }
+                    { overview_nav_card("Usage", "分页查看用量事件与详情", Route::AdminKiroGatewayUsage) }
+                    { overview_nav_card("Upstream Channels", "直连 Anthropic 渠道、模型测试与冷却", Route::AdminKiroAnthropicUpstreams) }
+                </section>
+
+                <section class={classes!("panel")}>
+                    <div class={classes!("panel-head")}>
+                        <h2>{ "Effective Upstream Proxy" }</h2>
+                    </div>
+                    <div class={classes!("panel-body")}>
+                        {
+                            if let Some(binding) = proxy_bindings.iter().find(|item| item.provider_type == "kiro") {
+                                html! {
+                                    <div class={classes!("space-y-2", "text-sm")}>
+                                        <div class={classes!("eyebrow")}>{ format!("source: {}", binding.effective_source) }</div>
+                                        <div class={classes!("rounded-[var(--r-field)]", "border", "border-[var(--border)]", "bg-[var(--card-2)]", "px-3", "py-3")}>
+                                            <div class={classes!("mono", "break-all")}>
+                                                { binding.effective_proxy_url.clone().unwrap_or_else(|| "-".to_string()) }
+                                            </div>
+                                            if let Some(name) = binding.effective_proxy_config_name.as_deref() {
+                                                <div class={classes!("mt-2", "text-xs", "text-[var(--muted-foreground)]")}>{ format!("config: {}", name) }</div>
+                                            }
+                                            if let Some(error_message) = binding.error_message.as_deref() {
+                                                <div class={classes!("mt-2", "text-xs", "text-[var(--destructive)]")}>{ error_message }</div>
+                                            }
+                                        </div>
+                                        <p class={classes!("m-0", "text-xs", "text-[var(--muted-foreground)]")}>
+                                            { "Kiro 的默认 provider 级代理。账号未单独指定时继承它；账号改成 direct/fixed 会覆盖这里的默认值。" }
+                                        </p>
+                                    </div>
+                                }
+                            } else {
+                                html! {
+                                    <p class={classes!("m-0", "text-sm", "text-[var(--muted-foreground)]")}>
+                                        { "当前还没有拿到 Kiro provider 代理绑定状态。" }
+                                    </p>
+                                }
+                            }
+                        }
+                    </div>
+                </section>
+
+                <section class={classes!("panel")}>
+                    <div class={classes!("panel-head")}>
+                        <div>
+                            <h2>{ "Kiro Cache Simulation" }</h2>
+                            <p class={classes!("m-0", "mt-1", "text-xs", "text-[var(--muted-foreground)]")}>
+                                { "Kiro cache 全局参数的唯一前端编辑面：cache policy、模拟模式、prefix tree 容量/TTL、按模型 Kmodel 系数与 billable 倍率。" }
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            class={classes!("ghost")}
+                            onclick={{
+                                let cache_config_expanded = cache_config_expanded.clone();
+                                Callback::from(move |_| cache_config_expanded.set(!*cache_config_expanded))
                             }}
                         >
-                            <option value="formula">{ "formula" }</option>
-                            <option value="prefix_tree">{ "prefix_tree" }</option>
-                        </select>
-                    </label>
-                    <label class={classes!("block", "text-sm")}>
-                        <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Prefix Tree Max Tokens" }</div>
-                        <input
-                            class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")}
-                            value={(*kiro_prefix_cache_max_tokens).clone()}
-                            oninput={{
-                                let kiro_prefix_cache_max_tokens = kiro_prefix_cache_max_tokens.clone();
-                                Callback::from(move |event: InputEvent| {
-                                    let input: HtmlInputElement = event.target_unchecked_into();
-                                    kiro_prefix_cache_max_tokens.set(input.value());
-                                })
-                            }}
-                        />
-                    </label>
-                    <label class={classes!("block", "text-sm")}>
-                        <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Prefix Tree TTL Seconds" }</div>
-                        <input
-                            class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")}
-                            value={(*kiro_prefix_cache_entry_ttl_seconds).clone()}
-                            oninput={{
-                                let kiro_prefix_cache_entry_ttl_seconds = kiro_prefix_cache_entry_ttl_seconds.clone();
-                                Callback::from(move |event: InputEvent| {
-                                    let input: HtmlInputElement = event.target_unchecked_into();
-                                    kiro_prefix_cache_entry_ttl_seconds.set(input.value());
-                                })
-                            }}
-                        />
-                    </label>
-                    <label class={classes!("block", "text-sm")}>
-                        <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Anchor Max Entries" }</div>
-                        <input
-                            class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")}
-                            value={(*kiro_conversation_anchor_max_entries).clone()}
-                            oninput={{
-                                let kiro_conversation_anchor_max_entries = kiro_conversation_anchor_max_entries.clone();
-                                Callback::from(move |event: InputEvent| {
-                                    let input: HtmlInputElement = event.target_unchecked_into();
-                                    kiro_conversation_anchor_max_entries.set(input.value());
-                                })
-                            }}
-                        />
-                    </label>
-                    <label class={classes!("block", "text-sm", "lg:col-span-2")}>
-                        <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Anchor TTL Seconds" }</div>
-                        <input
-                            class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")}
-                            value={(*kiro_conversation_anchor_ttl_seconds).clone()}
-                            oninput={{
-                                let kiro_conversation_anchor_ttl_seconds = kiro_conversation_anchor_ttl_seconds.clone();
-                                Callback::from(move |event: InputEvent| {
-                                    let input: HtmlInputElement = event.target_unchecked_into();
-                                    kiro_conversation_anchor_ttl_seconds.set(input.value());
-                                })
-                            }}
-                        />
-                    </label>
-                    <label class={classes!("flex", "items-center", "gap-2", "text-sm", "lg:col-span-2")}>
-                        <input
-                            type="checkbox"
-                            checked={*kiro_cache_snapshot_enabled}
-                            oninput={{
-                                let kiro_cache_snapshot_enabled = kiro_cache_snapshot_enabled.clone();
-                                Callback::from(move |event: InputEvent| {
-                                    let input: HtmlInputElement = event.target_unchecked_into();
-                                    kiro_cache_snapshot_enabled.set(input.checked());
-                                })
-                            }}
-                        />
-                        <span class={classes!("text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Snapshot Persistence (Valkey)" }</span>
-                    </label>
-                    <label class={classes!("block", "text-sm")}>
-                        <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Snapshot Interval Seconds" }</div>
-                        <input
-                            class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")}
-                            value={(*kiro_cache_snapshot_interval_seconds).clone()}
-                            oninput={{
-                                let kiro_cache_snapshot_interval_seconds = kiro_cache_snapshot_interval_seconds.clone();
-                                Callback::from(move |event: InputEvent| {
-                                    let input: HtmlInputElement = event.target_unchecked_into();
-                                    kiro_cache_snapshot_interval_seconds.set(input.value());
-                                })
-                            }}
-                        />
-                    </label>
-                    <label class={classes!("block", "text-sm")}>
-                        <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Snapshot TTL Seconds" }</div>
-                        <input
-                            class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")}
-                            value={(*kiro_cache_snapshot_ttl_seconds).clone()}
-                            oninput={{
-                                let kiro_cache_snapshot_ttl_seconds = kiro_cache_snapshot_ttl_seconds.clone();
-                                Callback::from(move |event: InputEvent| {
-                                    let input: HtmlInputElement = event.target_unchecked_into();
-                                    kiro_cache_snapshot_ttl_seconds.set(input.value());
-                                })
-                            }}
-                        />
-                    </label>
-                    <label class={classes!("block", "text-sm")}>
-                        <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Snapshot Max Tokens (0 = live)" }</div>
-                        <input
-                            class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")}
-                            value={(*kiro_cache_snapshot_max_tokens).clone()}
-                            oninput={{
-                                let kiro_cache_snapshot_max_tokens = kiro_cache_snapshot_max_tokens.clone();
-                                Callback::from(move |event: InputEvent| {
-                                    let input: HtmlInputElement = event.target_unchecked_into();
-                                    kiro_cache_snapshot_max_tokens.set(input.value());
-                                })
-                            }}
-                        />
-                    </label>
-                    <label class={classes!("block", "text-sm")}>
-                        <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Snapshot Max Anchor Entries (0 = live)" }</div>
-                        <input
-                            class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")}
-                            value={(*kiro_cache_snapshot_max_anchor_entries).clone()}
-                            oninput={{
-                                let kiro_cache_snapshot_max_anchor_entries = kiro_cache_snapshot_max_anchor_entries.clone();
-                                Callback::from(move |event: InputEvent| {
-                                    let input: HtmlInputElement = event.target_unchecked_into();
-                                    kiro_cache_snapshot_max_anchor_entries.set(input.value());
-                                })
-                            }}
-                        />
-                    </label>
-                </div>
-                <label class={classes!("mt-4", "block", "text-sm")}>
-                    <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Kmodel JSON" }</div>
-                    <textarea
-                        class={classes!("min-h-[18rem]", "w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "font-mono", "text-xs", "leading-6")}
-                        value={(*kiro_cache_kmodels_json).clone()}
-                        oninput={{
-                            let kiro_cache_kmodels_json = kiro_cache_kmodels_json.clone();
-                            Callback::from(move |event: InputEvent| {
-                                let input: HtmlTextAreaElement = event.target_unchecked_into();
-                                kiro_cache_kmodels_json.set(input.value());
-                            })
-                        }}
-                    />
-                </label>
-                <label class={classes!("mt-4", "block", "text-sm")}>
-                    <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Billable Multiplier JSON" }</div>
-                    <div class={classes!("mb-2", "text-xs", "text-[var(--muted)]")}>
-                        { "只识别 `opus` / `sonnet` / `haiku` 三个 key。默认都是 1.0；这里会在 Kiro 的基础 billable token 上按模型族再乘一次。" }
+                            { if *cache_config_expanded { "收起配置" } else { "展开配置" } }
+                        </button>
                     </div>
-                    <textarea
-                        class={classes!("min-h-[10rem]", "w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "font-mono", "text-xs", "leading-6")}
-                        value={(*kiro_billable_model_multipliers_json).clone()}
-                        oninput={{
-                            let kiro_billable_model_multipliers_json =
-                                kiro_billable_model_multipliers_json.clone();
-                            Callback::from(move |event: InputEvent| {
-                                let input: HtmlTextAreaElement = event.target_unchecked_into();
-                                kiro_billable_model_multipliers_json.set(input.value());
-                            })
-                        }}
-                    />
-                </label>
-                if let Some(config) = (*runtime_config).clone() {
-                    <div class={classes!("mt-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "text-xs", "text-[var(--muted)]", "space-y-1")}>
-                        <div class={classes!("font-mono")}>
-                            { format!("current stored bytes: {}", config.kiro_cache_kmodels_json.len()) }
-                        </div>
-                        <div class={classes!("font-mono")}>
-                            { format!("current billable multiplier bytes: {}", config.kiro_billable_model_multipliers_json.len()) }
-                        </div>
-                        <div class={classes!("font-mono")}>
-                            { format!("current policy bytes: {}", config.kiro_cache_policy_json.len()) }
-                        </div>
-                        <div>
-                            { format!("context_usage_min_request_tokens={}, mode={}, prefix_tree_max_tokens={}, prefix_tree_ttl_seconds={}, anchor_max_entries={}, anchor_ttl_seconds={}", config.kiro_context_usage_min_request_tokens, config.kiro_prefix_cache_mode, config.kiro_prefix_cache_max_tokens, config.kiro_prefix_cache_entry_ttl_seconds, config.kiro_conversation_anchor_max_entries, config.kiro_conversation_anchor_ttl_seconds) }
-                        </div>
-                        <div>
-                            { "prefix_tree 模式使用修正后的 stable-prefix 做共享前缀匹配；formula 模式继续保留旧的保守下界反推。" }
-                        </div>
+                    <div class={classes!("panel-body", "space-y-4")}>
+                        {
+                            if let Some(stats) = (*kiro_cache_stats).clone() {
+                                let token_percent = kiro_cache_token_percent(
+                                    stats.prefix_tree.resident_tokens,
+                                    stats.prefix_tree.max_tokens,
+                                );
+                                let estimated_bytes = stats
+                                    .prefix_tree
+                                    .estimated_memory_bytes
+                                    .saturating_add(stats.conversation_anchors.estimated_memory_bytes);
+                                html! {
+                                    <div class={classes!("rounded-[var(--r-field)]", "border", "border-[var(--border)]", "bg-[var(--card-2)]", "px-3", "py-3")}>
+                                        <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
+                                            <div>
+                                                <div class={classes!("eyebrow")}>{ "Runtime Cache Footprint" }</div>
+                                                <div class={classes!("mono", "mt-1", "text-sm")}>
+                                                    { format!("mode={} · page={} tokens", stats.mode, stats.page_size_tokens) }
+                                                </div>
+                                            </div>
+                                            <div class={classes!("mono", "text-sm", "font-semibold")}>
+                                                { format!("{:.2}% tokens", token_percent) }
+                                            </div>
+                                        </div>
+                                        <div class={classes!("mt-3", "h-2", "overflow-hidden", "rounded-full", "bg-[var(--secondary)]")}>
+                                            <div class={classes!("h-full", "bg-[var(--success)]")} style={format!("width: {:.2}%;", token_percent)} />
+                                        </div>
+                                        <div class={classes!("mono", "mt-3", "grid", "gap-2", "text-xs", "sm:grid-cols-2", "xl:grid-cols-5")}>
+                                            <div>
+                                                <div class={classes!("text-[var(--muted-foreground)]")}>{ "resident / max" }</div>
+                                                <div>{ format!("{} / {}", format_number_u64(stats.prefix_tree.resident_tokens), format_number_u64(stats.prefix_tree.max_tokens)) }</div>
+                                            </div>
+                                            <div>
+                                                <div class={classes!("text-[var(--muted-foreground)]")}>{ "estimated memory" }</div>
+                                                <div>{ format_compact_bytes(estimated_bytes) }</div>
+                                            </div>
+                                            <div>
+                                                <div class={classes!("text-[var(--muted-foreground)]")}>{ "nodes / leaves" }</div>
+                                                <div>{ format!("{} / {}", format_number_u64(stats.prefix_tree.node_count as u64), format_number_u64(stats.prefix_tree.leaf_count as u64)) }</div>
+                                            </div>
+                                            <div>
+                                                <div class={classes!("text-[var(--muted-foreground)]")}>{ "anchors" }</div>
+                                                <div>{ format!("{} / {}", format_number_u64(stats.conversation_anchors.entries as u64), format_number_u64(stats.conversation_anchors.max_entries as u64)) }</div>
+                                            </div>
+                                            <div>
+                                                <div class={classes!("text-[var(--muted-foreground)]")}>{ "process rss" }</div>
+                                                <div>{ stats.process_memory.rss_bytes.map(format_compact_bytes).unwrap_or_else(|| "-".to_string()) }</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            } else if let Some(err) = (*kiro_cache_stats_error).clone() {
+                                html! {
+                                    <div class={classes!("errorline", "mono", "text-xs")}>
+                                        { format!("Runtime cache stats unavailable: {err}") }
+                                    </div>
+                                }
+                            } else {
+                                html! { <div class={classes!("skeleton")}><i></i><i></i></div> }
+                            }
+                        }
+                        if *cache_config_expanded {
+                            <div class={classes!("rounded-[var(--r-field)]", "border", "border-[var(--border)]", "bg-[var(--card-2)]", "px-3", "py-3", "space-y-2")}>
+                                <div class={classes!("eyebrow")}>{ "Global Cache Policy" }</div>
+                                <div class={classes!("text-xs", "text-[var(--muted-foreground)]")}>
+                                    { "Key 级 override 只覆盖变化过的标量字段，bands 则整段替换。未覆盖的字段继续继承全局默认。" }
+                                </div>
+                                <div class={classes!("mono", "text-xs", "text-[var(--muted-foreground)]")}>
+                                    { format_kiro_cache_policy_summary(&kiro_cache_policy_form, &kiro_cache_policy_form) }
+                                </div>
+                                <KiroCachePolicyEditor form={kiro_cache_policy_form.clone()} />
+                            </div>
+                            <div class={classes!("grid", "gap-3", "sm:grid-cols-2", "xl:grid-cols-3")}>
+                                { cache_cfg_field("contextUsage Min Request Tokens", &kiro_context_usage_min_request_tokens) }
+                                { cache_cfg_field("Compaction Trigger Tokens (0 disables)", &kiro_compact_trigger_tokens) }
+                                <label class={classes!("grid", "gap-1", "text-xs", "text-[var(--muted-foreground)]")}>
+                                    { "Simulation Mode" }
+                                    <select value={(*kiro_prefix_cache_mode).clone()} onchange={{
+                                        let kiro_prefix_cache_mode = kiro_prefix_cache_mode.clone();
+                                        Callback::from(move |event: Event| {
+                                            let input: HtmlSelectElement = event.target_unchecked_into();
+                                            kiro_prefix_cache_mode.set(input.value());
+                                        })
+                                    }}>
+                                        <option value="formula" selected={*kiro_prefix_cache_mode == "formula"}>{ "formula" }</option>
+                                        <option value="prefix_tree" selected={*kiro_prefix_cache_mode == "prefix_tree"}>{ "prefix_tree" }</option>
+                                    </select>
+                                </label>
+                                { cache_cfg_field("Prefix Tree Max Tokens", &kiro_prefix_cache_max_tokens) }
+                                { cache_cfg_field("Prefix Tree TTL Seconds", &kiro_prefix_cache_entry_ttl_seconds) }
+                                { cache_cfg_field("Anchor Max Entries", &kiro_conversation_anchor_max_entries) }
+                                { cache_cfg_field("Anchor TTL Seconds", &kiro_conversation_anchor_ttl_seconds) }
+                                { cache_cfg_field("Snapshot Interval Seconds", &kiro_cache_snapshot_interval_seconds) }
+                                { cache_cfg_field("Snapshot TTL Seconds", &kiro_cache_snapshot_ttl_seconds) }
+                                { cache_cfg_field("Snapshot Max Tokens (0 = live)", &kiro_cache_snapshot_max_tokens) }
+                                { cache_cfg_field("Snapshot Max Anchor Entries (0 = live)", &kiro_cache_snapshot_max_anchor_entries) }
+                                <label class={classes!("flex", "items-center", "gap-2", "text-xs", "text-[var(--muted-foreground)]")}>
+                                    <input
+                                        type="checkbox"
+                                        class={classes!("min-h-0", "w-auto")}
+                                        checked={*kiro_cache_snapshot_enabled}
+                                        oninput={{
+                                            let kiro_cache_snapshot_enabled = kiro_cache_snapshot_enabled.clone();
+                                            Callback::from(move |event: InputEvent| {
+                                                let input: HtmlInputElement = event.target_unchecked_into();
+                                                kiro_cache_snapshot_enabled.set(input.checked());
+                                            })
+                                        }}
+                                    />
+                                    { "Snapshot Persistence (Valkey)" }
+                                </label>
+                            </div>
+                            <label class={classes!("grid", "gap-1", "text-xs", "text-[var(--muted-foreground)]")}>
+                                { "Kmodel JSON" }
+                                <textarea
+                                    class={classes!("mono", "min-h-[18rem]", "leading-6")}
+                                    value={(*kiro_cache_kmodels_json).clone()}
+                                    oninput={{
+                                        let kiro_cache_kmodels_json = kiro_cache_kmodels_json.clone();
+                                        Callback::from(move |event: InputEvent| {
+                                            let input: HtmlTextAreaElement = event.target_unchecked_into();
+                                            kiro_cache_kmodels_json.set(input.value());
+                                        })
+                                    }}
+                                />
+                            </label>
+                            <label class={classes!("grid", "gap-1", "text-xs", "text-[var(--muted-foreground)]")}>
+                                { "Billable Multiplier JSON" }
+                                <span class={classes!("text-[11px]", "text-[var(--faint)]")}>
+                                    { "识别 `fable` / `opus` / `sonnet` / `haiku` 四个 key。fable 默认 2.0（opus 两倍），其余 1.0。" }
+                                </span>
+                                <textarea
+                                    class={classes!("mono", "min-h-[10rem]", "leading-6")}
+                                    value={(*kiro_billable_model_multipliers_json).clone()}
+                                    oninput={{
+                                        let kiro_billable_model_multipliers_json = kiro_billable_model_multipliers_json.clone();
+                                        Callback::from(move |event: InputEvent| {
+                                            let input: HtmlTextAreaElement = event.target_unchecked_into();
+                                            kiro_billable_model_multipliers_json.set(input.value());
+                                        })
+                                    }}
+                                />
+                            </label>
+                            if let Some(config) = (*runtime_config).clone() {
+                                <div class={classes!("mono", "rounded-[var(--r-field)]", "border", "border-[var(--border)]", "bg-[var(--card-2)]", "px-3", "py-3", "text-xs", "text-[var(--muted-foreground)]", "space-y-1")}>
+                                    <div>{ format!("stored kmodel bytes: {} · billable bytes: {} · policy bytes: {}", config.kiro_cache_kmodels_json.len(), config.kiro_billable_model_multipliers_json.len(), config.kiro_cache_policy_json.len()) }</div>
+                                    <div>{ format!("context_min={}, mode={}, prefix_max={}, prefix_ttl={}, anchor_max={}, anchor_ttl={}", config.kiro_context_usage_min_request_tokens, config.kiro_prefix_cache_mode, config.kiro_prefix_cache_max_tokens, config.kiro_prefix_cache_entry_ttl_seconds, config.kiro_conversation_anchor_max_entries, config.kiro_conversation_anchor_ttl_seconds) }</div>
+                                </div>
+                            }
+                            <div class={classes!("flex", "justify-end")}>
+                                <button
+                                    type="button"
+                                    class={classes!("primary")}
+                                    disabled={*saving_kmodel_config}
+                                    onclick={on_save_kiro_cache_kmodels}
+                                >
+                                    { if *saving_kmodel_config { "Saving..." } else { "Save Cache Settings" } }
+                                </button>
+                            </div>
+                        }
                     </div>
-                }
-            </section>
-            } // end TAB_OVERVIEW
-
-            // ── Accounts Tab ──
-
-            // ── Keys Tab ──
-            // ── Usage Tab ──
+                </section>
+            </div>
 
             if let Some((message, is_error)) = (*toast).clone() {
-                <div class={classes!(
-                    "fixed", "bottom-5", "right-5", "z-[90]",
-                    "max-w-[min(34rem,calc(100vw-2.5rem))]",
-                    "rounded-xl", "border", "px-4", "py-3",
-                    "text-sm", "font-semibold", "leading-5", "whitespace-pre-wrap",
-                    "shadow-[0_8px_24px_rgba(0,0,0,0.15)]",
-                    if is_error {
-                        classes!("border-red-400/35", "bg-red-500/92", "text-white")
-                    } else {
-                        classes!("border-emerald-400/35", "bg-emerald-500/92", "text-white")
-                    }
-                )}>
-                    { message }
+                <div class={classes!("toasts")}>
+                    <div class={classes!("toast", if is_error { "error" } else { "ok" })}>
+                        { message }
+                    </div>
                 </div>
             }
-            </div>
         </main>
     }
 }
@@ -4478,8 +4296,7 @@ mod tests {
         kiro_cache_token_percent, kiro_key_route_summary, kiro_preferred_pool_candidate_note,
         kiro_preferred_pool_warning, kiro_tab_route, parse_kiro_cache_policy_form_json,
         parse_manual_usage_limit_input, sanitize_kiro_account_group_id,
-        should_reset_kiro_cache_policy_editor, TAB_ACCOUNTS, TAB_GROUPS, TAB_KEYS, TAB_OVERVIEW,
-        TAB_USAGE,
+        should_reset_kiro_cache_policy_editor, TAB_ACCOUNTS, TAB_GROUPS, TAB_KEYS, TAB_USAGE,
     };
     use crate::{
         api::{
@@ -5206,7 +5023,7 @@ mod tests {
     fn kiro_tab_route_round_trips_section_ids() {
         use crate::router::Route;
 
-        assert_eq!(kiro_tab_route(TAB_OVERVIEW), Route::AdminKiroGateway);
+        assert_eq!(kiro_tab_route("overview"), Route::AdminKiroGateway);
         assert_eq!(kiro_tab_route(TAB_ACCOUNTS), Route::AdminKiroGatewayAccountsManage);
         assert_eq!(kiro_tab_route(TAB_KEYS), Route::AdminKiroGatewayKeys);
         assert_eq!(kiro_tab_route(TAB_GROUPS), Route::AdminKiroGatewayGroups);
