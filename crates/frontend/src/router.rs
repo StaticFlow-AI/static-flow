@@ -151,6 +151,55 @@ pub enum Route {
     AdminLlmGatewayModeration,
 
     #[cfg(not(feature = "mock"))]
+    #[at("/admin/llm-gateway/keys")]
+    AdminLlmGatewayKeys,
+    #[cfg(feature = "mock")]
+    #[at("/static_flow/admin/llm-gateway/keys")]
+    AdminLlmGatewayKeys,
+
+    #[cfg(not(feature = "mock"))]
+    #[at("/admin/llm-gateway/groups")]
+    AdminLlmGatewayGroups,
+    #[cfg(feature = "mock")]
+    #[at("/static_flow/admin/llm-gateway/groups")]
+    AdminLlmGatewayGroups,
+
+    #[cfg(not(feature = "mock"))]
+    #[at("/admin/llm-gateway/accounts")]
+    AdminLlmGatewayAccounts,
+    #[cfg(feature = "mock")]
+    #[at("/static_flow/admin/llm-gateway/accounts")]
+    AdminLlmGatewayAccounts,
+
+    #[cfg(not(feature = "mock"))]
+    #[at("/admin/llm-gateway/usage")]
+    AdminLlmGatewayUsage,
+    #[cfg(feature = "mock")]
+    #[at("/static_flow/admin/llm-gateway/usage")]
+    AdminLlmGatewayUsage,
+
+    #[cfg(not(feature = "mock"))]
+    #[at("/admin/llm-gateway/journal")]
+    AdminLlmGatewayJournal,
+    #[cfg(feature = "mock")]
+    #[at("/static_flow/admin/llm-gateway/journal")]
+    AdminLlmGatewayJournal,
+
+    #[cfg(not(feature = "mock"))]
+    #[at("/admin/llm-gateway/requests")]
+    AdminLlmGatewayRequests,
+    #[cfg(feature = "mock")]
+    #[at("/static_flow/admin/llm-gateway/requests")]
+    AdminLlmGatewayRequests,
+
+    #[cfg(not(feature = "mock"))]
+    #[at("/admin/llm-gateway/settings")]
+    AdminLlmGatewaySettings,
+    #[cfg(feature = "mock")]
+    #[at("/static_flow/admin/llm-gateway/settings")]
+    AdminLlmGatewaySettings,
+
+    #[cfg(not(feature = "mock"))]
     #[at("/admin/kiro-gateway")]
     AdminKiroGateway,
     #[cfg(feature = "mock")]
@@ -322,6 +371,27 @@ fn switch(route: Route) -> Html {
         Route::KiroAccess => html! { <pages::kiro_access::KiroAccessPage /> },
         Route::Admin => html! { <pages::admin::AdminPage /> },
         Route::AdminLlmGateway => html! { <pages::admin_llm_gateway::AdminLlmGatewayPage /> },
+        Route::AdminLlmGatewayKeys => {
+            html! { <pages::admin_llm_gateway::AdminLlmGatewayPage tab="keys" /> }
+        },
+        Route::AdminLlmGatewayGroups => {
+            html! { <pages::admin_llm_gateway::AdminLlmGatewayPage tab="groups" /> }
+        },
+        Route::AdminLlmGatewayAccounts => {
+            html! { <pages::admin_llm_gateway::AdminLlmGatewayPage tab="accounts" /> }
+        },
+        Route::AdminLlmGatewayUsage => {
+            html! { <pages::admin_llm_gateway::AdminLlmGatewayPage tab="usage" /> }
+        },
+        Route::AdminLlmGatewayJournal => {
+            html! { <pages::admin_llm_gateway::AdminLlmGatewayPage tab="journal" /> }
+        },
+        Route::AdminLlmGatewayRequests => {
+            html! { <pages::admin_llm_gateway::AdminLlmGatewayPage tab="requests" /> }
+        },
+        Route::AdminLlmGatewaySettings => {
+            html! { <pages::admin_llm_gateway::AdminLlmGatewayPage tab="settings" /> }
+        },
         Route::AdminLlmGatewayMonitor => {
             html! { <pages::admin_llm_gateway_monitor::AdminLlmGatewayMonitorPage /> }
         },

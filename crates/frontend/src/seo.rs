@@ -293,6 +293,13 @@ fn route_path_for(route: &Route) -> String {
         Route::AdminLlmGateway => config::route_path("/admin/llm-gateway"),
         Route::AdminLlmGatewayMonitor => config::route_path("/admin/llm-gateway/monitor"),
         Route::AdminLlmGatewayModeration => config::route_path("/admin/llm-gateway/moderation"),
+        Route::AdminLlmGatewayKeys => config::route_path("/admin/llm-gateway/keys"),
+        Route::AdminLlmGatewayGroups => config::route_path("/admin/llm-gateway/groups"),
+        Route::AdminLlmGatewayAccounts => config::route_path("/admin/llm-gateway/accounts"),
+        Route::AdminLlmGatewayUsage => config::route_path("/admin/llm-gateway/usage"),
+        Route::AdminLlmGatewayJournal => config::route_path("/admin/llm-gateway/journal"),
+        Route::AdminLlmGatewayRequests => config::route_path("/admin/llm-gateway/requests"),
+        Route::AdminLlmGatewaySettings => config::route_path("/admin/llm-gateway/settings"),
         Route::AdminKiroGateway => config::route_path("/admin/kiro-gateway"),
         Route::AdminKiroAccountStatus => config::route_path("/admin/kiro-gateway/accounts"),
         Route::AdminKiroGatewayAccountsManage => {
@@ -517,6 +524,13 @@ pub fn apply_route_seo(route: Option<&Route>) {
         },
         Route::Admin
         | Route::AdminLlmGateway
+        | Route::AdminLlmGatewayKeys
+        | Route::AdminLlmGatewayGroups
+        | Route::AdminLlmGatewayAccounts
+        | Route::AdminLlmGatewayUsage
+        | Route::AdminLlmGatewayJournal
+        | Route::AdminLlmGatewayRequests
+        | Route::AdminLlmGatewaySettings
         | Route::AdminLlmGatewayMonitor
         | Route::AdminLlmGatewayModeration
         | Route::AdminKiroGateway

@@ -5,7 +5,7 @@ use js_sys::Date;
 use wasm_bindgen::prelude::*;
 use web_sys::{HtmlInputElement, HtmlSelectElement};
 use yew::prelude::*;
-use yew_router::prelude::Link;
+use yew_router::prelude::{use_navigator, Link};
 
 use crate::{
     api::{
@@ -2706,8 +2706,32 @@ fn proxy_config_editor_card(props: &ProxyConfigEditorCardProps) -> Html {
     }
 }
 
+/// Props for [`AdminLlmGatewayPage`]. The active section is route-driven:
+/// `/admin/llm-gateway` renders the overview and
+/// `/admin/llm-gateway/{keys,groups,accounts,usage,journal,requests,settings}`
+/// select the matching section.
+#[derive(Properties, PartialEq, Default)]
+pub struct AdminLlmGatewayPageProps {
+    #[prop_or_default]
+    pub tab: Option<AttrValue>,
+}
+
+/// The route for one LLM admin section id (inverse of the router mapping).
+fn llm_tab_route(tab: &str) -> Route {
+    match tab {
+        TAB_KEYS => Route::AdminLlmGatewayKeys,
+        TAB_GROUPS => Route::AdminLlmGatewayGroups,
+        TAB_ACCOUNTS => Route::AdminLlmGatewayAccounts,
+        TAB_USAGE => Route::AdminLlmGatewayUsage,
+        TAB_JOURNAL => Route::AdminLlmGatewayJournal,
+        TAB_REQUESTS => Route::AdminLlmGatewayRequests,
+        TAB_SETTINGS => Route::AdminLlmGatewaySettings,
+        _ => Route::AdminLlmGateway,
+    }
+}
+
 #[function_component(AdminLlmGatewayPage)]
-pub fn admin_llm_gateway_page() -> Html {
+pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
     let config = use_state(|| None::<LlmGatewayRuntimeConfig>);
     let keys = use_state(Vec::<AdminLlmGatewayKeyView>::new);
     let keys_summary = use_state(AdminLlmGatewayKeysSummaryView::default);
@@ -2906,26 +2930,45 @@ pub fn admin_llm_gateway_page() -> Html {
     let account_page = use_state(|| 1_usize);
     let accounts_total = use_state(|| 0_usize);
     let account_page_limit = use_state(|| ACCOUNT_PAGE_SIZE);
-    let active_tab = use_state(|| {
-        crate::pages::llm_access_shared::initial_tab_from_url(
-            &[
-                TAB_OVERVIEW,
-                TAB_KEYS,
-                TAB_GROUPS,
-                TAB_ACCOUNTS,
-                TAB_USAGE,
-                TAB_JOURNAL,
-                TAB_REQUESTS,
-                TAB_SETTINGS,
-            ],
-            TAB_OVERVIEW,
-        )
-    });
+    let active_tab = props
+        .tab
+        .as_ref()
+        .map(|tab| tab.to_string())
+        .unwrap_or_else(|| TAB_OVERVIEW.to_string());
+    let navigator = use_navigator();
+    // Legacy deep links used `?tab=`; forward them once onto the dedicated
+    // per-section routes so old bookmarks keep working.
+    {
+        let navigator = navigator.clone();
+        use_effect_with(props.tab.clone(), move |tab| {
+            if tab.is_none() {
+                let legacy = crate::pages::llm_access_shared::initial_tab_from_url(
+                    &[
+                        TAB_KEYS,
+                        TAB_GROUPS,
+                        TAB_ACCOUNTS,
+                        TAB_USAGE,
+                        TAB_JOURNAL,
+                        TAB_REQUESTS,
+                        TAB_SETTINGS,
+                    ],
+                    "",
+                );
+                if !legacy.is_empty() {
+                    if let Some(navigator) = navigator {
+                        navigator.replace(&llm_tab_route(&legacy));
+                    }
+                }
+            }
+            || ()
+        });
+    }
     let on_tab_click = {
-        let active_tab = active_tab.clone();
+        let navigator = navigator.clone();
         Callback::from(move |tab: String| {
-            crate::pages::llm_access_shared::sync_tab_to_url(&tab, TAB_OVERVIEW);
-            active_tab.set(tab);
+            if let Some(navigator) = navigator.clone() {
+                navigator.push(&llm_tab_route(&tab));
+            }
         })
     };
 
@@ -3362,7 +3405,7 @@ pub fn admin_llm_gateway_page() -> Html {
             let refresh_base = force_base || !*reload_base_loaded;
             loading.set(true);
             wasm_bindgen_futures::spawn_local(async move {
-                let active_tab_value = (*active_tab).clone();
+                let active_tab_value = active_tab.clone();
                 let current_key_filter = (*usage_key_filter).clone();
                 let current_page = (*usage_page).max(1);
                 let current_group_page = (*account_groups_page).max(1);
@@ -3699,7 +3742,7 @@ pub fn admin_llm_gateway_page() -> Html {
                             recent_import_jobs.set(import_jobs);
                         }
                         load_error.set(None);
-                        if *active_tab == TAB_USAGE {
+                        if active_tab == TAB_USAGE {
                             reload_usage.emit(UsageReloadArgs {
                                 page: Some(current_page),
                                 key_id: Some(usage_filter_for_reload),
@@ -3739,7 +3782,7 @@ pub fn admin_llm_gateway_page() -> Html {
     {
         let reload = reload.clone();
         let active_tab = active_tab.clone();
-        use_effect_with(((*active_tab).clone(),), move |_| {
+        use_effect_with((active_tab.clone(),), move |_| {
             // Tab switches reuse the already-loaded base data; the first run
             // (mount) still fetches it because nothing is loaded yet.
             reload.emit(false);
@@ -3757,7 +3800,7 @@ pub fn admin_llm_gateway_page() -> Html {
         use_effect_with(
             (*keys_page, (*keys_search).clone(), *keys_sort_mode, *keys_show_active_only),
             move |_| {
-                if *active_tab == TAB_KEYS {
+                if active_tab == TAB_KEYS {
                     reload.emit(false);
                 }
                 || ()
@@ -3782,7 +3825,7 @@ pub fn admin_llm_gateway_page() -> Html {
                 *account_show_active_only,
             ),
             move |_| {
-                if *active_tab == TAB_ACCOUNTS {
+                if active_tab == TAB_ACCOUNTS {
                     reload.emit(false);
                 }
                 || ()
@@ -3806,7 +3849,7 @@ pub fn admin_llm_gateway_page() -> Html {
         let usage_key_options = usage_key_options.clone();
         let usage_key_options_total = usage_key_options_total.clone();
         use_effect_with(
-            ((*active_tab).clone(), (*usage_key_search_debounced).clone()),
+            (active_tab.clone(), (*usage_key_search_debounced).clone()),
             move |(active_tab, query)| {
                 if active_tab == TAB_USAGE {
                     let usage_key_options = usage_key_options.clone();
@@ -3837,7 +3880,7 @@ pub fn admin_llm_gateway_page() -> Html {
     {
         let active_tab = active_tab.clone();
         let reload_usage_journal_status = reload_usage_journal_status.clone();
-        use_effect_with(((*active_tab).clone(),), move |(active_tab,)| {
+        use_effect_with((active_tab.clone(),), move |(active_tab,)| {
             let interval = if should_load_usage_journal(active_tab) {
                 reload_usage_journal_status.emit(None);
                 Some(Interval::new(5_000, move || {
@@ -6733,7 +6776,7 @@ pub fn admin_llm_gateway_page() -> Html {
                 ], &on_tab_click, Some((TAB_REQUESTS, total_pending))) }
 
                 // ── Overview Tab ──
-                if *active_tab == TAB_OVERVIEW {
+                if active_tab == TAB_OVERVIEW {
                 <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
                     <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
                         <h2 class={classes!("m-0", "font-mono", "text-base", "font-bold", "text-[var(--text)]")}>{ "Dashboard" }</h2>
@@ -6813,7 +6856,7 @@ pub fn admin_llm_gateway_page() -> Html {
                 } // end TAB_OVERVIEW
 
                 // ── Journal Tab ──
-                if *active_tab == TAB_JOURNAL {
+                if active_tab == TAB_JOURNAL {
                 <section class={classes!("grid", "gap-4", "min-w-0")}>
                     <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5", "min-w-0")}>
                         <div class={classes!("flex", "items-start", "justify-between", "gap-3", "flex-wrap")}>
@@ -7282,7 +7325,7 @@ pub fn admin_llm_gateway_page() -> Html {
                 } // end TAB_JOURNAL
 
                 // ── Settings Tab ──
-                if *active_tab == TAB_SETTINGS {
+                if active_tab == TAB_SETTINGS {
                 <div class={classes!("space-y-4")}>
                 <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
                         <div class={classes!("flex", "items-start", "justify-between", "gap-3", "flex-wrap")}>
@@ -8262,7 +8305,7 @@ pub fn admin_llm_gateway_page() -> Html {
                 } // end TAB_SETTINGS
 
                 // ── Keys Tab ──
-                if *active_tab == TAB_KEYS {
+                if active_tab == TAB_KEYS {
                 <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
                     <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
                         <h2 class={classes!("m-0", "font-mono", "text-base", "font-bold", "text-[var(--text)]")}>{ "Key Inventory" }</h2>
@@ -8405,7 +8448,7 @@ pub fn admin_llm_gateway_page() -> Html {
                 </section>
                 } // end TAB_KEYS
 
-                if *active_tab == TAB_GROUPS {
+                if active_tab == TAB_GROUPS {
                 <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
                     <div class={classes!("flex", "items-start", "justify-between", "gap-3", "flex-wrap")}>
                         <div>
@@ -8582,7 +8625,7 @@ pub fn admin_llm_gateway_page() -> Html {
                 } // end TAB_GROUPS
 
                 // ── Accounts Tab ──
-                if *active_tab == TAB_ACCOUNTS {
+                if active_tab == TAB_ACCOUNTS {
                 // === Codex Accounts ===
                 <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
                     <div class={classes!("flex", "items-start", "justify-between", "gap-3", "flex-wrap")}>
@@ -9642,7 +9685,7 @@ pub fn admin_llm_gateway_page() -> Html {
                 } // end TAB_ACCOUNTS
 
                 // ── Usage Tab ──
-                if *active_tab == TAB_USAGE {
+                if active_tab == TAB_USAGE {
                 <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
                     <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
                         <div>
@@ -10069,7 +10112,7 @@ pub fn admin_llm_gateway_page() -> Html {
                 } // end TAB_USAGE
 
                 // ── Requests Tab ──
-                if *active_tab == TAB_REQUESTS {
+                if active_tab == TAB_REQUESTS {
                 <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
                     <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
                         <div>
@@ -10683,6 +10726,19 @@ mod tests {
 
         assert!(should_load_llm_gateway_import_jobs(TAB_ACCOUNTS));
         assert!(!should_load_llm_gateway_import_jobs(TAB_OVERVIEW));
+    }
+
+    #[test]
+    fn llm_tab_route_round_trips_section_ids() {
+        assert_eq!(llm_tab_route("overview"), Route::AdminLlmGateway);
+        assert_eq!(llm_tab_route(TAB_KEYS), Route::AdminLlmGatewayKeys);
+        assert_eq!(llm_tab_route(TAB_GROUPS), Route::AdminLlmGatewayGroups);
+        assert_eq!(llm_tab_route(TAB_ACCOUNTS), Route::AdminLlmGatewayAccounts);
+        assert_eq!(llm_tab_route(TAB_USAGE), Route::AdminLlmGatewayUsage);
+        assert_eq!(llm_tab_route(TAB_JOURNAL), Route::AdminLlmGatewayJournal);
+        assert_eq!(llm_tab_route(TAB_REQUESTS), Route::AdminLlmGatewayRequests);
+        assert_eq!(llm_tab_route(TAB_SETTINGS), Route::AdminLlmGatewaySettings);
+        assert_eq!(llm_tab_route("unknown"), Route::AdminLlmGateway);
     }
 
     #[test]
