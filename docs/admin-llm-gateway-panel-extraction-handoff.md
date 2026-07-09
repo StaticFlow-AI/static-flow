@@ -1,5 +1,20 @@
 # LLM Gateway 管理面板拆页交接文档（P4 剩余部分）
 
+> **✅ 本文档描述的全部工作已于 2026-07-10 完成**（commits `e6ec2f6` keys /
+> `a9d4ca7` settings / `7ddbb3d` groups / `958b40a` accounts / `f2df173`
+> requests / `3af98c3` overview 换装）。mega 面板从 8786 行缩到 ~2600 行，
+> 只剩 overview 落地页 + 供子页复用的 `pub(crate)` helper 与三个 editor
+> card（KeyEditorCard / AccountGroupEditorCard / ProxyConfigEditorCard）。
+> 以下内容保留作历史参考；行号与"待拆"状态均已过时。
+>
+> 拆页期间的两处有意行为变化：
+> 1. Create Key 表单原先渲染在 Settings tab 里，现随 kiro 布局移到
+>    `/admin/llm-gateway/keys` 页顶部。
+> 2. Groups 页现在主动拉全量账号清单喂 member picker——原 mega 在直接进入
+>    groups tab 时传给 editor card 的 accounts 是空的（成员编辑会误清空）。
+> 3. overview 的"待审核"计数改为独立轻量扫描（三个队列各取第一页，按
+>    requests 页同一套 needs-action 状态过滤），不再依赖 requests tab 状态。
+
 > 交接基线：commit `5906431`（Usage tab 拆页已完成）。
 > 目标读者：接手把 `crates/frontend/src/pages/admin_llm_gateway.rs`（mega 面板，
 > 现 8786 行）剩余 tab 拆成独立 `.admin-shell` 页的人。
@@ -22,14 +37,14 @@ llm 面板（本文件）还剩 5 个 tab + overview 换装。
 
 | tab | 状态 | 独立页文件 | 真路由 |
 |---|---|---|---|
-| Overview | ⛔ 仍在 mega 内（`render_tab_bar` 导航条 + 仪表盘），**最后换装** | — | `Route::AdminLlmGateway` |
-| Keys | ⛔ 待拆 | — | `Route::AdminLlmGatewayKeys` |
-| Groups | ⛔ 待拆 | — | `Route::AdminLlmGatewayGroups` |
-| Accounts | ⛔ 待拆（最大，~1058 行） | — | `Route::AdminLlmGatewayAccounts` |
+| Overview | ✅ 已换装（`3af98c3`，admin-shell 落地页 + 导航卡） | `admin_llm_gateway.rs`（仅 overview） | `Route::AdminLlmGateway` |
+| Keys | ✅ 已拆（`e6ec2f6`，含原 Settings 内的 Create Key 表单） | `admin_llm_gateway_keys.rs` | `Route::AdminLlmGatewayKeys` |
+| Groups | ✅ 已拆（`7ddbb3d`，页内自拉全量账号喂 member picker） | `admin_llm_gateway_groups.rs` | `Route::AdminLlmGatewayGroups` |
+| Accounts | ✅ 已拆（`958b40a`，账号专属 helper/测试随页迁移） | `admin_llm_gateway_accounts.rs` | `Route::AdminLlmGatewayAccounts` |
 | Usage | ✅ 已拆（`5906431`） | `admin_llm_gateway_usage.rs` | `Route::AdminLlmGatewayUsage` |
 | Journal | ✅ 已拆（`dd4d3a3`） | `admin_llm_gateway_journal.rs` | `Route::AdminLlmGatewayJournal` |
-| Requests | ⛔ 待拆（带 total_pending 徽章） | — | `Route::AdminLlmGatewayRequests` |
-| Settings | ⛔ 待拆（最独立） | — | `Route::AdminLlmGatewaySettings` |
+| Requests | ✅ 已拆（`f2df173`，徽章改为 overview 独立 pending 扫描） | `admin_llm_gateway_requests.rs` | `Route::AdminLlmGatewayRequests` |
+| Settings | ✅ 已拆（`a9d4ca7`） | `admin_llm_gateway_settings.rs` | `Route::AdminLlmGatewaySettings` |
 
 Monitor 页 (`admin_llm_gateway_monitor.rs`) 本就是独立页，不在本次范围。
 
