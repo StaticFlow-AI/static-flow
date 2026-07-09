@@ -12,6 +12,7 @@ pub mod admin_kiro_gateway_usage;
 pub mod admin_llm_gateway;
 pub mod admin_llm_gateway_journal;
 pub mod admin_llm_gateway_monitor;
+pub mod admin_llm_gateway_usage;
 #[cfg(feature = "local-media")]
 pub mod admin_local_media;
 #[cfg(feature = "local-media")]

@@ -381,7 +381,7 @@ fn switch(route: Route) -> Html {
             html! { <pages::admin_llm_gateway::AdminLlmGatewayPage tab="accounts" /> }
         },
         Route::AdminLlmGatewayUsage => {
-            html! { <pages::admin_llm_gateway::AdminLlmGatewayPage tab="usage" /> }
+            html! { <pages::admin_llm_gateway_usage::AdminLlmGatewayUsagePage /> }
         },
         Route::AdminLlmGatewayJournal => {
             html! { <pages::admin_llm_gateway_journal::AdminLlmGatewayJournalPage /> }
