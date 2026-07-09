@@ -17,7 +17,6 @@ use crate::{
         fetch_admin_anthropic_upstream_channels, fetch_admin_kiro_account_group_options,
         fetch_admin_kiro_account_groups_page, fetch_admin_kiro_accounts,
         fetch_admin_kiro_accounts_page, fetch_admin_kiro_cache_stats, fetch_admin_kiro_keys_page,
-        fetch_admin_kiro_usage_event_detail, fetch_admin_kiro_usage_events,
         fetch_admin_llm_gateway_config, fetch_admin_llm_gateway_proxy_bindings,
         fetch_admin_llm_gateway_proxy_configs, fetch_kiro_models, import_admin_kiro_account,
         patch_admin_kiro_account, patch_admin_kiro_account_group, patch_admin_kiro_key,
@@ -25,12 +24,10 @@ use crate::{
         AdminAccountGroupOptionView, AdminAccountGroupView, AdminAccountsSummaryView,
         AdminAnthropicUpstreamChannelView, AdminKiroCacheStatsResponse,
         AdminKiroKeyCandidateCreditSummaryView, AdminLlmGatewayKeyView,
-        AdminLlmGatewayKeysSummaryView, AdminLlmGatewayUsageEventDetailView,
-        AdminLlmGatewayUsageEventView, AdminLlmGatewayUsageEventsQuery,
-        AdminUpstreamProxyBindingView, AdminUpstreamProxyConfigView, CreateAdminAccountGroupInput,
-        CreateManualKiroAccountInput, KiroAccountView, KiroBalanceView, KiroModelView,
-        LlmGatewayRuntimeConfig, PatchAdminAccountGroupInput, PatchAdminLlmGatewayKeyRequest,
-        PatchKiroAccountInput,
+        AdminLlmGatewayKeysSummaryView, AdminUpstreamProxyBindingView,
+        AdminUpstreamProxyConfigView, CreateAdminAccountGroupInput, CreateManualKiroAccountInput,
+        KiroAccountView, KiroBalanceView, KiroModelView, LlmGatewayRuntimeConfig,
+        PatchAdminAccountGroupInput, PatchAdminLlmGatewayKeyRequest, PatchKiroAccountInput,
     },
     components::{
         empty_state::EmptyState, pagination::Pagination, search_box::SearchBox,
@@ -39,7 +36,7 @@ use crate::{
     pages::llm_access_shared::{
         confirm_destructive, format_float2, format_kiro_disabled_reason, format_ms,
         format_number_i64, format_number_u64, format_reset_hint, format_timestamp_opt,
-        kiro_credit_ratio, kiro_key_usage_ratio, usage_error_summary, MaskedSecretCode,
+        kiro_credit_ratio, kiro_key_usage_ratio, MaskedSecretCode,
     },
     router::Route,
 };
@@ -66,10 +63,6 @@ fn kiro_account_status_abnormal_href() -> &'static str {
     } else {
         "/admin/kiro-gateway/accounts?issue=abnormal"
     }
-}
-
-fn should_load_kiro_usage_preview(active_tab: &str) -> bool {
-    active_tab == TAB_USAGE
 }
 
 fn should_load_kiro_inventory(active_tab: &str) -> bool {
@@ -182,7 +175,7 @@ fn format_compact_bytes(bytes: u64) -> String {
     }
 }
 
-fn usage_stream_state_label(
+pub(crate) fn usage_stream_state_label(
     stream_completed_cleanly: Option<bool>,
     downstream_disconnect: Option<bool>,
 ) -> &'static str {
@@ -197,13 +190,13 @@ fn usage_stream_state_label(
     }
 }
 
-fn format_optional_stream_bytes(bytes_streamed: Option<u64>) -> String {
+pub(crate) fn format_optional_stream_bytes(bytes_streamed: Option<u64>) -> String {
     bytes_streamed
         .map(format_compact_bytes)
         .unwrap_or_else(|| "-".to_string())
 }
 
-fn format_usage_stream_summary(
+pub(crate) fn format_usage_stream_summary(
     stream_completed_cleanly: Option<bool>,
     downstream_disconnect: Option<bool>,
     final_event_type: Option<&str>,
@@ -240,7 +233,7 @@ fn routing_diagnostic_string(raw: Option<&str>, key: &str) -> Option<String> {
         })
 }
 
-fn anthropic_routing_badge(raw: Option<&str>) -> Option<&'static str> {
+pub(crate) fn anthropic_routing_badge(raw: Option<&str>) -> Option<&'static str> {
     match routing_diagnostic_string(raw, "upstream_pool").as_deref() {
         Some("direct_anthropic_test") => Some("Anthropic 测试"),
         Some("direct_anthropic") => Some("Anthropic 直连"),
@@ -275,7 +268,7 @@ fn routing_diagnostic_preflight_change_count(raw: Option<&str>) -> Option<u64> {
     (count > 0).then_some(count)
 }
 
-fn anthropic_routing_summary(raw: Option<&str>) -> Option<String> {
+pub(crate) fn anthropic_routing_summary(raw: Option<&str>) -> Option<String> {
     let badge = anthropic_routing_badge(raw)?;
     let channel = routing_diagnostic_string(raw, "channel_name");
     let probe_kind = routing_diagnostic_string(raw, "probe_kind");
@@ -3730,12 +3723,6 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
     let account_groups_search = use_state(String::new);
     let kiro_models = use_state(Vec::<KiroModelView>::new);
     let anthropic_channels = use_state(Vec::<AdminAnthropicUpstreamChannelView>::new);
-    let usage_events = use_state(Vec::<AdminLlmGatewayUsageEventView>::new);
-    let usage_retention_days = use_state(|| 7_u64);
-    let usage_loading = use_state(|| false);
-    let usage_error = use_state(|| None::<String>);
-    let selected_usage_event = use_state(|| None::<AdminLlmGatewayUsageEventDetailView>);
-    let usage_detail_loading = use_state(|| false);
     let proxy_configs = use_state(Vec::<AdminUpstreamProxyConfigView>::new);
     let proxy_bindings = use_state(Vec::<AdminUpstreamProxyBindingView>::new);
     let runtime_config = use_state(|| None::<LlmGatewayRuntimeConfig>);
@@ -3854,71 +3841,6 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
     let create_account_group_account_names = use_state(Vec::<String>::new);
     let creating_account_group = use_state(|| false);
     let account_group_form_expanded = use_state(|| false);
-
-    let open_usage_detail = {
-        let selected_usage_event = selected_usage_event.clone();
-        let usage_detail_loading = usage_detail_loading.clone();
-        let usage_error = usage_error.clone();
-        Callback::from(move |event_id: String| {
-            let selected_usage_event = selected_usage_event.clone();
-            let usage_detail_loading = usage_detail_loading.clone();
-            let usage_error = usage_error.clone();
-            selected_usage_event.set(None);
-            usage_detail_loading.set(true);
-            usage_error.set(None);
-            wasm_bindgen_futures::spawn_local(async move {
-                match fetch_admin_kiro_usage_event_detail(&event_id).await {
-                    Ok(detail) => selected_usage_event.set(Some(detail)),
-                    Err(err) => usage_error.set(Some(err)),
-                }
-                usage_detail_loading.set(false);
-            });
-        })
-    };
-
-    let close_usage_detail = {
-        let selected_usage_event = selected_usage_event.clone();
-        Callback::from(move |_| selected_usage_event.set(None))
-    };
-
-    let reload_usage = {
-        let usage_events = usage_events.clone();
-        let usage_retention_days = usage_retention_days.clone();
-        let usage_loading = usage_loading.clone();
-        let usage_error = usage_error.clone();
-        Callback::from(move |_| {
-            let usage_events = usage_events.clone();
-            let usage_retention_days = usage_retention_days.clone();
-            let usage_loading = usage_loading.clone();
-            let usage_error = usage_error.clone();
-            usage_loading.set(true);
-            usage_error.set(None);
-            wasm_bindgen_futures::spawn_local(async move {
-                match fetch_admin_kiro_usage_events(&AdminLlmGatewayUsageEventsQuery {
-                    key_id: None,
-                    start_ms: None,
-                    end_ms: None,
-                    source: Some("all".to_string()),
-                    model: None,
-                    account_name: None,
-                    endpoint: None,
-                    status_code: None,
-                    status_kind: None,
-                    limit: Some(5),
-                    offset: Some(0),
-                })
-                .await
-                {
-                    Ok(usage_resp) => {
-                        usage_retention_days.set(usage_resp.retention_days);
-                        usage_events.set(usage_resp.events);
-                    },
-                    Err(err) => usage_error.set(Some(err)),
-                }
-                usage_loading.set(false);
-            });
-        })
-    };
 
     {
         let proxy_configs = proxy_configs.clone();
@@ -4294,17 +4216,6 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
                 || ()
             },
         );
-    }
-
-    {
-        let reload_usage = reload_usage.clone();
-        let active_tab = active_tab.clone();
-        use_effect_with((active_tab.clone(), *refresh_tick), move |(active_tab, _)| {
-            if should_load_kiro_usage_preview(active_tab) {
-                reload_usage.emit(());
-            }
-            || ()
-        });
     }
 
     let on_reload = {
@@ -6045,186 +5956,6 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
             } // end TAB_GROUPS
 
             // ── Usage Tab ──
-            if active_tab == TAB_USAGE {
-            <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
-                    <div>
-                        <h2 class={classes!("m-0", "font-mono", "text-base", "font-bold", "text-[var(--text)]")}>{ "Recent Usage" }</h2>
-                        <p class={classes!("m-0", "mt-1", "text-xs", "text-[var(--muted)]")}>
-                            { format!("仅展示最近 {} 天的 usage events", *usage_retention_days) }
-                        </p>
-                    </div>
-                    <Link<Route> to={Route::AdminLlmGateway} classes={classes!("btn-terminal")}>
-                        { "查看完整记录" }
-                    </Link<Route>>
-                </div>
-                if *usage_loading {
-                    <div class={classes!("mt-3", "inline-flex", "items-center", "gap-2", "text-xs", "text-[var(--muted)]")}>
-                        <i class={classes!("fas", "fa-spinner", "animate-spin")} />
-                        <span>{ "加载中" }</span>
-                    </div>
-                } else if let Some(err) = (*usage_error).clone() {
-                    <div class={classes!("mt-3")}>
-                        <EmptyState
-                            tone="error"
-                            icon="fa-triangle-exclamation"
-                            title="加载 usage events 失败"
-                            hint={Some(AttrValue::from(err))}
-                        />
-                    </div>
-                } else if (*usage_events).is_empty() {
-                    <div class={classes!("mt-3")}>
-                        <EmptyState icon="fa-inbox" title="暂无记录" />
-                    </div>
-                } else {
-                    <div class={classes!("mt-3", "space-y-2")}>
-                        { for (*usage_events).iter().take(5).map(|event| {
-                            let credit_text = event.credit_usage
-                                .map(|c| format!("{c:.4}"))
-                                .unwrap_or_else(|| "-".to_string());
-                            let stream_summary = format_usage_stream_summary(
-                                event.stream_completed_cleanly,
-                                event.downstream_disconnect,
-                                event.final_event_type.as_deref(),
-                                event.bytes_streamed,
-                            );
-                            let status_ok = (200..300).contains(&event.status_code);
-                            let error_class_label = event
-                                .error_class
-                                .as_deref()
-                                .map(str::trim)
-                                .filter(|value| !value.is_empty())
-                                .map(str::to_string);
-                            let status_error_summary = usage_error_summary(
-                                event.status_code,
-                                event.error_message.as_deref(),
-                                event.error_class.as_deref(),
-                                event.session_blocked,
-                            );
-                            let anthropic_badge =
-                                anthropic_routing_badge(event.routing_diagnostics_json.as_deref());
-                            let event_id = event.id.clone();
-                            let on_detail = {
-                                let open_usage_detail = open_usage_detail.clone();
-                                let event_id = event_id.clone();
-                                Callback::from(move |_| open_usage_detail.emit(event_id.clone()))
-                            };
-                            html! {
-                                <div class={classes!("flex", "items-center", "gap-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-xs", "flex-wrap")}>
-                                    <span class={classes!("grid", "gap-1", "text-[var(--muted)]")}>
-                                        <span>{ format_ms(event.created_at) }</span>
-                                        <span class={classes!("max-w-[10rem]", "truncate", "text-[11px]")} title={event_id.clone()}>{ event_id.clone() }</span>
-                                    </span>
-                                    <span class={classes!("font-semibold", "text-[var(--text)]")}>{ event.key_name.clone() }</span>
-                                    <span class={classes!("text-[var(--muted)]")}>{ event.model.clone().unwrap_or_else(|| "-".to_string()) }</span>
-                                    <span class={classes!("text-[var(--muted)]")}>{ stream_summary }</span>
-                                    <span class={classes!(
-                                        "inline-flex", "items-center", "rounded-full", "border", "px-2", "py-0.5", "text-[11px]", "font-semibold",
-                                        if status_ok { "border-emerald-500/20" } else if event.status_code >= 500 { "border-red-500/20" } else { "border-amber-500/20" },
-                                        if status_ok { "bg-emerald-500/10" } else if event.status_code >= 500 { "bg-red-500/10" } else { "bg-amber-500/10" },
-                                        if status_ok { "text-emerald-700" } else if event.status_code >= 500 { "text-red-700" } else { "text-amber-700" },
-                                        if status_ok { "dark:text-emerald-200" } else if event.status_code >= 500 { "dark:text-red-200" } else { "dark:text-amber-200" },
-                                    )}>
-                                        { format!("status {}", event.status_code) }
-                                    </span>
-                                    if let Some(class_label) = error_class_label.clone() {
-                                        <span class={classes!("inline-flex", "items-center", "rounded-full", "border", "border-red-500/20", "bg-red-500/10", "px-2", "py-0.5", "text-[11px]", "font-semibold", "text-red-700", "dark:text-red-200")}>
-                                            { class_label }
-                                        </span>
-                                    }
-                                    if let Some(badge) = anthropic_badge {
-                                        <span class={classes!("inline-flex", "items-center", "rounded-full", "border", "border-sky-500/20", "bg-sky-500/10", "px-2", "py-0.5", "text-[11px]", "font-semibold", "text-sky-700", "dark:text-sky-200")}>
-                                            { badge }
-                                        </span>
-                                    }
-                                    if let Some(summary) = status_error_summary.clone() {
-                                        <span class={classes!("max-w-[min(28rem,100%)]", "truncate", "text-red-700", "dark:text-red-300")} title={summary.clone()}>
-                                            { summary }
-                                        </span>
-                                    }
-                                    <span class={classes!("ml-auto", "text-[var(--text)]")}>{ format!("credit {credit_text}") }</span>
-                                    <button
-                                        type="button"
-                                        class={classes!("btn-terminal", "btn-terminal-muted", "px-2", "py-1", "text-[11px]")}
-                                        onclick={on_detail}
-                                    >
-                                        { "详情" }
-                                    </button>
-                                </div>
-                            }
-                        }) }
-                    </div>
-                }
-            </section>
-            } // end TAB_USAGE
-
-            {
-                if *usage_detail_loading {
-                    html! {
-                        <div class={classes!("fixed", "inset-0", "z-[95]", "flex", "items-center", "justify-center", "bg-black/45", "px-4")}>
-                            <div class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-5", "py-4", "font-mono", "text-sm", "text-[var(--text)]", "shadow-xl")}>
-                                <i class={classes!("fas", "fa-spinner", "animate-spin", "mr-2")} />
-                                { "加载 usage 详情" }
-                            </div>
-                        </div>
-                    }
-                } else if let Some(detail) = (*selected_usage_event).clone() {
-                    let close_usage_detail = close_usage_detail.clone();
-                    let anthropic_summary =
-                        anthropic_routing_summary(detail.routing_diagnostics_json.as_deref());
-                    html! {
-                        <div class={classes!("fixed", "inset-0", "z-[95]", "flex", "items-center", "justify-center", "bg-black/45", "px-4")}>
-                            <div class={classes!("max-h-[86vh]", "w-[min(64rem,100%)]", "overflow-hidden", "rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "shadow-xl")}>
-                                <div class={classes!("flex", "items-center", "justify-between", "gap-3", "border-b", "border-[var(--border)]", "px-4", "py-3")}>
-                                    <div class={classes!("min-w-0")}>
-                                        <div class={classes!("font-mono", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Usage Detail" }</div>
-                                        <div class={classes!("truncate", "font-mono", "text-sm", "font-semibold", "text-[var(--text)]")} title={detail.id.clone()}>{ detail.id.clone() }</div>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        class={classes!("btn-terminal", "btn-terminal-muted")}
-                                        onclick={close_usage_detail}
-                                    >
-                                        { "关闭" }
-                                    </button>
-                                </div>
-                                <div class={classes!("max-h-[72vh]", "overflow-auto", "px-4", "py-4", "space-y-3")}>
-                                    <div class={classes!("grid", "gap-3", "sm:grid-cols-2", "lg:grid-cols-4")}>
-                                        { usage_detail_kv("created", format_ms(detail.created_at)) }
-                                        { usage_detail_kv("key", detail.key_name.clone()) }
-                                        { usage_detail_kv("account", detail.account_name.clone().unwrap_or_else(|| "-".to_string())) }
-                                        { usage_detail_kv("model", detail.model.clone().unwrap_or_else(|| "-".to_string())) }
-                                        { usage_detail_kv("status", detail.status_code.to_string()) }
-                                        { usage_detail_kv("latency", format!("{} ms", detail.latency_ms.max(0))) }
-                                        { usage_detail_kv("stream", usage_stream_state_label(detail.stream_completed_cleanly, detail.downstream_disconnect).to_string()) }
-                                        { usage_detail_kv("final event", detail.final_event_type.clone().unwrap_or_else(|| "-".to_string())) }
-                                        { usage_detail_kv("stream bytes", format_optional_stream_bytes(detail.bytes_streamed)) }
-                                        { usage_detail_kv("input", format_number_u64(detail.input_uncached_tokens)) }
-                                        { usage_detail_kv("cached", format_number_u64(detail.input_cached_tokens)) }
-                                        { usage_detail_kv("output", format_number_u64(detail.output_tokens)) }
-                                        { usage_detail_kv("billable", format_number_u64(detail.billable_tokens)) }
-                                        {
-                                            if let Some(summary) = anthropic_summary.clone() {
-                                                usage_detail_kv("routing", summary)
-                                            } else {
-                                                Html::default()
-                                            }
-                                        }
-                                    </div>
-                                    { usage_detail_pre("routing diagnostics", detail.routing_diagnostics_json.clone().unwrap_or_else(|| "-".to_string())) }
-                                    { usage_detail_pre("request headers", detail.request_headers_json.clone()) }
-                                    { usage_detail_pre("client request", detail.client_request_body_json.clone().unwrap_or_else(|| "-".to_string())) }
-                                    { usage_detail_pre("upstream request", detail.upstream_request_body_json.clone().unwrap_or_else(|| "-".to_string())) }
-                                    { usage_detail_pre("full request", detail.full_request_json.clone().unwrap_or_else(|| "-".to_string())) }
-                                    { usage_detail_pre("response body", detail.response_body.clone().unwrap_or_else(|| "-".to_string())) }
-                                </div>
-                            </div>
-                        </div>
-                    }
-                } else {
-                    Html::default()
-                }
-            }
 
             if let Some((message, is_error)) = (*toast).clone() {
                 <div class={classes!(
@@ -6284,24 +6015,6 @@ fn text_input_with_hint(
                 </div>
             }
         </label>
-    }
-}
-
-fn usage_detail_kv(label: &str, value: String) -> Html {
-    html! {
-        <div class={classes!("rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-xs")}>
-            <div class={classes!("uppercase", "tracking-[0.14em]", "text-[var(--muted)]")}>{ label }</div>
-            <div class={classes!("mt-1", "truncate", "text-[var(--text)]")} title={value.clone()}>{ value }</div>
-        </div>
-    }
-}
-
-fn usage_detail_pre(label: &str, value: String) -> Html {
-    html! {
-        <div class={classes!("rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2")}>
-            <div class={classes!("mb-2", "font-mono", "text-xs", "uppercase", "tracking-[0.14em]", "text-[var(--muted)]")}>{ label }</div>
-            <pre class={classes!("m-0", "max-h-64", "overflow-auto", "whitespace-pre-wrap", "break-words", "font-mono", "text-xs", "leading-5", "text-[var(--text)]")}>{ value }</pre>
-        </div>
     }
 }
 
@@ -6374,9 +6087,8 @@ mod tests {
         parse_manual_usage_limit_input, sanitize_kiro_account_group_id,
         should_load_kiro_account_inventory, should_load_kiro_group_inventory,
         should_load_kiro_group_options, should_load_kiro_inventory, should_load_kiro_key_inventory,
-        should_load_kiro_models_inventory, should_load_kiro_usage_preview,
-        should_reset_kiro_cache_policy_editor, TAB_ACCOUNTS, TAB_GROUPS, TAB_KEYS, TAB_OVERVIEW,
-        TAB_USAGE,
+        should_load_kiro_models_inventory, should_reset_kiro_cache_policy_editor, TAB_ACCOUNTS,
+        TAB_GROUPS, TAB_KEYS, TAB_OVERVIEW, TAB_USAGE,
     };
     use crate::{
         api::{
@@ -7097,14 +6809,6 @@ mod tests {
         .expect("policy should parse");
 
         assert_eq!(form.anthropic_cache_creation_input_ratio, "0.25");
-    }
-
-    #[test]
-    fn should_load_kiro_usage_preview_only_for_usage_tab() {
-        assert!(should_load_kiro_usage_preview(TAB_USAGE));
-        assert!(!should_load_kiro_usage_preview(TAB_OVERVIEW));
-        assert!(!should_load_kiro_usage_preview(TAB_KEYS));
-        assert!(!should_load_kiro_usage_preview(TAB_GROUPS));
     }
 
     #[test]

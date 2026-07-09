@@ -339,7 +339,7 @@ fn switch(route: Route) -> Html {
             html! { <pages::admin_kiro_gateway::AdminKiroGatewayPage tab="groups" /> }
         },
         Route::AdminKiroGatewayUsage => {
-            html! { <pages::admin_kiro_gateway::AdminKiroGatewayPage tab="usage" /> }
+            html! { <pages::admin_kiro_gateway_usage::AdminKiroGatewayUsagePage /> }
         },
         Route::AdminKiroAnthropicUpstreams => {
             html! { <pages::admin_kiro_anthropic_upstreams::AdminKiroAnthropicUpstreamsPage /> }
