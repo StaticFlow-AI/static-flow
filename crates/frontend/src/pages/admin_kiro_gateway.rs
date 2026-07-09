@@ -73,11 +73,13 @@ fn should_load_kiro_usage_preview(active_tab: &str) -> bool {
 }
 
 fn should_load_kiro_inventory(active_tab: &str) -> bool {
-    matches!(active_tab, TAB_ACCOUNTS | TAB_KEYS | TAB_GROUPS)
+    matches!(active_tab, TAB_KEYS | TAB_GROUPS)
 }
 
+/// Full account inventory (with balances) backs only the group-membership
+/// pickers; the Accounts tab itself renders from mount-time summary counts.
 fn should_load_kiro_account_inventory(active_tab: &str) -> bool {
-    matches!(active_tab, TAB_ACCOUNTS | TAB_GROUPS)
+    active_tab == TAB_GROUPS
 }
 
 fn should_load_kiro_key_inventory(active_tab: &str) -> bool {
@@ -5625,20 +5627,7 @@ pub fn admin_kiro_gateway_page() -> Html {
                         </p>
                     </article>
                 </div>
-                if *inventory_loading && (*accounts).is_empty() {
-                    <div class={classes!("mt-4", "rounded-xl", "border", "border-dashed", "border-[var(--border)]", "bg-[var(--surface)]", "p-5", "text-sm", "text-[var(--muted)]")}>
-                        { "正在加载 Kiro 账号摘要…" }
-                    </div>
-                } else if let Some(err) = (*inventory_error).clone() {
-                    <div class={classes!("mt-4")}>
-                        <EmptyState
-                            tone="error"
-                            icon="fa-triangle-exclamation"
-                            title="Kiro 账号摘要加载失败"
-                            hint={Some(AttrValue::from(err))}
-                        />
-                    </div>
-                } else if (*accounts).is_empty() {
+                if account_summary.total == 0 {
                     <div class={classes!("mt-4")}>
                         <EmptyState
                             icon="fa-inbox"
@@ -7073,7 +7062,10 @@ mod tests {
     #[test]
     fn should_load_kiro_inventory_only_for_inventory_tabs() {
         assert!(!should_load_kiro_inventory(TAB_OVERVIEW));
-        assert!(should_load_kiro_inventory(TAB_ACCOUNTS));
+        // The Accounts tab renders only summary counts (from the mount-time
+        // summary fetch) plus import/create forms, so it must not trigger any
+        // inventory request at all.
+        assert!(!should_load_kiro_inventory(TAB_ACCOUNTS));
         assert!(should_load_kiro_inventory(TAB_KEYS));
         assert!(should_load_kiro_inventory(TAB_GROUPS));
         assert!(!should_load_kiro_inventory(TAB_USAGE));
@@ -7088,7 +7080,9 @@ mod tests {
 
     #[test]
     fn kiro_inventory_helpers_only_load_required_datasets() {
-        assert!(should_load_kiro_account_inventory(TAB_ACCOUNTS));
+        // Full account inventory exists solely for group-membership pickers,
+        // so only the Groups tab may pay for it.
+        assert!(!should_load_kiro_account_inventory(TAB_ACCOUNTS));
         assert!(!should_load_kiro_account_inventory(TAB_KEYS));
         assert!(should_load_kiro_account_inventory(TAB_GROUPS));
         assert!(!should_load_kiro_account_inventory(TAB_OVERVIEW));

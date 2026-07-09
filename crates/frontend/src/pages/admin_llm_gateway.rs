@@ -27,21 +27,21 @@ use crate::{
         fetch_admin_llm_gateway_account_import_job, fetch_admin_llm_gateway_account_import_jobs,
         fetch_admin_llm_gateway_accounts, fetch_admin_llm_gateway_accounts_page,
         fetch_admin_llm_gateway_accounts_page_with_query, fetch_admin_llm_gateway_config,
-        fetch_admin_llm_gateway_keys, fetch_admin_llm_gateway_keys_page,
-        fetch_admin_llm_gateway_keys_page_with_query, fetch_admin_llm_gateway_proxy_bindings,
-        fetch_admin_llm_gateway_proxy_configs, fetch_admin_llm_gateway_sponsor_requests,
-        fetch_admin_llm_gateway_token_requests, fetch_admin_llm_gateway_usage_event_detail,
-        fetch_admin_llm_gateway_usage_events, fetch_admin_llm_gateway_usage_filter_options,
-        fetch_admin_usage_journal_preview, fetch_admin_usage_journal_status,
-        fetch_llm_gateway_status, import_admin_legacy_kiro_proxy_configs,
-        import_admin_llm_gateway_account, patch_admin_llm_gateway_account,
-        patch_admin_llm_gateway_account_group, patch_admin_llm_gateway_key,
-        patch_admin_llm_gateway_proxy_config, probe_admin_llm_gateway_account_models,
-        refresh_admin_llm_gateway_account_auth, refresh_admin_llm_gateway_account_usage,
-        refresh_admin_llm_gateway_proxy_traffic, reset_admin_llm_gateway_proxy_config_override,
-        update_admin_llm_gateway_config, update_admin_llm_gateway_proxy_binding,
-        AccountSummaryView, AdminAccountGroupOptionView, AdminAccountGroupView,
-        AdminAccountsSummaryView, AdminLlmGatewayAccountContributionRequestView,
+        fetch_admin_llm_gateway_keys_page, fetch_admin_llm_gateway_keys_page_with_query,
+        fetch_admin_llm_gateway_proxy_bindings, fetch_admin_llm_gateway_proxy_configs,
+        fetch_admin_llm_gateway_sponsor_requests, fetch_admin_llm_gateway_token_requests,
+        fetch_admin_llm_gateway_usage_event_detail, fetch_admin_llm_gateway_usage_events,
+        fetch_admin_llm_gateway_usage_filter_options, fetch_admin_usage_journal_preview,
+        fetch_admin_usage_journal_status, fetch_llm_gateway_status,
+        import_admin_legacy_kiro_proxy_configs, import_admin_llm_gateway_account,
+        patch_admin_llm_gateway_account, patch_admin_llm_gateway_account_group,
+        patch_admin_llm_gateway_key, patch_admin_llm_gateway_proxy_config,
+        probe_admin_llm_gateway_account_models, refresh_admin_llm_gateway_account_auth,
+        refresh_admin_llm_gateway_account_usage, refresh_admin_llm_gateway_proxy_traffic,
+        reset_admin_llm_gateway_proxy_config_override, update_admin_llm_gateway_config,
+        update_admin_llm_gateway_proxy_binding, AccountSummaryView, AdminAccountGroupOptionView,
+        AdminAccountGroupView, AdminAccountsSummaryView,
+        AdminLlmGatewayAccountContributionRequestView,
         AdminLlmGatewayAccountContributionRequestsQuery, AdminLlmGatewayAccountPageQuery,
         AdminLlmGatewayKeyPageQuery, AdminLlmGatewayKeyView, AdminLlmGatewayKeysSummaryView,
         AdminLlmGatewaySponsorRequestView, AdminLlmGatewaySponsorRequestsQuery,
@@ -90,6 +90,8 @@ const PROXY_TRAFFIC_QUERY_WINDOW_DAYS: u64 = 30;
 const ADMIN_CODEX_IMPORT_JOB_LIST_LIMIT: usize = 10;
 const ACCOUNT_PAGE_SIZE: usize = 8;
 const KEY_PAGE_SIZE: usize = 8;
+/// Page size for the Usage tab's server-side key filter search.
+const USAGE_KEY_OPTION_LIMIT: usize = 20;
 const CODEX_IMAGE_DEFAULT_CONCURRENCY: u64 = 3;
 const CODEX_IMAGE_MAX_CONCURRENCY: u64 = 1024;
 const ACCOUNT_ACCENT_BORDERS: &[&str] = &[
@@ -113,8 +115,10 @@ fn should_load_usage_journal(active_tab: &str) -> bool {
     active_tab == TAB_JOURNAL
 }
 
+/// The Usage tab's key filter uses its own paged server-side search, so only
+/// the Keys tab loads the key inventory page.
 fn should_load_llm_gateway_keys_inventory(active_tab: &str) -> bool {
-    matches!(active_tab, TAB_KEYS | TAB_USAGE)
+    active_tab == TAB_KEYS
 }
 
 fn should_load_llm_gateway_group_options(active_tab: &str) -> bool {
@@ -843,31 +847,6 @@ fn key_credit_display(key_item: &AdminLlmGatewayKeyView) -> String {
     } else {
         "-".to_string()
     }
-}
-
-fn gateway_key_matches_query(key_item: &AdminLlmGatewayKeyView, query_lower: &str) -> bool {
-    [
-        key_item.name.to_lowercase(),
-        key_item.id.to_lowercase(),
-        key_item.provider_type.to_lowercase(),
-        key_item.status.to_lowercase(),
-    ]
-    .iter()
-    .any(|value| value.contains(query_lower))
-}
-
-fn filter_gateway_keys_for_query(
-    keys: &[AdminLlmGatewayKeyView],
-    query: &str,
-) -> Vec<AdminLlmGatewayKeyView> {
-    let query_lower = query.trim().to_lowercase();
-    if query_lower.is_empty() {
-        return keys.to_vec();
-    }
-    keys.iter()
-        .filter(|key_item| gateway_key_matches_query(key_item, &query_lower))
-        .cloned()
-        .collect()
 }
 
 fn usage_source_label(value: &str) -> &'static str {
@@ -2757,6 +2736,10 @@ pub fn admin_llm_gateway_page() -> Html {
     let usage_error = use_state(|| None::<String>);
     let usage_key_filter = use_state(String::new);
     let usage_key_search = use_state(String::new);
+    let usage_key_search_debounced = use_state(String::new);
+    let usage_key_options = use_state(Vec::<AdminLlmGatewayKeyView>::new);
+    let usage_key_options_total = use_state(|| 0usize);
+    let usage_key_filter_label = use_state(|| None::<String>);
     let usage_start_input = use_state(String::new);
     let usage_end_input = use_state(String::new);
     let usage_source = use_state(|| USAGE_SOURCE_HOT.to_string());
@@ -3192,6 +3175,10 @@ pub fn admin_llm_gateway_page() -> Html {
 
     // This reload keeps the inventory, runtime config, and the current usage
     // page in sync after any admin write operation.
+    // Tracks whether the tab-independent base data (config, summaries, proxy
+    // configs/bindings) has been loaded once; plain tab switches and paging
+    // reuse it instead of re-fetching, while mutations force a refresh.
+    let reload_base_loaded = use_state(|| false);
     let reload = {
         let config = config.clone();
         let keys = keys.clone();
@@ -3272,7 +3259,8 @@ pub fn admin_llm_gateway_page() -> Html {
         let account_show_active_only = account_show_active_only.clone();
         let account_page = account_page.clone();
         let reload_usage = reload_usage.clone();
-        Callback::from(move |_| {
+        let reload_base_loaded = reload_base_loaded.clone();
+        Callback::from(move |force_base: bool| {
             let config = config.clone();
             let keys = keys.clone();
             let keys_summary = keys_summary.clone();
@@ -3353,6 +3341,8 @@ pub fn admin_llm_gateway_page() -> Html {
             let account_show_active_only = account_show_active_only.clone();
             let account_page = account_page.clone();
             let reload_usage = reload_usage.clone();
+            let reload_base_loaded = reload_base_loaded.clone();
+            let refresh_base = force_base || !*reload_base_loaded;
             loading.set(true);
             wasm_bindgen_futures::spawn_local(async move {
                 let active_tab_value = (*active_tab).clone();
@@ -3391,37 +3381,39 @@ pub fn admin_llm_gateway_page() -> Html {
                     ),
                 };
                 let result = async {
-                    let (
-                        cfg_result,
-                        key_summary_result,
-                        account_summary_result,
-                        proxy_configs_result,
-                        proxy_bindings_result,
-                    ) = futures::join!(
-                        fetch_admin_llm_gateway_config(),
-                        fetch_admin_llm_gateway_keys_page(1, 0),
-                        fetch_admin_llm_gateway_accounts_page(1, 0),
-                        fetch_admin_llm_gateway_proxy_configs(),
-                        fetch_admin_llm_gateway_proxy_bindings(),
-                    );
-                    let cfg = cfg_result?;
-                    let key_summary_resp = key_summary_result?;
-                    let account_summary_resp = account_summary_result?;
-                    let proxy_configs_resp = proxy_configs_result?;
-                    let proxy_bindings_resp = proxy_bindings_result?;
+                    let base = if refresh_base {
+                        let (
+                            cfg_result,
+                            key_summary_result,
+                            account_summary_result,
+                            proxy_configs_result,
+                            proxy_bindings_result,
+                        ) = futures::join!(
+                            fetch_admin_llm_gateway_config(),
+                            fetch_admin_llm_gateway_keys_page(1, 0),
+                            fetch_admin_llm_gateway_accounts_page(1, 0),
+                            fetch_admin_llm_gateway_proxy_configs(),
+                            fetch_admin_llm_gateway_proxy_bindings(),
+                        );
+                        let proxy_configs_resp = proxy_configs_result?;
+                        Some((
+                            cfg_result?,
+                            key_summary_result?,
+                            account_summary_result?,
+                            proxy_configs_resp.proxy_config_scope,
+                            proxy_configs_resp.proxy_configs,
+                            proxy_bindings_result?.bindings,
+                        ))
+                    } else {
+                        None
+                    };
                     let keys_resp = if should_load_llm_gateway_keys_inventory(&active_tab_value) {
-                        if active_tab_value == TAB_KEYS {
-                            let limit = KEY_PAGE_SIZE.max(1);
-                            let offset = current_keys_page.saturating_sub(1) * limit;
-                            Some(
-                                fetch_admin_llm_gateway_keys_page_with_query(
-                                    limit, offset, &key_query,
-                                )
+                        let limit = KEY_PAGE_SIZE.max(1);
+                        let offset = current_keys_page.saturating_sub(1) * limit;
+                        Some(
+                            fetch_admin_llm_gateway_keys_page_with_query(limit, offset, &key_query)
                                 .await?,
-                            )
-                        } else {
-                            Some(fetch_admin_llm_gateway_keys().await?)
-                        }
+                        )
                     } else {
                         None
                     };
@@ -3467,27 +3459,9 @@ pub fn admin_llm_gateway_page() -> Html {
                     } else {
                         None
                     };
-                    let effective_key_filter = if let Some(keys_resp) = keys_resp.as_ref() {
-                        if current_key_filter.is_empty()
-                            || keys_resp
-                                .keys
-                                .iter()
-                                .any(|item| item.id == current_key_filter)
-                        {
-                            current_key_filter
-                        } else {
-                            String::new()
-                        }
-                    } else {
-                        current_key_filter
-                    };
+                    let effective_key_filter = current_key_filter;
                     Ok::<_, String>((
-                        cfg,
-                        key_summary_resp,
-                        account_summary_resp,
-                        proxy_configs_resp.proxy_config_scope,
-                        proxy_configs_resp.proxy_configs,
-                        proxy_bindings_resp.bindings,
+                        base,
                         keys_resp,
                         account_group_options_resp,
                         account_groups_page_resp,
@@ -3501,12 +3475,7 @@ pub fn admin_llm_gateway_page() -> Html {
 
                 match result {
                     Ok((
-                        cfg,
-                        key_summary_resp,
-                        account_summary_resp,
-                        proxy_config_scope_resp,
-                        proxy_config_items,
-                        proxy_binding_items,
+                        base,
                         keys_resp,
                         account_group_options_resp,
                         account_groups_page_resp,
@@ -3516,75 +3485,86 @@ pub fn admin_llm_gateway_page() -> Html {
                         effective_key_filter,
                     )) => {
                         let usage_filter_for_reload = effective_key_filter.clone();
-                        ttl_input.set(cfg.auth_cache_ttl_seconds.to_string());
-                        max_request_body_input.set(cfg.max_request_body_bytes.to_string());
-                        account_failure_retry_limit_input
-                            .set(cfg.account_failure_retry_limit.to_string());
-                        codex_client_version_input.set(cfg.codex_client_version.clone());
-                        codex_refresh_min_input
-                            .set(cfg.codex_status_refresh_min_interval_seconds.to_string());
-                        codex_refresh_max_input
-                            .set(cfg.codex_status_refresh_max_interval_seconds.to_string());
-                        codex_account_jitter_max_input
-                            .set(cfg.codex_status_account_jitter_max_seconds.to_string());
-                        codex_weight_free_input.set(cfg.codex_weight_free.to_string());
-                        codex_weight_plus_input.set(cfg.codex_weight_plus.to_string());
-                        codex_weight_pro5x_input.set(cfg.codex_weight_pro5x.to_string());
-                        codex_weight_pro20x_input.set(cfg.codex_weight_pro20x.to_string());
-                        codex_session_affinity_enabled_input
-                            .set(cfg.codex_session_affinity_enabled);
-                        codex_session_affinity_max_entries_input
-                            .set(cfg.codex_session_affinity_max_entries.to_string());
-                        codex_session_affinity_ttl_seconds_input
-                            .set(cfg.codex_session_affinity_ttl_seconds.to_string());
-                        codex_fallback_affinity_enabled_input
-                            .set(cfg.codex_fallback_affinity_enabled);
-                        codex_fallback_affinity_ttl_seconds_input
-                            .set(cfg.codex_fallback_affinity_ttl_seconds.to_string());
-                        codex_fallback_affinity_prefix_bytes_input
-                            .set(cfg.codex_fallback_affinity_prefix_bytes.to_string());
-                        codex_fallback_affinity_min_body_bytes_input
-                            .set(cfg.codex_fallback_affinity_min_body_bytes.to_string());
-                        kiro_refresh_min_input
-                            .set(cfg.kiro_status_refresh_min_interval_seconds.to_string());
-                        kiro_refresh_max_input
-                            .set(cfg.kiro_status_refresh_max_interval_seconds.to_string());
-                        kiro_account_jitter_max_input
-                            .set(cfg.kiro_status_account_jitter_max_seconds.to_string());
-                        usage_flush_batch_size_input
-                            .set(cfg.usage_event_flush_batch_size.to_string());
-                        usage_flush_interval_input
-                            .set(cfg.usage_event_flush_interval_seconds.to_string());
-                        usage_flush_max_buffer_bytes_input
-                            .set(cfg.usage_event_flush_max_buffer_bytes.to_string());
-                        duckdb_usage_memory_limit_mib_input
-                            .set(cfg.duckdb_usage_memory_limit_mib.to_string());
-                        duckdb_usage_checkpoint_threshold_mib_input
-                            .set(cfg.duckdb_usage_checkpoint_threshold_mib.to_string());
-                        usage_analytics_retention_days_input
-                            .set(cfg.usage_analytics_retention_days.to_string());
-                        kiro_cctest_proxy_base_url_input
-                            .set(cfg.kiro_cctest_proxy_base_url.clone().unwrap_or_default());
-                        kiro_cctest_proxy_api_key_input
-                            .set(cfg.kiro_cctest_proxy_api_key.clone().unwrap_or_default());
-                        config.set(Some(cfg));
-                        keys_summary.set(key_summary_resp.summary);
-                        accounts_summary.set(account_summary_resp.summary);
-                        proxy_config_scope.set(proxy_config_scope_resp);
-                        let codex_bound = proxy_binding_items
-                            .iter()
-                            .find(|item| item.provider_type == "codex")
-                            .and_then(|item| item.bound_proxy_config_id.clone())
-                            .unwrap_or_default();
-                        let kiro_bound = proxy_binding_items
-                            .iter()
-                            .find(|item| item.provider_type == "kiro")
-                            .and_then(|item| item.bound_proxy_config_id.clone())
-                            .unwrap_or_default();
-                        proxy_configs.set(proxy_config_items);
-                        proxy_bindings.set(proxy_binding_items);
-                        codex_proxy_binding_input.set(codex_bound);
-                        kiro_proxy_binding_input.set(kiro_bound);
+                        if let Some((
+                            cfg,
+                            key_summary_resp,
+                            account_summary_resp,
+                            proxy_config_scope_resp,
+                            proxy_config_items,
+                            proxy_binding_items,
+                        )) = base
+                        {
+                            ttl_input.set(cfg.auth_cache_ttl_seconds.to_string());
+                            max_request_body_input.set(cfg.max_request_body_bytes.to_string());
+                            account_failure_retry_limit_input
+                                .set(cfg.account_failure_retry_limit.to_string());
+                            codex_client_version_input.set(cfg.codex_client_version.clone());
+                            codex_refresh_min_input
+                                .set(cfg.codex_status_refresh_min_interval_seconds.to_string());
+                            codex_refresh_max_input
+                                .set(cfg.codex_status_refresh_max_interval_seconds.to_string());
+                            codex_account_jitter_max_input
+                                .set(cfg.codex_status_account_jitter_max_seconds.to_string());
+                            codex_weight_free_input.set(cfg.codex_weight_free.to_string());
+                            codex_weight_plus_input.set(cfg.codex_weight_plus.to_string());
+                            codex_weight_pro5x_input.set(cfg.codex_weight_pro5x.to_string());
+                            codex_weight_pro20x_input.set(cfg.codex_weight_pro20x.to_string());
+                            codex_session_affinity_enabled_input
+                                .set(cfg.codex_session_affinity_enabled);
+                            codex_session_affinity_max_entries_input
+                                .set(cfg.codex_session_affinity_max_entries.to_string());
+                            codex_session_affinity_ttl_seconds_input
+                                .set(cfg.codex_session_affinity_ttl_seconds.to_string());
+                            codex_fallback_affinity_enabled_input
+                                .set(cfg.codex_fallback_affinity_enabled);
+                            codex_fallback_affinity_ttl_seconds_input
+                                .set(cfg.codex_fallback_affinity_ttl_seconds.to_string());
+                            codex_fallback_affinity_prefix_bytes_input
+                                .set(cfg.codex_fallback_affinity_prefix_bytes.to_string());
+                            codex_fallback_affinity_min_body_bytes_input
+                                .set(cfg.codex_fallback_affinity_min_body_bytes.to_string());
+                            kiro_refresh_min_input
+                                .set(cfg.kiro_status_refresh_min_interval_seconds.to_string());
+                            kiro_refresh_max_input
+                                .set(cfg.kiro_status_refresh_max_interval_seconds.to_string());
+                            kiro_account_jitter_max_input
+                                .set(cfg.kiro_status_account_jitter_max_seconds.to_string());
+                            usage_flush_batch_size_input
+                                .set(cfg.usage_event_flush_batch_size.to_string());
+                            usage_flush_interval_input
+                                .set(cfg.usage_event_flush_interval_seconds.to_string());
+                            usage_flush_max_buffer_bytes_input
+                                .set(cfg.usage_event_flush_max_buffer_bytes.to_string());
+                            duckdb_usage_memory_limit_mib_input
+                                .set(cfg.duckdb_usage_memory_limit_mib.to_string());
+                            duckdb_usage_checkpoint_threshold_mib_input
+                                .set(cfg.duckdb_usage_checkpoint_threshold_mib.to_string());
+                            usage_analytics_retention_days_input
+                                .set(cfg.usage_analytics_retention_days.to_string());
+                            kiro_cctest_proxy_base_url_input
+                                .set(cfg.kiro_cctest_proxy_base_url.clone().unwrap_or_default());
+                            kiro_cctest_proxy_api_key_input
+                                .set(cfg.kiro_cctest_proxy_api_key.clone().unwrap_or_default());
+                            config.set(Some(cfg));
+                            keys_summary.set(key_summary_resp.summary);
+                            accounts_summary.set(account_summary_resp.summary);
+                            proxy_config_scope.set(proxy_config_scope_resp);
+                            let codex_bound = proxy_binding_items
+                                .iter()
+                                .find(|item| item.provider_type == "codex")
+                                .and_then(|item| item.bound_proxy_config_id.clone())
+                                .unwrap_or_default();
+                            let kiro_bound = proxy_binding_items
+                                .iter()
+                                .find(|item| item.provider_type == "kiro")
+                                .and_then(|item| item.bound_proxy_config_id.clone())
+                                .unwrap_or_default();
+                            proxy_configs.set(proxy_config_items);
+                            proxy_bindings.set(proxy_binding_items);
+                            codex_proxy_binding_input.set(codex_bound);
+                            kiro_proxy_binding_input.set(kiro_bound);
+                            reload_base_loaded.set(true);
+                        }
                         if let Some(keys_resp) = keys_resp {
                             keys_total.set(keys_resp.total);
                             keys_page_limit.set(keys_resp.limit.max(1));
@@ -3743,7 +3723,9 @@ pub fn admin_llm_gateway_page() -> Html {
         let reload = reload.clone();
         let active_tab = active_tab.clone();
         use_effect_with(((*active_tab).clone(),), move |_| {
-            reload.emit(());
+            // Tab switches reuse the already-loaded base data; the first run
+            // (mount) still fetches it because nothing is loaded yet.
+            reload.emit(false);
             || ()
         });
     }
@@ -3759,7 +3741,7 @@ pub fn admin_llm_gateway_page() -> Html {
             (*keys_page, (*keys_search).clone(), *keys_sort_mode, *keys_show_active_only),
             move |_| {
                 if *active_tab == TAB_KEYS {
-                    reload.emit(());
+                    reload.emit(false);
                 }
                 || ()
             },
@@ -3784,7 +3766,7 @@ pub fn admin_llm_gateway_page() -> Html {
             ),
             move |_| {
                 if *active_tab == TAB_ACCOUNTS {
-                    reload.emit(());
+                    reload.emit(false);
                 }
                 || ()
             },
@@ -3801,6 +3783,38 @@ pub fn admin_llm_gateway_page() -> Html {
             reload_sponsor_requests.emit((Some(1), Some(String::new())));
             || ()
         });
+    }
+
+    {
+        let usage_key_options = usage_key_options.clone();
+        let usage_key_options_total = usage_key_options_total.clone();
+        use_effect_with(
+            ((*active_tab).clone(), (*usage_key_search_debounced).clone()),
+            move |(active_tab, query)| {
+                if active_tab == TAB_USAGE {
+                    let usage_key_options = usage_key_options.clone();
+                    let usage_key_options_total = usage_key_options_total.clone();
+                    let page_query = AdminLlmGatewayKeyPageQuery {
+                        q: Some(query.clone()),
+                        active_only: false,
+                        sort: None,
+                    };
+                    wasm_bindgen_futures::spawn_local(async move {
+                        if let Ok(response) = fetch_admin_llm_gateway_keys_page_with_query(
+                            USAGE_KEY_OPTION_LIMIT,
+                            0,
+                            &page_query,
+                        )
+                        .await
+                        {
+                            usage_key_options_total.set(response.total);
+                            usage_key_options.set(response.keys);
+                        }
+                    });
+                }
+                || ()
+            },
+        );
     }
 
     {
@@ -3847,7 +3861,7 @@ pub fn admin_llm_gateway_page() -> Html {
                                     summary,
                                 ));
                                 if is_terminal {
-                                    reload.emit(());
+                                    reload.emit(true);
                                 }
                             },
                             Err(err) => load_error.set(Some(err)),
@@ -4230,7 +4244,7 @@ pub fn admin_llm_gateway_page() -> Html {
                 match update_admin_llm_gateway_config(&runtime_config).await {
                     Ok(_) => {
                         load_error.set(None);
-                        reload.emit(());
+                        reload.emit(true);
                     },
                     Err(err) => load_error.set(Some(err)),
                 }
@@ -4294,7 +4308,7 @@ pub fn admin_llm_gateway_page() -> Html {
                         create_proxy_password.set(String::new());
                         load_error.set(None);
                         flash.emit(("已创建代理配置".to_string(), false));
-                        reload.emit(());
+                        reload.emit(true);
                     },
                     Err(err) => {
                         load_error.set(Some(err.clone()));
@@ -4392,7 +4406,7 @@ pub fn admin_llm_gateway_page() -> Html {
                     Ok(_) => {
                         load_error.set(None);
                         flash.emit(("已导入 legacy Kiro 代理配置".to_string(), false));
-                        reload.emit(());
+                        reload.emit(true);
                     },
                     Err(err) => {
                         load_error.set(Some(err.clone()));
@@ -4480,7 +4494,7 @@ pub fn admin_llm_gateway_page() -> Html {
                         usage_page.set(1);
                         load_error.set(None);
                         flash.emit((format!("已创建 key `{}`", name), false));
-                        reload.emit(());
+                        reload.emit(true);
                     },
                     Err(err) => {
                         load_error.set(Some(err.clone()));
@@ -4563,7 +4577,7 @@ pub fn admin_llm_gateway_page() -> Html {
                         create_account_group_account_names.set(Vec::new());
                         load_error.set(None);
                         flash.emit((format!("已创建账号组 `{group_name}`"), false));
-                        reload.emit(());
+                        reload.emit(true);
                     },
                     Err(err) => {
                         load_error.set(Some(err.clone()));
@@ -4587,7 +4601,7 @@ pub fn admin_llm_gateway_page() -> Html {
             let flash = flash.clone();
             let refreshing_key_id = refreshing_key_id.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                reload.emit(());
+                reload.emit(true);
                 flash.emit((format!("已触发 key `{}` 刷新", key_name), false));
                 refreshing_key_id.set(None);
             });
@@ -4597,10 +4611,24 @@ pub fn admin_llm_gateway_page() -> Html {
     let on_usage_key_pick = {
         let usage_key_filter = usage_key_filter.clone();
         let usage_key_search = usage_key_search.clone();
+        let usage_key_search_debounced = usage_key_search_debounced.clone();
+        let usage_key_filter_label = usage_key_filter_label.clone();
+        let usage_key_options = usage_key_options.clone();
         let usage_page = usage_page.clone();
         Callback::from(move |selected_key_id: String| {
             if selected_key_id.is_empty() {
                 usage_key_search.set(String::new());
+                usage_key_search_debounced.set(String::new());
+                usage_key_filter_label.set(None);
+            } else {
+                // Remember the label so the selection stays readable even
+                // after later searches page it out of the options list.
+                usage_key_filter_label.set(
+                    usage_key_options
+                        .iter()
+                        .find(|key_item| key_item.id == selected_key_id)
+                        .map(|key_item| format!("{} · {}", key_item.name, key_item.id)),
+                );
             }
             usage_key_filter.set(selected_key_id.clone());
             usage_page.set(1);
@@ -4619,6 +4647,11 @@ pub fn admin_llm_gateway_page() -> Html {
     let on_usage_key_search_change = {
         let usage_key_search = usage_key_search.clone();
         Callback::from(move |value: String| usage_key_search.set(value))
+    };
+
+    let on_usage_key_search_debounced = {
+        let usage_key_search_debounced = usage_key_search_debounced.clone();
+        Callback::from(move |value: String| usage_key_search_debounced.set(value))
     };
 
     let on_usage_source_change = {
@@ -4799,7 +4832,7 @@ pub fn admin_llm_gateway_page() -> Html {
                         }
                         token_requests.set(list);
                         load_error.set(None);
-                        reload.emit(());
+                        reload.emit(true);
                         reload_token_requests.emit((None, None));
                     },
                     Err(err) => load_error.set(Some(err)),
@@ -4951,7 +4984,7 @@ pub fn admin_llm_gateway_page() -> Html {
                         }
                         account_contribution_requests.set(list);
                         load_error.set(None);
-                        reload.emit(());
+                        reload.emit(true);
                         reload_account_contribution_requests.emit((None, None));
                     },
                     Err(err) => load_error.set(Some(err)),
@@ -5731,7 +5764,7 @@ pub fn admin_llm_gateway_page() -> Html {
                         import_raw_auth_json.set(String::new());
                         import_raw_auth_feedback.set(None);
                         load_error.set(None);
-                        reload.emit(());
+                        reload.emit(true);
                     },
                     Err(err) => load_error.set(Some(err)),
                 }
@@ -5820,7 +5853,7 @@ pub fn admin_llm_gateway_page() -> Html {
             let load_error = load_error.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 match delete_admin_llm_gateway_account(&name).await {
-                    Ok(_) => reload.emit(()),
+                    Ok(_) => reload.emit(true),
                     Err(err) => load_error.set(Some(err)),
                 }
             });
@@ -6460,15 +6493,9 @@ pub fn admin_llm_gateway_page() -> Html {
         let keys_page = keys_page.clone();
         Callback::from(move |p: usize| keys_page.set(p))
     };
-    let usage_key_query_lower = (*usage_key_search).trim().to_lowercase();
-    let filtered_usage_keys: Vec<AdminLlmGatewayKeyView> = {
-        let q = usage_key_query_lower.clone();
-        use_memo(((*keys).clone(), q.clone()), move |(items, q)| {
-            filter_gateway_keys_for_query(items, q)
-        })
-        .as_ref()
-        .clone()
-    };
+    let usage_key_query_lower = (*usage_key_search_debounced).trim().to_lowercase();
+    // Server-side paged search results for the usage key filter.
+    let filtered_usage_keys: Vec<AdminLlmGatewayKeyView> = { (*usage_key_options).clone() };
     let account_groups_query_lower = (*account_groups_search).trim().to_lowercase();
     let filtered_account_groups: Vec<AdminAccountGroupView> = {
         let q = account_groups_query_lower.clone();
@@ -6699,7 +6726,7 @@ pub fn admin_llm_gateway_page() -> Html {
                             aria-label="刷新 Dashboard"
                             onclick={{
                                 let reload = reload.clone();
-                                Callback::from(move |_| reload.emit(()))
+                                Callback::from(move |_| reload.emit(true))
                             }}
                             disabled={*loading}
                         >
@@ -7939,7 +7966,7 @@ pub fn admin_llm_gateway_page() -> Html {
                             <h2 class={classes!("m-0", "font-mono", "text-base", "font-bold", "text-[var(--text)]")}>{ "Provider Proxy Bindings" }</h2>
                             <button class={classes!("btn-terminal")} onclick={{
                                 let reload = reload.clone();
-                                Callback::from(move |_| reload.emit(()))
+                                Callback::from(move |_| reload.emit(true))
                             }}>
                                 { if *loading { "刷新中..." } else { "刷新" } }
                             </button>
@@ -8205,7 +8232,7 @@ pub fn admin_llm_gateway_page() -> Html {
                                     <ProxyConfigEditorCard
                                         key={proxy_config.id.clone()}
                                         proxy_config={(*proxy_config).clone()}
-                                        on_changed={reload.clone()}
+                                        on_changed={reload.reform(|_: ()| true)}
                                         on_copy={on_copy.clone()}
                                         on_flash={flash.clone()}
                                     />
@@ -8224,7 +8251,7 @@ pub fn admin_llm_gateway_page() -> Html {
                         <h2 class={classes!("m-0", "font-mono", "text-base", "font-bold", "text-[var(--text)]")}>{ "Key Inventory" }</h2>
                         <button class={classes!("btn-terminal")} onclick={{
                             let reload = reload.clone();
-                            Callback::from(move |_| reload.emit(()))
+                            Callback::from(move |_| reload.emit(true))
                         }}>
                             { if *loading { "刷新中..." } else { "刷新" } }
                         </button>
@@ -8341,7 +8368,7 @@ pub fn admin_llm_gateway_page() -> Html {
                                 <KeyEditorCard
                                     key={key_item.id.clone()}
                                     key_item={(*key_item).clone()}
-                                    on_changed={reload.clone()}
+                                    on_changed={reload.reform(|_: ()| true)}
                                     on_refresh={on_refresh_key.clone()}
                                     on_copy={on_copy.clone()}
                                     on_flash={flash.clone()}
@@ -8374,7 +8401,7 @@ pub fn admin_llm_gateway_page() -> Html {
                             class={classes!("btn-terminal")}
                             onclick={{
                                 let reload = reload.clone();
-                                Callback::from(move |_| reload.emit(()))
+                                Callback::from(move |_| reload.emit(true))
                             }}
                             disabled={*loading}
                         >
@@ -8518,7 +8545,7 @@ pub fn admin_llm_gateway_page() -> Html {
                                     key={group_item.id.clone()}
                                     group_item={group_item.clone()}
                                     accounts={(*accounts).clone()}
-                                    on_changed={reload.clone()}
+                                    on_changed={reload.reform(|_: ()| true)}
                                     on_flash={flash.clone()}
                                 />
                             }) }
@@ -8553,7 +8580,7 @@ pub fn admin_llm_gateway_page() -> Html {
                             class={classes!("btn-terminal")}
                             onclick={{
                                 let reload = reload.clone();
-                                Callback::from(move |_| reload.emit(()))
+                                Callback::from(move |_| reload.emit(true))
                             }}
                             disabled={*loading}
                         >
@@ -9656,6 +9683,7 @@ pub fn admin_llm_gateway_page() -> Html {
                                 <SearchBox
                                     value={(*usage_key_search).clone()}
                                     on_change={on_usage_key_search_change.clone()}
+                                    on_debounced_change={on_usage_key_search_debounced.clone()}
                                     placeholder={AttrValue::Static("搜索 key 名称 / id / provider")}
                                 />
                             </div>
@@ -9670,17 +9698,19 @@ pub fn admin_llm_gateway_page() -> Html {
                                         .iter()
                                         .any(|key_item| key_item.id.as_str() == (*usage_key_filter).as_str())
                                 {
-                                    if let Some(selected_key) = keys
-                                        .iter()
-                                        .find(|key_item| key_item.id.as_str() == (*usage_key_filter).as_str())
-                                    {
-                                        <option
-                                            value={selected_key.id.clone()}
-                                            selected=true
-                                        >
-                                            { format!("{} · {} (当前)", selected_key.name, selected_key.id) }
-                                        </option>
-                                    }
+                                    <option
+                                        value={(*usage_key_filter).clone()}
+                                        selected=true
+                                    >
+                                        {
+                                            format!(
+                                                "{} (当前)",
+                                                (*usage_key_filter_label)
+                                                    .clone()
+                                                    .unwrap_or_else(|| (*usage_key_filter).clone()),
+                                            )
+                                        }
+                                    </option>
                                 }
                                 { for filtered_usage_keys.iter().map(|key_item| html! {
                                     <option
@@ -9778,7 +9808,7 @@ pub fn admin_llm_gateway_page() -> Html {
 
                     if !usage_key_query_lower.is_empty() {
                         <div class={classes!("mt-2", "flex", "items-center", "gap-2", "flex-wrap", "text-xs", "font-mono", "text-[var(--muted)]")}>
-                            <span>{ format!("匹配 {}/{}", filtered_usage_keys.len(), keys.len()) }</span>
+                            <span>{ format!("匹配 {}/{}", filtered_usage_keys.len(), *usage_key_options_total) }</span>
                             if filtered_usage_keys.is_empty() {
                                 <span>{ "没有匹配的 key" }</span>
                             } else {
@@ -9807,8 +9837,8 @@ pub fn admin_llm_gateway_page() -> Html {
                                         </button>
                                     }
                                 }) }
-                                if filtered_usage_keys.len() > 8 {
-                                    <span>{ format!("另有 {} 个匹配项", filtered_usage_keys.len() - 8) }</span>
+                                if *usage_key_options_total > 8 {
+                                    <span>{ format!("另有 {} 个匹配项", *usage_key_options_total - 8) }</span>
                                 }
                             }
                         </div>
@@ -10625,7 +10655,9 @@ mod tests {
     #[test]
     fn llm_inventory_load_helpers_follow_active_tab() {
         assert!(should_load_llm_gateway_keys_inventory(TAB_KEYS));
-        assert!(should_load_llm_gateway_keys_inventory(TAB_USAGE));
+        // The Usage tab's key filter is served by a paged, server-side search
+        // instead of the full key inventory.
+        assert!(!should_load_llm_gateway_keys_inventory(TAB_USAGE));
         assert!(!should_load_llm_gateway_keys_inventory(TAB_OVERVIEW));
 
         assert!(should_load_llm_gateway_group_options(TAB_KEYS));
@@ -10749,45 +10781,6 @@ mod tests {
         assert!(rows
             .iter()
             .any(|(label, value)| label == "Codex failover" && value == "1"));
-    }
-
-    fn test_key(id: &str, name: &str, provider_type: &str, status: &str) -> AdminLlmGatewayKeyView {
-        AdminLlmGatewayKeyView {
-            id: id.to_string(),
-            name: name.to_string(),
-            provider_type: provider_type.to_string(),
-            status: status.to_string(),
-            ..AdminLlmGatewayKeyView::default()
-        }
-    }
-
-    #[test]
-    fn usage_key_search_matches_name_id_provider_and_status() {
-        let keys = vec![
-            test_key("sfk-alpha", "Default Codex", "codex", "active"),
-            test_key("sfk-beta", "Kiro Pool", "kiro", "disabled"),
-        ];
-
-        let by_name = filter_gateway_keys_for_query(&keys, "default");
-        let by_id = filter_gateway_keys_for_query(&keys, "BETA");
-        let by_provider = filter_gateway_keys_for_query(&keys, "kiro");
-        let by_status = filter_gateway_keys_for_query(&keys, "disabled");
-
-        assert_eq!(by_name, vec![keys[0].clone()]);
-        assert_eq!(by_id, vec![keys[1].clone()]);
-        assert_eq!(by_provider, vec![keys[1].clone()]);
-        assert_eq!(by_status, vec![keys[1].clone()]);
-    }
-
-    #[test]
-    fn usage_key_search_trims_query_and_returns_all_for_blank() {
-        let keys = vec![
-            test_key("sfk-alpha", "Default Codex", "codex", "active"),
-            test_key("sfk-beta", "Kiro Pool", "kiro", "disabled"),
-        ];
-
-        assert_eq!(filter_gateway_keys_for_query(&keys, "   "), keys);
-        assert_eq!(filter_gateway_keys_for_query(&keys, "  codex  "), vec![keys[0].clone()]);
     }
 
     #[test]

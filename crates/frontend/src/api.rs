@@ -6230,20 +6230,6 @@ pub struct AdminLlmGatewayKeysResponse {
 
 const ADMIN_GATEWAY_INVENTORY_PAGE_LIMIT: usize = 200;
 
-fn merge_admin_llm_gateway_key_pages(
-    mut first: AdminLlmGatewayKeysResponse,
-    mut next: AdminLlmGatewayKeysResponse,
-) -> AdminLlmGatewayKeysResponse {
-    first.keys.append(&mut next.keys);
-    first.summary = next.summary;
-    first.total = next.total;
-    first.generated_at = next.generated_at;
-    first.has_more = next.has_more;
-    first.offset = 0;
-    first.limit = first.keys.len();
-    first
-}
-
 fn merge_admin_codex_account_pages(
     mut first: AccountListResponse,
     mut next: AccountListResponse,
@@ -8546,43 +8532,6 @@ pub async fn import_admin_legacy_kiro_proxy_configs(
 }
 
 /// Fetch all admin key pages, including secrets and current counters.
-pub async fn fetch_admin_llm_gateway_keys() -> Result<AdminLlmGatewayKeysResponse, String> {
-    #[cfg(feature = "mock")]
-    {
-        Ok(AdminLlmGatewayKeysResponse {
-            keys: vec![],
-            summary: AdminLlmGatewayKeysSummaryView::default(),
-            auth_cache_ttl_seconds: 60,
-            total: 0,
-            limit: 0,
-            offset: 0,
-            has_more: false,
-            generated_at: 0,
-        })
-    }
-
-    #[cfg(not(feature = "mock"))]
-    {
-        let mut offset = 0;
-        let mut result =
-            fetch_admin_llm_gateway_keys_page(ADMIN_GATEWAY_INVENTORY_PAGE_LIMIT, offset).await?;
-        while result.has_more {
-            offset = result.keys.len();
-            let next =
-                fetch_admin_llm_gateway_keys_page(ADMIN_GATEWAY_INVENTORY_PAGE_LIMIT, offset)
-                    .await?;
-            let returned = next.keys.len();
-            result = merge_admin_llm_gateway_key_pages(result, next);
-            if returned == 0 {
-                break;
-            }
-        }
-        result.has_more = false;
-        result.limit = result.keys.len();
-        Ok(result)
-    }
-}
-
 pub async fn fetch_admin_llm_gateway_keys_page(
     limit: usize,
     offset: usize,
@@ -12888,66 +12837,6 @@ mod tests {
         let legacy: AccountSummaryView =
             serde_json::from_str(r#"{"name":"codex-a"}"#).expect("legacy account should parse");
         assert_eq!(legacy.email, None);
-    }
-
-    #[test]
-    fn admin_gateway_key_page_merge_preserves_all_rows_and_latest_summary() {
-        let first = AdminLlmGatewayKeysResponse {
-            keys: vec![AdminLlmGatewayKeyView {
-                id: "k1".to_string(),
-                ..AdminLlmGatewayKeyView::default()
-            }],
-            total: 3,
-            limit: 1,
-            offset: 0,
-            has_more: true,
-            summary: AdminLlmGatewayKeysSummaryView {
-                total: 3,
-                remaining_billable_sum: 10,
-                ..AdminLlmGatewayKeysSummaryView::default()
-            },
-            generated_at: 10,
-            ..AdminLlmGatewayKeysResponse::default()
-        };
-        let next = AdminLlmGatewayKeysResponse {
-            keys: vec![
-                AdminLlmGatewayKeyView {
-                    id: "k2".to_string(),
-                    ..AdminLlmGatewayKeyView::default()
-                },
-                AdminLlmGatewayKeyView {
-                    id: "k3".to_string(),
-                    ..AdminLlmGatewayKeyView::default()
-                },
-            ],
-            total: 3,
-            limit: 2,
-            offset: 1,
-            has_more: false,
-            summary: AdminLlmGatewayKeysSummaryView {
-                total: 3,
-                remaining_billable_sum: 30,
-                ..AdminLlmGatewayKeysSummaryView::default()
-            },
-            generated_at: 20,
-            ..AdminLlmGatewayKeysResponse::default()
-        };
-
-        let merged = merge_admin_llm_gateway_key_pages(first, next);
-
-        assert_eq!(
-            merged
-                .keys
-                .iter()
-                .map(|key| key.id.as_str())
-                .collect::<Vec<_>>(),
-            ["k1", "k2", "k3"]
-        );
-        assert_eq!(merged.limit, 3);
-        assert_eq!(merged.offset, 0);
-        assert!(!merged.has_more);
-        assert_eq!(merged.summary.remaining_billable_sum, 30);
-        assert_eq!(merged.generated_at, 20);
     }
 
     #[test]
