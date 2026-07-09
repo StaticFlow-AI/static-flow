@@ -172,6 +172,34 @@ pub enum Route {
     AdminKiroAccountStatus,
 
     #[cfg(not(feature = "mock"))]
+    #[at("/admin/kiro-gateway/accounts/manage")]
+    AdminKiroGatewayAccountsManage,
+    #[cfg(feature = "mock")]
+    #[at("/static_flow/admin/kiro-gateway/accounts/manage")]
+    AdminKiroGatewayAccountsManage,
+
+    #[cfg(not(feature = "mock"))]
+    #[at("/admin/kiro-gateway/keys")]
+    AdminKiroGatewayKeys,
+    #[cfg(feature = "mock")]
+    #[at("/static_flow/admin/kiro-gateway/keys")]
+    AdminKiroGatewayKeys,
+
+    #[cfg(not(feature = "mock"))]
+    #[at("/admin/kiro-gateway/groups")]
+    AdminKiroGatewayGroups,
+    #[cfg(feature = "mock")]
+    #[at("/static_flow/admin/kiro-gateway/groups")]
+    AdminKiroGatewayGroups,
+
+    #[cfg(not(feature = "mock"))]
+    #[at("/admin/kiro-gateway/usage")]
+    AdminKiroGatewayUsage,
+    #[cfg(feature = "mock")]
+    #[at("/static_flow/admin/kiro-gateway/usage")]
+    AdminKiroGatewayUsage,
+
+    #[cfg(not(feature = "mock"))]
     #[at("/admin/gpt2api-rs")]
     AdminGpt2ApiRs,
     #[cfg(feature = "mock")]
@@ -301,6 +329,18 @@ fn switch(route: Route) -> Html {
             html! { <pages::admin_moderation::AdminModerationPage /> }
         },
         Route::AdminKiroGateway => html! { <pages::admin_kiro_gateway::AdminKiroGatewayPage /> },
+        Route::AdminKiroGatewayAccountsManage => {
+            html! { <pages::admin_kiro_gateway::AdminKiroGatewayPage tab="accounts" /> }
+        },
+        Route::AdminKiroGatewayKeys => {
+            html! { <pages::admin_kiro_gateway::AdminKiroGatewayPage tab="keys" /> }
+        },
+        Route::AdminKiroGatewayGroups => {
+            html! { <pages::admin_kiro_gateway::AdminKiroGatewayPage tab="groups" /> }
+        },
+        Route::AdminKiroGatewayUsage => {
+            html! { <pages::admin_kiro_gateway::AdminKiroGatewayPage tab="usage" /> }
+        },
         Route::AdminKiroAnthropicUpstreams => {
             html! { <pages::admin_kiro_anthropic_upstreams::AdminKiroAnthropicUpstreamsPage /> }
         },

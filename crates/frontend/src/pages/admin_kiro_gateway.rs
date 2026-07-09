@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 use web_sys::{HtmlInputElement, HtmlSelectElement, HtmlTextAreaElement};
 use yew::prelude::*;
-use yew_router::prelude::Link;
+use yew_router::prelude::{use_navigator, Link};
 
 use crate::{
     api::{
@@ -3686,12 +3686,33 @@ fn kiro_account_group_editor_card(props: &KiroAccountGroupEditorCardProps) -> Ht
     }
 }
 
+/// Props for [`AdminKiroGatewayPage`]. The active section is route-driven:
+/// `/admin/kiro-gateway` renders the overview and
+/// `/admin/kiro-gateway/{keys,groups,usage}` /
+/// `/admin/kiro-gateway/accounts/manage` select the matching section.
+#[derive(Properties, PartialEq, Default)]
+pub struct AdminKiroGatewayPageProps {
+    #[prop_or_default]
+    pub tab: Option<AttrValue>,
+}
+
+/// The route for one Kiro admin section id (inverse of the router mapping).
+fn kiro_tab_route(tab: &str) -> Route {
+    match tab {
+        TAB_ACCOUNTS => Route::AdminKiroGatewayAccountsManage,
+        TAB_KEYS => Route::AdminKiroGatewayKeys,
+        TAB_GROUPS => Route::AdminKiroGatewayGroups,
+        TAB_USAGE => Route::AdminKiroGatewayUsage,
+        _ => Route::AdminKiroGateway,
+    }
+}
+
 #[function_component(AdminKiroGatewayPage)]
 /// Render the Kiro-specific admin surface.
 ///
 /// This page owns the full CRUD workflow for Kiro accounts and private keys,
 /// plus usage inspection and provider-level proxy context.
-pub fn admin_kiro_gateway_page() -> Html {
+pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
     let accounts = use_state(Vec::<KiroAccountView>::new);
     let keys = use_state(Vec::<AdminLlmGatewayKeyView>::new);
     let accounts_summary = use_state(AdminAccountsSummaryView::default);
@@ -3764,17 +3785,36 @@ pub fn admin_kiro_gateway_page() -> Html {
         })
     };
     let refresh_tick = use_state(|| 0u32);
-    let active_tab = use_state(|| {
-        crate::pages::llm_access_shared::initial_tab_from_url(
-            &[TAB_OVERVIEW, TAB_ACCOUNTS, TAB_KEYS, TAB_GROUPS, TAB_USAGE],
-            TAB_OVERVIEW,
-        )
-    });
+    let navigator = use_navigator();
+    let active_tab = props
+        .tab
+        .as_ref()
+        .map(|tab| tab.to_string())
+        .unwrap_or_else(|| TAB_OVERVIEW.to_string());
+    // Legacy deep links used `?tab=`; forward them once onto the new routes.
+    {
+        let navigator = navigator.clone();
+        use_effect_with(props.tab.clone(), move |tab| {
+            if tab.is_none() {
+                let legacy = crate::pages::llm_access_shared::initial_tab_from_url(
+                    &[TAB_ACCOUNTS, TAB_KEYS, TAB_GROUPS, TAB_USAGE],
+                    "",
+                );
+                if !legacy.is_empty() {
+                    if let Some(navigator) = navigator {
+                        navigator.replace(&kiro_tab_route(&legacy));
+                    }
+                }
+            }
+            || ()
+        });
+    }
     let on_tab_click = {
-        let active_tab = active_tab.clone();
+        let navigator = navigator.clone();
         Callback::from(move |tab: String| {
-            crate::pages::llm_access_shared::sync_tab_to_url(&tab, TAB_OVERVIEW);
-            active_tab.set(tab);
+            if let Some(navigator) = navigator.clone() {
+                navigator.push(&kiro_tab_route(&tab));
+            }
         })
     };
     let manual_form_expanded = use_state(|| false);
@@ -4069,7 +4109,7 @@ pub fn admin_kiro_gateway_page() -> Html {
         let inventory_error = inventory_error.clone();
         let inventory_loaded_for_refresh = inventory_loaded_for_refresh.clone();
         use_effect_with(
-            ((*active_tab).clone(), *refresh_tick, *keys_page),
+            (active_tab.clone(), *refresh_tick, *keys_page),
             move |(active_tab, refresh_tick, keys_page_value)| {
                 let requested_page =
                     if active_tab == TAB_KEYS { (*keys_page_value).max(1) } else { 1 };
@@ -4218,7 +4258,7 @@ pub fn admin_kiro_gateway_page() -> Html {
         let inventory_loading = inventory_loading.clone();
         let inventory_error = inventory_error.clone();
         use_effect_with(
-            ((*active_tab).clone(), *refresh_tick, *account_groups_page),
+            (active_tab.clone(), *refresh_tick, *account_groups_page),
             move |(active_tab, _, account_groups_page_value)| {
                 if active_tab == TAB_GROUPS {
                     let account_groups_page_items = account_groups_page_items.clone();
@@ -4259,7 +4299,7 @@ pub fn admin_kiro_gateway_page() -> Html {
     {
         let reload_usage = reload_usage.clone();
         let active_tab = active_tab.clone();
-        use_effect_with(((*active_tab).clone(), *refresh_tick), move |(active_tab, _)| {
+        use_effect_with((active_tab.clone(), *refresh_tick), move |(active_tab, _)| {
             if should_load_kiro_usage_preview(active_tab) {
                 reload_usage.emit(());
             }
@@ -5029,7 +5069,7 @@ pub fn admin_kiro_gateway_page() -> Html {
             ], &on_tab_click, None) }
 
             // ── Overview Tab ──
-            if *active_tab == TAB_OVERVIEW {
+            if active_tab == TAB_OVERVIEW {
             <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
                 <h2 class={classes!("m-0", "font-mono", "text-base", "font-bold", "text-[var(--text)]")}>{ "Effective Upstream Proxy" }</h2>
                 {
@@ -5405,7 +5445,7 @@ pub fn admin_kiro_gateway_page() -> Html {
             } // end TAB_OVERVIEW
 
             // ── Accounts Tab ──
-            if *active_tab == TAB_ACCOUNTS {
+            if active_tab == TAB_ACCOUNTS {
             <section class={classes!("grid", "gap-4", "xl:grid-cols-2")}>
                 <article class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
                     <h2 class={classes!("m-0", "font-mono", "text-base", "font-bold", "text-[var(--text)]")}>{ "Import Local Kiro CLI Auth" }</h2>
@@ -5648,7 +5688,7 @@ pub fn admin_kiro_gateway_page() -> Html {
             } // end TAB_ACCOUNTS
 
             // ── Keys Tab ──
-            if *active_tab == TAB_KEYS {
+            if active_tab == TAB_KEYS {
             <section>
                 <article class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
                     <h2 class={classes!("m-0", "font-mono", "text-base", "font-bold", "text-[var(--text)]")}>{ "Create Kiro Key" }</h2>
@@ -5790,7 +5830,7 @@ pub fn admin_kiro_gateway_page() -> Html {
             </section>
             } // end TAB_KEYS
 
-            if *active_tab == TAB_GROUPS {
+            if active_tab == TAB_GROUPS {
             <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
                 <div class={classes!("flex", "items-start", "justify-between", "gap-3", "flex-wrap")}>
                     <div>
@@ -6005,7 +6045,7 @@ pub fn admin_kiro_gateway_page() -> Html {
             } // end TAB_GROUPS
 
             // ── Usage Tab ──
-            if *active_tab == TAB_USAGE {
+            if active_tab == TAB_USAGE {
             <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
                 <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
                     <div>
@@ -6330,7 +6370,7 @@ mod tests {
         format_kiro_cache_policy_summary, format_kiro_key_candidate_credit_summary,
         kiro_account_status_abnormal_href, kiro_account_status_cta_text, kiro_account_status_route,
         kiro_cache_token_percent, kiro_key_route_summary, kiro_preferred_pool_candidate_note,
-        kiro_preferred_pool_warning, parse_kiro_cache_policy_form_json,
+        kiro_preferred_pool_warning, kiro_tab_route, parse_kiro_cache_policy_form_json,
         parse_manual_usage_limit_input, sanitize_kiro_account_group_id,
         should_load_kiro_account_inventory, should_load_kiro_group_inventory,
         should_load_kiro_group_options, should_load_kiro_inventory, should_load_kiro_key_inventory,
@@ -7065,6 +7105,18 @@ mod tests {
         assert!(!should_load_kiro_usage_preview(TAB_OVERVIEW));
         assert!(!should_load_kiro_usage_preview(TAB_KEYS));
         assert!(!should_load_kiro_usage_preview(TAB_GROUPS));
+    }
+
+    #[test]
+    fn kiro_tab_route_round_trips_section_ids() {
+        use crate::router::Route;
+
+        assert_eq!(kiro_tab_route(TAB_OVERVIEW), Route::AdminKiroGateway);
+        assert_eq!(kiro_tab_route(TAB_ACCOUNTS), Route::AdminKiroGatewayAccountsManage);
+        assert_eq!(kiro_tab_route(TAB_KEYS), Route::AdminKiroGatewayKeys);
+        assert_eq!(kiro_tab_route(TAB_GROUPS), Route::AdminKiroGatewayGroups);
+        assert_eq!(kiro_tab_route(TAB_USAGE), Route::AdminKiroGatewayUsage);
+        assert_eq!(kiro_tab_route("unknown"), Route::AdminKiroGateway);
     }
 
     #[test]

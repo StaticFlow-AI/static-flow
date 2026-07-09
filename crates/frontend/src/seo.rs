@@ -295,6 +295,12 @@ fn route_path_for(route: &Route) -> String {
         Route::AdminLlmGatewayModeration => config::route_path("/admin/llm-gateway/moderation"),
         Route::AdminKiroGateway => config::route_path("/admin/kiro-gateway"),
         Route::AdminKiroAccountStatus => config::route_path("/admin/kiro-gateway/accounts"),
+        Route::AdminKiroGatewayAccountsManage => {
+            config::route_path("/admin/kiro-gateway/accounts/manage")
+        },
+        Route::AdminKiroGatewayKeys => config::route_path("/admin/kiro-gateway/keys"),
+        Route::AdminKiroGatewayGroups => config::route_path("/admin/kiro-gateway/groups"),
+        Route::AdminKiroGatewayUsage => config::route_path("/admin/kiro-gateway/usage"),
         Route::AdminKiroAnthropicUpstreams => {
             config::route_path("/admin/kiro-gateway/upstream-channels")
         },
@@ -515,6 +521,10 @@ pub fn apply_route_seo(route: Option<&Route>) {
         | Route::AdminLlmGatewayModeration
         | Route::AdminKiroGateway
         | Route::AdminKiroAccountStatus
+        | Route::AdminKiroGatewayAccountsManage
+        | Route::AdminKiroGatewayKeys
+        | Route::AdminKiroGatewayGroups
+        | Route::AdminKiroGatewayUsage
         | Route::AdminKiroAnthropicUpstreams
         | Route::AdminGpt2ApiRs
         | Route::AdminCommentRuns {
