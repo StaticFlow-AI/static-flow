@@ -12,22 +12,21 @@ use yew_router::prelude::{use_navigator, Link};
 
 use crate::{
     api::{
-        create_admin_kiro_account_group, create_admin_kiro_key, create_admin_kiro_manual_account,
-        delete_admin_kiro_account, delete_admin_kiro_account_group, delete_admin_kiro_key,
+        create_admin_kiro_account_group, create_admin_kiro_key, delete_admin_kiro_account,
+        delete_admin_kiro_account_group, delete_admin_kiro_key,
         fetch_admin_anthropic_upstream_channels, fetch_admin_kiro_account_group_options,
         fetch_admin_kiro_account_groups_page, fetch_admin_kiro_accounts,
         fetch_admin_kiro_accounts_page, fetch_admin_kiro_cache_stats, fetch_admin_kiro_keys_page,
         fetch_admin_llm_gateway_config, fetch_admin_llm_gateway_proxy_bindings,
-        fetch_admin_llm_gateway_proxy_configs, fetch_kiro_models, import_admin_kiro_account,
-        patch_admin_kiro_account, patch_admin_kiro_account_group, patch_admin_kiro_key,
-        refresh_admin_kiro_account_balance, update_admin_llm_gateway_config,
-        AdminAccountGroupOptionView, AdminAccountGroupView, AdminAccountsSummaryView,
-        AdminAnthropicUpstreamChannelView, AdminKiroCacheStatsResponse,
+        fetch_admin_llm_gateway_proxy_configs, fetch_kiro_models, patch_admin_kiro_account,
+        patch_admin_kiro_account_group, patch_admin_kiro_key, refresh_admin_kiro_account_balance,
+        update_admin_llm_gateway_config, AdminAccountGroupOptionView, AdminAccountGroupView,
+        AdminAccountsSummaryView, AdminAnthropicUpstreamChannelView, AdminKiroCacheStatsResponse,
         AdminKiroKeyCandidateCreditSummaryView, AdminLlmGatewayKeyView,
         AdminLlmGatewayKeysSummaryView, AdminUpstreamProxyBindingView,
-        AdminUpstreamProxyConfigView, CreateAdminAccountGroupInput, CreateManualKiroAccountInput,
-        KiroAccountView, KiroBalanceView, KiroModelView, LlmGatewayRuntimeConfig,
-        PatchAdminAccountGroupInput, PatchAdminLlmGatewayKeyRequest, PatchKiroAccountInput,
+        AdminUpstreamProxyConfigView, CreateAdminAccountGroupInput, KiroAccountView,
+        KiroBalanceView, KiroModelView, LlmGatewayRuntimeConfig, PatchAdminAccountGroupInput,
+        PatchAdminLlmGatewayKeyRequest, PatchKiroAccountInput,
     },
     components::{
         empty_state::EmptyState, pagination::Pagination, search_box::SearchBox,
@@ -49,15 +48,15 @@ const TAB_USAGE: &str = "usage";
 const DEFAULT_KIRO_KEY_PAGE_SIZE: usize = 24;
 const DEFAULT_KIRO_GROUP_PAGE_SIZE: usize = 24;
 
-fn kiro_account_status_route() -> Route {
+pub(crate) fn kiro_account_status_route() -> Route {
     Route::AdminKiroAccountStatus
 }
 
-fn kiro_account_status_cta_text() -> &'static str {
+pub(crate) fn kiro_account_status_cta_text() -> &'static str {
     "Open Account Status Page"
 }
 
-fn kiro_account_status_abnormal_href() -> &'static str {
+pub(crate) fn kiro_account_status_abnormal_href() -> &'static str {
     if cfg!(feature = "mock") {
         "/static_flow/admin/kiro-gateway/accounts?issue=abnormal"
     } else {
@@ -846,7 +845,7 @@ fn kiro_pool_strategy_label(strategy: &str) -> &'static str {
     }
 }
 
-fn kiro_pool_strategy_description(strategy: &str) -> &'static str {
+pub(crate) fn kiro_pool_strategy_description(strategy: &str) -> &'static str {
     match llm_store::normalize_kiro_pool_strategy(strategy) {
         Some(llm_store::KIRO_POOL_STRATEGY_CREDIT_FIRST) => {
             "池内优先消耗剩余额度最高的账号，其次才参考首字延迟与轮转。"
@@ -855,7 +854,7 @@ fn kiro_pool_strategy_description(strategy: &str) -> &'static str {
     }
 }
 
-fn kiro_pool_strategy_options() -> Html {
+pub(crate) fn kiro_pool_strategy_options() -> Html {
     html! {
         <>
             { for llm_store::KIRO_POOL_STRATEGIES.iter().map(|value| html! {
@@ -3804,39 +3803,11 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
             }
         })
     };
-    let manual_form_expanded = use_state(|| false);
 
-    let import_name = use_state(|| "default".to_string());
-    let import_sqlite_path = use_state(String::new);
-    let import_scheduler_max = use_state(|| "1".to_string());
-    let import_scheduler_min = use_state(|| "0".to_string());
-
-    let manual_name = use_state(String::new);
-    let manual_auth_method = use_state(|| "social".to_string());
-    let manual_access_token = use_state(String::new);
-    let manual_refresh_token = use_state(String::new);
-    let manual_profile_arn = use_state(String::new);
-    let manual_expires_at = use_state(String::new);
-    let manual_client_id = use_state(String::new);
-    let manual_client_secret = use_state(String::new);
-    let manual_region = use_state(|| "us-east-1".to_string());
-    let manual_auth_region = use_state(|| "us-east-1".to_string());
-    let manual_api_region = use_state(|| "us-east-1".to_string());
-    let manual_machine_id = use_state(String::new);
-    let manual_provider = use_state(String::new);
-    let manual_email = use_state(String::new);
-    let manual_subscription_title = use_state(String::new);
-    let manual_scheduler_max = use_state(|| "1".to_string());
-    let manual_scheduler_min = use_state(|| "0".to_string());
-    let manual_minimum_remaining_credits_before_block = use_state(|| "0".to_string());
-    let manual_pool_strategy = use_state(llm_store::default_kiro_pool_strategy);
-    let manual_disabled = use_state(|| false);
 
     let new_key_name = use_state(|| "kiro-private".to_string());
     let new_key_quota = use_state(|| "1000000".to_string());
     let creating_key = use_state(|| false);
-    let importing_local = use_state(|| false);
-    let creating_manual = use_state(|| false);
     let create_account_group_name = use_state(String::new);
     let create_account_group_account_names = use_state(Vec::<String>::new);
     let creating_account_group = use_state(|| false);
@@ -4515,195 +4486,6 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
         })
     };
 
-    let on_import_local = {
-        let import_name = import_name.clone();
-        let import_sqlite_path = import_sqlite_path.clone();
-        let import_scheduler_max = import_scheduler_max.clone();
-        let import_scheduler_min = import_scheduler_min.clone();
-        let flash = flash.clone();
-        let notify = notify.clone();
-        let error = error.clone();
-        let on_reload = on_reload.clone();
-        let importing_local = importing_local.clone();
-        Callback::from(move |_| {
-            if *importing_local {
-                return;
-            }
-            let import_name = (*import_name).clone();
-            let import_sqlite_path = (*import_sqlite_path).clone();
-            let import_scheduler_max = (*import_scheduler_max).clone();
-            let import_scheduler_min = (*import_scheduler_min).clone();
-            let flash = flash.clone();
-            let notify = notify.clone();
-            let error = error.clone();
-            let on_reload = on_reload.clone();
-            let importing_local = importing_local.clone();
-            wasm_bindgen_futures::spawn_local(async move {
-                let parsed_max = match import_scheduler_max.trim().parse::<u64>() {
-                    Ok(value) => value,
-                    Err(_) => {
-                        let message = "Import max concurrency must be a valid integer.".to_string();
-                        error.set(Some(message.clone()));
-                        notify.emit((message, true));
-                        return;
-                    },
-                };
-                let parsed_min = match import_scheduler_min.trim().parse::<u64>() {
-                    Ok(value) => value,
-                    Err(_) => {
-                        let message =
-                            "Import min start interval must be a valid integer.".to_string();
-                        error.set(Some(message.clone()));
-                        notify.emit((message, true));
-                        return;
-                    },
-                };
-                importing_local.set(true);
-                error.set(None);
-                match import_admin_kiro_account(
-                    Some(import_name.as_str()),
-                    if import_sqlite_path.trim().is_empty() {
-                        None
-                    } else {
-                        Some(import_sqlite_path.as_str())
-                    },
-                    Some(parsed_max),
-                    Some(parsed_min),
-                )
-                .await
-                {
-                    Ok(account) => {
-                        let message = format!("Imported local Kiro auth `{}`.", account.name);
-                        flash.set(Some(message.clone()));
-                        notify.emit((message, false));
-                        on_reload.emit(());
-                    },
-                    Err(err) => {
-                        error.set(Some(err.clone()));
-                        notify.emit((format!("Failed to import local Kiro auth.\n{err}"), true));
-                    },
-                }
-                importing_local.set(false);
-            });
-        })
-    };
-
-    let on_create_manual = {
-        let manual_name = manual_name.clone();
-        let manual_auth_method = manual_auth_method.clone();
-        let manual_access_token = manual_access_token.clone();
-        let manual_refresh_token = manual_refresh_token.clone();
-        let manual_profile_arn = manual_profile_arn.clone();
-        let manual_expires_at = manual_expires_at.clone();
-        let manual_client_id = manual_client_id.clone();
-        let manual_client_secret = manual_client_secret.clone();
-        let manual_region = manual_region.clone();
-        let manual_auth_region = manual_auth_region.clone();
-        let manual_api_region = manual_api_region.clone();
-        let manual_machine_id = manual_machine_id.clone();
-        let manual_provider = manual_provider.clone();
-        let manual_email = manual_email.clone();
-        let manual_subscription_title = manual_subscription_title.clone();
-        let manual_scheduler_max = manual_scheduler_max.clone();
-        let manual_scheduler_min = manual_scheduler_min.clone();
-        let manual_minimum_remaining_credits_before_block =
-            manual_minimum_remaining_credits_before_block.clone();
-        let manual_pool_strategy = manual_pool_strategy.clone();
-        let manual_disabled = manual_disabled.clone();
-        let flash = flash.clone();
-        let notify = notify.clone();
-        let error = error.clone();
-        let on_reload = on_reload.clone();
-        let creating_manual = creating_manual.clone();
-        Callback::from(move |_| {
-            if *creating_manual {
-                return;
-            }
-            let flash = flash.clone();
-            let notify = notify.clone();
-            let error = error.clone();
-            let on_reload = on_reload.clone();
-            let creating_manual = creating_manual.clone();
-            let parsed_max = match (*manual_scheduler_max).trim().parse::<u64>() {
-                Ok(value) => value,
-                Err(_) => {
-                    let message =
-                        "Manual account max concurrency must be a valid integer.".to_string();
-                    error.set(Some(message.clone()));
-                    notify.emit((message, true));
-                    return;
-                },
-            };
-            let parsed_min = match (*manual_scheduler_min).trim().parse::<u64>() {
-                Ok(value) => value,
-                Err(_) => {
-                    let message =
-                        "Manual account min start interval must be a valid integer.".to_string();
-                    error.set(Some(message.clone()));
-                    notify.emit((message, true));
-                    return;
-                },
-            };
-            let parsed_minimum_remaining_credits_before_block =
-                match (*manual_minimum_remaining_credits_before_block)
-                    .trim()
-                    .parse::<f64>()
-                {
-                    Ok(value) if value.is_finite() && value >= 0.0 => value,
-                    _ => {
-                        let message = "Manual account minimum remaining credits must be a \
-                                       non-negative number."
-                            .to_string();
-                        error.set(Some(message.clone()));
-                        notify.emit((message, true));
-                        return;
-                    },
-                };
-            let input = CreateManualKiroAccountInput {
-                name: (*manual_name).trim().to_string(),
-                access_token: normalized_str_option(&manual_access_token),
-                refresh_token: normalized_str_option(&manual_refresh_token),
-                profile_arn: normalized_str_option(&manual_profile_arn),
-                expires_at: normalized_str_option(&manual_expires_at),
-                auth_method: normalized_str_option(&manual_auth_method),
-                client_id: normalized_str_option(&manual_client_id),
-                client_secret: normalized_str_option(&manual_client_secret),
-                region: normalized_str_option(&manual_region),
-                auth_region: normalized_str_option(&manual_auth_region),
-                api_region: normalized_str_option(&manual_api_region),
-                machine_id: normalized_str_option(&manual_machine_id),
-                provider: normalized_str_option(&manual_provider),
-                email: normalized_str_option(&manual_email),
-                subscription_title: normalized_str_option(&manual_subscription_title),
-                kiro_channel_max_concurrency: Some(parsed_max),
-                kiro_channel_min_start_interval_ms: Some(parsed_min),
-                minimum_remaining_credits_before_block: Some(
-                    parsed_minimum_remaining_credits_before_block,
-                ),
-                manual_usage_limit: None,
-                pool_strategy: Some((*manual_pool_strategy).clone()),
-                disabled: *manual_disabled,
-            };
-            wasm_bindgen_futures::spawn_local(async move {
-                creating_manual.set(true);
-                error.set(None);
-                match create_admin_kiro_manual_account(&input).await {
-                    Ok(account) => {
-                        let message = format!("Saved manual Kiro account `{}`.", account.name);
-                        flash.set(Some(message.clone()));
-                        notify.emit((message, false));
-                        on_reload.emit(());
-                    },
-                    Err(err) => {
-                        error.set(Some(err.clone()));
-                        notify.emit((format!("Failed to save manual Kiro account.\n{err}"), true));
-                    },
-                }
-                creating_manual.set(false);
-            });
-        })
-    };
-
     let on_create_key = {
         let new_key_name = new_key_name.clone();
         let new_key_quota = new_key_quota.clone();
@@ -5356,247 +5138,6 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
             } // end TAB_OVERVIEW
 
             // ── Accounts Tab ──
-            if active_tab == TAB_ACCOUNTS {
-            <section class={classes!("grid", "gap-4", "xl:grid-cols-2")}>
-                <article class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                    <h2 class={classes!("m-0", "font-mono", "text-base", "font-bold", "text-[var(--text)]")}>{ "Import Local Kiro CLI Auth" }</h2>
-                    <div class={classes!("mt-4", "space-y-3")}>
-                        <label class={classes!("block", "text-sm")}>
-                            <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Account Name" }</div>
-                            <input
-                                class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "text-sm")}
-                                value={(*import_name).clone()}
-                                oninput={{
-                                    let import_name = import_name.clone();
-                                    Callback::from(move |event: InputEvent| {
-                                        let input: HtmlInputElement = event.target_unchecked_into();
-                                        import_name.set(input.value());
-                                    })
-                                }}
-                            />
-                        </label>
-                        <label class={classes!("block", "text-sm")}>
-                            <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "SQLite Path Override" }</div>
-                            <input
-                                class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")}
-                                placeholder="~/.local/share/kiro-cli/data.sqlite3"
-                                value={(*import_sqlite_path).clone()}
-                                oninput={{
-                                    let import_sqlite_path = import_sqlite_path.clone();
-                                    Callback::from(move |event: InputEvent| {
-                                        let input: HtmlInputElement = event.target_unchecked_into();
-                                        import_sqlite_path.set(input.value());
-                                    })
-                                }}
-                            />
-                        </label>
-                        <div class={classes!("grid", "gap-3", "md:grid-cols-2")}>
-                            <label class={classes!("block", "text-sm")}>
-                                <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Max Concurrency" }</div>
-                                <input
-                                    class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")}
-                                    value={(*import_scheduler_max).clone()}
-                                    oninput={{
-                                        let import_scheduler_max = import_scheduler_max.clone();
-                                        Callback::from(move |event: InputEvent| {
-                                            let input: HtmlInputElement = event.target_unchecked_into();
-                                            import_scheduler_max.set(input.value());
-                                        })
-                                    }}
-                                />
-                            </label>
-                            <label class={classes!("block", "text-sm")}>
-                                <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Min Start Interval Ms" }</div>
-                                <input
-                                    class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "font-mono", "text-sm")}
-                                    value={(*import_scheduler_min).clone()}
-                                    oninput={{
-                                        let import_scheduler_min = import_scheduler_min.clone();
-                                        Callback::from(move |event: InputEvent| {
-                                            let input: HtmlInputElement = event.target_unchecked_into();
-                                            import_scheduler_min.set(input.value());
-                                        })
-                                    }}
-                                />
-                            </label>
-                        </div>
-                        <button
-                            type="button"
-                            class={classes!("btn-terminal", "btn-terminal-primary")}
-                            onclick={on_import_local}
-                            disabled={*importing_local}
-                        >
-                            { if *importing_local { "Importing..." } else { "Import Local Auth" } }
-                        </button>
-                    </div>
-                </article>
-
-                <article class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                    <div class={classes!("flex", "items-center", "justify-between", "gap-3")}>
-                        <div>
-                            <h2 class={classes!("m-0", "font-mono", "text-base", "font-bold", "text-[var(--text)]")}>{ "Create Manual Kiro Account" }</h2>
-                            <p class={classes!("mt-2", "mb-0", "text-sm", "text-[var(--muted)]")}>
-                                { "手动填写必要或完整字段，保存成单独 JSON 文件。适合已有 refresh token / profileArn / IDC 凭据的场景。" }
-                            </p>
-                        </div>
-                        <button
-                            type="button"
-                            class={classes!("btn-terminal", "text-xs")}
-                            onclick={{
-                                let manual_form_expanded = manual_form_expanded.clone();
-                                Callback::from(move |_| manual_form_expanded.set(!*manual_form_expanded))
-                            }}
-                        >
-                            { if *manual_form_expanded { "收起 ▲" } else { "展开 ▼" } }
-                        </button>
-                    </div>
-                    if *manual_form_expanded {
-                    <div class={classes!("mt-4", "grid", "gap-3", "lg:grid-cols-2")}>
-                        { text_input("Name", &manual_name, None) }
-                        <label class={classes!("text-sm")}>
-                            <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Auth Method" }</div>
-                            <select
-                                class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "text-sm")}
-                                value={(*manual_auth_method).clone()}
-                                onchange={{
-                                    let manual_auth_method = manual_auth_method.clone();
-                                    Callback::from(move |event: Event| {
-                                        let input: HtmlSelectElement = event.target_unchecked_into();
-                                        manual_auth_method.set(input.value());
-                                    })
-                                }}
-                            >
-                                <option value="social">{ "social" }</option>
-                                <option value="idc">{ "idc" }</option>
-                            </select>
-                        </label>
-                        { text_input("Refresh Token", &manual_refresh_token, Some("lg:col-span-2")) }
-                        { text_input("Access Token", &manual_access_token, Some("lg:col-span-2")) }
-                        { text_input("Profile ARN", &manual_profile_arn, Some("lg:col-span-2")) }
-                        { text_input("Expires At (RFC3339)", &manual_expires_at, None) }
-                        { text_input("Provider", &manual_provider, None) }
-                        { text_input("Email", &manual_email, None) }
-                        { text_input("Subscription Title", &manual_subscription_title, None) }
-                        { text_input("Client ID", &manual_client_id, None) }
-                        { text_input("Client Secret", &manual_client_secret, None) }
-                        { text_input("Region", &manual_region, None) }
-                        { text_input("Auth Region", &manual_auth_region, None) }
-                        { text_input("API Region", &manual_api_region, None) }
-                        { text_input("Machine ID", &manual_machine_id, None) }
-                        { text_input("Max Concurrency", &manual_scheduler_max, None) }
-                        { text_input("Min Start Interval Ms", &manual_scheduler_min, None) }
-                        { text_input_with_hint(
-                            "Min Remaining Credits",
-                            &manual_minimum_remaining_credits_before_block,
-                            None,
-                            Some("0 keeps the historic zero-only behavior.")
-                        ) }
-                        <label class={classes!("text-sm")}>
-                            <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Pool Strategy" }</div>
-                            <select
-                                class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "text-sm")}
-                                value={(*manual_pool_strategy).clone()}
-                                onchange={{
-                                    let manual_pool_strategy = manual_pool_strategy.clone();
-                                    Callback::from(move |event: Event| {
-                                        if let Some(target) = event.target_dyn_into::<HtmlSelectElement>() {
-                                            manual_pool_strategy.set(target.value());
-                                        }
-                                    })
-                                }}
-                            >
-                                { kiro_pool_strategy_options() }
-                            </select>
-                            <div class={classes!("mt-1", "text-[11px]", "text-[var(--muted)]")}>
-                                { kiro_pool_strategy_description((*manual_pool_strategy).as_str()) }
-                            </div>
-                        </label>
-                    </div>
-                    <div class={classes!("mt-4", "flex", "items-center", "gap-4", "flex-wrap", "text-sm", "text-[var(--muted)]")}>
-                        <label class={classes!("inline-flex", "items-center", "gap-2")}>
-                            <input
-                                type="checkbox"
-                                checked={*manual_disabled}
-                                onchange={{
-                                    let manual_disabled = manual_disabled.clone();
-                                    Callback::from(move |event: Event| {
-                                        let input: HtmlInputElement = event.target_unchecked_into();
-                                        manual_disabled.set(input.checked());
-                                    })
-                                }}
-                            />
-                            { "disabled" }
-                        </label>
-                    </div>
-                    <button
-                        type="button"
-                        class={classes!("mt-4", "btn-terminal", "btn-terminal-primary")}
-                        onclick={on_create_manual}
-                        disabled={*creating_manual}
-                    >
-                        { if *creating_manual { "Saving..." } else { "Save Manual Account" } }
-                    </button>
-                    } // end manual_form_expanded
-                </article>
-            </section>
-
-            <section>
-                <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
-                    <div>
-                        <h2 class={classes!("m-0", "font-mono", "text-base", "font-bold", "text-[var(--text)]")}>{ "Account Status" }</h2>
-                        <p class={classes!("mt-2", "mb-0", "text-sm", "text-[var(--muted)]")}>
-                            { "状态卡片已经移到独立 admin 页面。那里保留现有卡片样式，并补上分页、全文检索和异常筛选。" }
-                        </p>
-                    </div>
-                    <div class={classes!("flex", "items-center", "gap-2", "flex-wrap")}>
-                        <a
-                            href={kiro_account_status_abnormal_href()}
-                            class={classes!("btn-terminal", "btn-terminal-primary")}
-                        >
-                            { "Abnormal Accounts" }
-                        </a>
-                        <Link<Route>
-                            to={kiro_account_status_route()}
-                            classes={classes!("btn-terminal")}
-                        >
-                            { kiro_account_status_cta_text() }
-                        </Link<Route>>
-                    </div>
-                </div>
-                <div class={classes!("mt-4", "grid", "gap-4", "lg:grid-cols-3")}>
-                    <article class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                        <div class={classes!("font-mono", "text-[11px]", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Imported Accounts" }</div>
-                        <div class={classes!("mt-2", "font-mono", "text-3xl", "font-black", "text-[var(--text)]")}>{ account_summary.total }</div>
-                        <p class={classes!("mt-3", "mb-0", "text-sm", "text-[var(--muted)]")}>
-                            { "账号越来越多之后，状态浏览和维护入口不能继续挤在同一块。" }
-                        </p>
-                    </article>
-                    <article class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                        <div class={classes!("font-mono", "text-[11px]", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Disabled Accounts" }</div>
-                        <div class={classes!("mt-2", "font-mono", "text-3xl", "font-black", if disabled_account_count > 0 { "text-amber-600" } else { "text-[var(--text)]" })}>{ disabled_account_count }</div>
-                        <p class={classes!("mt-3", "mb-0", "text-sm", "text-[var(--muted)]")}>
-                            { "独立状态页支持当前页刷新，适合集中查看这些异常或停用账号。" }
-                        </p>
-                    </article>
-                    <article class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                        <div class={classes!("font-mono", "text-[11px]", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Search / Paging" }</div>
-                        <div class={classes!("mt-2", "font-mono", "text-sm", "text-[var(--text)]")}>{ "prefix match + paginated cards" }</div>
-                        <p class={classes!("mt-3", "mb-0", "text-sm", "text-[var(--muted)]")}>
-                            { "这里保留导入和手工创建；状态浏览改到新页面做，避免旧设计继续膨胀。" }
-                        </p>
-                    </article>
-                </div>
-                if account_summary.total == 0 {
-                    <div class={classes!("mt-4")}>
-                        <EmptyState
-                            icon="fa-inbox"
-                            title="当前还没有导入任何 Kiro 账号"
-                            hint="可以先从上面的 SQLite 导入，或者手动填写字段生成一个账号文件。"
-                        />
-                    </div>
-                }
-            </section>
-            } // end TAB_ACCOUNTS
 
             // ── Keys Tab ──
             if active_tab == TAB_KEYS {
@@ -5978,45 +5519,11 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
     }
 }
 
-fn normalized_str_option(state: &UseStateHandle<String>) -> Option<String> {
+pub(crate) fn normalized_str_option(state: &UseStateHandle<String>) -> Option<String> {
     let value = (**state).trim();
     (!value.is_empty()).then_some(value.to_string())
 }
 
-fn text_input(label: &str, state: &UseStateHandle<String>, extra_class: Option<&str>) -> Html {
-    text_input_with_hint(label, state, extra_class, None)
-}
-
-fn text_input_with_hint(
-    label: &str,
-    state: &UseStateHandle<String>,
-    extra_class: Option<&str>,
-    hint: Option<&str>,
-) -> Html {
-    let state_handle = state.clone();
-    let mut label_classes = classes!("block", "text-sm");
-    if let Some(extra_class) = extra_class {
-        label_classes.push(extra_class.to_string());
-    }
-    html! {
-        <label class={label_classes}>
-            <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ label }</div>
-            <input
-                class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "text-sm", "font-mono")}
-                value={(**state).clone()}
-                oninput={Callback::from(move |event: InputEvent| {
-                    let input: HtmlInputElement = event.target_unchecked_into();
-                    state_handle.set(input.value());
-                })}
-            />
-            if let Some(hint) = hint {
-                <div class={classes!("mt-1", "text-[11px]", "text-[var(--muted)]")}>
-                    { hint.to_string() }
-                </div>
-            }
-        </label>
-    }
-}
 
 fn quota_progress_bar(balance: &KiroBalanceView, account_sub_title: Option<String>) -> Html {
     let subscription_title = balance

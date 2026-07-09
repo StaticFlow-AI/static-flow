@@ -330,7 +330,7 @@ fn switch(route: Route) -> Html {
         },
         Route::AdminKiroGateway => html! { <pages::admin_kiro_gateway::AdminKiroGatewayPage /> },
         Route::AdminKiroGatewayAccountsManage => {
-            html! { <pages::admin_kiro_gateway::AdminKiroGatewayPage tab="accounts" /> }
+            html! { <pages::admin_kiro_gateway_accounts::AdminKiroGatewayAccountsPage /> }
         },
         Route::AdminKiroGatewayKeys => {
             html! { <pages::admin_kiro_gateway::AdminKiroGatewayPage tab="keys" /> }
