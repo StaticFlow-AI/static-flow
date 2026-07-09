@@ -390,7 +390,7 @@ fn switch(route: Route) -> Html {
             html! { <pages::admin_llm_gateway::AdminLlmGatewayPage tab="requests" /> }
         },
         Route::AdminLlmGatewaySettings => {
-            html! { <pages::admin_llm_gateway::AdminLlmGatewayPage tab="settings" /> }
+            html! { <pages::admin_llm_gateway_settings::AdminLlmGatewaySettingsPage /> }
         },
         Route::AdminLlmGatewayMonitor => {
             html! { <pages::admin_llm_gateway_monitor::AdminLlmGatewayMonitorPage /> }
