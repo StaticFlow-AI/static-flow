@@ -25,7 +25,7 @@ use crate::{
         PatchAdminAccountGroupInput, PatchAdminLlmGatewayKeyRequest,
         PatchAdminUpstreamProxyConfigInput,
     },
-    components::{status_badge::StatusBadge, tab_bar::render_tab_bar},
+    components::status_badge::StatusBadge,
     pages::llm_access_shared::{
         confirm_destructive, format_latency_ms, format_ms, format_number_i64, format_number_u64,
         format_optional_bytes_human, MaskedSecretCode,
@@ -45,7 +45,6 @@ const PENDING_SCAN_PAGE_SIZE: usize = 20;
 const PROXY_TRAFFIC_QUERY_WINDOW_DAYS: u64 = 30;
 /// Page size for the Usage tab's server-side key filter search.
 pub(crate) const USAGE_KEY_OPTION_LIMIT: usize = 20;
-const TAB_OVERVIEW: &str = "overview";
 const TAB_KEYS: &str = "keys";
 const TAB_GROUPS: &str = "groups";
 const TAB_ACCOUNTS: &str = "accounts";
@@ -2153,14 +2152,23 @@ pub(crate) fn proxy_config_editor_card(props: &ProxyConfigEditorCardProps) -> Ht
     }
 }
 
-/// Props for [`AdminLlmGatewayPage`]. The active section is route-driven:
-/// `/admin/llm-gateway` renders the overview and
-/// `/admin/llm-gateway/{keys,groups,accounts,usage,journal,requests,settings}`
-/// select the matching section.
-#[derive(Properties, PartialEq, Default)]
-pub struct AdminLlmGatewayPageProps {
-    #[prop_or_default]
-    pub tab: Option<AttrValue>,
+/// One navigation card on the LLM overview linking to a dedicated section.
+fn overview_nav_card(title: &'static str, desc: &'static str, to: Route) -> Html {
+    html! {
+        <Link<Route>
+            to={to}
+            classes={classes!(
+                "panel", "p-4", "no-underline", "text-[var(--foreground)]",
+                "transition-colors", "hover:border-[var(--ring)]"
+            )}
+        >
+            <div class={classes!("flex", "items-center", "justify-between", "gap-2")}>
+                <span class={classes!("font-semibold")}>{ title }</span>
+                <span class={classes!("text-[var(--muted-foreground)]")}>{ "\u{2192}" }</span>
+            </div>
+            <div class={classes!("mt-1", "text-xs", "text-[var(--muted-foreground)]")}>{ desc }</div>
+        </Link<Route>>
+    }
 }
 
 /// The route for one LLM admin section id (inverse of the router mapping).
@@ -2178,131 +2186,65 @@ fn llm_tab_route(tab: &str) -> Route {
 }
 
 #[function_component(AdminLlmGatewayPage)]
-pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
+/// LLM gateway overview (`/admin/llm-gateway`): key/quota stat tiles, the
+/// pending-request counter, and navigation cards into the dedicated section
+/// pages (keys / groups / accounts / usage / journal / requests / settings).
+pub fn admin_llm_gateway_page() -> Html {
     let keys_summary = use_state(AdminLlmGatewayKeysSummaryView::default);
+    let total_pending = use_state(|| 0_usize);
     let loading = use_state(|| true);
     let load_error = use_state(|| None::<String>);
-    let active_tab = props
-        .tab
-        .as_ref()
-        .map(|tab| tab.to_string())
-        .unwrap_or_else(|| TAB_OVERVIEW.to_string());
-    let navigator = use_navigator();
+    let refresh_tick = use_state(|| 0_u32);
+
     // Legacy deep links used `?tab=`; forward them once onto the dedicated
     // per-section routes so old bookmarks keep working.
     {
-        let navigator = navigator.clone();
-        use_effect_with(props.tab.clone(), move |tab| {
-            if tab.is_none() {
-                let legacy = crate::pages::llm_access_shared::initial_tab_from_url(
-                    &[
-                        TAB_KEYS,
-                        TAB_GROUPS,
-                        TAB_ACCOUNTS,
-                        TAB_USAGE,
-                        TAB_JOURNAL,
-                        TAB_REQUESTS,
-                        TAB_SETTINGS,
-                    ],
-                    "",
-                );
-                if !legacy.is_empty() {
-                    if let Some(navigator) = navigator {
-                        navigator.replace(&llm_tab_route(&legacy));
-                    }
+        let navigator = use_navigator();
+        use_effect_with((), move |_| {
+            let legacy = crate::pages::llm_access_shared::initial_tab_from_url(
+                &[
+                    TAB_KEYS,
+                    TAB_GROUPS,
+                    TAB_ACCOUNTS,
+                    TAB_USAGE,
+                    TAB_JOURNAL,
+                    TAB_REQUESTS,
+                    TAB_SETTINGS,
+                ],
+                "",
+            );
+            if !legacy.is_empty() {
+                if let Some(navigator) = navigator {
+                    navigator.replace(&llm_tab_route(&legacy));
                 }
             }
             || ()
         });
     }
-    let on_tab_click = {
-        let navigator = navigator.clone();
-        Callback::from(move |tab: String| {
-            if let Some(navigator) = navigator.clone() {
-                navigator.push(&llm_tab_route(&tab));
-            }
-        })
+
+    let on_reload = {
+        let refresh_tick = refresh_tick.clone();
+        Callback::from(move |_: ()| refresh_tick.set(refresh_tick.wrapping_add(1)))
     };
 
-    // This reload keeps the inventory, runtime config, and the current usage
-    // page in sync after any admin write operation.
-    // Tracks whether the tab-independent base data (config, summaries, proxy
-    // configs/bindings) has been loaded once; plain tab switches and paging
-    // reuse it instead of re-fetching, while mutations force a refresh.
-    let reload_base_loaded = use_state(|| false);
-    let reload = {
+    // Key summary for the stat tiles plus the pending-request scan; the scan
+    // counts the same "needs action" statuses the requests page surfaces,
+    // over the first page of each queue.
+    {
         let keys_summary = keys_summary.clone();
+        let total_pending = total_pending.clone();
         let loading = loading.clone();
         let load_error = load_error.clone();
-        let reload_base_loaded = reload_base_loaded.clone();
-        Callback::from(move |force_base: bool| {
+        use_effect_with(*refresh_tick, move |_| {
             let keys_summary = keys_summary.clone();
+            let total_pending = total_pending.clone();
             let loading = loading.clone();
             let load_error = load_error.clone();
-            let reload_base_loaded = reload_base_loaded.clone();
-            let refresh_base = force_base || !*reload_base_loaded;
-            loading.set(true);
             wasm_bindgen_futures::spawn_local(async move {
-                if refresh_base {
-                    match fetch_admin_llm_gateway_keys_page(1, 0).await {
-                        Ok(resp) => {
-                            keys_summary.set(resp.summary);
-                            reload_base_loaded.set(true);
-                            load_error.set(None);
-                        },
-                        Err(err) => load_error.set(Some(err)),
-                    }
-                }
-                loading.set(false);
-            });
-        })
-    };
-
-    {
-        let reload = reload.clone();
-        let active_tab = active_tab.clone();
-        use_effect_with((active_tab.clone(),), move |_| {
-            // Tab switches reuse the already-loaded base data; the first run
-            // (mount) still fetches it because nothing is loaded yet.
-            reload.emit(false);
-            || ()
-        });
-    }
-
-
-    let key_summary = *keys_summary;
-    let total_remaining = key_summary.remaining_billable_sum;
-    let public_visible_count = key_summary.public_visible_count;
-    let active_key_count = key_summary.active_count;
-    let total_quota = key_summary.quota_billable_limit_sum;
-    let total_used = key_summary.usage_billable_tokens_sum;
-    let credit_keys_present =
-        key_summary.usage_credit_total > 0.0 || key_summary.usage_credit_missing_events > 0;
-    let total_credit_used = key_summary.usage_credit_total;
-    let total_credit_missing_events = key_summary.usage_credit_missing_events;
-    // Derive usage percentage from quota and remaining (billable-token basis).
-    let usage_percent = if total_quota > 0 {
-        let used = total_quota as f64 - (total_remaining.max(0) as f64);
-        (used / total_quota as f64 * 100.0)
-            .clamp(0.0, 100.0)
-            .round() as u64
-    } else {
-        0
-    };
-
-    // Pending-request count for the tab-bar badge and the overview card.
-    // Scans the first page of each queue with the same "needs action"
-    // statuses the requests page surfaces.
-    let total_pending = use_state(|| 0_usize);
-    {
-        let total_pending = total_pending.clone();
-        let load_error = load_error.clone();
-        use_effect_with((), move |_| {
-            let total_pending = total_pending.clone();
-            let load_error = load_error.clone();
-            wasm_bindgen_futures::spawn_local(async move {
+                loading.set(true);
                 let result = async {
-                    let (token_resp, contribution_resp, sponsor_resp) = futures::join!(
+                    let (keys_resp, token_resp, contribution_resp, sponsor_resp) = futures::join!(
+                        fetch_admin_llm_gateway_keys_page(1, 0),
                         fetch_admin_llm_gateway_token_requests(
                             &AdminLlmGatewayTokenRequestsQuery {
                                 status: None,
@@ -2325,11 +2267,12 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
                             }
                         ),
                     );
-                    Ok::<_, String>((token_resp?, contribution_resp?, sponsor_resp?))
+                    Ok::<_, String>((keys_resp?, token_resp?, contribution_resp?, sponsor_resp?))
                 }
                 .await;
                 match result {
-                    Ok((token_resp, contribution_resp, sponsor_resp)) => {
+                    Ok((keys_resp, token_resp, contribution_resp, sponsor_resp)) => {
+                        keys_summary.set(keys_resp.summary);
                         let pending = token_resp
                             .requests
                             .iter()
@@ -2352,89 +2295,63 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
                                 })
                                 .count();
                         total_pending.set(pending);
+                        load_error.set(None);
                     },
                     Err(err) => load_error.set(Some(err)),
                 }
+                loading.set(false);
             });
             || ()
         });
     }
+
+    let key_summary = *keys_summary;
+    let total_remaining = key_summary.remaining_billable_sum;
+    let public_visible_count = key_summary.public_visible_count;
+    let active_key_count = key_summary.active_count;
+    let total_quota = key_summary.quota_billable_limit_sum;
+    let total_used = key_summary.usage_billable_tokens_sum;
+    let credit_keys_present =
+        key_summary.usage_credit_total > 0.0 || key_summary.usage_credit_missing_events > 0;
+    let total_credit_used = key_summary.usage_credit_total;
+    let total_credit_missing_events = key_summary.usage_credit_missing_events;
+    // Derive usage percentage from quota and remaining (billable-token basis).
+    let usage_percent = if total_quota > 0 {
+        let used = total_quota as f64 - (total_remaining.max(0) as f64);
+        (used / total_quota as f64 * 100.0)
+            .clamp(0.0, 100.0)
+            .round() as u64
+    } else {
+        0
+    };
     let total_pending = *total_pending;
 
-    // Build the full-screen modal for a selected usage event (request detail,
-    // headers, last message, copy buttons). Rendered outside the tab flow so
-    // it overlays the entire viewport.
-    // Client-side filters for Keys, Account Groups, and the Usage key picker.
-    // Matches are case-insensitive. `use_memo` avoids re-filtering on unrelated
-    // parent re-renders. These are pre-computed at component top-level because
-    // the html! macro does not permit `let` bindings inside conditional branches.
     html! {
-        <main class={classes!(
-            "min-h-screen",
-            "bg-[var(--bg)]",
-            "px-4",
-            "py-8",
-            "lg:px-6",
-            "lg:py-10"
-        )}>
-            <div class={classes!("mx-auto", "max-w-6xl", "space-y-4")}>
-                <section class={classes!(
-                    "rounded-xl",
-                    "border",
-                    "border-[var(--border)]",
-                    "bg-[var(--surface)]",
-                    "p-5"
-                )}>
-                    <div class={classes!("flex", "items-start", "justify-between", "gap-4", "flex-wrap")}>
-                        <h1 class={classes!("m-0", "font-mono", "text-xl", "font-bold")}>
-                            { "LLM Gateway Admin" }
-                        </h1>
-                        <div class={classes!("flex", "gap-2", "flex-wrap")}>
-                            <Link<Route> to={Route::Admin} classes={classes!("btn-terminal")}>{ "Admin 首页" }</Link<Route>>
-                            <Link<Route> to={Route::AdminLlmGatewayMonitor} classes={classes!("btn-terminal")}>{ "监控页" }</Link<Route>>
-                            <Link<Route> to={Route::AdminLlmGatewayModeration} classes={classes!("btn-terminal")}>{ "关键词审核" }</Link<Route>>
-                            <Link<Route> to={Route::LlmAccess} classes={classes!("btn-terminal", "btn-terminal-primary")}>{ "公共页" }</Link<Route>>
-                        </div>
+        <main class={classes!("admin-shell", "min-h-screen", "px-4", "py-6", "lg:px-8")}>
+            <div class={classes!("mx-auto", "max-w-7xl", "space-y-4")}>
+                <header class={classes!("flex", "flex-wrap", "items-end", "justify-between", "gap-4")}>
+                    <div>
+                        <div class={classes!("eyebrow")}>{ "LLM Gateway" }</div>
+                        <h1 class={classes!("m-0", "text-xl", "font-bold", "tracking-tight")}>{ "Overview" }</h1>
                     </div>
-
-                    if let Some(err) = (*load_error).clone() {
-                        <div class={classes!("mt-4", "rounded-lg", "border", "border-red-400/35", "bg-red-500/8", "px-4", "py-3", "text-sm", "text-red-700", "dark:text-red-200")}>
-                            { err }
-                        </div>
-                    }
-                </section>
-
-                // ── Tab Bar (always visible) ──
-                { render_tab_bar(&active_tab, &[
-                    (TAB_OVERVIEW, "Overview"),
-                    (TAB_KEYS, "Keys"),
-                    (TAB_GROUPS, "Groups"),
-                    (TAB_ACCOUNTS, "Accounts"),
-                    (TAB_USAGE, "Usage"),
-                    (TAB_JOURNAL, "Journal"),
-                    (TAB_REQUESTS, "Requests"),
-                    (TAB_SETTINGS, "Settings"),
-                ], &on_tab_click, Some((TAB_REQUESTS, total_pending))) }
-
-                // ── Overview Tab ──
-                if active_tab == TAB_OVERVIEW {
-                <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                    <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
-                        <h2 class={classes!("m-0", "font-mono", "text-base", "font-bold", "text-[var(--text)]")}>{ "Dashboard" }</h2>
-                        <button
-                            class={classes!("btn-terminal")}
-                            title="刷新 Dashboard"
-                            aria-label="刷新 Dashboard"
-                            onclick={{
-                                let reload = reload.clone();
-                                Callback::from(move |_| reload.emit(true))
-                            }}
-                            disabled={*loading}
-                        >
-                            <i class={classes!("fas", if *loading { "fa-spinner animate-spin" } else { "fa-rotate-right" })}></i>
+                    <div class={classes!("bar-actions")}>
+                        <Link<Route> to={Route::Admin} classes={classes!("linkbtn")}>{ "Admin 首页" }</Link<Route>>
+                        <Link<Route> to={Route::LlmAccess} classes={classes!("linkbtn")}>{ "公共页" }</Link<Route>>
+                        <button type="button" class={classes!("primary")} disabled={*loading} onclick={{
+                            let on_reload = on_reload.clone();
+                            Callback::from(move |_| on_reload.emit(()))
+                        }}>
+                            { if *loading { "刷新中..." } else { "刷新" } }
                         </button>
                     </div>
-                    <div class={classes!("mt-4", "grid", "gap-3", "grid-cols-2", "xl:grid-cols-4")}>
+                </header>
+
+                if let Some(err) = (*load_error).clone() {
+                    <div class={classes!("errorline", "text-sm")}>{ err }</div>
+                }
+
+                <section class={classes!("panel", "p-5")}>
+                    <div class={classes!("grid", "gap-3", "grid-cols-2", "xl:grid-cols-4")}>
                         <div class={classes!("rounded-lg", "border", "border-[var(--border)]", "px-3", "py-3")}>
                             <div class={classes!("font-mono", "text-[11px]", "uppercase", "tracking-widest", "text-[var(--muted)]")}>{ "Key 总数" }</div>
                             <div class={classes!("mt-1", "font-mono", "text-2xl", "font-black")}>{ key_summary.total }</div>
@@ -2494,7 +2411,18 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
                         </div>
                     </div>
                 </section>
-                } // end TAB_OVERVIEW
+
+                <section class={classes!("grid", "gap-3", "sm:grid-cols-2", "xl:grid-cols-3")}>
+                    { overview_nav_card("Keys", "创建与管理 API key、配额与路由策略", Route::AdminLlmGatewayKeys) }
+                    { overview_nav_card("Groups", "维护账号组，供 key 固定/自动路由选择", Route::AdminLlmGatewayGroups) }
+                    { overview_nav_card("Accounts", "Codex 账号导入、状态与调度设置", Route::AdminLlmGatewayAccounts) }
+                    { overview_nav_card("Usage", "分页查看用量事件与详情", Route::AdminLlmGatewayUsage) }
+                    { overview_nav_card("Journal", "浏览 usage journal 热数据预览", Route::AdminLlmGatewayJournal) }
+                    { overview_nav_card("Requests", "审核 token 许愿、账号贡献与赞助请求", Route::AdminLlmGatewayRequests) }
+                    { overview_nav_card("Settings", "运行时配置、代理绑定与共享代理槽位", Route::AdminLlmGatewaySettings) }
+                    { overview_nav_card("Monitor", "实时请求与账号健康监控", Route::AdminLlmGatewayMonitor) }
+                    { overview_nav_card("Moderation", "关键词审核与拦截配置", Route::AdminLlmGatewayModeration) }
+                </section>
             </div>
         </main>
     }
