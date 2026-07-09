@@ -497,13 +497,74 @@ fn parse_gpt_model_rank(slug: &str) -> Option<(i32, i32, i32, i32)> {
     Some((major, minor, exact_base, variant_rank))
 }
 
+/// Extract the `tab` value from a URL query string (`?tab=keys`), falling back
+/// to `default` when the parameter is absent or not in `allowed`.
+pub fn tab_from_query_string(search: &str, allowed: &[&str], default: &str) -> String {
+    search
+        .trim_start_matches('?')
+        .split('&')
+        .filter_map(|pair| pair.split_once('='))
+        .find(|(key, _)| *key == "tab")
+        .map(|(_, value)| value.to_string())
+        .filter(|value| allowed.contains(&value.as_str()))
+        .unwrap_or_else(|| default.to_string())
+}
+
+/// Rebuild a query string with the given tab, preserving unrelated parameters.
+/// The default tab is represented by *omitting* the parameter so plain URLs
+/// stay clean.
+pub fn query_string_with_tab(search: &str, tab: &str, default: &str) -> String {
+    let mut params = search
+        .trim_start_matches('?')
+        .split('&')
+        .filter(|pair| !pair.is_empty() && !pair.starts_with("tab="))
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    if tab != default {
+        params.push(format!("tab={tab}"));
+    }
+    if params.is_empty() {
+        String::new()
+    } else {
+        format!("?{}", params.join("&"))
+    }
+}
+
+/// Read the active admin tab from the current URL (`?tab=`).
+pub fn initial_tab_from_url(allowed: &[&str], default: &str) -> String {
+    web_sys::window()
+        .and_then(|window| window.location().search().ok())
+        .map(|search| tab_from_query_string(&search, allowed, default))
+        .unwrap_or_else(|| default.to_string())
+}
+
+/// Persist the active admin tab into the URL via `history.replaceState`, so a
+/// refresh or a shared link lands on the same tab without polluting the
+/// back-button history.
+pub fn sync_tab_to_url(tab: &str, default: &str) {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let location = window.location();
+    let (Ok(pathname), Ok(search), Ok(hash)) =
+        (location.pathname(), location.search(), location.hash())
+    else {
+        return;
+    };
+    let query = query_string_with_tab(&search, tab, default);
+    let url = format!("{pathname}{query}{hash}");
+    if let Ok(history) = window.history() {
+        let _ = history.replace_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(&url));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
         codex_model_catalog_download_command, codex_provider_config, credit_usage_missing_label,
         first_token_latency_color, format_bytes_human, format_kiro_disabled_reason,
-        format_latency_ms, preferred_model_slug_from_catalog_json, token_usage_missing_label,
-        total_latency_color, usage_error_summary,
+        format_latency_ms, preferred_model_slug_from_catalog_json, query_string_with_tab,
+        tab_from_query_string, token_usage_missing_label, total_latency_color, usage_error_summary,
     };
 
     #[test]
@@ -638,5 +699,25 @@ mod tests {
         assert_eq!(total_latency_color(24_000).0, "border-amber-500/20");
         assert_eq!(total_latency_color(48_000).0, "border-orange-500/20");
         assert_eq!(total_latency_color(96_000).0, "border-red-500/20");
+    }
+
+    #[test]
+    fn tab_from_query_string_accepts_only_allowed_tabs() {
+        let allowed = ["overview", "keys", "usage"];
+        assert_eq!(tab_from_query_string("?tab=keys", &allowed, "overview"), "keys");
+        assert_eq!(tab_from_query_string("?foo=1&tab=usage", &allowed, "overview"), "usage");
+        assert_eq!(tab_from_query_string("?tab=evil", &allowed, "overview"), "overview");
+        assert_eq!(tab_from_query_string("", &allowed, "overview"), "overview");
+    }
+
+    #[test]
+    fn query_string_with_tab_preserves_other_params_and_omits_default() {
+        assert_eq!(
+            query_string_with_tab("?foo=1&tab=keys", "usage", "overview"),
+            "?foo=1&tab=usage"
+        );
+        assert_eq!(query_string_with_tab("?tab=keys", "overview", "overview"), "");
+        assert_eq!(query_string_with_tab("", "keys", "overview"), "?tab=keys");
+        assert_eq!(query_string_with_tab("?foo=1", "overview", "overview"), "?foo=1");
     }
 }

@@ -3764,10 +3764,18 @@ pub fn admin_kiro_gateway_page() -> Html {
         })
     };
     let refresh_tick = use_state(|| 0u32);
-    let active_tab = use_state(|| TAB_OVERVIEW.to_string());
+    let active_tab = use_state(|| {
+        crate::pages::llm_access_shared::initial_tab_from_url(
+            &[TAB_OVERVIEW, TAB_ACCOUNTS, TAB_KEYS, TAB_GROUPS, TAB_USAGE],
+            TAB_OVERVIEW,
+        )
+    });
     let on_tab_click = {
         let active_tab = active_tab.clone();
-        Callback::from(move |tab: String| active_tab.set(tab))
+        Callback::from(move |tab: String| {
+            crate::pages::llm_access_shared::sync_tab_to_url(&tab, TAB_OVERVIEW);
+            active_tab.set(tab);
+        })
     };
     let manual_form_expanded = use_state(|| false);
 

@@ -2906,10 +2906,27 @@ pub fn admin_llm_gateway_page() -> Html {
     let account_page = use_state(|| 1_usize);
     let accounts_total = use_state(|| 0_usize);
     let account_page_limit = use_state(|| ACCOUNT_PAGE_SIZE);
-    let active_tab = use_state(|| TAB_OVERVIEW.to_string());
+    let active_tab = use_state(|| {
+        crate::pages::llm_access_shared::initial_tab_from_url(
+            &[
+                TAB_OVERVIEW,
+                TAB_KEYS,
+                TAB_GROUPS,
+                TAB_ACCOUNTS,
+                TAB_USAGE,
+                TAB_JOURNAL,
+                TAB_REQUESTS,
+                TAB_SETTINGS,
+            ],
+            TAB_OVERVIEW,
+        )
+    });
     let on_tab_click = {
         let active_tab = active_tab.clone();
-        Callback::from(move |tab: String| active_tab.set(tab))
+        Callback::from(move |tab: String| {
+            crate::pages::llm_access_shared::sync_tab_to_url(&tab, TAB_OVERVIEW);
+            active_tab.set(tab);
+        })
     };
 
     // Usage events are fetched independently so paging and key filters do not
