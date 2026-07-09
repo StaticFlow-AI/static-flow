@@ -15,6 +15,7 @@ pub mod admin_llm_gateway_groups;
 pub mod admin_llm_gateway_journal;
 pub mod admin_llm_gateway_keys;
 pub mod admin_llm_gateway_monitor;
+pub mod admin_llm_gateway_requests;
 pub mod admin_llm_gateway_settings;
 pub mod admin_llm_gateway_usage;
 #[cfg(feature = "local-media")]
