@@ -6480,7 +6480,11 @@ html {
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.95 0 0);
-  --muted: oklch(0.97 0 0);
+  /* NOTE: admin-shell intentionally does NOT redefine --muted. Legacy
+     components rendered inside .admin-shell (e.g. KiroKeyEditorCard) use
+     `text-[var(--muted)]` for muted TEXT and rely on the legacy :root --muted
+     mid-gray value. admin-shell uses --muted-foreground for muted text and
+     --secondary for chip/segment fills. */
   --muted-foreground: oklch(0.49 0 0);
   --faint: oklch(0.62 0 0);
   --accent: oklch(0.95 0 0);
@@ -6531,7 +6535,6 @@ html {
   --primary: oklch(0.965 0 0);
   --primary-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.335 0 0);
-  --muted: oklch(0.305 0 0);
   --muted-foreground: oklch(0.78 0 0);
   --faint: oklch(0.62 0 0);
   --accent: oklch(0.365 0 0);
@@ -6807,7 +6810,7 @@ html {
 
   .admin-shell .badge {
     align-items: center;
-    background: var(--muted);
+    background: var(--secondary);
     border: 1px solid transparent;
     border-radius: var(--r-pill);
     color: var(--muted-foreground);
@@ -6871,7 +6874,7 @@ html {
 
   .admin-shell .seg {
     align-items: center;
-    background: var(--muted);
+    background: var(--secondary);
     border: 1px solid var(--border);
     border-radius: var(--r-field);
     display: inline-flex;
