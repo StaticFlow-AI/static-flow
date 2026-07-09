@@ -18,6 +18,12 @@ extern "C" {
     fn sf_copy_text(text: &str);
 }
 
+/// Write `text` to the clipboard (best-effort). Shared by pages whose copy
+/// action is a callback rather than a [`CopyButton`].
+pub fn copy_to_clipboard(text: &str) {
+    sf_copy_text(text);
+}
+
 /// Props for [`CopyButton`].
 #[derive(Properties, PartialEq)]
 pub struct CopyButtonProps {

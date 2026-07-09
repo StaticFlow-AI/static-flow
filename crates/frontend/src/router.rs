@@ -333,7 +333,7 @@ fn switch(route: Route) -> Html {
             html! { <pages::admin_kiro_gateway_accounts::AdminKiroGatewayAccountsPage /> }
         },
         Route::AdminKiroGatewayKeys => {
-            html! { <pages::admin_kiro_gateway::AdminKiroGatewayPage tab="keys" /> }
+            html! { <pages::admin_kiro_gateway_keys::AdminKiroGatewayKeysPage /> }
         },
         Route::AdminKiroGatewayGroups => {
             html! { <pages::admin_kiro_gateway_groups::AdminKiroGatewayGroupsPage /> }

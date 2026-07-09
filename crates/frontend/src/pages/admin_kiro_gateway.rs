@@ -5,29 +5,24 @@ use std::collections::BTreeMap;
 use gloo_timers::callback::Timeout;
 use llm_access_core::store as llm_store;
 use serde::{Deserialize, Serialize};
-use wasm_bindgen::prelude::*;
 use web_sys::{HtmlInputElement, HtmlSelectElement, HtmlTextAreaElement};
 use yew::prelude::*;
 use yew_router::prelude::{use_navigator, Link};
 
 use crate::{
     api::{
-        create_admin_kiro_key, delete_admin_kiro_account, delete_admin_kiro_key,
-        fetch_admin_anthropic_upstream_channels, fetch_admin_kiro_account_group_options,
-        fetch_admin_kiro_accounts_page, fetch_admin_kiro_cache_stats, fetch_admin_kiro_keys_page,
-        fetch_admin_llm_gateway_config, fetch_admin_llm_gateway_proxy_bindings,
-        fetch_admin_llm_gateway_proxy_configs, fetch_kiro_models, patch_admin_kiro_account,
-        patch_admin_kiro_key, refresh_admin_kiro_account_balance, update_admin_llm_gateway_config,
-        AdminAccountGroupOptionView, AdminAccountsSummaryView, AdminAnthropicUpstreamChannelView,
-        AdminKiroCacheStatsResponse, AdminKiroKeyCandidateCreditSummaryView,
-        AdminLlmGatewayKeyView, AdminLlmGatewayKeysSummaryView, AdminUpstreamProxyBindingView,
+        delete_admin_kiro_account, delete_admin_kiro_key, fetch_admin_kiro_accounts_page,
+        fetch_admin_kiro_cache_stats, fetch_admin_kiro_keys_page, fetch_admin_llm_gateway_config,
+        fetch_admin_llm_gateway_proxy_bindings, fetch_admin_llm_gateway_proxy_configs,
+        patch_admin_kiro_account, patch_admin_kiro_key, refresh_admin_kiro_account_balance,
+        update_admin_llm_gateway_config, AdminAccountGroupOptionView, AdminAccountsSummaryView,
+        AdminAnthropicUpstreamChannelView, AdminKiroCacheStatsResponse,
+        AdminKiroKeyCandidateCreditSummaryView, AdminLlmGatewayKeyView,
+        AdminLlmGatewayKeysSummaryView, AdminUpstreamProxyBindingView,
         AdminUpstreamProxyConfigView, KiroAccountView, KiroBalanceView, KiroModelView,
         LlmGatewayRuntimeConfig, PatchAdminLlmGatewayKeyRequest, PatchKiroAccountInput,
     },
-    components::{
-        empty_state::EmptyState, pagination::Pagination, search_box::SearchBox,
-        tab_bar::render_tab_bar,
-    },
+    components::tab_bar::render_tab_bar,
     pages::llm_access_shared::{
         confirm_destructive, format_float2, format_kiro_disabled_reason, format_ms,
         format_number_i64, format_number_u64, format_reset_hint, format_timestamp_opt,
@@ -41,7 +36,7 @@ const TAB_ACCOUNTS: &str = "accounts";
 const TAB_KEYS: &str = "keys";
 const TAB_GROUPS: &str = "groups";
 const TAB_USAGE: &str = "usage";
-const DEFAULT_KIRO_KEY_PAGE_SIZE: usize = 24;
+pub(crate) const DEFAULT_KIRO_KEY_PAGE_SIZE: usize = 24;
 
 pub(crate) fn kiro_account_status_route() -> Route {
     Route::AdminKiroAccountStatus
@@ -59,27 +54,7 @@ pub(crate) fn kiro_account_status_abnormal_href() -> &'static str {
     }
 }
 
-fn should_load_kiro_inventory(active_tab: &str) -> bool {
-    active_tab == TAB_KEYS
-}
-
-fn should_load_kiro_key_inventory(active_tab: &str) -> bool {
-    active_tab == TAB_KEYS
-}
-
-fn should_load_kiro_group_options(active_tab: &str) -> bool {
-    active_tab == TAB_KEYS
-}
-
-fn should_load_kiro_models_inventory(active_tab: &str) -> bool {
-    active_tab == TAB_KEYS
-}
-
-fn should_load_anthropic_channels_inventory(active_tab: &str) -> bool {
-    active_tab == TAB_KEYS
-}
-
-fn admin_kiro_key_total_pages(total: usize, page_size: usize) -> usize {
+pub(crate) fn admin_kiro_key_total_pages(total: usize, page_size: usize) -> usize {
     total.max(1).div_ceil(page_size.max(1))
 }
 
@@ -99,22 +74,6 @@ fn kiro_badge() -> Classes {
         "tracking-[0.16em]",
         "text-emerald-300"
     )
-}
-
-/// Render a horizontal tab bar. Each `(id, label)` pair becomes a button;
-/// the one matching `active` gets the primary style.
-// NOTE: the implementation moved to `crate::components::tab_bar::render_tab_bar`.
-// This file now passes `None` as the badge argument (Kiro tab bar has no badges).
-
-#[wasm_bindgen(inline_js = r#"
-export function copy_text(text) {
-    if (navigator.clipboard) {
-        navigator.clipboard.writeText(text).catch(function(){});
-    }
-}
-"#)]
-extern "C" {
-    fn copy_text(text: &str);
 }
 
 fn format_float4(value: f64) -> String {
@@ -194,7 +153,7 @@ pub(crate) fn format_usage_stream_summary(
     )
 }
 
-fn format_json_for_textarea(raw: &str) -> String {
+pub(crate) fn format_json_for_textarea(raw: &str) -> String {
     serde_json::from_str::<serde_json::Value>(raw)
         .ok()
         .and_then(|value| serde_json::to_string_pretty(&value).ok())
@@ -276,7 +235,7 @@ struct KiroCachePolicyBandForm {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-struct KiroCachePolicyForm {
+pub(crate) struct KiroCachePolicyForm {
     target_input_tokens: String,
     credit_start: String,
     credit_end: String,
@@ -452,7 +411,7 @@ fn kiro_cache_policy_json_from_form(
     Ok(policy)
 }
 
-fn parse_kiro_cache_policy_form_json(raw: &str) -> Result<KiroCachePolicyForm, String> {
+pub(crate) fn parse_kiro_cache_policy_form_json(raw: &str) -> Result<KiroCachePolicyForm, String> {
     let policy = serde_json::from_str::<KiroCachePolicyJson>(raw)
         .map_err(|err| format!("Failed to parse kiro cache policy JSON: {err}"))?;
     Ok(kiro_cache_policy_form_from_json(&policy))
@@ -1773,20 +1732,20 @@ pub(crate) fn kiro_account_card(props: &KiroAccountCardProps) -> Html {
 }
 
 #[derive(Properties, PartialEq)]
-struct KiroKeyEditorCardProps {
-    key_item: AdminLlmGatewayKeyView,
-    persisted_global_policy_form: KiroCachePolicyForm,
-    persisted_global_billable_multiplier_json: String,
-    available_models: Vec<KiroModelView>,
-    account_groups: Vec<AdminAccountGroupOptionView>,
-    anthropic_channels: Vec<AdminAnthropicUpstreamChannelView>,
-    on_reload: Callback<()>,
-    on_copy: Callback<(String, String)>,
-    on_flash: Callback<(String, bool)>,
+pub(crate) struct KiroKeyEditorCardProps {
+    pub(crate) key_item: AdminLlmGatewayKeyView,
+    pub(crate) persisted_global_policy_form: KiroCachePolicyForm,
+    pub(crate) persisted_global_billable_multiplier_json: String,
+    pub(crate) available_models: Vec<KiroModelView>,
+    pub(crate) account_groups: Vec<AdminAccountGroupOptionView>,
+    pub(crate) anthropic_channels: Vec<AdminAnthropicUpstreamChannelView>,
+    pub(crate) on_reload: Callback<()>,
+    pub(crate) on_copy: Callback<(String, String)>,
+    pub(crate) on_flash: Callback<(String, bool)>,
 }
 
 #[function_component(KiroKeyEditorCard)]
-fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
+pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
     let initial_effective_policy_form_result =
         parse_kiro_cache_policy_form_json(&props.key_item.effective_kiro_cache_policy_json);
     let effective_policy_parse_error = initial_effective_policy_form_result.as_ref().err().cloned();
@@ -3420,16 +3379,8 @@ fn kiro_tab_route(tab: &str) -> Route {
 /// This page owns the full CRUD workflow for Kiro accounts and private keys,
 /// plus usage inspection and provider-level proxy context.
 pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
-    let keys = use_state(Vec::<AdminLlmGatewayKeyView>::new);
     let accounts_summary = use_state(AdminAccountsSummaryView::default);
     let keys_summary = use_state(AdminLlmGatewayKeysSummaryView::default);
-    let keys_page = use_state(|| 1usize);
-    let keys_total = use_state(|| 0usize);
-    let keys_page_limit = use_state(|| DEFAULT_KIRO_KEY_PAGE_SIZE);
-    let keys_search = use_state(String::new);
-    let account_group_options = use_state(Vec::<AdminAccountGroupOptionView>::new);
-    let kiro_models = use_state(Vec::<KiroModelView>::new);
-    let anthropic_channels = use_state(Vec::<AdminAnthropicUpstreamChannelView>::new);
     let proxy_configs = use_state(Vec::<AdminUpstreamProxyConfigView>::new);
     let proxy_bindings = use_state(Vec::<AdminUpstreamProxyBindingView>::new);
     let runtime_config = use_state(|| None::<LlmGatewayRuntimeConfig>);
@@ -3455,9 +3406,6 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
     let kiro_cache_snapshot_max_anchor_entries = use_state(String::new);
     let loading = use_state(|| true);
     let error = use_state(|| None::<String>);
-    let inventory_loading = use_state(|| false);
-    let inventory_error = use_state(|| None::<String>);
-    let inventory_loaded_for_refresh = use_state(|| None::<(String, u32, usize)>);
     let flash = use_state(|| None::<String>);
     let toast = use_state(|| None::<(String, bool)>);
     let toast_timeout = use_mut_ref(|| None::<Timeout>);
@@ -3512,10 +3460,6 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
         })
     };
 
-
-    let new_key_name = use_state(|| "kiro-private".to_string());
-    let new_key_quota = use_state(|| "1000000".to_string());
-    let creating_key = use_state(|| false);
 
     {
         let proxy_configs = proxy_configs.clone();
@@ -3687,145 +3631,12 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
         });
     }
 
-    {
-        let keys = keys.clone();
-        let keys_summary = keys_summary.clone();
-        let keys_page = keys_page.clone();
-        let keys_total = keys_total.clone();
-        let keys_page_limit = keys_page_limit.clone();
-        let account_group_options = account_group_options.clone();
-        let kiro_models = kiro_models.clone();
-        let anthropic_channels = anthropic_channels.clone();
-        let active_tab = active_tab.clone();
-        let refresh_tick = refresh_tick.clone();
-        let inventory_loading = inventory_loading.clone();
-        let inventory_error = inventory_error.clone();
-        let inventory_loaded_for_refresh = inventory_loaded_for_refresh.clone();
-        use_effect_with(
-            (active_tab.clone(), *refresh_tick, *keys_page),
-            move |(active_tab, refresh_tick, keys_page_value)| {
-                let requested_page =
-                    if active_tab == TAB_KEYS { (*keys_page_value).max(1) } else { 1 };
-                let should_fetch = should_load_kiro_inventory(active_tab)
-                    && (*inventory_loaded_for_refresh).as_ref()
-                        != Some(&(active_tab.clone(), *refresh_tick, requested_page));
-                if should_fetch {
-                    let keys = keys.clone();
-                    let keys_summary = keys_summary.clone();
-                    let keys_page = keys_page.clone();
-                    let keys_total = keys_total.clone();
-                    let keys_page_limit = keys_page_limit.clone();
-                    let account_group_options = account_group_options.clone();
-                    let kiro_models = kiro_models.clone();
-                    let anthropic_channels = anthropic_channels.clone();
-                    let inventory_loading = inventory_loading.clone();
-                    let inventory_error = inventory_error.clone();
-                    let inventory_loaded_for_refresh = inventory_loaded_for_refresh.clone();
-                    let active_tab_value = active_tab.clone();
-                    let refresh_tick_value = *refresh_tick;
-                    let requested_page_value = requested_page;
-                    wasm_bindgen_futures::spawn_local(async move {
-                        inventory_loading.set(true);
-                        inventory_error.set(None);
-                        let result = async {
-                            let keys_resp = if should_load_kiro_key_inventory(&active_tab_value) {
-                                let limit = *keys_page_limit;
-                                let offset = requested_page_value
-                                    .saturating_sub(1)
-                                    .saturating_mul(limit.max(1));
-                                Some(fetch_admin_kiro_keys_page(limit, offset).await?)
-                            } else {
-                                None
-                            };
-                            let account_group_options_resp =
-                                if should_load_kiro_group_options(&active_tab_value) {
-                                    Some(fetch_admin_kiro_account_group_options().await?)
-                                } else {
-                                    None
-                                };
-                            let models_resp =
-                                if should_load_kiro_models_inventory(&active_tab_value) {
-                                    Some(fetch_kiro_models().await?)
-                                } else {
-                                    None
-                                };
-                            let anthropic_channels_resp =
-                                if should_load_anthropic_channels_inventory(&active_tab_value) {
-                                    Some(fetch_admin_anthropic_upstream_channels().await?)
-                                } else {
-                                    None
-                                };
-                            Ok::<_, String>((
-                                keys_resp,
-                                account_group_options_resp,
-                                models_resp,
-                                anthropic_channels_resp,
-                            ))
-                        }
-                        .await;
-                        match result {
-                            Ok((
-                                keys_resp,
-                                account_group_options_resp,
-                                models_resp,
-                                anthropic_channels_resp,
-                            )) => {
-                                if let Some(keys_resp) = keys_resp {
-                                    let effective_limit = keys_resp.limit.max(1);
-                                    let total_pages = admin_kiro_key_total_pages(
-                                        keys_resp.total,
-                                        effective_limit,
-                                    );
-                                    keys_summary.set(keys_resp.summary);
-                                    keys_total.set(keys_resp.total);
-                                    keys_page_limit.set(effective_limit);
-                                    if requested_page_value > total_pages {
-                                        keys_page.set(total_pages);
-                                    } else {
-                                        keys.set(keys_resp.keys);
-                                    }
-                                }
-                                if let Some(account_group_options_resp) = account_group_options_resp
-                                {
-                                    account_group_options.set(account_group_options_resp);
-                                }
-                                if let Some(models_resp) = models_resp {
-                                    kiro_models.set(models_resp.data);
-                                }
-                                if let Some(anthropic_channels_resp) = anthropic_channels_resp {
-                                    anthropic_channels.set(anthropic_channels_resp.channels);
-                                }
-                                inventory_loaded_for_refresh.set(Some((
-                                    active_tab_value,
-                                    refresh_tick_value,
-                                    requested_page_value,
-                                )));
-                            },
-                            Err(err) => {
-                                inventory_error.set(Some(err));
-                            },
-                        }
-                        inventory_loading.set(false);
-                    });
-                }
-                || ()
-            },
-        );
-    }
-
 
     let on_reload = {
         let refresh_tick = refresh_tick.clone();
         Callback::from(move |_| refresh_tick.set(refresh_tick.wrapping_add(1)))
     };
 
-    let on_copy = {
-        let notify = notify.clone();
-        Callback::from(move |(label, value): (String, String)| {
-            copy_text(&value);
-            notify.emit((format!("Copied {} to clipboard.", label), false));
-        })
-    };
 
     let on_save_kiro_cache_kmodels = {
         let runtime_config = runtime_config.clone();
@@ -4111,98 +3922,11 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
         })
     };
 
-    let on_create_key = {
-        let new_key_name = new_key_name.clone();
-        let new_key_quota = new_key_quota.clone();
-        let flash = flash.clone();
-        let notify = notify.clone();
-        let error = error.clone();
-        let on_reload = on_reload.clone();
-        let creating_key = creating_key.clone();
-        Callback::from(move |_| {
-            if *creating_key {
-                return;
-            }
-            let name = (*new_key_name).clone();
-            let quota = (*new_key_quota).clone();
-            let flash = flash.clone();
-            let notify = notify.clone();
-            let error = error.clone();
-            let on_reload = on_reload.clone();
-            let creating_key = creating_key.clone();
-            wasm_bindgen_futures::spawn_local(async move {
-                let parsed_quota = match quota.trim().parse::<u64>() {
-                    Ok(value) => value,
-                    Err(_) => {
-                        let message = "Quota must be a valid integer.".to_string();
-                        error.set(Some(message.clone()));
-                        notify.emit((message, true));
-                        return;
-                    },
-                };
-                creating_key.set(true);
-                error.set(None);
-                match create_admin_kiro_key(name.trim(), parsed_quota).await {
-                    Ok(key) => {
-                        let message = format!("Created Kiro key `{}`.", key.name);
-                        flash.set(Some(message.clone()));
-                        notify.emit((message, false));
-                        on_reload.emit(());
-                    },
-                    Err(err) => {
-                        error.set(Some(err.clone()));
-                        notify.emit((format!("Failed to create Kiro key.\n{err}"), true));
-                    },
-                }
-                creating_key.set(false);
-            });
-        })
-    };
-
     let account_summary = *accounts_summary;
     let key_summary = *keys_summary;
     let disabled_account_count = account_summary.disabled_count;
     let active_key_count = key_summary.active_count;
 
-    // Client-side filters for Kiro Keys and Account Groups tabs. Matches are
-    // case-insensitive. `use_memo` avoids re-filtering on unrelated parent
-    // re-renders. Pre-computed here because the html! macro does not permit
-    // `let` bindings inside conditional branches.
-    let keys_query_lower = (*keys_search).trim().to_lowercase();
-    let filtered_keys: Vec<AdminLlmGatewayKeyView> = {
-        let q = keys_query_lower.clone();
-        use_memo(((*keys).clone(), q.clone()), move |(items, q)| {
-            if q.is_empty() {
-                items.clone()
-            } else {
-                items
-                    .iter()
-                    .filter(|k| {
-                        let hay = [
-                            k.name.to_lowercase(),
-                            k.id.to_lowercase(),
-                            k.provider_type.to_lowercase(),
-                            k.status.to_lowercase(),
-                        ];
-                        hay.iter().any(|v| v.contains(q))
-                    })
-                    .cloned()
-                    .collect()
-            }
-        })
-        .as_ref()
-        .clone()
-    };
-    let keys_total_pages = admin_kiro_key_total_pages(*keys_total, *keys_page_limit);
-    let keys_current_page = (*keys_page).clamp(1, keys_total_pages);
-    let on_keys_search_change = {
-        let keys_search = keys_search.clone();
-        Callback::from(move |v: String| keys_search.set(v))
-    };
-    let on_keys_page_change = {
-        let keys_page = keys_page.clone();
-        Callback::from(move |page: usize| keys_page.set(page))
-    };
 
     html! {
         <main class={classes!(
@@ -4658,148 +4382,6 @@ pub fn admin_kiro_gateway_page(props: &AdminKiroGatewayPageProps) -> Html {
             // ── Accounts Tab ──
 
             // ── Keys Tab ──
-            if active_tab == TAB_KEYS {
-            <section>
-                <article class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                    <h2 class={classes!("m-0", "font-mono", "text-base", "font-bold", "text-[var(--text)]")}>{ "Create Kiro Key" }</h2>
-                    <div class={classes!("mt-4", "space-y-3")}>
-                        <label class={classes!("block", "text-sm")}>
-                            <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Key Name" }</div>
-                            <input
-                                class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "text-sm")}
-                                value={(*new_key_name).clone()}
-                                oninput={{
-                                    let new_key_name = new_key_name.clone();
-                                    Callback::from(move |event: InputEvent| {
-                                        let input: HtmlInputElement = event.target_unchecked_into();
-                                        new_key_name.set(input.value());
-                                    })
-                                }}
-                            />
-                        </label>
-                        <label class={classes!("block", "text-sm")}>
-                            <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Quota" }</div>
-                            <input
-                                class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "text-sm", "font-mono")}
-                                value={(*new_key_quota).clone()}
-                                oninput={{
-                                    let new_key_quota = new_key_quota.clone();
-                                    Callback::from(move |event: InputEvent| {
-                                        let input: HtmlInputElement = event.target_unchecked_into();
-                                        new_key_quota.set(input.value());
-                                    })
-                                }}
-                            />
-                        </label>
-                        <button
-                            type="button"
-                            class={classes!("btn-terminal", "btn-terminal-primary")}
-                            onclick={on_create_key}
-                            disabled={*creating_key}
-                        >
-                            { if *creating_key { "Creating..." } else { "Create Kiro Key" } }
-                        </button>
-                    </div>
-                </article>
-            </section>
-
-            <section>
-                <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
-                    <div>
-                        <h2 class={classes!("m-0", "font-mono", "text-base", "font-bold", "text-[var(--text)]")}>{ "Kiro Key Inventory" }</h2>
-                        <p class={classes!("mt-2", "mb-0", "text-sm", "text-[var(--muted)]")}>
-                            { format!("总数 {} · 第 {}/{} 页 · 每页 {}", *keys_total, keys_current_page, keys_total_pages, *keys_page_limit) }
-                        </p>
-                    </div>
-                    <button
-                        type="button"
-                        class={classes!("btn-terminal")}
-                        onclick={{
-                            let on_reload = on_reload.clone();
-                            Callback::from(move |_| on_reload.emit(()))
-                        }}
-                    >
-                        { if *inventory_loading { "Refreshing..." } else { "Refresh" } }
-                    </button>
-                </div>
-                <div class={classes!("mt-4", "max-w-md")}>
-                    <SearchBox
-                        value={(*keys_search).clone()}
-                        on_change={on_keys_search_change.clone()}
-                        placeholder={AttrValue::Static("搜索 key 名称 / id / provider / 状态")}
-                    />
-                </div>
-                if !keys_query_lower.is_empty() {
-                    <p class={classes!("mt-2", "text-xs", "text-[var(--muted)]", "font-mono")}>
-                        { format!("当前页匹配 {} / 本页 {} · 总数 {}", filtered_keys.len(), keys.len(), key_summary.total) }
-                    </p>
-                }
-                <div class={classes!("mt-4", "grid", "gap-4", "xl:grid-cols-2")}>
-                    {
-                        if *inventory_loading && (*keys).is_empty() {
-                            html! {
-                                <div class={classes!("rounded-xl", "border", "border-dashed", "border-[var(--border)]", "bg-[var(--surface)]", "p-5", "text-sm", "text-[var(--muted)]")}>
-                                    { "正在加载 Kiro key 清单…" }
-                                </div>
-                            }
-                        } else if let Some(err) = (*inventory_error).clone() {
-                            html! {
-                                <EmptyState
-                                    tone="error"
-                                    icon="fa-triangle-exclamation"
-                                    title="Kiro key 清单加载失败"
-                                    hint={Some(AttrValue::from(err))}
-                                />
-                            }
-                        } else if (*keys).is_empty() {
-                            html! {
-                                <EmptyState
-                                    icon="fa-inbox"
-                                    title="还没有 Kiro key"
-                                    hint="先创建一个，然后把 base URL 和 key 发给 Claude Code 或 Anthropic SDK 使用。"
-                                />
-                            }
-                        } else if filtered_keys.is_empty() {
-                            html! {
-                                <EmptyState
-                                    icon="fa-magnifying-glass"
-                                    title="当前过滤条件下没有匹配的 Kiro key"
-                                />
-                            }
-                        } else {
-                            html! {
-                                for filtered_keys.iter().map(|key_item| html! {
-                                    <KiroKeyEditorCard
-                                        key={key_item.id.clone()}
-                                        key_item={key_item.clone()}
-                                        persisted_global_policy_form={
-                                            (*persisted_kiro_cache_policy_form).clone()
-                                        }
-                                        persisted_global_billable_multiplier_json={
-                                            (*persisted_kiro_billable_model_multipliers_json).clone()
-                                        }
-                                        available_models={(*kiro_models).clone()}
-                                        account_groups={(*account_group_options).clone()}
-                                        anthropic_channels={(*anthropic_channels).clone()}
-                                        on_reload={on_reload.clone()}
-                                        on_copy={on_copy.clone()}
-                                        on_flash={notify.clone()}
-                                    />
-                                })
-                            }
-                        }
-                    }
-                </div>
-                <div class={classes!("mt-4")}>
-                    <Pagination
-                        current_page={keys_current_page}
-                        total_pages={keys_total_pages}
-                        on_page_change={on_keys_page_change}
-                    />
-                </div>
-            </section>
-            } // end TAB_KEYS
-
             // ── Usage Tab ──
 
             if let Some((message, is_error)) = (*toast).clone() {
@@ -4896,9 +4478,8 @@ mod tests {
         kiro_cache_token_percent, kiro_key_route_summary, kiro_preferred_pool_candidate_note,
         kiro_preferred_pool_warning, kiro_tab_route, parse_kiro_cache_policy_form_json,
         parse_manual_usage_limit_input, sanitize_kiro_account_group_id,
-        should_load_kiro_group_options, should_load_kiro_inventory, should_load_kiro_key_inventory,
-        should_load_kiro_models_inventory, should_reset_kiro_cache_policy_editor, TAB_ACCOUNTS,
-        TAB_GROUPS, TAB_KEYS, TAB_OVERVIEW, TAB_USAGE,
+        should_reset_kiro_cache_policy_editor, TAB_ACCOUNTS, TAB_GROUPS, TAB_KEYS, TAB_OVERVIEW,
+        TAB_USAGE,
     };
     use crate::{
         api::{
@@ -5631,38 +5212,6 @@ mod tests {
         assert_eq!(kiro_tab_route(TAB_GROUPS), Route::AdminKiroGatewayGroups);
         assert_eq!(kiro_tab_route(TAB_USAGE), Route::AdminKiroGatewayUsage);
         assert_eq!(kiro_tab_route("unknown"), Route::AdminKiroGateway);
-    }
-
-    #[test]
-    fn should_load_kiro_inventory_only_for_inventory_tabs() {
-        assert!(!should_load_kiro_inventory(TAB_OVERVIEW));
-        // The Accounts tab renders only summary counts (from the mount-time
-        // summary fetch) plus import/create forms, so it must not trigger any
-        // inventory request at all.
-        assert!(!should_load_kiro_inventory(TAB_ACCOUNTS));
-        assert!(should_load_kiro_inventory(TAB_KEYS));
-        // Groups and Usage are standalone routed pages now.
-        assert!(!should_load_kiro_inventory(TAB_GROUPS));
-        assert!(!should_load_kiro_inventory(TAB_USAGE));
-    }
-
-    #[test]
-    fn admin_kiro_key_total_pages_never_drops_below_one() {
-        assert_eq!(admin_kiro_key_total_pages(0, 24), 1);
-        assert_eq!(admin_kiro_key_total_pages(25, 24), 2);
-        assert_eq!(admin_kiro_key_total_pages(48, 24), 2);
-    }
-
-    #[test]
-    fn kiro_inventory_helpers_only_load_required_datasets() {
-        assert!(should_load_kiro_key_inventory(TAB_KEYS));
-        assert!(!should_load_kiro_key_inventory(TAB_ACCOUNTS));
-
-        assert!(should_load_kiro_group_options(TAB_KEYS));
-        assert!(!should_load_kiro_group_options(TAB_GROUPS));
-
-        assert!(should_load_kiro_models_inventory(TAB_KEYS));
-        assert!(!should_load_kiro_models_inventory(TAB_GROUPS));
     }
 
     #[test]

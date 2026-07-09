@@ -7,6 +7,7 @@ pub mod admin_kiro_anthropic_upstreams;
 pub mod admin_kiro_gateway;
 pub mod admin_kiro_gateway_accounts;
 pub mod admin_kiro_gateway_groups;
+pub mod admin_kiro_gateway_keys;
 pub mod admin_kiro_gateway_usage;
 pub mod admin_llm_gateway;
 pub mod admin_llm_gateway_monitor;
