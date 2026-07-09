@@ -17,13 +17,11 @@ use crate::{
         admin_validate_llm_gateway_account_contribution_request,
         check_admin_llm_gateway_proxy_config, check_admin_llm_gateway_proxy_config_full_chain,
         consume_admin_llm_gateway_account_rate_limit_reset_credit,
-        create_admin_llm_gateway_account_group, create_admin_llm_gateway_account_import_job,
-        delete_admin_llm_gateway_account, delete_admin_llm_gateway_account_group,
-        delete_admin_llm_gateway_key, delete_admin_llm_gateway_proxy_config,
-        delete_admin_llm_gateway_sponsor_request,
+        create_admin_llm_gateway_account_import_job, delete_admin_llm_gateway_account,
+        delete_admin_llm_gateway_account_group, delete_admin_llm_gateway_key,
+        delete_admin_llm_gateway_proxy_config, delete_admin_llm_gateway_sponsor_request,
         fetch_admin_llm_gateway_account_contribution_requests,
-        fetch_admin_llm_gateway_account_groups_page, fetch_admin_llm_gateway_account_import_job,
-        fetch_admin_llm_gateway_account_import_jobs, fetch_admin_llm_gateway_accounts,
+        fetch_admin_llm_gateway_account_import_job, fetch_admin_llm_gateway_account_import_jobs,
         fetch_admin_llm_gateway_accounts_page, fetch_admin_llm_gateway_accounts_page_with_query,
         fetch_admin_llm_gateway_keys_page, fetch_admin_llm_gateway_proxy_configs,
         fetch_admin_llm_gateway_sponsor_requests, fetch_admin_llm_gateway_token_requests,
@@ -42,14 +40,14 @@ use crate::{
         AdminUpstreamProxyCheckResponse, AdminUpstreamProxyCheckTargetView,
         AdminUpstreamProxyConfigView, AdminUpstreamProxyEndpointCheckView,
         CodexAccountImportJobDetailView, CodexAccountImportJobSummaryView,
-        CreateAdminAccountGroupInput, LlmGatewayRateLimitBucketView,
-        LlmGatewayRateLimitStatusResponse, LlmGatewayRateLimitWindowView,
-        PatchAdminAccountGroupInput, PatchAdminLlmGatewayAccountInput,
-        PatchAdminLlmGatewayKeyRequest, PatchAdminUpstreamProxyConfigInput,
+        LlmGatewayRateLimitBucketView, LlmGatewayRateLimitStatusResponse,
+        LlmGatewayRateLimitWindowView, PatchAdminAccountGroupInput,
+        PatchAdminLlmGatewayAccountInput, PatchAdminLlmGatewayKeyRequest,
+        PatchAdminUpstreamProxyConfigInput,
     },
     components::{
-        empty_state::EmptyState, pagination::Pagination, search_box::SearchBox,
-        status_badge::StatusBadge, tab_bar::render_tab_bar,
+        empty_state::EmptyState, pagination::Pagination, status_badge::StatusBadge,
+        tab_bar::render_tab_bar,
     },
     pages::llm_access_shared::{
         confirm_destructive, format_latency_ms, format_ms, format_number_i64, format_number_u64,
@@ -59,7 +57,6 @@ use crate::{
 };
 
 pub(crate) const USAGE_PAGE_SIZE: usize = 20;
-const DEFAULT_ADMIN_GROUP_PAGE_SIZE: usize = 24;
 pub(crate) const USAGE_SOURCE_HOT: &str = "hot";
 pub(crate) const USAGE_SOURCE_ARCHIVE: &str = "archive";
 pub(crate) const USAGE_SOURCE_ALL: &str = "all";
@@ -1791,15 +1788,15 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
 }
 
 #[derive(Properties, PartialEq)]
-struct AccountGroupEditorCardProps {
-    group_item: AdminAccountGroupView,
-    accounts: Vec<AccountSummaryView>,
-    on_changed: Callback<()>,
-    on_flash: Callback<(String, bool)>,
+pub(crate) struct AccountGroupEditorCardProps {
+    pub(crate) group_item: AdminAccountGroupView,
+    pub(crate) accounts: Vec<AccountSummaryView>,
+    pub(crate) on_changed: Callback<()>,
+    pub(crate) on_flash: Callback<(String, bool)>,
 }
 
 #[function_component(AccountGroupEditorCard)]
-fn account_group_editor_card(props: &AccountGroupEditorCardProps) -> Html {
+pub(crate) fn account_group_editor_card(props: &AccountGroupEditorCardProps) -> Html {
     let name = use_state(|| props.group_item.name.clone());
     let account_names =
         use_state(|| sanitize_auto_account_names(&props.group_item.account_names, &props.accounts));
@@ -2558,13 +2555,6 @@ fn llm_tab_route(tab: &str) -> Route {
 #[function_component(AdminLlmGatewayPage)]
 pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
     let keys_summary = use_state(AdminLlmGatewayKeysSummaryView::default);
-    let account_groups_page_items = use_state(Vec::<AdminAccountGroupView>::new);
-    let account_groups_total = use_state(|| 0_usize);
-    let account_groups_page = use_state(|| 1_usize);
-    let account_groups_page_limit = use_state(|| DEFAULT_ADMIN_GROUP_PAGE_SIZE);
-    let account_groups_search = use_state(String::new);
-    let account_group_candidate_accounts = use_state(Vec::<AccountSummaryView>::new);
-    let account_group_candidate_loading = use_state(|| false);
     let token_requests = use_state(Vec::<AdminLlmGatewayTokenRequestView>::new);
     let token_request_total = use_state(|| 0_usize);
     let token_request_page = use_state(|| 1_usize);
@@ -2587,10 +2577,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
     let loading = use_state(|| true);
     let load_error = use_state(|| None::<String>);
     let proxy_configs = use_state(Vec::<AdminUpstreamProxyConfigView>::new);
-    let create_account_group_name = use_state(String::new);
-    let create_account_group_account_names = use_state(Vec::<String>::new);
-    let creating_account_group = use_state(|| false);
-    let account_group_form_expanded = use_state(|| false);
     let toast = use_state(|| None::<(String, bool)>);
     let toast_timeout = use_mut_ref(|| None::<Timeout>);
     let flash = {
@@ -2813,10 +2799,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
     let reload = {
         let keys_summary = keys_summary.clone();
         let proxy_configs = proxy_configs.clone();
-        let account_groups_page_items = account_groups_page_items.clone();
-        let account_groups_total = account_groups_total.clone();
-        let account_groups_page = account_groups_page.clone();
-        let account_groups_page_limit = account_groups_page_limit.clone();
         let loading = loading.clone();
         let load_error = load_error.clone();
         let accounts = accounts.clone();
@@ -2832,8 +2814,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
         let account_request_min_inputs = account_request_min_inputs.clone();
         let account_image_enabled_inputs = account_image_enabled_inputs.clone();
         let account_image_concurrency_inputs = account_image_concurrency_inputs.clone();
-        let account_group_candidate_accounts = account_group_candidate_accounts.clone();
-        let account_group_candidate_loading = account_group_candidate_loading.clone();
         let account_active_query = account_active_query.clone();
         let account_sort_mode = account_sort_mode.clone();
         let account_show_unhealthy = account_show_unhealthy.clone();
@@ -2843,10 +2823,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
         Callback::from(move |force_base: bool| {
             let keys_summary = keys_summary.clone();
             let proxy_configs = proxy_configs.clone();
-            let account_groups_page_items = account_groups_page_items.clone();
-            let account_groups_total = account_groups_total.clone();
-            let account_groups_page = account_groups_page.clone();
-            let account_groups_page_limit = account_groups_page_limit.clone();
             let loading = loading.clone();
             let load_error = load_error.clone();
             let accounts = accounts.clone();
@@ -2862,8 +2838,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
             let account_request_min_inputs = account_request_min_inputs.clone();
             let account_image_enabled_inputs = account_image_enabled_inputs.clone();
             let account_image_concurrency_inputs = account_image_concurrency_inputs.clone();
-            let account_group_candidate_accounts = account_group_candidate_accounts.clone();
-            let account_group_candidate_loading = account_group_candidate_loading.clone();
             let account_active_query = account_active_query.clone();
             let account_sort_mode = account_sort_mode.clone();
             let account_show_unhealthy = account_show_unhealthy.clone();
@@ -2874,7 +2848,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
             loading.set(true);
             wasm_bindgen_futures::spawn_local(async move {
                 let active_tab_value = active_tab.clone();
-                let current_group_page = (*account_groups_page).max(1);
                 let current_account_page = (*account_page).max(1);
                 let account_query = AdminLlmGatewayAccountPageQuery {
                     q: Some((*account_active_query).clone()),
@@ -2907,13 +2880,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
                     } else {
                         None
                     };
-                    let account_groups_page_resp = if active_tab_value == TAB_GROUPS {
-                        let limit = *account_groups_page_limit;
-                        let offset = current_group_page.saturating_sub(1) * limit.max(1);
-                        Some(fetch_admin_llm_gateway_account_groups_page(limit, offset).await?)
-                    } else {
-                        None
-                    };
                     let accounts_resp = if active_tab_value == TAB_ACCOUNTS {
                         let limit = ACCOUNT_PAGE_SIZE.max(1);
                         let offset = current_account_page.saturating_sub(1) * limit;
@@ -2943,24 +2909,12 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
                     } else {
                         None
                     };
-                    Ok::<_, String>((
-                        base,
-                        account_groups_page_resp,
-                        accounts_resp,
-                        codex_status_resp,
-                        import_jobs,
-                    ))
+                    Ok::<_, String>((base, accounts_resp, codex_status_resp, import_jobs))
                 }
                 .await;
 
                 match result {
-                    Ok((
-                        base,
-                        account_groups_page_resp,
-                        accounts_resp,
-                        codex_status_resp,
-                        import_jobs,
-                    )) => {
+                    Ok((base, accounts_resp, codex_status_resp, import_jobs)) => {
                         if let Some((key_summary_resp, account_summary_resp, proxy_config_items)) =
                             base
                         {
@@ -2968,20 +2922,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
                             accounts_summary.set(account_summary_resp.summary);
                             proxy_configs.set(proxy_config_items);
                             reload_base_loaded.set(true);
-                        }
-                        if let Some(account_groups_page_resp) = account_groups_page_resp {
-                            let effective_limit = account_groups_page_resp.limit.max(1);
-                            let total_pages = admin_group_total_pages(
-                                account_groups_page_resp.total,
-                                effective_limit,
-                            );
-                            account_groups_total.set(account_groups_page_resp.total);
-                            account_groups_page_limit.set(effective_limit);
-                            if current_group_page > total_pages {
-                                account_groups_page.set(total_pages);
-                            } else {
-                                account_groups_page_items.set(account_groups_page_resp.groups);
-                            }
                         }
                         if let Some(accounts_resp) = accounts_resp {
                             let next_proxy_inputs = accounts_resp
@@ -3058,7 +2998,7 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
                             account_image_enabled_inputs.set(next_image_enabled_inputs);
                             account_image_concurrency_inputs.set(next_image_concurrency_inputs);
                             codex_rate_limit_status.set(codex_status_resp);
-                        } else if active_tab_value != TAB_GROUPS {
+                        } else {
                             accounts_total.set(0);
                             accounts.set(Vec::new());
                             codex_rate_limit_status.set(None);
@@ -3069,10 +3009,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
                             account_image_enabled_inputs.set(BTreeMap::new());
                             account_image_concurrency_inputs.set(BTreeMap::new());
                         }
-                        if active_tab_value != TAB_GROUPS {
-                            account_group_candidate_accounts.set(Vec::new());
-                            account_group_candidate_loading.set(false);
-                        }
                         if let Some(import_jobs) = import_jobs {
                             recent_import_jobs.set(import_jobs);
                         }
@@ -3081,28 +3017,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
                     Err(err) => load_error.set(Some(err)),
                 }
                 loading.set(false);
-            });
-        })
-    };
-
-    let load_account_group_candidates = {
-        let account_group_candidate_accounts = account_group_candidate_accounts.clone();
-        let account_group_candidate_loading = account_group_candidate_loading.clone();
-        let load_error = load_error.clone();
-        Callback::from(move |_| {
-            account_group_candidate_loading.set(true);
-            let account_group_candidate_accounts = account_group_candidate_accounts.clone();
-            let account_group_candidate_loading = account_group_candidate_loading.clone();
-            let load_error = load_error.clone();
-            wasm_bindgen_futures::spawn_local(async move {
-                match fetch_admin_llm_gateway_accounts().await {
-                    Ok(resp) => {
-                        account_group_candidate_accounts.set(resp.accounts);
-                        load_error.set(None);
-                    },
-                    Err(err) => load_error.set(Some(err)),
-                }
-                account_group_candidate_loading.set(false);
             });
         })
     };
@@ -3194,89 +3108,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
             move || drop(interval)
         });
     }
-
-    let on_toggle_create_account_group_member = {
-        let create_account_group_account_names = create_account_group_account_names.clone();
-        Callback::from(move |account_name: String| {
-            let mut names = (*create_account_group_account_names).clone();
-            if let Some(index) = names.iter().position(|name| name == &account_name) {
-                names.remove(index);
-            } else {
-                names.push(account_name);
-                names.sort();
-                names.dedup();
-            }
-            create_account_group_account_names.set(names);
-        })
-    };
-
-    let on_toggle_account_group_form = {
-        let account_group_form_expanded = account_group_form_expanded.clone();
-        let load_account_group_candidates = load_account_group_candidates.clone();
-        Callback::from(move |_| {
-            let next_expanded = !*account_group_form_expanded;
-            account_group_form_expanded.set(next_expanded);
-            if next_expanded {
-                load_account_group_candidates.emit(());
-            }
-        })
-    };
-
-    let on_create_account_group = {
-        let create_account_group_name = create_account_group_name.clone();
-        let create_account_group_account_names = create_account_group_account_names.clone();
-        let creating_account_group = creating_account_group.clone();
-        let flash = flash.clone();
-        let load_error = load_error.clone();
-        let reload = reload.clone();
-        Callback::from(move |_| {
-            if *creating_account_group {
-                return;
-            }
-            let group_name = (*create_account_group_name).trim().to_string();
-            let account_names = (*create_account_group_account_names).clone();
-            let create_account_group_name = create_account_group_name.clone();
-            let create_account_group_account_names = create_account_group_account_names.clone();
-            let creating_account_group = creating_account_group.clone();
-            let flash = flash.clone();
-            let load_error = load_error.clone();
-            let reload = reload.clone();
-            wasm_bindgen_futures::spawn_local(async move {
-                if group_name.is_empty() {
-                    let message = "账号组名称不能为空".to_string();
-                    load_error.set(Some(message.clone()));
-                    flash.emit((message, true));
-                    return;
-                }
-                if account_names.is_empty() {
-                    let message = "账号组至少需要选择一个账号".to_string();
-                    load_error.set(Some(message.clone()));
-                    flash.emit((message, true));
-                    return;
-                }
-                creating_account_group.set(true);
-                match create_admin_llm_gateway_account_group(CreateAdminAccountGroupInput {
-                    name: &group_name,
-                    account_names: account_names.as_slice(),
-                })
-                .await
-                {
-                    Ok(_) => {
-                        create_account_group_name.set(String::new());
-                        create_account_group_account_names.set(Vec::new());
-                        load_error.set(None);
-                        flash.emit((format!("已创建账号组 `{group_name}`"), false));
-                        reload.emit(true);
-                    },
-                    Err(err) => {
-                        load_error.set(Some(err.clone()));
-                        flash.emit((format!("创建账号组失败\n{err}"), true));
-                    },
-                }
-                creating_account_group.set(false);
-            });
-        })
-    };
 
     let token_request_total_pages = (*token_request_total)
         .max(1)
@@ -4409,67 +4240,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
     // Matches are case-insensitive. `use_memo` avoids re-filtering on unrelated
     // parent re-renders. These are pre-computed at component top-level because
     // the html! macro does not permit `let` bindings inside conditional branches.
-    let account_groups_query_lower = (*account_groups_search).trim().to_lowercase();
-    let filtered_account_groups: Vec<AdminAccountGroupView> = {
-        let q = account_groups_query_lower.clone();
-        use_memo(((*account_groups_page_items).clone(), q.clone()), move |(items, q)| {
-            if q.is_empty() {
-                items.clone()
-            } else {
-                items
-                    .iter()
-                    .filter(|g| {
-                        if g.name.to_lowercase().contains(q)
-                            || g.id.to_lowercase().contains(q)
-                            || g.provider_type.to_lowercase().contains(q)
-                        {
-                            return true;
-                        }
-                        g.account_names.iter().any(|n| n.to_lowercase().contains(q))
-                    })
-                    .cloned()
-                    .collect()
-            }
-        })
-        .as_ref()
-        .clone()
-    };
-    let account_groups_total_pages =
-        admin_group_total_pages(*account_groups_total, *account_groups_page_limit);
-    let account_groups_current_page = (*account_groups_page).clamp(1, account_groups_total_pages);
-    let on_account_groups_page_change = {
-        let account_groups_page = account_groups_page.clone();
-        let account_groups_page_items = account_groups_page_items.clone();
-        let account_groups_total = account_groups_total.clone();
-        let account_groups_page_limit = account_groups_page_limit.clone();
-        let load_error = load_error.clone();
-        Callback::from(move |page: usize| {
-            let page = page.max(1);
-            account_groups_page.set(page);
-            let account_groups_page_items = account_groups_page_items.clone();
-            let account_groups_total = account_groups_total.clone();
-            let account_groups_page_limit = account_groups_page_limit.clone();
-            let load_error = load_error.clone();
-            wasm_bindgen_futures::spawn_local(async move {
-                let limit = (*account_groups_page_limit).max(1);
-                let offset = page.saturating_sub(1) * limit;
-                match fetch_admin_llm_gateway_account_groups_page(limit, offset).await {
-                    Ok(resp) => {
-                        account_groups_total.set(resp.total);
-                        account_groups_page_limit.set(resp.limit.max(1));
-                        account_groups_page_items.set(resp.groups);
-                        load_error.set(None);
-                    },
-                    Err(err) => load_error.set(Some(err)),
-                }
-            });
-        })
-    };
-    let on_account_groups_search_change = {
-        let account_groups_search = account_groups_search.clone();
-        Callback::from(move |v: String| account_groups_search.set(v))
-    };
-
     let account_total_pages = admin_group_total_pages(*accounts_total, *account_page_limit);
     let account_current_page = (*account_page).clamp(1, account_total_pages);
     let account_page_entries: Vec<&AccountSummaryView> = accounts.iter().collect();
@@ -4643,181 +4413,6 @@ pub fn admin_llm_gateway_page(props: &AdminLlmGatewayPageProps) -> Html {
 
                 // ── Journal Tab ──
 
-                if active_tab == TAB_GROUPS {
-                <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                    <div class={classes!("flex", "items-start", "justify-between", "gap-3", "flex-wrap")}>
-                        <div>
-                            <h2 class={classes!("m-0", "font-mono", "text-base", "font-bold", "text-[var(--text)]")}>{ "Account Groups" }</h2>
-                            <p class={classes!("mt-2", "mb-0", "text-sm", "text-[var(--muted)]")}>
-                                { "先为账号分组，再让 key 选择组而不是直接勾账号。固定路由请选择单账号组；自动路由可以选任意组，留空则继续使用全账号池。" }
-                            </p>
-                        </div>
-                        <button
-                            class={classes!("btn-terminal")}
-                            onclick={{
-                                let reload = reload.clone();
-                                Callback::from(move |_| reload.emit(true))
-                            }}
-                            disabled={*loading}
-                        >
-                            { if *loading { "刷新中..." } else { "刷新账号组" } }
-                        </button>
-                    </div>
-
-                    <div class={classes!("mt-4", "max-w-md")}>
-                        <SearchBox
-                            value={(*account_groups_search).clone()}
-                            on_change={on_account_groups_search_change.clone()}
-                            placeholder={AttrValue::Static("搜索账号组名 / id / 成员账号")}
-                        />
-                    </div>
-                    if !account_groups_query_lower.is_empty() {
-                        <p class={classes!("mt-2", "text-xs", "text-[var(--muted)]", "font-mono")}>
-                            { format!("当前页匹配 {}/{} · 总数 {}", filtered_account_groups.len(), account_groups_page_items.len(), *account_groups_total) }
-                        </p>
-                    }
-
-                    <div class={classes!("mt-4", "rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "p-4")}>
-                        <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
-                            <div>
-                                <h3 class={classes!("m-0", "text-sm", "font-semibold")}>{ "创建账号组" }</h3>
-                                <p class={classes!("mt-1", "mb-0", "text-xs", "text-[var(--muted)]")}>
-                                    { "默认收起，只在需要新增轮询号池时展开。" }
-                                </p>
-                            </div>
-                            <button
-                                type="button"
-                                class={classes!("btn-terminal")}
-                                onclick={on_toggle_account_group_form.clone()}
-                            >
-                                { if *account_group_form_expanded { "收起 ▲" } else { "展开 ▼" } }
-                            </button>
-                        </div>
-                        if *account_group_form_expanded {
-                            <div class={classes!("mt-4", "grid", "gap-3")}>
-                                <label class={classes!("text-sm")}>
-                                    <span class={classes!("text-[var(--muted)]")}>{ "组名" }</span>
-                                    <input
-                                        type="text"
-                                        class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2")}
-                                        value={(*create_account_group_name).clone()}
-                                        oninput={{
-                                            let create_account_group_name = create_account_group_name.clone();
-                                            Callback::from(move |event: InputEvent| {
-                                                if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                    create_account_group_name.set(target.value());
-                                                }
-                                            })
-                                        }}
-                                    />
-                                </label>
-                                <div class={classes!("space-y-2")}>
-                                    <div class={classes!("text-sm", "text-[var(--muted)]")}>{ "成员账号" }</div>
-                                    if *account_group_candidate_loading {
-                                        <div class={classes!("rounded-lg", "border", "border-dashed", "border-[var(--border)]", "px-3", "py-3", "text-xs", "text-[var(--muted)]")}>
-                                            { "正在加载账号候选..." }
-                                        </div>
-                                    } else if account_group_candidate_accounts.is_empty() {
-                                        <div class={classes!("rounded-lg", "border", "border-dashed", "border-[var(--border)]", "px-3", "py-3", "text-xs", "text-[var(--muted)]")}>
-                                            { "当前没有可加入账号组的账号。" }
-                                        </div>
-                                    } else {
-                                        <div class={classes!("grid", "gap-2", "xl:grid-cols-2")}>
-                                            { for account_group_candidate_accounts.iter().map(|account| {
-                                                let checked = create_account_group_account_names.iter().any(|name| name == &account.name);
-                                                let account_name = account.name.clone();
-                                                let on_toggle_create_account_group_member =
-                                                    on_toggle_create_account_group_member.clone();
-                                                html! {
-                                                    <label class={classes!(
-                                                        "flex", "cursor-pointer", "items-center", "gap-3", "rounded-lg", "border", "px-3", "py-2.5",
-                                                        if checked {
-                                                            "border-sky-500/30 bg-sky-500/8"
-                                                        } else {
-                                                            "border-[var(--border)] bg-[var(--surface)]"
-                                                        }
-                                                    )}>
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={checked}
-                                                            onchange={Callback::from(move |_| {
-                                                                on_toggle_create_account_group_member.emit(account_name.clone())
-                                                            })}
-                                                        />
-                                                        <div class={classes!("min-w-0", "flex-1")}>
-                                                            <div class={classes!("font-semibold", "text-[var(--text)]")}>{ account.name.clone() }</div>
-                                                            if account.status != "disabled" {
-                                                                <div class={classes!("mt-1", "font-mono", "text-[11px]", "text-[var(--muted)]")}>
-                                                                    { format!(
-                                                                        "5h {} / wk {}",
-                                                                        account.primary_remaining_percent.map(|value| format!("{value:.0}%")).unwrap_or_else(|| "-".to_string()),
-                                                                        account.secondary_remaining_percent.map(|value| format!("{value:.0}%")).unwrap_or_else(|| "-".to_string())
-                                                                    ) }
-                                                                </div>
-                                                            }
-                                                        </div>
-                                                    </label>
-                                                }
-                                            }) }
-                                        </div>
-                                    }
-                                </div>
-                                <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
-                                    <span class={classes!("text-xs", "text-[var(--muted)]")}>
-                                        { format!(
-                                            "当前成员: {}",
-                                            if create_account_group_account_names.is_empty() {
-                                                "无".to_string()
-                                            } else {
-                                                create_account_group_account_names.join(", ")
-                                            }
-                                        ) }
-                                    </span>
-                                    <button
-                                        class={classes!("btn-terminal", "btn-terminal-primary")}
-                                        onclick={on_create_account_group}
-                                        disabled={*creating_account_group}
-                                    >
-                                        { if *creating_account_group { "创建中..." } else { "创建账号组" } }
-                                    </button>
-                                </div>
-                            </div>
-                        }
-                    </div>
-
-                    <div class={classes!("mt-5", "grid", "gap-4", "2xl:grid-cols-2")}>
-                        if account_groups_page_items.is_empty() && !*loading {
-                            <div class={classes!("rounded-xl", "border", "border-dashed", "border-[var(--border)]", "px-4", "py-10", "text-center", "text-[var(--muted)]")}>
-                                { "当前还没有账号组。" }
-                            </div>
-                        } else if filtered_account_groups.is_empty() {
-                            <div class={classes!("rounded-xl", "border", "border-dashed", "border-[var(--border)]", "px-4", "py-6", "text-center", "text-[var(--muted)]")}>
-                                { "当前过滤条件下没有匹配的账号组。" }
-                            </div>
-                        } else {
-                            { for filtered_account_groups.iter().map(|group_item| html! {
-                                <AccountGroupEditorCard
-                                    key={group_item.id.clone()}
-                                    group_item={group_item.clone()}
-                                    accounts={(*accounts).clone()}
-                                    on_changed={reload.reform(|_: ()| true)}
-                                    on_flash={flash.clone()}
-                                />
-                            }) }
-                        }
-                    </div>
-                    <div class={classes!("mt-4")}>
-                        <div class={classes!("mb-2", "text-xs", "text-[var(--muted)]", "font-mono")}>
-                            { format!("总数 {} · 第 {}/{} 页 · 每页 {}", *account_groups_total, account_groups_current_page, account_groups_total_pages, *account_groups_page_limit) }
-                        </div>
-                        <Pagination
-                            current_page={account_groups_current_page}
-                            total_pages={account_groups_total_pages}
-                            on_page_change={on_account_groups_page_change.clone()}
-                        />
-                    </div>
-                </section>
-                } // end TAB_GROUPS
 
                 // ── Accounts Tab ──
                 if active_tab == TAB_ACCOUNTS {
