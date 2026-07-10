@@ -2572,7 +2572,7 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                 <label class={classes!("text-sm")}>
                     <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Status" }</div>
                     <select
-                        key={format!("kiro-key-status-{}", props.key_item.id)}
+                        key={format!("kiro-key-status-{}-{}", props.key_item.id, (*status).clone())}
                         class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "text-sm")}
                         value={(*status).clone()}
                         onchange={{
@@ -2583,13 +2583,14 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                             })
                         }}
                     >
-                        <option value="active">{ "active" }</option>
-                        <option value="disabled">{ "disabled" }</option>
+                        <option value="active" selected={(*status).as_str() == "active"}>{ "active" }</option>
+                        <option value="disabled" selected={(*status).as_str() == "disabled"}>{ "disabled" }</option>
                     </select>
                 </label>
-                <label class={classes!("md:col-span-2", "flex", "cursor-pointer", "items-start", "gap-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "text-sm")}>
+                <label class={classes!("md:col-span-2", "flex", "cursor-pointer", "items-start", "gap-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "text-sm", "toggle-card")}>
                     <input
                         type="checkbox"
+                        class={classes!("switch")}
                         checked={*moderation_enabled}
                         onchange={{
                             let moderation_enabled = moderation_enabled.clone();
@@ -2612,9 +2613,10 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                         </span>
                     </span>
                 </label>
-                <label class={classes!("md:col-span-2", "flex", "cursor-pointer", "items-start", "gap-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "text-sm")}>
+                <label class={classes!("md:col-span-2", "flex", "cursor-pointer", "items-start", "gap-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "text-sm", "toggle-card")}>
                     <input
                         type="checkbox"
+                        class={classes!("switch")}
                         checked={*kiro_request_validation_enabled}
                         onchange={{
                             let kiro_request_validation_enabled =
@@ -2632,9 +2634,10 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                         </span>
                     </span>
                 </label>
-                <label class={classes!("md:col-span-2", "flex", "cursor-pointer", "items-start", "gap-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "text-sm")}>
+                <label class={classes!("md:col-span-2", "flex", "cursor-pointer", "items-start", "gap-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "text-sm", "toggle-card")}>
                     <input
                         type="checkbox"
+                        class={classes!("switch")}
                         checked={*kiro_remote_media_resolution_enabled}
                         onchange={{
                             let kiro_remote_media_resolution_enabled =
@@ -2652,9 +2655,10 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                         </span>
                     </span>
                 </label>
-                <label class={classes!("md:col-span-2", "flex", "cursor-pointer", "items-start", "gap-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "text-sm")}>
+                <label class={classes!("md:col-span-2", "flex", "cursor-pointer", "items-start", "gap-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "text-sm", "toggle-card")}>
                     <input
                         type="checkbox"
+                        class={classes!("switch")}
                         checked={*kiro_latency_routing_enabled}
                         onchange={{
                             let kiro_latency_routing_enabled =
@@ -2672,9 +2676,10 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                         </span>
                     </span>
                 </label>
-                <label class={classes!("md:col-span-2", "flex", "cursor-pointer", "items-start", "gap-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "text-sm")}>
+                <label class={classes!("md:col-span-2", "flex", "cursor-pointer", "items-start", "gap-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "text-sm", "toggle-card")}>
                     <input
                         type="checkbox"
+                        class={classes!("switch")}
                         checked={*kiro_protected_content_validation_enabled}
                         onchange={{
                             let kiro_protected_content_validation_enabled =
@@ -2692,9 +2697,10 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                         </span>
                     </span>
                 </label>
-                <label class={classes!("md:col-span-2", "flex", "cursor-pointer", "items-start", "gap-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "text-sm")}>
+                <label class={classes!("md:col-span-2", "flex", "cursor-pointer", "items-start", "gap-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "text-sm", "toggle-card")}>
                     <input
                         type="checkbox"
+                        class={classes!("switch")}
                         checked={*kiro_cctest_text_handling_enabled}
                         onchange={{
                             let kiro_cctest_text_handling_enabled =
@@ -2712,9 +2718,10 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                         </span>
                     </span>
                 </label>
-                <label class={classes!("md:col-span-2", "flex", "cursor-pointer", "items-start", "gap-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "text-sm")}>
+                <label class={classes!("md:col-span-2", "flex", "cursor-pointer", "items-start", "gap-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "text-sm", "toggle-card")}>
                     <input
                         type="checkbox"
+                        class={classes!("switch")}
                         checked={*kiro_cache_estimation_enabled}
                         onchange={{
                             let kiro_cache_estimation_enabled =
@@ -2732,9 +2739,10 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                         </span>
                     </span>
                 </label>
-                <label class={classes!("md:col-span-2", "flex", "cursor-pointer", "items-start", "gap-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "text-sm")}>
+                <label class={classes!("md:col-span-2", "flex", "cursor-pointer", "items-start", "gap-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "text-sm", "toggle-card")}>
                     <input
                         type="checkbox"
+                        class={classes!("switch")}
                         checked={*kiro_zero_cache_debug_enabled}
                         onchange={{
                             let kiro_zero_cache_debug_enabled =
@@ -2752,9 +2760,10 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                         </span>
                     </span>
                 </label>
-                <label class={classes!("md:col-span-2", "flex", "cursor-pointer", "items-start", "gap-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "text-sm")}>
+                <label class={classes!("md:col-span-2", "flex", "cursor-pointer", "items-start", "gap-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "text-sm", "toggle-card")}>
                     <input
                         type="checkbox"
+                        class={classes!("switch")}
                         checked={*kiro_full_request_logging_enabled}
                         onchange={{
                             let kiro_full_request_logging_enabled =
@@ -2787,6 +2796,7 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                             <label class={classes!("flex", "items-center", "gap-2", "text-sm")}>
                                 <input
                                     type="checkbox"
+                                    class={classes!("switch")}
                                     checked={*policy_override_enabled}
                                     disabled={policy_controls_disabled}
                                     onchange={{
@@ -2847,6 +2857,7 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                             <label class={classes!("flex", "items-center", "gap-2", "text-sm")}>
                                 <input
                                     type="checkbox"
+                                    class={classes!("switch")}
                                     checked={*billable_multiplier_override_enabled}
                                     disabled={billable_multiplier_controls_disabled}
                                     onchange={{

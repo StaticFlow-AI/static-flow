@@ -6656,6 +6656,85 @@ html {
     line-height: 1.55;
   }
 
+  /* Checkboxes/radios are toggles, not text fields — undo the field-style
+     base above (2026-07-10: bare checkboxes ballooned to 34px squares). */
+  .admin-shell input[type="checkbox"],
+  .admin-shell input[type="radio"] {
+    accent-color: var(--primary);
+    height: 16px;
+    min-height: 0;
+    padding: 0;
+    width: 16px;
+  }
+
+  /* Switch-style checkbox for boolean settings rows: opt in with
+     `class="switch"` on the input. */
+  .admin-shell input[type="checkbox"].switch {
+    appearance: none;
+    -webkit-appearance: none;
+    background: var(--border);
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    flex-shrink: 0;
+    height: 20px;
+    position: relative;
+    transition: background var(--dur-fast) var(--ease);
+    width: 36px;
+  }
+
+  .admin-shell input[type="checkbox"].switch::before {
+    background: var(--card);
+    border-radius: 50%;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    content: "";
+    height: 16px;
+    left: 2px;
+    position: absolute;
+    top: 2px;
+    transition: transform var(--dur-fast) var(--ease);
+    width: 16px;
+  }
+
+  .admin-shell input[type="checkbox"].switch:checked {
+    background: var(--primary);
+  }
+
+  .admin-shell input[type="checkbox"].switch:checked::before {
+    background: var(--primary-foreground);
+    transform: translateX(16px);
+  }
+
+  .admin-shell input[type="checkbox"].switch:focus-visible {
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 40%, transparent);
+    outline: none;
+  }
+
+  /* Boolean settings row wrapper: subtle accent while its switch is on. */
+  .admin-shell .toggle-card {
+    transition:
+      border-color var(--dur-fast) var(--ease),
+      background var(--dur-fast) var(--ease);
+  }
+
+  .admin-shell .toggle-card:has(input.switch:checked) {
+    background: color-mix(in oklch, var(--primary) 7%, var(--card));
+    border-color: color-mix(in oklch, var(--primary) 40%, var(--border));
+  }
+
+  /* Legacy btn-terminal-primary renders white-on-white inside the dark
+     admin-shell scope (e.g. the MaskedSecretCode copy button) — remap it to
+     the admin-shell primary palette. */
+  .admin-shell .btn-terminal-primary {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  .admin-shell .btn-terminal-primary:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--primary) 85%, var(--primary-foreground));
+  }
+
   .admin-shell .mono {
     font-family: var(--as-mono);
     font-size: 12px;
