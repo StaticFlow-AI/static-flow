@@ -1,0 +1,42 @@
+# Kiro account recovery quota snapshot
+
+Snapshot time: 2026-07-11 00:36 +08:00
+
+The values below are the last successful balance snapshots captured before
+starting credential recovery. Passwords, 2FA codes, and tokens are never stored
+in this file.
+
+| Existing account | Auth state | Current usage | Usage limit | Remaining |
+| --- | --- | ---: | ---: | ---: |
+| KitWilliam | IDC refresh token invalid; balance cache unavailable | unknown | 1000 (subscription metadata only) | unknown |
+| laohan_MarleyMacdo | IDC refresh token invalid; balance cache unavailable | unknown | 1000 (subscription metadata only) | unknown |
+| laohan3 | GitHub social; auth_401 | 316.89 | 1000 | 683.11 |
+| laohan4 | GitHub social; auth_401 | 309.16 | 1000 | 690.84 |
+| laohan5 | GitHub social; auth_401 | 736.09 | 1000 | 263.91 |
+| laohan6 | GitHub social; auth_401 | 285.11 | 1000 | 714.89 |
+| tzpatric | GitHub social; auth_401 | 299.46 | 1000 | 700.54 |
+| wqalerian | GitHub social; auth_401 | 321.36 | 1000 | 678.64 |
+
+## Recovery observations
+
+| GitHub login | Recovered email | Current usage | Usage limit | Remaining | Existing account match |
+| --- | --- | ---: | ---: | ---: | --- |
+| linkueisz3 | Adrian.Carlisle@asu.edu | 0 | 1000 | 1000 | No upstream user-id match; quota excludes the six social accounts above, but cannot distinguish KitWilliam from laohan_MarleyMacdo because both old balance caches are unavailable. Safely retained as `kiro-linkueisz3-github-social` pending later elimination. |
+| linkueisz2 | Nolan.arlisle@asu.edu | 309.16 | 1000 | 690.84 | `laohan4` (exact upstream user-id and quota match; token and email restored) |
+| linkueisz4 | Calebkl1lis@asu.edu | 285.11 | 1000 | 714.89 | `laohan6` (exact upstream user-id and quota match; token and email restored) |
+| linkueisz5 | Calebkl2lis@asu.edu | 736.09 | 1000 | 263.91 | `laohan5` (exact upstream user-id and quota match; token and email restored) |
+| linkueisz8 | Jinbo.Pan@asu.edu | 396.25 | 1000 | 603.75 | `laohan9` (exact upstream user-id match; existing account outside the original eight-account snapshot; token and email restored) |
+| linkueisz9 | BiHankiro2@asu.edu | 426.91 | 1000 | 573.09 | `linkuei_3_laohan7` (exact upstream user-id match; existing account outside the original eight-account snapshot; token and email restored) |
+| linkueisz10 | BiHankiro3@asu.edu | 622.34 | 1000 | 377.66 | `laohan10` (exact upstream user-id match; existing account outside the original eight-account snapshot; token and email restored) |
+| linkueisz11 | BiHankiro4@asu.edu | 305.30 | 1000 | 694.70 | `laohan11` (exact upstream user-id match; existing account outside the original eight-account snapshot; token and email restored) |
+| linkueisz12 | BiHankiro5@asu.edu | 605.24 | 1000 | 394.76 | `laohan12` (exact upstream user-id match; existing account outside the original eight-account snapshot; token and email restored) |
+| linkueisz13 | BiHankiro6@asu.edu | 387.12 | 1000 | 612.88 | `laohan13` (exact upstream user-id match; existing account outside the original eight-account snapshot; token and email restored) |
+| linkueisz14 | BiHankiro7@asu.edu | 372.32 | 1000 | 627.68 | `laohan14` (exact upstream user-id match; existing account outside the original eight-account snapshot; token and email restored) |
+| linkueisz15 | BiHankiro8@asu.edu | 648.35 | 1000 | 351.65 | `laohan15` (exact upstream user-id match; existing account outside the original eight-account snapshot; token and email restored) |
+| linkueisz16 | BiHankiro9@asu.edu | 418.70 | 1000 | 581.30 | `laohan16` (GitHub password rotated separately; exact upstream user-id match; token and email restored) |
+| linkueisz17 | BiHankiro10@asu.edu | 546.58 | 1000 | 453.42 | `laohan17` (exact upstream user-id match; existing account outside the original eight-account snapshot; token and email restored) |
+| linkueisz18 | BiHankiro13@asu.edu | 350.98 | 1000 | 649.02 | `laohan18` (exact upstream user-id match; existing account outside the original eight-account snapshot; token and email restored) |
+| tzpatric | tzpatrick@utexas.edu | 299.46 | 1000 | 700.54 | `tzpatric` (exact upstream user-id and quota match; token and email restored) |
+| wqalerian | wqalerian@utexas.edu | 321.36 | 1000 | 678.64 | `wqalerian` (exact upstream user-id and quota match; token and email restored) |
+| oorcrofta | oorcrofta@utexas.edu | 338.48 | 1000 | 661.52 | `oorcrofta` (exact upstream user-id and quota match; token and email restored) |
+| shfordsdf | shfordsdf@utexas.edu | 262.65 | 1000 | 737.35 | `shfordsdf` (exact upstream user-id and quota match; token and email restored) |
