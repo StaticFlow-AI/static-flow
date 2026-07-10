@@ -125,12 +125,19 @@ Cutover is config edit plus in-process reload.
    cp conf/pingora/staticflow-gateway.yaml tmp/staticflow-gateway.$(date +%Y%m%d-%H%M%S).yaml.bak
    ```
 
-2. Change only the `active_upstream` line to the candidate slot.
+2. Change the `active_upstream` line to the candidate slot.
+
+   **routing_policy overrides active_upstream** (learned 2026-07-10): when the
+   config has a `routing_policy` block with `mode: priority`, traffic follows
+   the FIRST entry in `routing_policy.backends` and ignores `active_upstream`
+   entirely. Switch both so they stay consistent: set `active_upstream` to the
+   candidate AND point the `- upstream:` backend entry at it.
 
 3. Re-read the config and confirm it now names the candidate:
 
    ```bash
    awk '/active_upstream:/ {print $2; exit}' conf/pingora/staticflow-gateway.yaml
+   grep -A3 'routing_policy:' conf/pingora/staticflow-gateway.yaml
    ```
 
 4. Find the running gateway pid from the `39180` listener:
@@ -144,6 +151,12 @@ Cutover is config edit plus in-process reload.
    ```bash
    kill -HUP <gateway-pid>
    ```
+
+   The reload is asynchronous — confirm it applied via the gateway app log
+   (`tmp/runtime-logs/gateway/app/current.*.log`, look for
+   `reloaded gateway config ... active_upstream_addr="..."`) before judging
+   health-check results; probing within the first seconds after SIGHUP can
+   still hit the old slot.
 
 Do not replace step 5 with restart.
 
