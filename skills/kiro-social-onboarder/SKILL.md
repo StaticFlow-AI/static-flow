@@ -85,7 +85,11 @@ The GitHub script follows the same Kiro/device-code/import/verification path.
 Its DevTools helper can submit the GitHub login form when `--github-login` and
 `KIRO_GITHUB_PASSWORD` are available, then it waits for 2FA, device
 verification, or OAuth consent in the visible browser session. It also assists
-Kiro-side `Continue`/`Approve` controls. When `--account-name` is omitted, it
+Kiro-side `Continue`/`Approve` controls. Automated GitHub/Kiro browser actions
+wait a random 2–6 seconds between steps by default to avoid racing page
+transitions. Set `KIRO_STEP_DELAY_MIN_MS` and `KIRO_STEP_DELAY_MAX_MS` to
+override the range; set both to `0` only when the delay must be disabled. When
+`--account-name` is omitted, it
 uses a temporary probe account only to refresh balance and identify the
 existing account by upstream `user_id`; the probe account is deleted when it is
 not automatically removed by duplicate detection.

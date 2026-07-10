@@ -1,5 +1,10 @@
 #!/usr/bin/env node
 
+import {
+  configuredDelayBounds,
+  randomDelayMs,
+} from "./github_step_delay.mjs";
+
 const port = process.env.KIRO_DEVTOOLS_PORT;
 const githubLogin = process.env.KIRO_GITHUB_LOGIN || "";
 const githubPassword = process.env.KIRO_GITHUB_PASSWORD || "";
@@ -11,6 +16,14 @@ if (!port) {
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const stepDelayBounds = configuredDelayBounds();
+
+async function randomStepDelay(label) {
+  const delayMs = randomDelayMs(stepDelayBounds);
+  if (delayMs <= 0) return;
+  console.log(`Browser helper: waiting ${delayMs}ms ${label}`);
+  await sleep(delayMs);
+}
 
 async function connectPage() {
   const deadline = Date.now() + 25_000;
@@ -146,6 +159,7 @@ while (Date.now() < deadline) {
   }
 
   if (lower.includes("something went wrong") && buttons.includes("Restart")) {
+    await randomStepDelay("before Restart");
     await clickText("Restart");
     lastAction = "clicked Restart after Kiro error";
     console.log("Browser helper: clicked Restart after Kiro error");
@@ -154,8 +168,10 @@ while (Date.now() < deadline) {
   }
 
   if (lower.includes("authorization requested")) {
+    await randomStepDelay("before Accept");
     await clickText("Accept");
     await sleep(300);
+    await randomStepDelay("before Approve");
     const approved = (await clickText("Approve")) || (await clickTextContaining("approve"));
     lastAction = `clicked Kiro approval=${approved}`;
     console.log("Browser helper: clicked Kiro approval");
@@ -164,6 +180,7 @@ while (Date.now() < deadline) {
   }
 
   if (!url.includes("github.com") && buttons.includes("Continue")) {
+    await randomStepDelay("before Kiro Continue");
     await clickText("Continue");
     lastAction = "clicked Kiro Continue";
     console.log("Browser helper: clicked Kiro Continue");
@@ -184,15 +201,18 @@ while (Date.now() < deadline) {
     current.hasLoginInput &&
     current.hasPasswordInput
   ) {
+    await randomStepDelay("before filling GitHub login");
     const loginLength = await setInput(
       '#login_field,input[name="login"],input[name="user_login"],input[type="email"]',
       githubLogin
     );
+    await randomStepDelay("before filling GitHub password");
     const passwordLength = await setInput(
       '#password,input[name="password"],input[type="password"]',
       githubPassword
     );
     await sleep(250);
+    await randomStepDelay("before submitting GitHub credentials");
     const clicked = (await clickText("Sign in")) || (await clickTextContaining("sign in"));
     submittedGithubCredentials = true;
     lastAction = `submitted GitHub credentials login_len=${loginLength} password_len=${passwordLength} clicked=${clicked}`;
