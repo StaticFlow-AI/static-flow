@@ -36,7 +36,30 @@ fn request_prefers_html(headers: &HeaderMap) -> bool {
         .unwrap_or(false)
 }
 
-async fn admin_kiro_accounts_entry(
+/// Admin gateway SPA section paths that double as upstream admin API paths
+/// (e.g. the SPA page `/admin/llm-gateway/keys` and the admin API
+/// `GET /admin/llm-gateway/keys?limit=...` share one path). Each is also
+/// registered under the `/static_flow` prefix.
+const ADMIN_GATEWAY_SPA_SECTION_PATHS: &[&str] = &[
+    "/admin/llm-gateway/keys",
+    "/admin/llm-gateway/groups",
+    "/admin/llm-gateway/accounts",
+    "/admin/llm-gateway/usage",
+    "/admin/llm-gateway/journal",
+    "/admin/llm-gateway/requests",
+    "/admin/llm-gateway/settings",
+    "/admin/kiro-gateway/accounts",
+    "/admin/kiro-gateway/accounts/manage",
+    "/admin/kiro-gateway/keys",
+    "/admin/kiro-gateway/groups",
+    "/admin/kiro-gateway/usage",
+];
+
+/// Entry handler for paths in [`ADMIN_GATEWAY_SPA_SECTION_PATHS`]: browser
+/// document navigation (GET with `Accept: text/html`) gets the SPA shell so
+/// full page loads and refreshes work, while every other request (e.g.
+/// `fetch` with `Accept: */*`) is proxied to the upstream admin API.
+async fn admin_gateway_section_entry(
     state: State<AppState>,
     method: Method,
     headers: HeaderMap,
@@ -521,10 +544,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/static_flow/admin/llm-gateway/monitor", get(seo::seo_spa_shell))
         .route("/static_flow/admin/llm-gateway/moderation", get(seo::seo_spa_shell))
         .route("/admin/kiro-gateway", get(seo::seo_spa_shell))
-        .route("/admin/kiro-gateway/accounts", any(admin_kiro_accounts_entry))
         .route("/admin/kiro-gateway/upstream-channels", get(seo::seo_spa_shell))
         .route("/static_flow/admin/kiro-gateway", get(seo::seo_spa_shell))
-        .route("/static_flow/admin/kiro-gateway/accounts", any(admin_kiro_accounts_entry))
         .route("/static_flow/admin/kiro-gateway/upstream-channels", get(seo::seo_spa_shell))
         .route("/admin/llm-gateway/*path", any(crate::llm_access_admin_proxy::proxy_admin_request))
         .route(
@@ -541,6 +562,17 @@ pub fn create_router(state: AppState) -> Router {
             "/static_flow/admin/llm-access/*path",
             any(crate::llm_access_admin_proxy::proxy_admin_request),
         );
+
+    // SPA section routes shared with admin API paths: explicit routes so they
+    // win over the `*path` proxy wildcards above; the entry handler decides
+    // shell vs proxy per request.
+    let api_router = ADMIN_GATEWAY_SPA_SECTION_PATHS
+        .iter()
+        .fold(api_router, |router, path| {
+            router
+                .route(path, any(admin_gateway_section_entry))
+                .route(&format!("/static_flow{path}"), any(admin_gateway_section_entry))
+        });
 
     let api_router = api_router.with_state(state.clone());
 
@@ -895,6 +927,70 @@ mod tests {
             std::str::from_utf8(&body).expect("utf8 body"),
             r#"{"proxied":"/api/kiro-gateway/v1/models"}"#
         );
+    }
+
+    #[tokio::test]
+    async fn admin_gateway_section_routes_take_precedence_over_proxy_wildcards() {
+        let entry = move |OriginalUri(uri): OriginalUri| async move {
+            Html(format!("entry:{}", uri.path()))
+        };
+        let proxy = move |OriginalUri(uri): OriginalUri| async move {
+            Json(serde_json::json!({"proxied": uri.path()}))
+        };
+
+        let mut router = Router::new()
+            .route("/admin/llm-gateway/*path", any(proxy))
+            .route("/static_flow/admin/llm-gateway/*path", any(proxy))
+            .route("/admin/kiro-gateway/*path", any(proxy))
+            .route("/static_flow/admin/kiro-gateway/*path", any(proxy));
+        for path in super::ADMIN_GATEWAY_SPA_SECTION_PATHS {
+            router = router
+                .route(path, any(entry))
+                .route(&format!("/static_flow{path}"), any(entry));
+        }
+        let mut router = router.into_service();
+
+        for path in super::ADMIN_GATEWAY_SPA_SECTION_PATHS {
+            for target in [(*path).to_string(), format!("/static_flow{path}")] {
+                let response = router
+                    .call(
+                        Request::builder()
+                            .uri(&target)
+                            .body(Body::empty())
+                            .expect("request"),
+                    )
+                    .await
+                    .expect("response");
+
+                assert_eq!(response.status(), StatusCode::OK);
+                let body = to_bytes(response.into_body(), usize::MAX)
+                    .await
+                    .expect("body");
+                assert_eq!(
+                    std::str::from_utf8(&body).expect("utf8 body"),
+                    format!("entry:{target}")
+                );
+            }
+        }
+
+        for target in ["/admin/llm-gateway/usage/metrics", "/admin/kiro-gateway/accounts/statuses"]
+        {
+            let response = router
+                .call(
+                    Request::builder()
+                        .uri(target)
+                        .body(Body::empty())
+                        .expect("request"),
+                )
+                .await
+                .expect("response");
+
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(
+                response.headers().get(header::CONTENT_TYPE),
+                Some(&header::HeaderValue::from_static("application/json"))
+            );
+        }
     }
 
     #[test]
