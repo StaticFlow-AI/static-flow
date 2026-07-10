@@ -792,11 +792,11 @@ pub(crate) fn kiro_pool_strategy_description(strategy: &str) -> &'static str {
     }
 }
 
-pub(crate) fn kiro_pool_strategy_options() -> Html {
+pub(crate) fn kiro_pool_strategy_options(current: &str) -> Html {
     html! {
         <>
             { for llm_store::KIRO_POOL_STRATEGIES.iter().map(|value| html! {
-                <option value={*value} title={kiro_pool_strategy_description(value)}>
+                <option value={*value} selected={*value == current} title={kiro_pool_strategy_description(value)}>
                     { kiro_pool_strategy_label(value) }
                 </option>
             }) }
@@ -831,7 +831,7 @@ fn anthropic_upstream_pool_mode_description(mode: &str) -> &'static str {
     }
 }
 
-fn anthropic_upstream_pool_mode_options() -> Html {
+fn anthropic_upstream_pool_mode_options(current: &str) -> Html {
     const MODES: [&str; 4] = [
         llm_store::ANTHROPIC_UPSTREAM_POOL_MODE_DISABLED,
         llm_store::ANTHROPIC_UPSTREAM_POOL_MODE_PREFERRED_BEFORE_KIRO,
@@ -841,7 +841,7 @@ fn anthropic_upstream_pool_mode_options() -> Html {
     html! {
         <>
             { for MODES.iter().map(|value| html! {
-                <option value={*value} title={anthropic_upstream_pool_mode_description(value)}>
+                <option value={*value} selected={*value == current} title={anthropic_upstream_pool_mode_description(value)}>
                     { anthropic_upstream_pool_mode_label(value) }
                 </option>
             }) }
@@ -1679,7 +1679,7 @@ pub(crate) fn kiro_account_card(props: &KiroAccountCardProps) -> Html {
                                     })
                                 }}
                             >
-                                { kiro_pool_strategy_options() }
+                                { kiro_pool_strategy_options((*pool_strategy).as_str()) }
                             </select>
                             <div class={classes!("mt-1", "text-[11px]", "text-[var(--muted)]")}>
                                 { kiro_pool_strategy_description((*pool_strategy).as_str()) }
@@ -3026,7 +3026,7 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                                             })
                                         }}
                                     >
-                                        { kiro_pool_strategy_options() }
+                                        { kiro_pool_strategy_options((*preferred_pool_strategy).as_str()) }
                                     </select>
                                 </label>
                                 <label
@@ -3046,7 +3046,7 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                                             })
                                         }}
                                     >
-                                        { anthropic_upstream_pool_mode_options() }
+                                        { anthropic_upstream_pool_mode_options((*anthropic_upstream_pool_mode).as_str()) }
                                     </select>
                                 </label>
                                 <label class={classes!("flex", "items-center", "gap-2", "text-sm")}>
@@ -3142,7 +3142,7 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                                                 <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Map To" }</div>
                                                 <select
                                                     class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-2", "text-sm")}
-                                                    value={current_target}
+                                                    value={current_target.clone()}
                                                     onchange={Callback::from(move |event: Event| {
                                                         let input: HtmlSelectElement = event.target_unchecked_into();
                                                         let selected = input.value();
@@ -3156,7 +3156,7 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                                                     })}
                                                 >
                                                     { for target_models.iter().map(|target_model| html! {
-                                                        <option value={target_model.id.clone()}>
+                                                        <option value={target_model.id.clone()} selected={target_model.id == current_target}>
                                                             { format!("{} · {}", target_model.display_name, target_model.id) }
                                                         </option>
                                                     }) }
@@ -3245,7 +3245,7 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                                                     <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Preferred Group" }</div>
                                                     <select
                                                         class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2", "text-sm")}
-                                                        value={selected_group_id}
+                                                        value={selected_group_id.clone()}
                                                         onchange={Callback::from(move |event: Event| {
                                                             let input: HtmlSelectElement = event.target_unchecked_into();
                                                             let selected = input.value();
@@ -3258,9 +3258,9 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                                                             model_group_preferences.set(next);
                                                         })}
                                                     >
-                                                        <option value="">{ "Default routing" }</option>
+                                                        <option value="" selected={selected_group_id.is_empty()}>{ "Default routing" }</option>
                                                         { for account_groups.iter().map(|group| html! {
-                                                            <option value={group.id.clone()}>
+                                                            <option value={group.id.clone()} selected={group.id == selected_group_id}>
                                                                 { format!("{} · {} accounts", group.name, group.account_count) }
                                                             </option>
                                                         }) }
@@ -3283,14 +3283,14 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                                                             model_channel_preferences.set(next);
                                                         })}
                                                     >
-                                                        <option value="">{ "Default channel order" }</option>
+                                                        <option value="" selected={selected_channel_name.is_empty()}>{ "Default channel order" }</option>
                                                         if selected_channel_missing {
-                                                            <option value={selected_channel_name.clone()}>
+                                                            <option value={selected_channel_name.clone()} selected={selected_channel_missing}>
                                                                 { format!("{} · missing", selected_channel_name) }
                                                             </option>
                                                         }
                                                         { for anthropic_channels.iter().map(|channel| html! {
-                                                            <option value={channel.name.clone()}>
+                                                            <option value={channel.name.clone()} selected={channel.name == selected_channel_name}>
                                                                 { format!("{} · {}", channel.name, channel.status) }
                                                             </option>
                                                         }) }

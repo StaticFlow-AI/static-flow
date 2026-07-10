@@ -288,7 +288,7 @@ pub fn admin_kiro_account_status_page() -> Html {
                         onchange={on_page_size_change}
                     >
                         { for STATUS_PAGE_SIZE_OPTIONS.iter().map(|value| html! {
-                            <option value={value.to_string()}>{ value }</option>
+                            <option value={value.to_string()} selected={*value == *page_size}>{ value }</option>
                         }) }
                     </select>
                     <button type="button" class={classes!("btn-terminal")} onclick={on_search}>

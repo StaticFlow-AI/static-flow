@@ -388,8 +388,8 @@ pub fn admin_kiro_gateway_accounts_page() -> Html {
                                                 manual_auth_method.set(input.value());
                                             })
                                         }}>
-                                            <option value="social">{ "social" }</option>
-                                            <option value="idc">{ "idc" }</option>
+                                            <option value="social" selected={(*manual_auth_method).as_str() == "social"}>{ "social" }</option>
+                                            <option value="idc" selected={(*manual_auth_method).as_str() == "idc"}>{ "idc" }</option>
                                         </select>
                                     </label>
                                     { text_field("Refresh Token", &manual_refresh_token, true, None) }
@@ -423,7 +423,7 @@ pub fn admin_kiro_gateway_accounts_page() -> Html {
                                                 }
                                             })
                                         }}>
-                                            { kiro_pool_strategy_options() }
+                                            { kiro_pool_strategy_options((*manual_pool_strategy).as_str()) }
                                         </select>
                                         <span class={classes!("text-[11px]", "text-[var(--faint)]")}>
                                             { kiro_pool_strategy_description((*manual_pool_strategy).as_str()) }

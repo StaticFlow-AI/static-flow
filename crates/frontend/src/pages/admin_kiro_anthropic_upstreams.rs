@@ -395,11 +395,12 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                                         proxy_mode.set(input.value());
                                     })
                                 }}>
-                                    <option value="inherit">{ "Inherit" }</option>
-                                    <option value="direct">{ "Direct" }</option>
+                                    <option value="inherit" selected={*proxy_mode == "inherit"}>{ "Inherit" }</option>
+                                    <option value="direct" selected={*proxy_mode == "direct"}>{ "Direct" }</option>
                                     { for proxy_configs.iter().map(|proxy_config| {
                                         let value = format!("fixed:{}", proxy_config.id);
-                                        html! { <option value={value}>{ format!("Fixed · {}", proxy_config.name) }</option> }
+                                        let selected = *proxy_mode == value;
+                                        html! { <option value={value} selected={selected}>{ format!("Fixed · {}", proxy_config.name) }</option> }
                                     }) }
                                 </select>
                             </label>
@@ -769,7 +770,7 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                                                 } else {
                                                     html! {
                                                         for channel.models.iter().map(|model| html! {
-                                                            <option value={model.clone()}>{ model.clone() }</option>
+                                                            <option value={model.clone()} selected={*model == selected_model}>{ model.clone() }</option>
                                                         })
                                                     }
                                                 }
