@@ -1179,7 +1179,7 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
             <div class={classes!("mt-3", "flex", "items-center", "gap-3", "flex-wrap")}>
                 <label class={classes!("flex", "items-center", "gap-2", "text-sm")}>
                     <input
-                        type="checkbox"
+                        type="checkbox" class={classes!("min-h-0", "w-auto")}
                         checked={*public_visible}
                         onchange={{
                             let public_visible = public_visible.clone();
@@ -1195,7 +1195,7 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
                 <div class={classes!("flex", "min-w-[260px]", "flex-col", "gap-1", "text-sm")}>
                     <label class={classes!("flex", "items-center", "gap-2")}>
                         <input
-                            type="checkbox"
+                            type="checkbox" class={classes!("min-h-0", "w-auto")}
                             checked={*moderation_enabled}
                             onchange={{
                                 let moderation_enabled = moderation_enabled.clone();
@@ -1220,7 +1220,7 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
                 </div>
                 <label class={classes!("flex", "items-center", "gap-2", "text-sm")}>
                     <input
-                        type="checkbox"
+                        type="checkbox" class={classes!("min-h-0", "w-auto")}
                         checked={*codex_fast_enabled}
                         onchange={{
                             let codex_fast_enabled = codex_fast_enabled.clone();
@@ -1235,7 +1235,7 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
                 </label>
                 <label class={classes!("flex", "items-center", "gap-2", "text-sm")}>
                     <input
-                        type="checkbox"
+                        type="checkbox" class={classes!("min-h-0", "w-auto")}
                         checked={*codex_strict_session_rejection_enabled}
                         onchange={{
                             let codex_strict_session_rejection_enabled =
@@ -1251,7 +1251,7 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
                 </label>
                 <label class={classes!("flex", "items-center", "gap-2", "text-sm")}>
                     <input
-                        type="checkbox"
+                        type="checkbox" class={classes!("min-h-0", "w-auto")}
                         checked={*codex_image_standalone_generation_enabled}
                         onchange={{
                             let codex_image_standalone_generation_enabled =
@@ -1267,7 +1267,7 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
                 </label>
                 <label class={classes!("flex", "items-center", "gap-2", "text-sm")}>
                     <input
-                        type="checkbox"
+                        type="checkbox" class={classes!("min-h-0", "w-auto")}
                         checked={*codex_image_direct_generation_enabled}
                         onchange={{
                             let codex_image_direct_generation_enabled =
@@ -1598,7 +1598,7 @@ pub(crate) fn account_group_editor_card(props: &AccountGroupEditorCardProps) -> 
                                     }
                                 )}>
                                     <input
-                                        type="checkbox"
+                                        type="checkbox" class={classes!("min-h-0", "w-auto")}
                                         checked={checked}
                                         onchange={Callback::from(move |_| on_toggle_account.emit(account_name.clone()))}
                                     />

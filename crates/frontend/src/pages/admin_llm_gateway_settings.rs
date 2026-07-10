@@ -1132,7 +1132,7 @@ pub fn admin_llm_gateway_settings_page() -> Html {
                             <h3 class={classes!("md:col-span-2", "xl:col-span-3", "m-0", "mt-2", "text-xs", "font-semibold", "uppercase", "tracking-wider", "text-[var(--muted)]")}>{ "Codex Affinity" }</h3>
                             <label class={classes!("flex", "items-center", "gap-2", "text-sm")}>
                                 <input
-                                    type="checkbox"
+                                    type="checkbox" class={classes!("min-h-0", "w-auto")}
                                     checked={*codex_session_affinity_enabled_input}
                                     onchange={{
                                         let codex_session_affinity_enabled_input = codex_session_affinity_enabled_input.clone();
@@ -1181,7 +1181,7 @@ pub fn admin_llm_gateway_settings_page() -> Html {
                             </label>
                             <label class={classes!("flex", "items-center", "gap-2", "text-sm")}>
                                 <input
-                                    type="checkbox"
+                                    type="checkbox" class={classes!("min-h-0", "w-auto")}
                                     checked={*codex_fallback_affinity_enabled_input}
                                     onchange={{
                                         let codex_fallback_affinity_enabled_input = codex_fallback_affinity_enabled_input.clone();

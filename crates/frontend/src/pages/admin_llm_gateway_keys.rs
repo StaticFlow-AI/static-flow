@@ -413,7 +413,7 @@ pub fn admin_llm_gateway_keys_page() -> Html {
                         <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
                             <label class={classes!("flex", "items-center", "gap-2", "text-sm")}>
                                 <input
-                                    type="checkbox"
+                                    type="checkbox" class={classes!("min-h-0", "w-auto")}
                                     checked={create_key.public}
                                     onchange={{
                                         let create_key = create_key.clone();

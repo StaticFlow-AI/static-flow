@@ -1639,7 +1639,7 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                             </div>
                             <label class={classes!("flex", "items-center", "gap-2", "text-xs", "text-[var(--muted)]")}>
                                 <input
-                                    type="checkbox"
+                                    type="checkbox" class={classes!("min-h-0", "w-auto")}
                                     checked={*batch_import_validate_before_import}
                                     onchange={{
                                         let batch_import_validate_before_import =
@@ -2351,7 +2351,7 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                                                 </select>
                                                 <label class={classes!("inline-flex", "items-center", "gap-1.5", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-2", "py-1.5", "text-xs")}>
                                                     <input
-                                                        type="checkbox"
+                                                        type="checkbox" class={classes!("min-h-0", "w-auto")}
                                                         checked={selected_image_enabled}
                                                         onchange={{
                                                             let account_image_enabled_inputs = account_image_enabled_inputs.clone();

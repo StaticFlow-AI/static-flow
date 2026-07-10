@@ -384,7 +384,7 @@ pub fn admin_llm_gateway_groups_page() -> Html {
                                                         }
                                                     )}>
                                                         <input
-                                                            type="checkbox"
+                                                            type="checkbox" class={classes!("min-h-0", "w-auto")}
                                                             checked={checked}
                                                             onchange={Callback::from(move |_| {
                                                                 on_toggle_create_account_group_member.emit(account_name.clone())
