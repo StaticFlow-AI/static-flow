@@ -329,7 +329,7 @@ pub fn admin_kiro_gateway_usage_page() -> Html {
                     <div class={classes!("errorline", "text-sm")}>{ err }</div>
                 }
 
-                <section class={classes!("panel")}>
+                <section class={classes!("panel", "popover-host")}>
                     <div class={classes!("panel-body", "space-y-2")}>
                         <div class={classes!("flex", "items-center", "gap-2", "flex-wrap")}>
                             <DateRangePicker

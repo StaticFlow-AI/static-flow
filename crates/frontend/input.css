@@ -6843,6 +6843,13 @@ html {
     padding: 14px;
   }
 
+  /* panels hosting absolutely-positioned popovers (e.g. date-range picker)
+     must not clip them */
+  .admin-shell .panel.popover-host,
+  .admin-shell .panel.popover-host > .panel-body {
+    overflow: visible;
+  }
+
   /* ---------- stat strip ---------- */
 
   .admin-shell .stat-strip {
