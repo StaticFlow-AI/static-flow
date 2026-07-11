@@ -20,17 +20,19 @@ use crate::{
         consume_admin_llm_gateway_account_rate_limit_reset_credit,
         create_admin_llm_gateway_account_import_job, delete_admin_llm_gateway_account,
         fetch_admin_llm_gateway_account_import_job, fetch_admin_llm_gateway_account_import_jobs,
+        fetch_admin_llm_gateway_account_rate_limit_reset_credits,
         fetch_admin_llm_gateway_accounts_page_with_query, fetch_admin_llm_gateway_proxy_configs,
         fetch_llm_gateway_status, import_admin_llm_gateway_account,
         patch_admin_llm_gateway_account, probe_admin_llm_gateway_account_models,
         refresh_admin_llm_gateway_account_auth, refresh_admin_llm_gateway_account_usage,
         AccountSummaryView, AdminAccountsSummaryView, AdminLlmGatewayAccountPageQuery,
         AdminUpstreamProxyConfigView, CodexAccountImportJobDetailView,
-        CodexAccountImportJobSummaryView, LlmGatewayRateLimitBucketView,
+        CodexAccountImportJobSummaryView, CodexRateLimitResetCreditsDetails,
+        ConsumeCodexRateLimitResetCreditRequest, LlmGatewayRateLimitBucketView,
         LlmGatewayRateLimitStatusResponse, LlmGatewayRateLimitWindowView,
         PatchAdminLlmGatewayAccountInput,
     },
-    components::pagination::Pagination,
+    components::{modal::Modal, pagination::Pagination},
     pages::llm_access_shared::{confirm_destructive, format_ms, format_percent, format_reset_hint},
     router::Route,
 };
@@ -41,6 +43,42 @@ const ADMIN_CODEX_IMPORT_JOB_LIST_LIMIT: usize = 10;
 const CODEX_IMAGE_DEFAULT_CONCURRENCY: u64 = 3;
 
 const CODEX_IMAGE_MAX_CONCURRENCY: u64 = 1024;
+
+#[derive(Clone, PartialEq, Eq)]
+struct ResetCreditPickerState {
+    account_name: String,
+    details: CodexRateLimitResetCreditsDetails,
+    selected_credit_id: String,
+    idempotency_key: String,
+}
+
+fn selected_reset_credit_id(
+    details: &CodexRateLimitResetCreditsDetails,
+    selected_credit_id: &str,
+) -> Result<Option<String>, &'static str> {
+    if details.available_count <= 0 {
+        return Err("当前没有可用 reset credit");
+    }
+    if details.credits.is_empty() {
+        return Ok(None);
+    }
+    details
+        .credits
+        .iter()
+        .find(|credit| {
+            credit.id == selected_credit_id && credit.status.eq_ignore_ascii_case("available")
+        })
+        .map(|credit| Some(credit.id.clone()))
+        .ok_or("请先选择一个 reset credit")
+}
+
+fn new_reset_credit_idempotency_key() -> Result<String, String> {
+    let window = web_sys::window().ok_or_else(|| "浏览器 window 不可用".to_string())?;
+    let crypto = window
+        .crypto()
+        .map_err(|_| "浏览器安全随机数不可用".to_string())?;
+    Ok(crypto.random_uuid())
+}
 
 const ACCOUNT_ACCENT_BORDERS: &[&str] = &[
     "border-l-4 border-l-teal-500/70",
@@ -406,6 +444,7 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
     let load_error = use_state(|| None::<String>);
     let refresh_tick = use_state(|| 0_u32);
     let toast = use_state(|| None::<(String, bool)>);
+    let reset_credit_picker = use_state(|| None::<ResetCreditPickerState>);
     let toast_timeout = use_mut_ref(|| None::<Timeout>);
     let flash = {
         let toast = toast.clone();
@@ -1106,18 +1145,14 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
         })
     };
 
-    let on_consume_account_reset_credit = {
+    let on_open_account_reset_credit = {
         let account_action_inflight = account_action_inflight.clone();
-        let account_proxy_inputs = account_proxy_inputs.clone();
-        let accounts = accounts.clone();
-        let codex_rate_limit_status = codex_rate_limit_status.clone();
+        let reset_credit_picker = reset_credit_picker.clone();
         let flash = flash.clone();
         let load_error = load_error.clone();
         Callback::from(move |account_name: String| {
             let account_action_inflight = account_action_inflight.clone();
-            let account_proxy_inputs = account_proxy_inputs.clone();
-            let accounts = accounts.clone();
-            let codex_rate_limit_status = codex_rate_limit_status.clone();
+            let reset_credit_picker = reset_credit_picker.clone();
             let flash = flash.clone();
             let load_error = load_error.clone();
             wasm_bindgen_futures::spawn_local(async move {
@@ -1125,9 +1160,87 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                 inflight.insert(account_name.clone());
                 account_action_inflight.set(inflight);
 
-                match consume_admin_llm_gateway_account_rate_limit_reset_credit(&account_name).await
+                let result = match new_reset_credit_idempotency_key() {
+                    Ok(idempotency_key) => {
+                        fetch_admin_llm_gateway_account_rate_limit_reset_credits(&account_name)
+                            .await
+                            .map(|details| ResetCreditPickerState {
+                                account_name: account_name.clone(),
+                                details,
+                                selected_credit_id: String::new(),
+                                idempotency_key,
+                            })
+                    },
+                    Err(error) => Err(error),
+                };
+                match result {
+                    Ok(picker) => {
+                        load_error.set(None);
+                        reset_credit_picker.set(Some(picker));
+                    },
+                    Err(err) => {
+                        load_error.set(Some(err.clone()));
+                        flash.emit((
+                            format!("加载账号 `{}` 的 reset credits 失败\n{err}", account_name),
+                            true,
+                        ));
+                    },
+                }
+
+                let mut inflight = (*account_action_inflight).clone();
+                inflight.remove(&account_name);
+                account_action_inflight.set(inflight);
+            });
+        })
+    };
+
+    let on_confirm_account_reset_credit = {
+        let account_action_inflight = account_action_inflight.clone();
+        let account_proxy_inputs = account_proxy_inputs.clone();
+        let accounts = accounts.clone();
+        let codex_rate_limit_status = codex_rate_limit_status.clone();
+        let reset_credit_picker = reset_credit_picker.clone();
+        let flash = flash.clone();
+        let load_error = load_error.clone();
+        Callback::from(move |_: ()| {
+            let Some(picker) = (*reset_credit_picker).clone() else {
+                return;
+            };
+            let credit_id =
+                match selected_reset_credit_id(&picker.details, &picker.selected_credit_id) {
+                    Ok(credit_id) => credit_id,
+                    Err(message) => {
+                        flash.emit((message.to_string(), true));
+                        return;
+                    },
+                };
+            let request = ConsumeCodexRateLimitResetCreditRequest {
+                idempotency_key: picker.idempotency_key.clone(),
+                credit_id,
+            };
+            let account_name = picker.account_name.clone();
+            let account_action_inflight = account_action_inflight.clone();
+            let account_proxy_inputs = account_proxy_inputs.clone();
+            let accounts = accounts.clone();
+            let codex_rate_limit_status = codex_rate_limit_status.clone();
+            let reset_credit_picker = reset_credit_picker.clone();
+            let flash = flash.clone();
+            let load_error = load_error.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let mut inflight = (*account_action_inflight).clone();
+                inflight.insert(account_name.clone());
+                account_action_inflight.set(inflight);
+
+                match consume_admin_llm_gateway_account_rate_limit_reset_credit(
+                    &account_name,
+                    &request,
+                )
+                .await
                 {
                     Ok(result) => {
+                        let code = result.code.clone();
+                        let windows_reset = result.windows_reset;
+                        let replayed = result.replayed;
                         let updated = result.account;
                         let mut items = (*accounts).clone();
                         if let Some(item) = items.iter_mut().find(|item| item.name == updated.name)
@@ -1144,10 +1257,11 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                             codex_rate_limit_status.set(Some(status));
                         }
                         load_error.set(None);
-                        let message = match result.code.as_str() {
+                        reset_credit_picker.set(None);
+                        let mut message = match code.as_str() {
                             "reset" => format!(
                                 "已使用账号 `{}` 的 reset credit，重置 {} 个窗口",
-                                updated.name, result.windows_reset
+                                updated.name, windows_reset
                             ),
                             "nothing_to_reset" => {
                                 format!("账号 `{}` 当前没有需要重置的限额窗口", updated.name)
@@ -1162,6 +1276,9 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                                 format!("账号 `{}` reset credit 返回 `{}`", updated.name, other)
                             },
                         };
+                        if replayed {
+                            message.push_str("（幂等重放，未再次调用上游）");
+                        }
                         flash.emit((message, false));
                     },
                     Err(err) => {
@@ -1177,6 +1294,29 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                 inflight.remove(&account_name);
                 account_action_inflight.set(inflight);
             });
+        })
+    };
+
+    let on_cancel_account_reset_credit = {
+        let account_action_inflight = account_action_inflight.clone();
+        let reset_credit_picker = reset_credit_picker.clone();
+        Callback::from(move |_: ()| {
+            let busy = (*reset_credit_picker)
+                .as_ref()
+                .is_some_and(|picker| account_action_inflight.contains(&picker.account_name));
+            if !busy {
+                reset_credit_picker.set(None);
+            }
+        })
+    };
+
+    let on_select_account_reset_credit = {
+        let reset_credit_picker = reset_credit_picker.clone();
+        Callback::from(move |selected_credit_id: String| {
+            if let Some(mut picker) = (*reset_credit_picker).clone() {
+                picker.selected_credit_id = selected_credit_id;
+                reset_credit_picker.set(Some(picker));
+            }
         })
     };
 
@@ -2008,7 +2148,7 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                                 let acc_name_for_delete = acc.name.clone();
                                 let acc_name_for_auth_refresh = acc.name.clone();
                                 let acc_name_for_usage_refresh = acc.name.clone();
-                                let acc_name_for_reset_credit_consume = acc.name.clone();
+                                let acc_name_for_reset_credit_open = acc.name.clone();
                                 let acc_name_for_models_probe = acc.name.clone();
                                 let acc_name_for_proxy_change = acc.name.clone();
                                 let acc_name_for_route_weight_tier_change = acc.name.clone();
@@ -2126,8 +2266,8 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                                 let on_probe_account_models = on_probe_account_models.clone();
                                 let on_refresh_account_auth = on_refresh_account_auth.clone();
                                 let on_refresh_account_usage = on_refresh_account_usage.clone();
-                                let on_consume_account_reset_credit =
-                                    on_consume_account_reset_credit.clone();
+                                let on_open_account_reset_credit =
+                                    on_open_account_reset_credit.clone();
                                 let on_toggle_account_status = on_toggle_account_status.clone();
                                 let on_toggle_account_spark_mapping =
                                     on_toggle_account_spark_mapping.clone();
@@ -2412,7 +2552,7 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                                                         "ghost",
                                                         if reset_credit_available { "btn-terminal-primary" } else { "" }
                                                     )}
-                                                    onclick={Callback::from(move |_| on_consume_account_reset_credit.emit(acc_name_for_reset_credit_consume.clone()))}
+                                                    onclick={Callback::from(move |_| on_open_account_reset_credit.emit(acc_name_for_reset_credit_open.clone()))}
                                                     disabled={account_busy || account_disabled || !reset_credit_available}
                                                     title="使用一个 Codex usage limit reset credit"
                                                 >
@@ -2493,6 +2633,101 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                     }
                 </section>
             </div>
+            if let Some(picker) = (*reset_credit_picker).clone() {
+                <Modal
+                    open={true}
+                    title={format!("使用 {} 的 Reset Credit", picker.account_name)}
+                    on_close={on_cancel_account_reset_credit.clone()}
+                >
+                    <div class={classes!("space-y-4")}>
+                        <p class={classes!("m-0", "text-sm", "text-[var(--muted)]")}>
+                            { format!("当前可用 {} 个。此操作会立即消耗一个 credit；取消按钮是默认安全动作。", picker.details.available_count) }
+                        </p>
+                        if picker.details.credits.is_empty() {
+                            <div class={classes!("rounded-lg", "border", "border-amber-500/40", "bg-amber-500/10", "p-3", "text-sm")}>
+                                { "上游没有返回可选择的 credit 明细，将使用兼容的无 credit_id 请求。" }
+                            </div>
+                        } else {
+                            <label class={classes!("grid", "gap-2", "text-sm")}>
+                                <span class={classes!("font-semibold")}>{ "选择要使用的 credit" }</span>
+                                <select
+                                    class={classes!("rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2")}
+                                    value={picker.selected_credit_id.clone()}
+                                    onchange={{
+                                        let on_select_account_reset_credit = on_select_account_reset_credit.clone();
+                                        Callback::from(move |event: Event| {
+                                            if let Some(target) = event.target_dyn_into::<HtmlSelectElement>() {
+                                                on_select_account_reset_credit.emit(target.value());
+                                            }
+                                        })
+                                    }}
+                                >
+                                    <option value="">{ "取消 / 请选择" }</option>
+                                    { for picker.details.credits.iter().filter(|credit| credit.status.eq_ignore_ascii_case("available")).map(|credit| {
+                                        let label = credit.title.as_deref().unwrap_or(&credit.id);
+                                        let expiry = credit.expires_at.as_deref().unwrap_or("无到期时间");
+                                        html! {
+                                            <option value={credit.id.clone()}>
+                                                { format!("{} · {} · {}", label, credit.status, expiry) }
+                                            </option>
+                                        }
+                                    }) }
+                                </select>
+                            </label>
+                            if let Some(selected) = picker
+                                .details
+                                .credits
+                                .iter()
+                                .find(|credit| {
+                                    credit.id == picker.selected_credit_id
+                                        && credit.status.eq_ignore_ascii_case("available")
+                                })
+                            {
+                                <div class={classes!("rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "p-3", "text-sm", "space-y-1")}>
+                                    <div>{ format!("ID: {}", selected.id) }</div>
+                                    <div>{ format!("类型: {}", selected.reset_type) }</div>
+                                    <div>{ format!("授予: {}", selected.granted_at) }</div>
+                                    <div>{ format!("到期: {}", selected.expires_at.as_deref().unwrap_or("无")) }</div>
+                                    if let Some(description) = selected.description.as_deref() {
+                                        <div class={classes!("text-[var(--muted)]")}>{ description }</div>
+                                    }
+                                </div>
+                            }
+                        }
+                        <div class={classes!("modal-actions")}>
+                            <button
+                                type="button"
+                                class={classes!("modal-btn", "modal-btn--ghost")}
+                                disabled={account_action_inflight.contains(&picker.account_name)}
+                                onclick={{
+                                    let on_cancel_account_reset_credit = on_cancel_account_reset_credit.clone();
+                                    Callback::from(move |_| on_cancel_account_reset_credit.emit(()))
+                                }}
+                            >
+                                { "取消" }
+                            </button>
+                            <button
+                                type="button"
+                                class={classes!("modal-btn", "modal-btn--danger")}
+                                disabled={
+                                    account_action_inflight.contains(&picker.account_name)
+                                        || selected_reset_credit_id(
+                                            &picker.details,
+                                            &picker.selected_credit_id,
+                                        )
+                                        .is_err()
+                                }
+                                onclick={{
+                                    let on_confirm_account_reset_credit = on_confirm_account_reset_credit.clone();
+                                    Callback::from(move |_| on_confirm_account_reset_credit.emit(()))
+                                }}
+                            >
+                                { if account_action_inflight.contains(&picker.account_name) { "处理中..." } else { "确认使用" } }
+                            </button>
+                        </div>
+                    </div>
+                </Modal>
+            }
             if let Some((message, is_error)) = (*toast).clone() {
                 <div class={classes!("toasts")}>
                     <div class={classes!("toast", if is_error { "error" } else { "ok" })}>
@@ -2506,7 +2741,60 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_admin_codex_batch_import_json;
+    use super::{parse_admin_codex_batch_import_json, selected_reset_credit_id};
+    use crate::api::{CodexRateLimitResetCreditDetails, CodexRateLimitResetCreditsDetails};
+
+    fn reset_credit_details(
+        credits: Vec<CodexRateLimitResetCreditDetails>,
+    ) -> CodexRateLimitResetCreditsDetails {
+        CodexRateLimitResetCreditsDetails {
+            available_count: 1,
+            credits,
+        }
+    }
+
+    #[test]
+    fn reset_credit_picker_requires_an_explicit_valid_selection_when_details_exist() {
+        let details = reset_credit_details(vec![CodexRateLimitResetCreditDetails {
+            id: "credit-1".to_string(),
+            reset_type: "codex_rate_limits".to_string(),
+            status: "available".to_string(),
+            granted_at: "2026-07-01T00:00:00Z".to_string(),
+            expires_at: None,
+            title: None,
+            description: None,
+        }]);
+
+        assert!(selected_reset_credit_id(&details, "").is_err());
+        assert!(selected_reset_credit_id(&details, "missing").is_err());
+        assert_eq!(
+            selected_reset_credit_id(&details, "credit-1").expect("selected credit"),
+            Some("credit-1".to_string())
+        );
+    }
+
+    #[test]
+    fn reset_credit_picker_uses_legacy_no_id_only_when_no_details_exist() {
+        let details = reset_credit_details(Vec::new());
+
+        assert_eq!(selected_reset_credit_id(&details, "").expect("legacy reset"), None);
+    }
+
+    #[test]
+    fn reset_credit_picker_rejects_unavailable_credit_details() {
+        let details = reset_credit_details(vec![CodexRateLimitResetCreditDetails {
+            id: "credit-used".to_string(),
+            reset_type: "codex_rate_limits".to_string(),
+            status: "consumed".to_string(),
+            granted_at: "2026-07-01T00:00:00Z".to_string(),
+            expires_at: None,
+            title: None,
+            description: None,
+        }]);
+
+        assert!(selected_reset_credit_id(&details, "credit-used").is_err());
+        assert!(selected_reset_credit_id(&details, "").is_err());
+    }
 
     #[test]
     fn parse_admin_codex_batch_import_json_accepts_local_json_array() {

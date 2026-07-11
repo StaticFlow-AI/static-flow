@@ -4297,8 +4297,7 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        admin_kiro_key_total_pages, anthropic_routing_summary,
-        build_kiro_billable_multiplier_override_json,
+        anthropic_routing_summary, build_kiro_billable_multiplier_override_json,
         build_kiro_billable_multiplier_override_patch, build_kiro_cache_policy_override_json,
         build_kiro_cache_policy_override_patch, default_kiro_billable_multiplier_map,
         format_compact_bytes, format_kiro_billable_multiplier_summary,

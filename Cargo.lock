@@ -5952,6 +5952,7 @@ dependencies = [
  "eventsource-stream",
  "flate2",
  "futures-util",
+ "httpdate",
  "llm-access-anthropic-pool",
  "llm-access-codex",
  "llm-access-codex-image",
@@ -6139,6 +6140,7 @@ dependencies = [
  "sqlx-postgres",
  "tokio",
  "tracing",
+ "uuid",
 ]
 
 [[package]]

@@ -10647,16 +10647,86 @@ pub struct ConsumeCodexRateLimitResetCreditResponse {
     pub code: String,
     pub windows_reset: i64,
     pub account: AccountSummaryView,
+    pub replayed: bool,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq, Eq)]
+pub struct ConsumeCodexRateLimitResetCreditRequest {
+    pub idempotency_key: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub credit_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
+#[serde(default)]
+pub struct CodexRateLimitResetCreditsDetails {
+    pub credits: Vec<CodexRateLimitResetCreditDetails>,
+    pub available_count: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
+#[serde(default)]
+pub struct CodexRateLimitResetCreditDetails {
+    pub id: String,
+    pub reset_type: String,
+    pub status: String,
+    pub granted_at: String,
+    pub expires_at: Option<String>,
+    pub title: Option<String>,
+    pub description: Option<String>,
+}
+
+pub async fn fetch_admin_llm_gateway_account_rate_limit_reset_credits(
+    name: &str,
+) -> Result<CodexRateLimitResetCreditsDetails, String> {
+    #[cfg(feature = "mock")]
+    {
+        Ok(CodexRateLimitResetCreditsDetails {
+            available_count: 1,
+            credits: vec![CodexRateLimitResetCreditDetails {
+                id: "mock-reset-credit".to_string(),
+                reset_type: "codex_rate_limits".to_string(),
+                status: "available".to_string(),
+                granted_at: "2026-07-01T00:00:00Z".to_string(),
+                expires_at: None,
+                title: Some(format!("Reset credit for {name}")),
+                description: None,
+            }],
+        })
+    }
+
+    #[cfg(not(feature = "mock"))]
+    {
+        let url = format!(
+            "{}/admin/llm-gateway/accounts/{}/rate-limit-reset-credits",
+            llm_access_admin_base(),
+            urlencoding::encode(name)
+        );
+        let response = api_get(&url)
+            .send()
+            .await
+            .map_err(|e| format!("Network error: {:?}", e))?;
+        if !response.ok() {
+            let text = response.text().await.unwrap_or_default();
+            return Err(format!("Failed: {text}"));
+        }
+        response
+            .json()
+            .await
+            .map_err(|e| format!("Parse error: {:?}", e))
+    }
 }
 
 pub async fn consume_admin_llm_gateway_account_rate_limit_reset_credit(
     name: &str,
+    request: &ConsumeCodexRateLimitResetCreditRequest,
 ) -> Result<ConsumeCodexRateLimitResetCreditResponse, String> {
     #[cfg(feature = "mock")]
     {
         Ok(ConsumeCodexRateLimitResetCreditResponse {
             code: "reset".to_string(),
             windows_reset: 2,
+            replayed: false,
             account: AccountSummaryView {
                 name: name.to_string(),
                 status: "active".to_string(),
@@ -10697,6 +10767,8 @@ pub async fn consume_admin_llm_gateway_account_rate_limit_reset_credit(
             urlencoding::encode(name)
         );
         let response = api_post(&url)
+            .json(request)
+            .map_err(|e| format!("Serialize error: {:?}", e))?
             .send()
             .await
             .map_err(|e| format!("Network error: {:?}", e))?;
@@ -12753,6 +12825,48 @@ pub async fn delete_admin_kiro_account(name: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reset_credit_consume_request_keeps_caller_idempotency_and_optional_credit() {
+        let selected = ConsumeCodexRateLimitResetCreditRequest {
+            idempotency_key: "attempt-1".to_string(),
+            credit_id: Some("credit-1".to_string()),
+        };
+        let selected_json = serde_json::to_value(selected).expect("selected request");
+        assert_eq!(selected_json["idempotency_key"], "attempt-1");
+        assert_eq!(selected_json["credit_id"], "credit-1");
+
+        let generic = ConsumeCodexRateLimitResetCreditRequest {
+            idempotency_key: "attempt-2".to_string(),
+            credit_id: None,
+        };
+        let generic_json = serde_json::to_value(generic).expect("generic request");
+        assert_eq!(generic_json["idempotency_key"], "attempt-2");
+        assert!(generic_json.get("credit_id").is_none());
+    }
+
+    #[test]
+    fn reset_credit_details_preserve_picker_fields() {
+        let details: CodexRateLimitResetCreditsDetails =
+            serde_json::from_value(serde_json::json!({
+                "available_count": 1,
+                "credits": [{
+                    "id": "credit-1",
+                    "reset_type": "codex_rate_limits",
+                    "status": "available",
+                    "granted_at": "2026-07-01T00:00:00Z",
+                    "expires_at": "2026-07-31T00:00:00Z",
+                    "title": "One reset",
+                    "description": "Resets exhausted windows"
+                }]
+            }))
+            .expect("reset-credit details");
+
+        assert_eq!(details.available_count, 1);
+        assert_eq!(details.credits[0].id, "credit-1");
+        assert_eq!(details.credits[0].expires_at.as_deref(), Some("2026-07-31T00:00:00Z"));
+        assert_eq!(details.credits[0].title.as_deref(), Some("One reset"));
+    }
 
     #[test]
     fn image_generation_request_serializes_b64_response_format() {

@@ -4,7 +4,7 @@
 
 **Goal:** Fix the production Codex 429/reset-credit correctness gaps, then synchronize StaticFlow's Codex API behavior with Codex `rust-v0.144.1` and current `main` without prematurely exposing models whose transport contract the gateway cannot satisfy.
 
-**Audit baseline:** `/home/ts_user/rust_pro/codex` was clean and exactly matched upstream `main` at `d2d00b6632dc991aa4471db0529773029cae5d68` on 2026-07-11. The latest stable tag observed was `rust-v0.144.1` (`44918ea10c0f99151c6710411b4322c2f5c96bea`). StaticFlow still defaults to Codex client `0.142.0` and carries the v0.142 bundled catalog.
+**Audit baseline:** `/home/ts_user/rust_pro/codex` was clean at `d2d00b6632dc991aa4471db0529773029cae5d68`. A fresh official fetch on 2026-07-11 moved `origin/main` to `dffe1f02a3c4849478c4f412a69d25af2e6b9359`, 19 commits ahead; the latest stable tag remained `rust-v0.144.1` (`44918ea10c0f99151c6710411b4322c2f5c96bea`) and `rust-v0.145.0-alpha.4` was pre-release only. StaticFlow still defaults to Codex client `0.142.0` and carries the v0.142 bundled catalog. The only new gateway-contract delta in those 19 commits is catalog-driven `supports_reasoning_summary_parameter`; the other changes are client/app-server/runtime surfaces outside this gateway.
 
 **Architecture:** Treat a pinned, audited upstream model catalog as the source of model capabilities, not just a display list. Load its transport profiles before request normalization; account-specific live catalogs may narrow visibility but must not grant capabilities absent from the pinned snapshot. Routing and cooldown decisions must consume explicit catalog/upstream metadata. Keep legacy public aliases as an explicit compatibility overlay. Separate account-wide failures from model-limit failures, and separate read-only reset-credit discovery from explicit, idempotent consumption.
 
@@ -52,6 +52,7 @@ Recommended rollout:
 | Reset credits | Count only; one-click generic consume | Detail list, optional `credit_id`, caller-owned idempotency key, Cancel-first picker | Implement Task 2 |
 | Responses stream | EOF/incomplete can reach local success handling | Only `response.completed` is success | Implement Task 3 |
 | Optional protocol | Drops `stream_options`; misses `bio_policy` terminal classification | Supports sequential-cutoff summaries; treats `bio_policy` as InvalidRequest | Implement Task 7 |
+| Reasoning-summary capability | Always assumes the selected model accepts `reasoning.summary` | `dffe1f02a3` adds `supports_reasoning_summary_parameter`; unsupported models omit both `reasoning.summary` and sequential-cutoff delivery | Add the capability to the pinned profile and gate both fields together |
 
 Pin the imported model catalog to the audited upstream commit in the update commit message or generated-file provenance. Do not silently track an unreviewed moving `main` file.
 
@@ -162,6 +163,7 @@ Pin the imported model catalog to the audited upstream commit in the update comm
 - [ ] Import the audited catalog fields by pinned commit, then retain `gpt-5.3-codex`/Spark only through an explicit, tested compatibility overlay.
 - [ ] Filter every public model/catalog response by effective client version and implemented transport capability. With the runtime still at `0.142.0`, staging this file must not expose any 5.6 entry.
 - [ ] Parse a compact `CodexModelTransportProfile` from the pinned bundled catalog at service start. Include `use_responses_lite`, `tool_mode`, supported reasoning efforts, default reasoning effort, base instructions, and context limits.
+- [ ] Include `supports_reasoning_summary_parameter` in the trusted profile. Default it to `true` only for pinned legacy entries whose source predates the field; never let an account response elevate this capability.
 - [ ] Resolve the pinned transport profile before route/account selection and request normalization; do not branch on hard-coded `gpt-5.6-*` strings. Account-specific live catalogs may only narrow model visibility.
 - [ ] For Lite native Responses, do not inject the legacy global instructions or top-level tools.
 - [ ] On native official-client requests, validate and preserve existing Lite `additional_tools`/developer input items without adding a second copy. Synthesize each prefix exactly once only for Chat/Anthropic adapter requests, matching upstream order.
@@ -230,6 +232,7 @@ Pin the imported model catalog to the audited upstream commit in the update comm
 
 - [ ] Allow the known `stream_options.reasoning_summary_delivery = "sequential_cutoff"` value instead of deleting all `stream_options`.
 - [ ] Preserve it for native requests and emit it from adapters only when selected by an explicit feature/capability.
+- [ ] Omit both `reasoning.summary` and `stream_options.reasoning_summary_delivery` when the selected profile has `supports_reasoning_summary_parameter = false`, matching upstream `dffe1f02a3`.
 - [ ] Treat `bio_policy` as a terminal InvalidRequest code in both preflight and mid-stream error paths.
 - [ ] Carry the original upstream safety machine code through classified errors and synthesized `response.failed` events; do not collapse `invalid_prompt`/`bio_policy` to null or an unrelated generic code.
 - [ ] Preserve the upstream machine code/body for clients; do not fail over or cool down a healthy account for this request error.
@@ -305,4 +308,4 @@ Pin the imported model catalog to the audited upstream commit in the update comm
 
 ## Audit Trail
 
-The source comparison covered model/catalog/version negotiation, Responses/compact bodies and headers, Chat/Anthropic adapters, SSE terminal/error events, rate-limit headers, reset-credit detail/consume APIs, reasoning efforts, tool item variants, session identity, and existing image routes. Relevant upstream changes include Responses Lite (`33cc928d33`), reset-credit details (`58ec5283156c`), Ultra/Max reasoning (`df1199fddb`, `80f54d1266`), sequential reasoning-summary delivery (`775ef7dcc7`), `bio_policy` (`78df1237d1`), namespaced custom tools (`328e95110c`), and always-present Responses reasoning parameters (`d2d00b6632`).
+The source comparison covered model/catalog/version negotiation, Responses/compact bodies and headers, Chat/Anthropic adapters, SSE terminal/error events, rate-limit headers, reset-credit detail/consume APIs, reasoning efforts, tool item variants, session identity, and existing image routes. Relevant upstream changes include Responses Lite (`33cc928d33`), reset-credit details (`58ec5283156c`), Ultra/Max reasoning (`df1199fddb`, `80f54d1266`), sequential reasoning-summary delivery (`775ef7dcc7`), `bio_policy` (`78df1237d1`), namespaced custom tools (`328e95110c`), always-present Responses reasoning parameters (`d2d00b6632`), and model-gated reasoning summaries (`dffe1f02a3`). Official app-server documentation also confirms that reset-credit consumption uses a caller-provided `idempotencyKey`; no automatic background consume API is documented.

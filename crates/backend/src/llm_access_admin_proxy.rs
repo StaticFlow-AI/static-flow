@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use axum::{
     body::{Body, Bytes},
     extract::{OriginalUri, State},
-    http::{header, HeaderMap, Method, StatusCode},
+    http::{header, HeaderMap, HeaderValue, Method, StatusCode},
     response::{Json, Response},
 };
 
@@ -15,6 +15,7 @@ use crate::{
 
 const DEFAULT_LLM_ACCESS_ADMIN_PROXY_BASE_URL: &str = "http://127.0.0.1:19182";
 const LLM_ACCESS_ADMIN_PROXY_BASE_ENV: &str = "STATICFLOW_LLM_ACCESS_ADMIN_BASE";
+const LLM_ACCESS_ADMIN_PROXY_TOKEN_ENV: &str = "STATICFLOW_LLM_ACCESS_ADMIN_TOKEN";
 
 type HandlerResult<T> = Result<T, (StatusCode, Json<ErrorResponse>)>;
 
@@ -22,6 +23,7 @@ type HandlerResult<T> = Result<T, (StatusCode, Json<ErrorResponse>)>;
 pub struct LlmAccessAdminProxyState {
     client: reqwest::Client,
     base_url: reqwest::Url,
+    admin_token: Option<HeaderValue>,
 }
 
 impl LlmAccessAdminProxyState {
@@ -33,11 +35,25 @@ impl LlmAccessAdminProxyState {
             .unwrap_or_else(|| DEFAULT_LLM_ACCESS_ADMIN_PROXY_BASE_URL.to_string());
         let base_url = reqwest::Url::parse(&base_url)
             .with_context(|| format!("invalid {LLM_ACCESS_ADMIN_PROXY_BASE_ENV}"))?;
+        let admin_token = std::env::var(LLM_ACCESS_ADMIN_PROXY_TOKEN_ENV)
+            .ok()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+            .map(|value| {
+                HeaderValue::from_str(&value)
+                    .with_context(|| format!("invalid {LLM_ACCESS_ADMIN_PROXY_TOKEN_ENV}"))
+            })
+            .transpose()?;
         let client = reqwest::Client::builder().build()?;
-        tracing::info!(base_url = %base_url, "llm-access admin proxy initialized");
+        tracing::info!(
+            base_url = %base_url,
+            admin_token_configured = admin_token.is_some(),
+            "llm-access admin proxy initialized"
+        );
         Ok(Arc::new(Self {
             client,
             base_url,
+            admin_token,
         }))
     }
 
@@ -47,6 +63,10 @@ impl LlmAccessAdminProxyState {
 
     pub fn base_url(&self) -> &reqwest::Url {
         &self.base_url
+    }
+
+    fn admin_token(&self) -> Option<&HeaderValue> {
+        self.admin_token.as_ref()
     }
 }
 
@@ -71,6 +91,7 @@ pub async fn proxy_admin_request(
         &normalized,
         &headers,
         body,
+        state.llm_access_admin_proxy.admin_token(),
     )
     .await
     .map_err(bad_gateway)?;
@@ -97,6 +118,7 @@ pub async fn proxy_public_request(
         &normalized,
         &headers,
         body,
+        None,
     )
     .await
     .map_err(bad_gateway)?;
@@ -125,6 +147,7 @@ async fn forward_llm_access_admin_request(
     path_and_query: &str,
     headers: &HeaderMap,
     body: Bytes,
+    upstream_admin_token: Option<&HeaderValue>,
 ) -> Result<Response> {
     let url = join_proxy_url(base_url, path_and_query)?;
     let mut request = client.request(method, url);
@@ -134,7 +157,10 @@ async fn forward_llm_access_admin_request(
     if let Some(value) = headers.get(header::ACCEPT).cloned() {
         request = request.header(header::ACCEPT, value);
     }
-    if let Some(value) = headers.get("x-admin-token").cloned() {
+    if let Some(value) = upstream_admin_token
+        .cloned()
+        .or_else(|| headers.get("x-admin-token").cloned())
+    {
         request = request.header("x-admin-token", value);
     }
     if let Some(value) = headers.get("x-request-id").cloned() {
@@ -217,6 +243,7 @@ mod tests {
         wiremock::Mock::given(wiremock::matchers::method("GET"))
             .and(wiremock::matchers::path("/admin/llm-gateway/usage/metrics"))
             .and(wiremock::matchers::query_param("window", "15m"))
+            .and(wiremock::matchers::header("x-admin-token", "upstream-secret"))
             .respond_with(
                 wiremock::ResponseTemplate::new(200)
                     .insert_header("content-type", "application/json")
@@ -232,6 +259,7 @@ mod tests {
             "/admin/llm-gateway/usage/metrics?window=15m",
             &HeaderMap::new(),
             Bytes::new(),
+            Some(&header::HeaderValue::from_static("upstream-secret")),
         )
         .await
         .expect("forward response");
