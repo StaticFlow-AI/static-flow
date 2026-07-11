@@ -1090,6 +1090,14 @@ pub fn admin_llm_gateway_usage_page() -> Html {
                         <span><span class={classes!("text-[var(--muted)]")}>{ "Out " }</span><span class={classes!("font-semibold")}>{ format_number_u64(usage_totals.output_tokens) }</span></span>
                         <span class={classes!("text-[var(--border)]")}>{ "·" }</span>
                         <span><span class={classes!("text-[var(--muted)]")}>{ "Billable " }</span><span class={classes!("font-semibold")}>{ format_number_u64(usage_totals.billable_tokens) }</span></span>
+                        <span class={classes!("text-[var(--border)]")}>{ "·" }</span>
+                        <span>
+                            <span class={classes!("text-[var(--muted)]")}>{ "Credit " }</span>
+                            <span class={classes!("font-semibold")}>{ format_credit4(usage_totals.credit_total) }</span>
+                            if usage_totals.credit_missing_events > 0 {
+                                <span class={classes!("text-[var(--muted)]")}>{ format!(" · 未计入 {}", usage_totals.credit_missing_events) }</span>
+                            }
+                        </span>
                     </div>
 
                     if !usage_key_query_lower.is_empty() {

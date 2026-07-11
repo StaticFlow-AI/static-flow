@@ -6599,7 +6599,7 @@ pub struct AdminLlmGatewayProxyTrafficQuery {
     pub bucket_ms: Option<i64>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Default)]
 #[serde(default)]
 pub struct AdminUsageTotalsView {
     pub event_count: usize,
@@ -6607,6 +6607,11 @@ pub struct AdminUsageTotalsView {
     pub input_cached_tokens: u64,
     pub output_tokens: u64,
     pub billable_tokens: u64,
+    /// Sum of credit across all matches whose credit could be aggregated.
+    /// Zero when talking to a server predating credit aggregation.
+    pub credit_total: f64,
+    /// Matches whose credit is not included in `credit_total`.
+    pub credit_missing_events: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]

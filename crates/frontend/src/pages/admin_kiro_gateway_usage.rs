@@ -280,20 +280,11 @@ pub fn admin_kiro_gateway_usage_page() -> Html {
         Callback::from(move |_| page.set((*page).saturating_add(1)))
     };
 
-    // Credit rollup over the rows currently on screen. The server-side totals
-    // do not aggregate credit yet, so this is explicitly labeled 本页.
-    let page_credit_total: f64 = (*events)
-        .iter()
-        .filter_map(|event| event.credit_usage)
-        .sum();
-    let page_credit_missing = (*events)
-        .iter()
-        .filter(|event| event.credit_usage_missing)
-        .count();
-    let page_credit_text = if page_credit_missing > 0 {
-        format!("{page_credit_total:.4} · 缺 {page_credit_missing} 条")
+    // Server-aggregated credit over the full matched result set.
+    let matched_credit_text = if totals.credit_missing_events > 0 {
+        format!("{:.4} · 未计入 {} 条", totals.credit_total, totals.credit_missing_events)
     } else {
-        format!("{page_credit_total:.4}")
+        format!("{:.4}", totals.credit_total)
     };
 
     let pager = |on_prev: Callback<MouseEvent>, on_next: Callback<MouseEvent>| {
@@ -474,8 +465,8 @@ pub fn admin_kiro_gateway_usage_page() -> Html {
                             <b>{ format_number_u64(totals.input_cached_tokens) }</b>
                         </div>
                         <div class={classes!("stat")}>
-                            <span>{ "Credits (本页)" }</span>
-                            <b>{ page_credit_text.clone() }</b>
+                            <span>{ "Credits (匹配)" }</span>
+                            <b>{ matched_credit_text.clone() }</b>
                         </div>
                         <div class={classes!("stat")}>
                             <span>{ "Retention" }</span>
