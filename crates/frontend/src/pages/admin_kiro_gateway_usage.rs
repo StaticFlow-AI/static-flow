@@ -17,7 +17,10 @@ use crate::{
         AdminLlmGatewayUsageEventDetailView, AdminLlmGatewayUsageEventView,
         AdminLlmGatewayUsageEventsQuery, AdminUsageTotalsView,
     },
-    pages::llm_access_shared::{format_ms, format_number_u64, usage_error_summary},
+    pages::llm_access_shared::{
+        first_token_latency_color, format_latency_ms, format_ms, format_number_u64,
+        total_latency_color, usage_error_summary,
+    },
     router::Route,
 };
 
@@ -212,63 +215,146 @@ pub fn admin_kiro_gateway_usage_page() -> Html {
                             <span>{ "暂无 usage 记录" }</span>
                         </div>
                     } else {
-                        <div>
-                            { for (*events).iter().map(|event| {
-                                let credit_text = event.credit_usage
-                                    .map(|credit| format!("{credit:.4}"))
-                                    .unwrap_or_else(|| "-".to_string());
-                                let stream_summary = format_usage_stream_summary(
-                                    event.stream_completed_cleanly,
-                                    event.downstream_disconnect,
-                                    event.final_event_type.as_deref(),
-                                    event.bytes_streamed,
-                                );
-                                let error_class_label = event
-                                    .error_class
-                                    .as_deref()
-                                    .map(str::trim)
-                                    .filter(|value| !value.is_empty())
-                                    .map(str::to_string);
-                                let status_error_summary = usage_error_summary(
-                                    event.status_code,
-                                    event.error_message.as_deref(),
-                                    event.error_class.as_deref(),
-                                    event.session_blocked,
-                                );
-                                let anthropic_badge =
-                                    anthropic_routing_badge(event.routing_diagnostics_json.as_deref());
-                                let event_id = event.id.clone();
-                                let on_detail = {
-                                    let open_detail = open_detail.clone();
-                                    let event_id = event_id.clone();
-                                    Callback::from(move |_| open_detail.emit(event_id.clone()))
-                                };
-                                html! {
-                                    <div class={classes!("flex", "flex-wrap", "items-center", "gap-3", "border-b", "border-[var(--border)]", "px-4", "py-2.5", "mono", "last:border-b-0")}>
-                                        <span class={classes!("grid", "gap-0.5", "text-[var(--muted-foreground)]")}>
-                                            <span>{ format_ms(event.created_at) }</span>
-                                            <span class={classes!("max-w-[10rem]", "truncate", "text-[11px]", "text-[var(--faint)]")} title={event_id.clone()}>{ event_id.clone() }</span>
-                                        </span>
-                                        <span class={classes!("font-semibold")}>{ event.key_name.clone() }</span>
-                                        <span class={classes!("text-[var(--muted-foreground)]")}>{ event.model.clone().unwrap_or_else(|| "-".to_string()) }</span>
-                                        <span class={classes!("text-[var(--faint)]")}>{ stream_summary }</span>
-                                        <span class={status_badge_classes(event.status_code)}>{ format!("status {}", event.status_code) }</span>
-                                        if let Some(class_label) = error_class_label {
-                                            <span class={classes!("badge", "failed")}>{ class_label }</span>
+                        <div class={classes!("overflow-x-auto")}>
+                            <table class={classes!("min-w-[56rem]", "w-full", "text-sm")}>
+                                <thead>
+                                    <tr class={classes!("text-left", "text-xs", "text-[var(--muted-foreground)]")}>
+                                        <th class={classes!("py-2", "pl-4", "pr-3", "font-medium")}>{ "时间" }</th>
+                                        <th class={classes!("py-2", "pr-3", "font-medium")}>{ "Key" }</th>
+                                        <th class={classes!("py-2", "pr-3", "font-medium")}>{ "模型" }</th>
+                                        <th class={classes!("py-2", "pr-3", "font-medium")}>{ "状态" }</th>
+                                        <th class={classes!("py-2", "pr-3", "font-medium")}>{ "耗时" }</th>
+                                        <th class={classes!("py-2", "pr-3", "font-medium")}>{ "Tokens" }</th>
+                                        <th class={classes!("py-2", "pr-3", "font-medium")}>{ "Credit" }</th>
+                                        <th class={classes!("py-2", "pr-4")}></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    { for (*events).iter().map(|event| {
+                                        let credit_text = event.credit_usage
+                                            .map(|credit| format!("{credit:.4}"))
+                                            .unwrap_or_else(|| "-".to_string());
+                                        let stream_summary = format_usage_stream_summary(
+                                            event.stream_completed_cleanly,
+                                            event.downstream_disconnect,
+                                            event.final_event_type.as_deref(),
+                                            event.bytes_streamed,
+                                        );
+                                        let error_class_label = event
+                                            .error_class
+                                            .as_deref()
+                                            .map(str::trim)
+                                            .filter(|value| !value.is_empty())
+                                            .map(str::to_string);
+                                        let status_error_summary = usage_error_summary(
+                                            event.status_code,
+                                            event.error_message.as_deref(),
+                                            event.error_class.as_deref(),
+                                            event.session_blocked,
+                                        );
+                                        let anthropic_badge =
+                                            anthropic_routing_badge(event.routing_diagnostics_json.as_deref());
+                                        let latency_color = total_latency_color(event.latency_ms);
+                                        let first_token = event.first_sse_write_ms.map(|first_ms| {
+                                            let first_ms = first_ms.max(0);
+                                            (first_ms, first_token_latency_color(first_ms))
+                                        });
+                                        let tokens_per_second = (event.latency_ms > 0
+                                            && event.output_tokens > 0)
+                                            .then(|| {
+                                                event.output_tokens as f64
+                                                    / (event.latency_ms as f64 / 1000.0)
+                                            });
+                                        let event_id = event.id.clone();
+                                        let on_detail = {
+                                            let open_detail = open_detail.clone();
+                                            let event_id = event_id.clone();
+                                            Callback::from(move |_| open_detail.emit(event_id.clone()))
+                                        };
+                                        html! {
+                                            <tr class={classes!("border-t", "border-[var(--border)]", "align-top")}>
+                                                <td class={classes!("py-2.5", "pl-4", "pr-3", "whitespace-nowrap")}>
+                                                    <div class={classes!("text-xs")}>{ format_ms(event.created_at) }</div>
+                                                    <div class={classes!("mt-0.5", "max-w-[9rem]", "truncate", "mono", "text-[10px]", "text-[var(--faint)]")} title={event.id.clone()}>
+                                                        { event.id.clone() }
+                                                    </div>
+                                                </td>
+                                                <td class={classes!("py-2.5", "pr-3")}>
+                                                    <div class={classes!("max-w-[10rem]", "truncate", "text-xs", "font-semibold")} title={event.key_name.clone()}>
+                                                        { event.key_name.clone() }
+                                                    </div>
+                                                </td>
+                                                <td class={classes!("py-2.5", "pr-3")}>
+                                                    <div class={classes!("max-w-[10rem]", "truncate", "mono", "text-xs", "text-[var(--muted-foreground)]")} title={event.model.clone().unwrap_or_default()}>
+                                                        { event.model.clone().unwrap_or_else(|| "-".to_string()) }
+                                                    </div>
+                                                </td>
+                                                <td class={classes!("py-2.5", "pr-3", "min-w-[12rem]", "max-w-[22rem]")}>
+                                                    <div class={classes!("flex", "flex-wrap", "items-center", "gap-1.5")}>
+                                                        <span class={status_badge_classes(event.status_code)}>{ event.status_code }</span>
+                                                        if let Some(class_label) = error_class_label {
+                                                            <span class={classes!("badge", "failed")}>{ class_label }</span>
+                                                        }
+                                                        if let Some(badge) = anthropic_badge {
+                                                            <span class={classes!("badge", "info")}>{ badge }</span>
+                                                        }
+                                                    </div>
+                                                    if let Some(summary) = status_error_summary {
+                                                        <div class={classes!("mt-1", "max-w-[22rem]", "truncate", "mono", "text-[11px]", "text-[var(--destructive)]")} title={summary.clone()}>
+                                                            { summary }
+                                                        </div>
+                                                    } else {
+                                                        <div class={classes!("mt-1", "max-w-[22rem]", "truncate", "mono", "text-[11px]", "text-[var(--faint)]")} title={stream_summary.clone()}>
+                                                            { stream_summary }
+                                                        </div>
+                                                    }
+                                                </td>
+                                                <td class={classes!("py-2.5", "pr-3", "whitespace-nowrap")}>
+                                                    <span class={classes!("inline-flex", "rounded-full", "border", "px-2", "py-0.5", "text-[11px]", "font-semibold", latency_color.0, latency_color.1, latency_color.2, latency_color.3)}>
+                                                        { format_latency_ms(event.latency_ms) }
+                                                    </span>
+                                                    <div class={classes!("mt-0.5", "flex", "items-center", "gap-1")}>
+                                                        if let Some((first_ms, first_color)) = first_token {
+                                                            <span class={classes!("inline-flex", "rounded-full", "border", "px-1.5", "py-0.5", "text-[10px]", "font-semibold", first_color.0, first_color.1, first_color.2, first_color.3)}>
+                                                                { format!("首字 {}", format_latency_ms(first_ms)) }
+                                                            </span>
+                                                        } else {
+                                                            <span class={classes!("text-[10px]", "text-[var(--faint)]")}>{ "首字 -" }</span>
+                                                        }
+                                                        if let Some(tps) = tokens_per_second {
+                                                            <span class={classes!("text-[10px]", "text-[var(--muted-foreground)]")}>
+                                                                { format!("流 · {tps:.0} t/s") }
+                                                            </span>
+                                                        }
+                                                    </div>
+                                                </td>
+                                                <td class={classes!("py-2.5", "pr-3", "whitespace-nowrap", "mono", "text-[11px]")}>
+                                                    <div>
+                                                        { format!("{} / {}", format_number_u64(event.input_uncached_tokens + event.input_cached_tokens), format_number_u64(event.output_tokens)) }
+                                                    </div>
+                                                    <div class={classes!("text-[var(--faint)]")}>
+                                                        { format!("缓存↓ {}", format_number_u64(event.input_cached_tokens)) }
+                                                    </div>
+                                                </td>
+                                                <td class={classes!("py-2.5", "pr-3", "whitespace-nowrap", "mono", "text-xs")}>
+                                                    { credit_text }
+                                                </td>
+                                                <td class={classes!("py-2.5", "pr-4")}>
+                                                    <button
+                                                        type="button"
+                                                        class={classes!("ghost", "!min-h-0", "!px-2", "!py-1", "text-xs")}
+                                                        title="查看请求详情"
+                                                        aria-label="查看请求详情"
+                                                        onclick={on_detail}
+                                                    >
+                                                        <i class={classes!("fas", "fa-bars-staggered", "text-xs")}></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
                                         }
-                                        if let Some(badge) = anthropic_badge {
-                                            <span class={classes!("badge", "info")}>{ badge }</span>
-                                        }
-                                        if let Some(summary) = status_error_summary {
-                                            <span class={classes!("max-w-[min(28rem,100%)]", "truncate", "text-[var(--destructive)]")} title={summary.clone()}>
-                                                { summary }
-                                            </span>
-                                        }
-                                        <span class={classes!("ml-auto")}>{ format!("credit {credit_text}") }</span>
-                                        <button type="button" class={classes!("text-xs")} onclick={on_detail}>{ "详情" }</button>
-                                    </div>
-                                }
-                            }) }
+                                    }) }
+                                </tbody>
+                            </table>
                         </div>
                         <div class={classes!("pager", "px-4", "pb-3")}>
                             <button type="button" disabled={current_page <= 1 || *loading} onclick={on_prev}>{ "上一页" }</button>
