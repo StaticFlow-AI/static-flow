@@ -1012,7 +1012,7 @@ pub fn admin_llm_gateway_usage_page() -> Html {
                         <div class={classes!("flex", "items-end", "gap-2", "flex-wrap")}>
                             <select
                                 key={format!("usage-source-{}", (*usage_source).clone())}
-                                class={classes!("rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-2.5", "py-1.5", "text-xs")}
+                                class={classes!("w-auto", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-2.5", "py-1.5", "text-xs")}
                                 onchange={on_usage_source_change}
                             >
                                 <option value={USAGE_SOURCE_HOT} selected={*usage_source == USAGE_SOURCE_HOT}>{ "在线" }</option>
@@ -1021,7 +1021,7 @@ pub fn admin_llm_gateway_usage_page() -> Html {
                             </select>
                             <select
                                 key={format!("usage-status-kind-{}", (*usage_status_kind).clone())}
-                                class={classes!("rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-2.5", "py-1.5", "text-xs")}
+                                class={classes!("w-auto", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-2.5", "py-1.5", "text-xs")}
                                 onchange={on_usage_status_kind_change}
                             >
                                 <option value={USAGE_STATUS_KIND_ALL} selected={*usage_status_kind == USAGE_STATUS_KIND_ALL}>{ "全部状态" }</option>
@@ -1143,7 +1143,11 @@ pub fn admin_llm_gateway_usage_page() -> Html {
                         </div>
                     }
 
-                    <div class={classes!("mt-4", "overflow-x-auto", "rounded-xl", "border", "border-[var(--border)]")}>
+                    <div class={classes!("mt-3", "flex", "justify-end")}>
+                        <Pagination current_page={*usage_page} total_pages={usage_total_pages} on_page_change={on_usage_page_change.clone()} />
+                    </div>
+
+                    <div class={classes!("mt-3", "overflow-x-auto", "rounded-xl", "border", "border-[var(--border)]")}>
                         <table class={classes!("min-w-[64rem]", "w-full", "text-sm")}>
                             <thead>
                                 <tr class={classes!("text-left", "text-[var(--muted)]")}>
@@ -1201,7 +1205,7 @@ pub fn admin_llm_gateway_usage_page() -> Html {
                                             event.stream_completed_cleanly == Some(false) && !downstream_disconnect;
                                         html! {
                                             <tr class={classes!("border-t", "border-[var(--border)]", "align-top")}>
-                                                <td class={classes!("py-2.5", "pl-3", "pr-3", "whitespace-nowrap")}>
+                                                <td class={classes!("py-2", "pl-3", "pr-3", "whitespace-nowrap")}>
                                                     <div class={classes!("text-xs")}>{ format_ms(event.created_at) }</div>
                                                     <div class={classes!("mt-0.5", "flex", "items-center", "gap-1")}>
                                                         <span class={classes!("max-w-[7rem]", "truncate", "font-mono", "text-[10px]", "text-[var(--muted)]")} title={event.id.clone()}>
@@ -1210,16 +1214,16 @@ pub fn admin_llm_gateway_usage_page() -> Html {
                                                         { copy_icon_button(&event.id, &on_copy) }
                                                     </div>
                                                 </td>
-                                                <td class={classes!("py-2.5", "pr-3")}>
+                                                <td class={classes!("py-2", "pr-3")}>
                                                     <div class={classes!("text-xs", "font-semibold", "text-[var(--text)]", "truncate", "max-w-[10rem]")} title={event.key_name.clone()}>{ event.key_name.clone() }</div>
-                                                    <div class={classes!("font-mono", "text-[10px]", "text-[var(--muted)]")}>{ event.key_id.clone() }</div>
+                                                    <div class={classes!("max-w-[10rem]", "truncate", "font-mono", "text-[10px]", "text-[var(--muted)]")} title={event.key_id.clone()}>{ event.key_id.clone() }</div>
                                                 </td>
-                                                <td class={classes!("py-2.5", "pr-3")}>
-                                                    <span class={classes!("inline-flex", "rounded-full", "border", "border-emerald-500/20", "bg-emerald-500/10", "px-2", "py-0.5", "text-[11px]", "font-semibold", "text-emerald-700", "dark:text-emerald-200")}>
-                                                        { account_label }
+                                                <td class={classes!("py-2", "pr-3")}>
+                                                    <span class={classes!("inline-flex", "max-w-[11rem]", "rounded-full", "border", "border-emerald-500/20", "bg-emerald-500/10", "px-2", "py-0.5", "text-[11px]", "font-semibold", "text-emerald-700", "dark:text-emerald-200")} title={account_label.clone()}>
+                                                        <span class={classes!("truncate")}>{ account_label.clone() }</span>
                                                     </span>
                                                 </td>
-                                                <td class={classes!("py-2.5", "pr-3")}>
+                                                <td class={classes!("py-2", "pr-3")}>
                                                     <div class={classes!("text-xs", "truncate", "max-w-[10rem]")} title={event.model.clone().unwrap_or_default()}>
                                                         { event.model.clone().unwrap_or_else(|| "-".to_string()) }
                                                     </div>
@@ -1229,7 +1233,7 @@ pub fn admin_llm_gateway_usage_page() -> Html {
                                                         </span>
                                                     }
                                                 </td>
-                                                <td class={classes!("py-2.5", "pr-3", "min-w-[14rem]", "max-w-[24rem]")}>
+                                                <td class={classes!("py-2", "pr-3", "min-w-[14rem]", "max-w-[24rem]")}>
                                                     <div class={classes!("flex", "flex-wrap", "items-center", "gap-1.5")}>
                                                         <span class={classes!(
                                                             "inline-flex", "items-center", "rounded-full", "border", "px-2", "py-0.5", "font-mono", "text-[11px]", "font-semibold",
@@ -1271,16 +1275,16 @@ pub fn admin_llm_gateway_usage_page() -> Html {
                                                         }
                                                     </div>
                                                     if let Some(summary) = status_error_summary.clone() {
-                                                        <div class={classes!("mt-1.5", "max-w-[24rem]", "break-words", "font-mono", "text-[11px]", "leading-relaxed", "text-red-700", "dark:text-red-300")} title={summary.clone()}>
+                                                        <div class={classes!("mt-1", "max-w-[24rem]", "truncate", "font-mono", "text-[11px]", "text-red-700", "dark:text-red-300")} title={summary.clone()}>
                                                             { summary }
                                                         </div>
                                                     }
                                                 </td>
-                                                <td class={classes!("py-2.5", "pr-3", "whitespace-nowrap")}>
-                                                    <span class={classes!("inline-flex", "rounded-full", "border", "px-2", "py-0.5", "text-[11px]", "font-semibold", latency_color.0, latency_color.1, latency_color.2, latency_color.3)}>
-                                                        { format_latency_ms(event.latency_ms) }
-                                                    </span>
-                                                    <div class={classes!("mt-0.5")}>
+                                                <td class={classes!("py-2", "pr-3", "whitespace-nowrap")}>
+                                                    <div class={classes!("flex", "items-center", "gap-1")}>
+                                                        <span class={classes!("inline-flex", "rounded-full", "border", "px-2", "py-0.5", "text-[11px]", "font-semibold", latency_color.0, latency_color.1, latency_color.2, latency_color.3)}>
+                                                            { format_latency_ms(event.latency_ms) }
+                                                        </span>
                                                         if let Some((first_ms, first_color)) = first_token {
                                                             <span class={classes!("inline-flex", "rounded-full", "border", "px-1.5", "py-0.5", "text-[10px]", "font-semibold", first_color.0, first_color.1, first_color.2, first_color.3)}>
                                                                 { format!("首字 {}", format_latency_ms(first_ms)) }
@@ -1290,12 +1294,12 @@ pub fn admin_llm_gateway_usage_page() -> Html {
                                                         }
                                                     </div>
                                                 </td>
-                                                <td class={classes!("py-2.5", "pr-3", "whitespace-nowrap", "font-mono", "text-[11px]")}>
+                                                <td class={classes!("py-2", "pr-3", "whitespace-nowrap", "font-mono", "text-[11px]")}>
                                                     <span class={classes!("text-[var(--muted)]")}>
                                                         { format!("{}/{}/{}", format_number_u64(event.input_uncached_tokens), format_number_u64(event.input_cached_tokens), format_number_u64(event.output_tokens)) }
                                                     </span>
                                                 </td>
-                                                <td class={classes!("py-2.5", "pr-3")}>
+                                                <td class={classes!("py-2", "pr-3")}>
                                                     <button
                                                         type="button"
                                                         class={classes!(
