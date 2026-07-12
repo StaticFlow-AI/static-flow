@@ -40,3 +40,5 @@ in this file.
 | wqalerian | wqalerian@utexas.edu | 321.36 | 1000 | 678.64 | `wqalerian` (exact upstream user-id and quota match; token and email restored) |
 | oorcrofta | oorcrofta@utexas.edu | 338.48 | 1000 | 661.52 | `oorcrofta` (exact upstream user-id and quota match; token and email restored) |
 | shfordsdf | shfordsdf@utexas.edu | 262.65 | 1000 | 737.35 | `shfordsdf` (exact upstream user-id and quota match; token and email restored) |
+| ddggte | reuiiisa@uchicago.edu | 443.87 | 1000 | 556.13 | `ddggte` (exact upstream user-id and quota match; token and email restored; expired `dmit-us` binding replaced with `do-us-2`) |
+| agnoliaqwd | agnolia@utexas.edu | 1000.00 | 1000 | 0.00 | `agnoliaqwd` (exact upstream user-id and quota match; token and email restored; current quota exhausted) |
