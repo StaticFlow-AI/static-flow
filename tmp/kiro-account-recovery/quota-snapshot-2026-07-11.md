@@ -45,3 +45,4 @@ in this file.
 | haedradw | haedra@utexas.edu | 324.33 | 1000 | 675.67 | `haedradw` (exact upstream user-id and quota match; token and email restored) |
 | bbottadq | bbottadq@utexas.edu | 609.18 | 1000 | 390.82 | `bbottadq` (exact upstream user-id and quota match; token and email restored) |
 | verharta | verharta@utexas.edu | 308.99 | 1000 | 691.01 | `verharta` (exact upstream user-id and quota match; token and email restored) |
+| embrookew | embrooke@utexas.edu | 616.36 | 1000 | 383.64 | `embrookew` (exact upstream user-id and quota match; token and email restored) |
