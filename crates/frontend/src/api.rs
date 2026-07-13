@@ -14,7 +14,7 @@ use wasm_bindgen::JsValue;
 #[cfg(feature = "mock")]
 use crate::models;
 
-pub const DEFAULT_LLM_GATEWAY_CODEX_CLIENT_VERSION: &str = "0.142.0";
+pub const DEFAULT_LLM_GATEWAY_CODEX_CLIENT_VERSION: &str = "0.144.1";
 
 fn default_codex_client_version() -> String {
     DEFAULT_LLM_GATEWAY_CODEX_CLIENT_VERSION.to_string()

@@ -27,8 +27,8 @@ extern "C" {
     fn copy_text(text: &str);
 }
 
-const CODEX_FEATURE_SNAPSHOT_VERSION: &str = "v0.142.0";
-const CODEX_FEATURE_SNAPSHOT_DATE: &str = "2026-06-25";
+const CODEX_FEATURE_SNAPSHOT_VERSION: &str = "v0.144.1";
+const CODEX_FEATURE_SNAPSHOT_DATE: &str = "2026-07-13";
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 struct CodexFeatureGuideItem {
