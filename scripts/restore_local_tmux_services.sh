@@ -13,10 +13,15 @@ AI_REVIEW_ENV_FILE="${AI_REVIEW_ENV_FILE:-$ROOT_DIR/.local/llm-access-neon.env}"
 AI_REVIEW_BIN="${AI_REVIEW_BIN:-/mnt/wsl/data4tb/static-flow-data/cargo-target/static_flow/release/llm-access-ai-review}"
 GPT2API_BIN="${GPT2API_BIN:-/mnt/wsl/data4tb/static-flow-data/cargo-target/gpt2api_rs/release/gpt2api-rs}"
 GPT2API_TARGET_DIR="${GPT2API_TARGET_DIR:-/mnt/wsl/data4tb/static-flow-data/cargo-target/gpt2api_rs/release}"
+ANTIGRAVITY_DIR="${ANTIGRAVITY_DIR:-$ROOT_DIR/deps/AntigravityManager}"
+ANTIGRAVITY_CONFIG_FILE="${ANTIGRAVITY_CONFIG_FILE:-$HOME/.antigravity-agent/gui_config.json}"
 MEDIA_ROOT="${MEDIA_ROOT:-/mnt/e/videos/static}"
 HOME_PBMAPPER_SERVER="${HOME_PBMAPPER_SERVER:-lb7666.top:7666}"
 
 DRY_RUN=0
+STRICT_READINESS=0
+FULL_RECOVERY=0
+WITH_ANTIGRAVITY=0
 WITH_AI_REVIEW=0
 ONLY_STATUS=0
 
@@ -28,7 +33,8 @@ q() { printf '%q' "$1"; }
 usage() {
   cat <<'EOF'
 Usage:
-  ./scripts/restore_local_tmux_services.sh [--dry-run] [--with-ai-review]
+  ./scripts/restore_local_tmux_services.sh [--dry-run] [--strict] [--full]
+  ./scripts/restore_local_tmux_services.sh [--with-antigravity] [--with-ai-review]
   ./scripts/restore_local_tmux_services.sh status
 
 Restores the local tmux-supervised service set after a reboot:
@@ -40,8 +46,13 @@ Restores the local tmux-supervised service set after a reboot:
   - pbmapper-home-ubuntu-aws
   - gpt2api-rs
 
-AI review is intentionally opt-in:
+Optional services:
+  --with-antigravity starts Antigravity Manager and verifies its authenticated API.
   --with-ai-review starts sf-ai-review, sf-ai-review-ui, and pbmapper-ai-review-ui-aws.
+  --full enables both optional service groups and verifies the local /llm-access route.
+  --strict exits immediately when a service does not become ready.
+
+AI review is intentionally opt-in unless --full is used:
   It only registers the local UI through pbmapper; it does not create a public Caddy route.
 EOF
 }
@@ -50,6 +61,20 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run)
       DRY_RUN=1
+      shift
+      ;;
+    --strict)
+      STRICT_READINESS=1
+      shift
+      ;;
+    --full)
+      FULL_RECOVERY=1
+      WITH_ANTIGRAVITY=1
+      WITH_AI_REVIEW=1
+      shift
+      ;;
+    --with-antigravity)
+      WITH_ANTIGRAVITY=1
       shift
       ;;
     --with-ai-review)
@@ -72,6 +97,33 @@ done
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || fail "missing command: $1"
+}
+
+node_toolchain_supported() {
+  local npm_major
+
+  command -v node >/dev/null 2>&1 || return 1
+  command -v npm >/dev/null 2>&1 || return 1
+  node -e '
+    const [major, minor] = process.versions.node.split(".").map(Number);
+    process.exit(major > 22 || (major === 22 && minor >= 14) ? 0 : 1);
+  ' || return 1
+  npm_major="$(npm --version | cut -d. -f1)"
+  [[ "$npm_major" =~ ^[0-9]+$ && "$npm_major" -ge 10 ]]
+}
+
+ensure_node_toolchain() {
+  if node_toolchain_supported; then
+    return
+  fi
+
+  export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+  if [[ -s "$NVM_DIR/nvm.sh" ]]; then
+    # shellcheck source=/dev/null
+    source "$NVM_DIR/nvm.sh"
+    nvm use --silent default >/dev/null
+  fi
+  node_toolchain_supported || fail "Antigravity Manager requires Node >=22.14 and npm >=10"
 }
 
 session_exists() {
@@ -102,6 +154,13 @@ start_tmux() {
   tmux new-session -d -s "$session" -c "$ROOT_DIR" "exec /usr/bin/bash -lc $quoted"
 }
 
+readiness_failure() {
+  if [[ "$STRICT_READINESS" == "1" ]]; then
+    fail "$1"
+  fi
+  warn "$1"
+}
+
 wait_http() {
   local name="$1"
   local url="$2"
@@ -112,13 +171,13 @@ wait_http() {
   fi
 
   for _ in $(seq 1 "$attempts"); do
-    if curl -fsS "$url" >/dev/null 2>&1; then
+    if curl -fsS --connect-timeout 1 --max-time 3 "$url" >/dev/null 2>&1; then
       log "ready $name: $url"
       return
     fi
     sleep 0.5
   done
-  warn "$name did not become ready yet: $url"
+  readiness_failure "$name did not become ready: $url"
 }
 
 wait_tcp() {
@@ -137,14 +196,14 @@ wait_tcp() {
     fi
     sleep 0.5
   done
-  warn "$name did not open port yet: 127.0.0.1:$port"
+  readiness_failure "$name did not open port: 127.0.0.1:$port"
 }
 
 print_status() {
   log "tmux sessions"
-  tmux list-sessions 2>/dev/null | grep -E '^(sf-|pbmapper-|gpt2api-rs)' || true
+  tmux list-sessions 2>/dev/null | grep -E '^(sf-|pbmapper-|gpt2api-rs|antigravity-manager)' || true
   log "listening ports"
-  ss -ltnp 2>/dev/null | grep -E ':(18787|19182|19190|19191|39080|39081|39085|39180)\b' || true
+  ss -ltnp 2>/dev/null | grep -E ':(8045|18787|19182|19190|19191|39080|39081|39085|39180)\b' || true
 }
 
 active_slot() {
@@ -172,12 +231,14 @@ start_backend() {
   local port
   local cmd
 
-  [[ -x "$BACKEND_BIN" ]] || fail "missing executable: $BACKEND_BIN"
+  if [[ "$DRY_RUN" != "1" ]]; then
+    [[ -x "$BACKEND_BIN" ]] || fail "missing executable: $BACKEND_BIN"
+  fi
   slot="$(active_slot)"
   [[ "$slot" == "blue" || "$slot" == "green" ]] || fail "unsupported active_upstream=$slot"
   port="$(slot_port "$slot")"
 
-  if port_listening "$port" && ! session_exists "sf-backend-$slot"; then
+  if [[ "$DRY_RUN" != "1" ]] && port_listening "$port" && ! session_exists "sf-backend-$slot"; then
     warn "127.0.0.1:$port is already listening but sf-backend-$slot tmux session is absent; leaving existing process untouched"
     return
   fi
@@ -217,11 +278,81 @@ start_pbmapper_home_ubuntu() {
 
 start_gpt2api() {
   local cmd
-  [[ -x "$GPT2API_BIN" ]] || fail "missing executable: $GPT2API_BIN"
+  if [[ "$DRY_RUN" != "1" ]]; then
+    [[ -x "$GPT2API_BIN" ]] || fail "missing executable: $GPT2API_BIN"
+  fi
   [[ -f "$ROOT_DIR/conf/gpt2api-rs.json" ]] || fail "missing conf/gpt2api-rs.json"
   cmd="cd $(q "$ROOT_DIR") && ADMIN_TOKEN=\$(jq -r .admin_token conf/gpt2api-rs.json) && exec env LD_LIBRARY_PATH=$(q "$GPT2API_TARGET_DIR/deps") SITE_BASE_URL=https://ackingliu.top GPT2API_PUBLIC_BASE_URL=https://ackingliu.top GPT2API_EMAIL_ACCOUNTS_FILE=$(q "$ROOT_DIR/crates/backend/.local/email_accounts.json") $(q "$GPT2API_BIN") serve --listen 127.0.0.1:18787 --storage-dir /mnt/wsl/data4tb/static-flow-data/gpt2api-rs --admin-token \"\$ADMIN_TOKEN\""
   start_tmux "gpt2api-rs" "$cmd"
   wait_http "gpt2api-rs" "http://127.0.0.1:18787/healthz" 40
+}
+
+antigravity_port() {
+  jq -er '
+    (.proxy.port // 8045)
+    | if type == "number" and . >= 1 and . <= 65535 then . else error("invalid proxy port") end
+  ' "$ANTIGRAVITY_CONFIG_FILE"
+}
+
+antigravity_ready() {
+  local api_key
+  local port
+
+  [[ -f "$ANTIGRAVITY_CONFIG_FILE" ]] || return 1
+  port="$(antigravity_port)" || return 1
+  api_key="$(jq -er '.proxy.api_key | select(type == "string" and length > 0)' "$ANTIGRAVITY_CONFIG_FILE")" || return 1
+
+  curl -fsS --connect-timeout 1 --max-time 3 \
+    --header @<(printf 'Authorization: Bearer %s\n' "$api_key") \
+    "http://127.0.0.1:${port}/v1/models" >/dev/null 2>&1
+}
+
+wait_antigravity() {
+  local attempts="${1:-120}"
+  local port
+
+  if [[ "$DRY_RUN" == "1" ]]; then
+    return
+  fi
+
+  port="$(antigravity_port)"
+  for _ in $(seq 1 "$attempts"); do
+    if antigravity_ready; then
+      log "ready antigravity-manager: 127.0.0.1:$port"
+      return
+    fi
+    sleep 0.5
+  done
+  readiness_failure "antigravity-manager did not become ready: 127.0.0.1:$port"
+}
+
+start_antigravity() {
+  local cmd
+  local port
+
+  [[ -d "$ANTIGRAVITY_DIR" ]] || fail "missing Antigravity Manager checkout: $ANTIGRAVITY_DIR"
+  [[ -f "$ANTIGRAVITY_CONFIG_FILE" ]] || fail "missing Antigravity Manager config: $ANTIGRAVITY_CONFIG_FILE"
+  [[ -d "$ANTIGRAVITY_DIR/node_modules" ]] || fail "missing Antigravity Manager node_modules: $ANTIGRAVITY_DIR/node_modules"
+  jq -e '.proxy.auto_start == true' "$ANTIGRAVITY_CONFIG_FILE" >/dev/null \
+    || fail "Antigravity Manager proxy.auto_start must be true"
+  ANTIGRAVITY_DIR="$ANTIGRAVITY_DIR" "$ROOT_DIR/scripts/start_antigravity_manager.sh" --check
+  port="$(antigravity_port)"
+
+  if [[ "$DRY_RUN" != "1" ]] && antigravity_ready; then
+    if ! session_exists "antigravity-manager"; then
+      warn "Antigravity Manager is ready on port $port but its tmux session is absent; leaving it untouched"
+    else
+      log "skip antigravity-manager: service is already ready"
+    fi
+    return
+  fi
+  if [[ "$DRY_RUN" != "1" ]] && port_listening "$port" && ! session_exists "antigravity-manager"; then
+    fail "127.0.0.1:$port is occupied but Antigravity Manager is not healthy"
+  fi
+
+  cmd="cd $(q "$ROOT_DIR") && export PATH=$(q "$PATH") && ANTIGRAVITY_DIR=$(q "$ANTIGRAVITY_DIR") exec ./scripts/start_antigravity_manager.sh"
+  start_tmux "antigravity-manager" "$cmd"
+  wait_antigravity 120
 }
 
 start_ai_review() {
@@ -229,17 +360,26 @@ start_ai_review() {
   local ui_cmd
   local pbmapper_cmd
 
-  [[ -x "$AI_REVIEW_BIN" ]] || fail "missing executable: $AI_REVIEW_BIN"
+  if [[ "$DRY_RUN" != "1" ]]; then
+    [[ -x "$AI_REVIEW_BIN" ]] || fail "missing executable: $AI_REVIEW_BIN"
+  fi
   [[ -f "$AI_REVIEW_ENV_FILE" ]] || fail "missing ai review env file: $AI_REVIEW_ENV_FILE"
-  api_cmd="cd $(q "$ROOT_DIR") && if [[ -f /home/ts_user/.antigravity-agent/gui_config.json ]]; then export ANTIGRAVITY_MANAGER_API_KEY=\$(jq -r '.proxy.api_key // .api_key // empty' /home/ts_user/.antigravity-agent/gui_config.json); fi && exec $(q "$AI_REVIEW_BIN") --env-file $(q "$AI_REVIEW_ENV_FILE") serve --bind 127.0.0.1:19190"
-  ui_cmd="cd $(q "$ROOT_DIR/crates/llm-access-ai-review/ui") && npm run build && exec npm run preview"
+  api_cmd="cd $(q "$ROOT_DIR") && if [[ -f $(q "$ANTIGRAVITY_CONFIG_FILE") ]]; then export ANTIGRAVITY_MANAGER_API_KEY=\$(jq -r '.proxy.api_key // .api_key // empty' $(q "$ANTIGRAVITY_CONFIG_FILE")); fi && exec $(q "$AI_REVIEW_BIN") --env-file $(q "$AI_REVIEW_ENV_FILE") serve --bind 127.0.0.1:19190"
+  ui_cmd="cd $(q "$ROOT_DIR/crates/llm-access-ai-review/ui") && export PATH=$(q "$PATH") && npm run build && exec npm run preview"
   pbmapper_cmd="cd $(q "$ROOT_DIR") && set -a && . .local/pbmapper/sf-backend.env && set +a && SERVICE_KEY=ai-review-ui && LOCAL_ADDR=127.0.0.1:19191 && exec pb-mapper-server-cli tcp-server --key \"\$SERVICE_KEY\" --addr \"\$LOCAL_ADDR\""
 
   start_tmux "sf-ai-review" "$api_cmd"
   wait_http "sf-ai-review" "http://127.0.0.1:19190/api/ai-review/health" 60
   start_tmux "sf-ai-review-ui" "$ui_cmd"
-  wait_http "sf-ai-review-ui" "http://127.0.0.1:19191/api/ai-review/health" 60
+  wait_http "sf-ai-review-ui" "http://127.0.0.1:19191/api/ai-review/health" 120
   start_tmux "pbmapper-ai-review-ui-aws" "$pbmapper_cmd"
+}
+
+verify_full_recovery() {
+  wait_http "gateway-health" "http://127.0.0.1:39180/api/healthz" 20
+  wait_http "llm-access-page" "http://127.0.0.1:39180/llm-access" 20
+  wait_antigravity 20
+  wait_http "sf-ai-review" "http://127.0.0.1:19190/api/ai-review/health" 20
 }
 
 main() {
@@ -263,11 +403,23 @@ main() {
   start_pbmapper_home_ubuntu
   start_gpt2api
 
+  if [[ "$WITH_ANTIGRAVITY" == "1" ]]; then
+    require_command git
+    ensure_node_toolchain
+    start_antigravity
+  else
+    log "skip Antigravity Manager: use --with-antigravity or --full to restore it"
+  fi
+
   if [[ "$WITH_AI_REVIEW" == "1" ]]; then
-    require_command npm
+    ensure_node_toolchain
     start_ai_review
   else
-    log "skip ai review: use --with-ai-review when you explicitly want it restored"
+    log "skip ai review: use --with-ai-review or --full to restore it"
+  fi
+
+  if [[ "$FULL_RECOVERY" == "1" ]]; then
+    verify_full_recovery
   fi
 
   print_status
