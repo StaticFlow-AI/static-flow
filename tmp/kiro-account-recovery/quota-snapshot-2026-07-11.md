@@ -66,3 +66,4 @@ in this file.
 | Bradtkez | Bradtkez@asu.edu | 349.81 | 1000 | 650.19 | `laohan27` (exact upstream user-id and quota match; token and email restored) |
 | Naderxxz | Naderxxz@asu.edu | 398.43 | 1000 | 601.57 | `laohan28` (exact upstream user-id and quota match; token and email restored) |
 | deckoww | deckoww@asu.edu | 521.20 | 1000 | 478.80 | `laohan29` (exact upstream user-id match; token and email restored) |
+| kertzmann1 | kertzmann@asu.edu | 419.93 | 1000 | 580.07 | `laohan30` (exact upstream user-id and quota match; token and email restored) |
