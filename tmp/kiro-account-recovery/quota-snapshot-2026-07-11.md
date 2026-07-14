@@ -59,3 +59,4 @@ in this file.
 | Thompsonx | Thompsonx@asu.edu | 379.80 | 1000 | 620.20 | `laohan20` (exact upstream user-id and quota match; token and email restored) |
 | Julianazzzx | Julianaz@asu.edu | 334.66 | 1000 | 665.34 | `laohan21` (exact upstream user-id and quota match; token and email restored) |
 | Leslieex | Leslieex@asu.edu | 506.95 | 1000 | 493.05 | `laohan22` (exact upstream user-id and quota match; token and email restored) |
+| Yazminz | Yazmin@asu.edu | 468.84 | 1000 | 531.16 | `laohan23` (exact upstream user-id and quota match; token and email restored) |
