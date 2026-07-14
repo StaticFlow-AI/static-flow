@@ -54,3 +54,4 @@ in this file.
 | arlowew | arlowew@utexas.edu | 454.23 | 1000 | 545.77 | `arlowew` (exact upstream user-id and quota match; token and email restored) |
 | deoqew | deoqew@utexas.edu | 1000.00 | 1000 | 0.00 | `deoqew` (exact upstream user-id and quota match; token and email restored; current quota exhausted) |
 | tellanfs | tellanfs@utexas.edu | 378.06 | 1000 | 621.94 | `tellanfs` (exact upstream user-id and quota match; token and email restored) |
+| ghtingalew | ghtingalew@utexas.edu | 374.56 | 1000 | 625.44 | `ghtingalew` (exact upstream user-id and quota match; token and email restored) |
