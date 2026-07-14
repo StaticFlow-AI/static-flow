@@ -48,3 +48,4 @@ in this file.
 | embrookew | embrooke@utexas.edu | 616.36 | 1000 | 383.64 | `embrookew` (exact upstream user-id and quota match; token and email restored) |
 | unfieldgt | unfield@utexas.edu | 350.98 | 1000 | 649.02 | `unfieldgt` (exact upstream user-id and quota match; token and email restored) |
 | elestineaw | elestineaw@utexas.edu | 495.24 | 1000 | 504.76 | `elestineaw` (exact requested GitHub login/account/email match; original cache had no upstream user-id; token and email restored) |
+| allowayw | allowayw@utexas.edu | 464.61 | 1000 | 535.39 | `allowayw` (exact upstream user-id and quota match; token and email restored) |
