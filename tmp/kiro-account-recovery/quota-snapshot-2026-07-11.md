@@ -55,3 +55,4 @@ in this file.
 | deoqew | deoqew@utexas.edu | 1000.00 | 1000 | 0.00 | `deoqew` (exact upstream user-id and quota match; token and email restored; current quota exhausted) |
 | tellanfs | tellanfs@utexas.edu | 378.06 | 1000 | 621.94 | `tellanfs` (exact upstream user-id and quota match; token and email restored) |
 | ghtingalew | ghtingalew@utexas.edu | 374.56 | 1000 | 625.44 | `ghtingalew` (exact upstream user-id and quota match; token and email restored) |
+| Christiansenx | Christiansen@asu.edu | 627.44 | 1000 | 372.56 | `laohan19` (exact upstream user-id and quota match; token and email restored) |
