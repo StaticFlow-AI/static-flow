@@ -56,3 +56,4 @@ in this file.
 | tellanfs | tellanfs@utexas.edu | 378.06 | 1000 | 621.94 | `tellanfs` (exact upstream user-id and quota match; token and email restored) |
 | ghtingalew | ghtingalew@utexas.edu | 374.56 | 1000 | 625.44 | `ghtingalew` (exact upstream user-id and quota match; token and email restored) |
 | Christiansenx | Christiansen@asu.edu | 627.44 | 1000 | 372.56 | `laohan19` (exact upstream user-id and quota match; token and email restored) |
+| Thompsonx | Thompsonx@asu.edu | 379.80 | 1000 | 620.20 | `laohan20` (exact upstream user-id and quota match; token and email restored) |
