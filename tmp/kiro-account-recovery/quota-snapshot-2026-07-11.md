@@ -69,3 +69,4 @@ in this file.
 | kertzmann1 | kertzmann@asu.edu | 419.93 | 1000 | 580.07 | `laohan30` (exact upstream user-id and quota match; token and email restored) |
 | sschiller1 | sschiller@asu.edu | 552.05 | 1000 | 447.95 | `laohan31` (exact upstream user-id and quota match; token and email restored) |
 | ddenesikk | ddenesikk@asu.edu | 380.14 | 1000 | 619.86 | `laohan32` (exact upstream user-id match; token and email restored) |
+| Dooleyyy | Dooleyyy@asu.edu | 406.52 | 1000 | 593.48 | `laohan33` (exact upstream user-id and quota match; token and email restored) |
