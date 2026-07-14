@@ -1,0 +1,4 @@
+interface:
+  display_name: "Google Password Rotator"
+  short_description: "Rotate Google passwords and set the preferred language securely."
+  default_prompt: "Use $google-password-rotator to rotate a Google account password, set English as the preferred language, and optionally complete 2fa.fun verification in an isolated browser."
