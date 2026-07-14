@@ -50,3 +50,4 @@ in this file.
 | elestineaw | elestineaw@utexas.edu | 495.24 | 1000 | 504.76 | `elestineaw` (exact requested GitHub login/account/email match; original cache had no upstream user-id; token and email restored) |
 | allowayw | allowayw@utexas.edu | 464.61 | 1000 | 535.39 | `allowayw` (exact upstream user-id and quota match; token and email restored) |
 | ghtingaleaw | ghtingaleaw@utexas.edu | 434.14 | 1000 | 565.86 | `ghtingaleaw` (exact upstream user-id and quota match; token and email restored) |
+| orvalede | orvalede@utexas.edu | 670.25 | 1000 | 329.75 | `orvalede` (exact upstream user-id and quota match; token and email restored) |
