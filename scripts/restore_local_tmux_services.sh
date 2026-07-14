@@ -272,7 +272,8 @@ start_pbmapper_llm_access() {
 
 start_pbmapper_home_ubuntu() {
   local cmd
-  cmd="cd $(q "$ROOT_DIR") && PB_MAPPER_SERVER=$(q "$HOME_PBMAPPER_SERVER") exec pb-mapper-server-cli -p $(q "$HOME_PBMAPPER_SERVER") tcp-server --key home-ubuntu --addr 127.0.0.1:22"
+  [[ -f "$ROOT_DIR/.local/pbmapper/cloud-server.env" ]] || fail "missing .local/pbmapper/cloud-server.env"
+  cmd="cd $(q "$ROOT_DIR") && set -a && . .local/pbmapper/cloud-server.env && set +a && PB_MAPPER_SERVER=$(q "$HOME_PBMAPPER_SERVER") exec pb-mapper-server-cli -p $(q "$HOME_PBMAPPER_SERVER") tcp-server --key home-ubuntu --addr 127.0.0.1:22"
   start_tmux "pbmapper-home-ubuntu-aws" "$cmd"
 }
 
