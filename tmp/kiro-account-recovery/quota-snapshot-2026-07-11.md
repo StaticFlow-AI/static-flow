@@ -73,3 +73,4 @@ in this file.
 | Bergstromx | Bergstrom@asu.edu | 721.49 | 1000 | 278.51 | `laohan34` (exact upstream user-id and quota match; token and email restored) |
 | Martinexxxz | Martinex@asu.edu | 436.60 | 1000 | 563.40 | `laohan35` (exact upstream user-id match; token and email restored) |
 | Kassulkee | Kassulke@asu.edu | 402.93 | 1000 | 597.07 | `laohan36` (exact upstream user-id and quota match; token and email restored) |
+| Scottieeex | Scottieee@asu.edu | 839.43 | 1000 | 160.57 | `laohan37` (exact upstream user-id and quota match; token and email restored) |
