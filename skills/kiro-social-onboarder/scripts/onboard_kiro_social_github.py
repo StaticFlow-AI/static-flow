@@ -4,7 +4,8 @@
 The script intentionally avoids `kiro-cli logout`. It edits only known Kiro
 auth metadata keys, writes social auth after device approval, and never prints
 raw token values. GitHub login can be prefilled from environment-provided
-credentials; 2FA and unusual verification stay manual in the launched browser.
+credentials; 2FA and unusual verification stay manual in the launched browser
+unless a specialized browser driver handles them.
 """
 
 from __future__ import annotations
@@ -363,8 +364,9 @@ def start_device_flow_helper(
     port: int,
     github_password: str | None = None,
 ) -> subprocess.Popen[Any]:
-    if not NODE_DRIVER.is_file():
-        raise FileNotFoundError(f"Node DevTools driver not found: {NODE_DRIVER}")
+    driver = args.browser_driver or NODE_DRIVER
+    if not driver.is_file():
+        raise FileNotFoundError(f"Node DevTools driver not found: {driver}")
     if not shutil.which("node"):
         raise RuntimeError("node is required for browser automation")
     env = os.environ.copy()
@@ -379,7 +381,7 @@ def start_device_flow_helper(
         env["KIRO_GITHUB_LOGIN"] = github_login
         env["KIRO_GITHUB_PASSWORD"] = github_password
     return subprocess.Popen(
-        ["node", str(NODE_DRIVER)],
+        ["node", str(driver)],
         env=env,
         stdout=None,
         stderr=None,
@@ -442,7 +444,12 @@ def launch_chrome(args: argparse.Namespace, url: str) -> tuple[subprocess.Popen[
         f"--remote-debugging-port={port}",
         url,
     ]
-    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=args.keep_browser,
+    )
     return proc, port, profile_dir
 
 
@@ -451,6 +458,18 @@ def wait_for_page_target(port: int) -> None:
     page = next((item for item in pages if item.get("type") == "page"), None)
     if not page:
         raise RuntimeError("Chrome DevTools page target not found")
+
+
+def open_page_target(port: int, url: str) -> None:
+    encoded = urllib.parse.quote(url, safe="")
+    req = urllib.request.Request(
+        f"http://127.0.0.1:{port}/json/new?{encoded}", method="PUT"
+    )
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    with opener.open(req, timeout=10) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+    if payload.get("type") != "page":
+        raise RuntimeError("Chrome DevTools did not create an authorization page")
 
 
 def run_kiro_whoami(args: argparse.Namespace) -> str:
@@ -479,6 +498,8 @@ def parse_whoami_email(output: str) -> str | None:
 
 
 def resolve_github_login(args: argparse.Namespace) -> str | None:
+    if args.github_via_google:
+        return None
     login = field(vars(args), "github_login")
     if login is not None:
         return str(login)
@@ -488,6 +509,8 @@ def resolve_github_login(args: argparse.Namespace) -> str | None:
 
 
 def resolve_github_password(args: argparse.Namespace, github_login: str | None) -> str | None:
+    if args.github_via_google:
+        return None
     password = os.environ.get(args.password_env)
     if password:
         return password
@@ -727,6 +750,16 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         ),
     )
     parser.add_argument("--password-env", default="KIRO_GITHUB_PASSWORD")
+    parser.add_argument(
+        "--github-via-google",
+        action="store_true",
+        help="Use a specialized browser driver for GitHub sign-in through Google",
+    )
+    parser.add_argument(
+        "--browser-driver",
+        type=Path,
+        help="Override the DevTools browser driver while reusing the Kiro device/import flow",
+    )
     parser.add_argument("--replace-account", action="store_true")
     parser.add_argument("--delete-account-name", action="append", default=[])
     parser.add_argument("--manual-timeout-seconds", type=int, default=600)
@@ -738,6 +771,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--chrome-bin")
     parser.add_argument("--chrome-profile")
     parser.add_argument("--debug-port", type=int)
+    parser.add_argument(
+        "--attach-debug-port",
+        type=int,
+        help="Reuse an existing isolated Chrome session for a fresh Kiro device code",
+    )
     parser.add_argument("--keep-browser", action="store_true")
     return parser.parse_args(argv)
 
@@ -770,7 +808,11 @@ def main(argv: list[str]) -> int:
     helper: subprocess.Popen[Any] | None = None
     profile_dir: str | None = None
     try:
-        proc, port, profile_dir = launch_chrome(args, verify_url)
+        if args.attach_debug_port:
+            port = args.attach_debug_port
+            open_page_target(port, verify_url)
+        else:
+            proc, port, profile_dir = launch_chrome(args, verify_url)
         wait_for_page_target(port)
         helper = start_device_flow_helper(args, port, github_password)
         token_payload = poll_device_token(

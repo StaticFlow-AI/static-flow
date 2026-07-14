@@ -1,0 +1,4 @@
+interface:
+  display_name: "Kiro GitHub via Google Onboarder"
+  short_description: "Onboard Kiro through GitHub and Google securely."
+  default_prompt: "Use $kiro-github-google-onboarder to sign in to Kiro through GitHub with Google credentials and complete both 2FA challenges."

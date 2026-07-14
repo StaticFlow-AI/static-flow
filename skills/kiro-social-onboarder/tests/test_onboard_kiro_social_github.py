@@ -96,6 +96,114 @@ class KiroSocialGithubOnboarderTest(unittest.TestCase):
         self.assertIsNone(args.account_name)
         self.assertFalse(args.replace_account)
 
+    def test_github_via_google_disables_github_password_prompt(self):
+        args = module.parse_args(
+            ["--account-name", "kiro-google-chain", "--github-via-google"]
+        )
+
+        self.assertIsNone(module.resolve_github_login(args))
+        self.assertIsNone(module.resolve_github_password(args, None))
+
+    def test_browser_helper_accepts_specialized_driver(self):
+        calls = []
+
+        class FakeProcess:
+            pass
+
+        def fake_popen(cmd, env, **kwargs):
+            calls.append((cmd, env, kwargs))
+            return FakeProcess()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            driver = Path(tmp) / "driver.mjs"
+            driver.write_text("// test driver\n", encoding="utf-8")
+            args = module.parse_args(
+                [
+                    "--account-name",
+                    "kiro-google-chain",
+                    "--github-via-google",
+                    "--browser-driver",
+                    str(driver),
+                ]
+            )
+            original_which = module.shutil.which
+            original_popen = module.subprocess.Popen
+            module.shutil.which = lambda name: "/usr/bin/node" if name == "node" else None
+            module.subprocess.Popen = fake_popen
+            try:
+                process = module.start_device_flow_helper(args, 9222)
+            finally:
+                module.shutil.which = original_which
+                module.subprocess.Popen = original_popen
+
+        self.assertIsInstance(process, FakeProcess)
+        self.assertEqual(calls[0][0], ["node", str(driver)])
+
+    def test_open_page_target_uses_put_without_external_proxy(self):
+        calls = []
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return None
+
+            def read(self):
+                return b'{"type":"page"}'
+
+        class FakeOpener:
+            def open(self, request, timeout):
+                calls.append((request, timeout))
+                return FakeResponse()
+
+        original = module.urllib.request.build_opener
+        module.urllib.request.build_opener = lambda *_handlers: FakeOpener()
+        try:
+            module.open_page_target(47569, "https://app.kiro.dev/account/device?a=1")
+        finally:
+            module.urllib.request.build_opener = original
+
+        request, timeout = calls[0]
+        self.assertEqual(request.method, "PUT")
+        self.assertIn("127.0.0.1:47569/json/new?", request.full_url)
+        self.assertEqual(timeout, 10)
+
+    def test_keep_browser_launches_chrome_in_a_new_session(self):
+        calls = []
+
+        class FakeProcess:
+            pass
+
+        def fake_popen(cmd, **kwargs):
+            calls.append((cmd, kwargs))
+            return FakeProcess()
+
+        args = module.parse_args(
+            [
+                "--chrome-bin",
+                "/usr/bin/google-chrome",
+                "--chrome-profile",
+                "/tmp/kiro-profile",
+                "--debug-port",
+                "9222",
+                "--keep-browser",
+            ]
+        )
+        original_popen = module.subprocess.Popen
+        module.subprocess.Popen = fake_popen
+        try:
+            process, port, profile = module.launch_chrome(
+                args, "https://app.kiro.dev/account/device"
+            )
+        finally:
+            module.subprocess.Popen = original_popen
+
+        self.assertIsInstance(process, FakeProcess)
+        self.assertEqual(port, 9222)
+        self.assertEqual(profile, "/tmp/kiro-profile")
+        self.assertTrue(calls[0][1]["start_new_session"])
+
     def test_browser_helper_starts_without_provider_credentials_by_default(self):
         calls = []
 

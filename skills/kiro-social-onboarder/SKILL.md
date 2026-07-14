@@ -94,6 +94,11 @@ uses a temporary probe account only to refresh balance and identify the
 existing account by upstream `user_id`; the probe account is deleted when it is
 not automatically removed by duplicate detection.
 
+When GitHub itself must be entered through **Continue with Google**, use the
+sibling `kiro-github-google-onboarder` skill. It supplies a specialized browser
+driver while reusing this script as the canonical device-token, SQLite,
+llm-access import, proxy assignment, and balance-verification implementation.
+
 ## Kiro Admin Lookup Rules
 
 - Kiro's device authorization API expects `loginProvider: "Github"` for GitHub
