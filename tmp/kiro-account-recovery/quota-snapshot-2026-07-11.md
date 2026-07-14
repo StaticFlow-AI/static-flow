@@ -64,3 +64,4 @@ in this file.
 | Carmellaz | Carmellaz@asu.edu | 509.76 | 1000 | 490.24 | `laohan25` (exact upstream user-id and quota match; token and email restored) |
 | Jacklynzz | Jacklynz@asu.edu | 492.74 | 1000 | 507.26 | `laohan26` (exact upstream user-id match; token and email restored) |
 | Bradtkez | Bradtkez@asu.edu | 349.81 | 1000 | 650.19 | `laohan27` (exact upstream user-id and quota match; token and email restored) |
+| Naderxxz | Naderxxz@asu.edu | 398.43 | 1000 | 601.57 | `laohan28` (exact upstream user-id and quota match; token and email restored) |
