@@ -366,6 +366,12 @@ async function codeFrom2faFun(secret) {
       await evaluateInTarget(
         target,
         `(() => {
+          const textarea = document.querySelector('#SECRET2FA,textarea[name="SECRET2FA"],textarea');
+          if (!textarea) return false;
+          const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+          if (setter) setter.call(textarea, ${jsString(secret)}); else textarea.value = ${jsString(secret)};
+          textarea.dispatchEvent(new Event('input', { bubbles: true }));
+          textarea.dispatchEvent(new Event('change', { bubbles: true }));
           const button = [...document.querySelectorAll('button,input[type="submit"],[role="button"]')]
             .find((candidate) => /获取验证码|验证码|get codes?|code/i.test(
               (candidate.innerText || candidate.value || candidate.getAttribute('aria-label') || '').trim()
