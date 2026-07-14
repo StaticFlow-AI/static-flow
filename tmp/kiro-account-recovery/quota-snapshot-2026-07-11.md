@@ -74,3 +74,4 @@ in this file.
 | Martinexxxz | Martinex@asu.edu | 436.60 | 1000 | 563.40 | `laohan35` (exact upstream user-id match; token and email restored) |
 | Kassulkee | Kassulke@asu.edu | 402.93 | 1000 | 597.07 | `laohan36` (exact upstream user-id and quota match; token and email restored) |
 | Scottieeex | Scottieee@asu.edu | 839.43 | 1000 | 160.57 | `laohan37` (exact upstream user-id and quota match; token and email restored) |
+| Francescoxz | Francesco@asu.edu | 993.14 | 1000 | 6.86 | `laohan38` (exact upstream user-id and quota match; token and email restored below the 10-credit importer threshold) |
