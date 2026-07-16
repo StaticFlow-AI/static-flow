@@ -729,6 +729,7 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
     });
     let moderation_enabled = use_state(|| key_item.moderation_enabled);
     let codex_fast_enabled = use_state(|| key_item.codex_fast_enabled);
+    let codex_responses_lite_enabled = use_state(|| key_item.codex_responses_lite_enabled);
     let codex_strict_session_rejection_enabled =
         use_state(|| key_item.codex_strict_session_rejection_enabled);
     let codex_image_standalone_generation_enabled =
@@ -752,6 +753,7 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
         let request_min_start_interval_ms = request_min_start_interval_ms.clone();
         let moderation_enabled = moderation_enabled.clone();
         let codex_fast_enabled = codex_fast_enabled.clone();
+        let codex_responses_lite_enabled = codex_responses_lite_enabled.clone();
         let codex_strict_session_rejection_enabled = codex_strict_session_rejection_enabled.clone();
         let codex_image_standalone_generation_enabled =
             codex_image_standalone_generation_enabled.clone();
@@ -786,6 +788,7 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
             );
             moderation_enabled.set(key_item.moderation_enabled);
             codex_fast_enabled.set(key_item.codex_fast_enabled);
+            codex_responses_lite_enabled.set(key_item.codex_responses_lite_enabled);
             codex_strict_session_rejection_enabled
                 .set(key_item.codex_strict_session_rejection_enabled);
             codex_image_standalone_generation_enabled
@@ -860,6 +863,7 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
         let request_min_start_interval_ms = request_min_start_interval_ms.clone();
         let moderation_enabled = moderation_enabled.clone();
         let codex_fast_enabled = codex_fast_enabled.clone();
+        let codex_responses_lite_enabled = codex_responses_lite_enabled.clone();
         let codex_strict_session_rejection_enabled = codex_strict_session_rejection_enabled.clone();
         let codex_image_standalone_generation_enabled =
             codex_image_standalone_generation_enabled.clone();
@@ -883,6 +887,7 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
                 (*request_min_start_interval_ms).trim().to_string();
             let moderation_enabled_value = *moderation_enabled;
             let codex_fast_enabled_value = *codex_fast_enabled;
+            let codex_responses_lite_enabled_value = *codex_responses_lite_enabled;
             let codex_strict_session_rejection_enabled_value =
                 *codex_strict_session_rejection_enabled;
             let codex_image_standalone_generation_enabled_value =
@@ -949,6 +954,7 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
                     request_min_start_interval_ms: request_min_start_interval_ms_value,
                     moderation_enabled: Some(moderation_enabled_value),
                     codex_fast_enabled: Some(codex_fast_enabled_value),
+                    codex_responses_lite_enabled: Some(codex_responses_lite_enabled_value),
                     codex_strict_session_rejection_enabled: Some(
                         codex_strict_session_rejection_enabled_value,
                     ),
@@ -1233,6 +1239,33 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
                     />
                     <span>{ "允许 Fast（service_tier，计费 x2）" }</span>
                 </label>
+                <div class={classes!("flex", "min-w-[260px]", "flex-col", "gap-1", "text-sm")}>
+                    <label class={classes!("flex", "items-center", "gap-2")}>
+                        <input
+                            type="checkbox" class={classes!("min-h-0", "w-auto")}
+                            checked={*codex_responses_lite_enabled}
+                            onchange={{
+                                let codex_responses_lite_enabled =
+                                    codex_responses_lite_enabled.clone();
+                                Callback::from(move |event: Event| {
+                                    if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                        codex_responses_lite_enabled.set(target.checked());
+                                    }
+                                })
+                            }}
+                        />
+                        <span>{ "Lite Responses" }</span>
+                    </label>
+                    <span class={classes!("text-xs", "leading-5", "text-[var(--muted)]")}>
+                        {
+                            if *codex_responses_lite_enabled {
+                                "ON · Luna / Sol / Terra 使用 Lite wire contract"
+                            } else {
+                                "OFF · 所有模型按普通 Responses 转发，仅保留模型名差异"
+                            }
+                        }
+                    </span>
+                </div>
                 <label class={classes!("flex", "items-center", "gap-2", "text-sm")}>
                     <input
                         type="checkbox" class={classes!("min-h-0", "w-auto")}

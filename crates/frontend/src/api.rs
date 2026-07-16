@@ -6142,6 +6142,8 @@ pub struct AdminLlmGatewayKeyView {
     pub moderation_enabled: bool,
     #[serde(default = "default_true")]
     pub codex_fast_enabled: bool,
+    #[serde(default = "default_true")]
+    pub codex_responses_lite_enabled: bool,
     #[serde(default)]
     pub codex_strict_session_rejection_enabled: bool,
     #[serde(default = "default_true")]
@@ -9011,6 +9013,7 @@ pub async fn create_admin_llm_gateway_key(
                 default_kiro_billable_model_multipliers_json(),
             uses_global_kiro_billable_model_multipliers: true,
             codex_fast_enabled: true,
+            codex_responses_lite_enabled: true,
             codex_strict_session_rejection_enabled: false,
             codex_image_generation_enabled: true,
             codex_image_standalone_generation_enabled: true,
@@ -9065,6 +9068,7 @@ pub struct PatchAdminLlmGatewayKeyRequest<'a> {
     pub request_min_start_interval_ms: Option<u64>,
     pub moderation_enabled: Option<bool>,
     pub codex_fast_enabled: Option<bool>,
+    pub codex_responses_lite_enabled: Option<bool>,
     pub codex_strict_session_rejection_enabled: Option<bool>,
     pub codex_image_generation_enabled: Option<bool>,
     pub codex_image_standalone_generation_enabled: Option<bool>,
@@ -9108,6 +9112,7 @@ pub async fn patch_admin_llm_gateway_key(
             request.request_min_start_interval_ms,
             request.moderation_enabled,
             request.codex_fast_enabled,
+            request.codex_responses_lite_enabled,
             request.codex_strict_session_rejection_enabled,
             request.codex_image_generation_enabled,
             request.codex_image_standalone_generation_enabled,
@@ -9237,6 +9242,12 @@ pub async fn patch_admin_llm_gateway_key(
             body.insert(
                 "codex_fast_enabled".to_string(),
                 serde_json::Value::Bool(codex_fast_enabled),
+            );
+        }
+        if let Some(enabled) = request.codex_responses_lite_enabled {
+            body.insert(
+                "codex_responses_lite_enabled".to_string(),
+                serde_json::Value::Bool(enabled),
             );
         }
         if let Some(enabled) = request.codex_strict_session_rejection_enabled {
@@ -11657,6 +11668,7 @@ pub async fn create_admin_kiro_key(
                 default_kiro_billable_model_multipliers_json(),
             uses_global_kiro_billable_model_multipliers: true,
             codex_fast_enabled: true,
+            codex_responses_lite_enabled: true,
             codex_strict_session_rejection_enabled: false,
             codex_image_generation_enabled: false,
             codex_image_standalone_generation_enabled: false,
@@ -12933,6 +12945,7 @@ mod tests {
         assert!(key.codex_image_generation_enabled);
         assert!(key.codex_image_standalone_generation_enabled);
         assert!(!key.codex_image_direct_generation_enabled);
+        assert!(key.codex_responses_lite_enabled);
     }
 
     #[test]
