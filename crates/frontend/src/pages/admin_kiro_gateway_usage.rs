@@ -695,6 +695,20 @@ pub fn admin_kiro_gateway_usage_page() -> Html {
                     } else {
                         "-".to_string()
                     };
+                    let upstream_request = match (
+                        detail.upstream_request.method.as_deref(),
+                        detail.upstream_request.url.as_deref(),
+                    ) {
+                        (Some(method), Some(url)) => format!("{method} {url}"),
+                        (_, Some(url)) => url.to_string(),
+                        _ => "-".to_string(),
+                    };
+                    let upstream_headers = detail
+                        .upstream_request
+                        .headers_json
+                        .as_deref()
+                        .map(pretty_headers_json)
+                        .unwrap_or_else(|| "-".to_string());
                     html! {
                         <>
                         <div class={classes!("scrim")} onclick={close_detail_scrim}></div>
@@ -730,6 +744,7 @@ pub fn admin_kiro_gateway_usage_page() -> Html {
                                         { detail_kv("billable", format_number_u64(detail.billable_tokens)) }
                                         { detail_kv("endpoint", detail.endpoint.clone()) }
                                         { detail_kv("request", format!("{} {}", detail.request_method, detail.request_url)) }
+                                        { detail_kv("upstream", upstream_request) }
                                         { detail_kv("client", format!("{} · {}", detail.client_ip, detail.ip_region)) }
                                         {
                                             if let Some(summary) = anthropic_summary {
@@ -745,8 +760,9 @@ pub fn admin_kiro_gateway_usage_page() -> Html {
                                     }
                                     { detail_pre("routing diagnostics", detail.routing_diagnostics_json.as_deref().map(pretty_json_text).unwrap_or_else(|| "-".to_string())) }
                                     { detail_pre("request headers", pretty_headers_json(&detail.request_headers_json)) }
+                                    { detail_pre("upstream headers", upstream_headers) }
                                     { detail_pre("client request", detail.client_request_body_json.as_deref().map(pretty_json_text).unwrap_or_else(|| "-".to_string())) }
-                                    { detail_pre("upstream request", detail.upstream_request_body_json.as_deref().map(pretty_json_text).unwrap_or_else(|| "-".to_string())) }
+                                    { detail_pre("upstream request body", detail.upstream_request_body_json.as_deref().map(pretty_json_text).unwrap_or_else(|| "-".to_string())) }
                                     { detail_pre("full request", detail.full_request_json.as_deref().map(pretty_json_text).unwrap_or_else(|| "-".to_string())) }
                                     if let Some(error_body) = detail.error_body.clone() {
                                         { detail_pre("error body", error_body) }

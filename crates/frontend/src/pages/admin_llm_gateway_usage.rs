@@ -484,6 +484,20 @@ pub fn admin_llm_gateway_usage_page() -> Html {
             .clone()
             .unwrap_or_else(|| "-".to_string());
         let headers_json_for_copy = pretty_headers_json(&event.request_headers_json);
+        let upstream_request_line = match (
+            event.upstream_request.method.as_deref(),
+            event.upstream_request.url.as_deref(),
+        ) {
+            (Some(method), Some(url)) => format!("{method} {url}"),
+            (_, Some(url)) => url.to_string(),
+            _ => "-".to_string(),
+        };
+        let upstream_headers_for_copy = event
+            .upstream_request
+            .headers_json
+            .as_deref()
+            .map(pretty_headers_json)
+            .unwrap_or_else(|| "-".to_string());
         let routing_diagnostics_for_copy = event
             .routing_diagnostics_json
             .as_deref()
@@ -613,6 +627,10 @@ pub fn admin_llm_gateway_usage_page() -> Html {
                         <div class={classes!("rounded-lg", "border", "border-[var(--border)]", "px-3", "py-3")}>
                             <div class={classes!("text-xs", "uppercase", "tracking-widest", "text-[var(--muted)]")}>{ "Route" }</div>
                             <div class={classes!("mt-1", "font-mono", "text-xs", "break-all")}>{ event.endpoint.clone() }</div>
+                        </div>
+                        <div class={classes!("rounded-lg", "border", "border-[var(--border)]", "px-3", "py-3")}>
+                            <div class={classes!("text-xs", "uppercase", "tracking-widest", "text-[var(--muted)]")}>{ "Upstream" }</div>
+                            <div class={classes!("mt-1", "font-mono", "text-xs", "break-all")}>{ upstream_request_line }</div>
                         </div>
                         <div class={classes!("rounded-lg", "border", "border-[var(--border)]", "px-3", "py-3")}>
                             <div class={classes!("text-xs", "uppercase", "tracking-widest", "text-[var(--muted)]")}>{ "Latency" }</div>
@@ -762,6 +780,37 @@ pub fn admin_llm_gateway_usage_page() -> Html {
                         </pre>
                     </div>
 
+                    <div class={classes!("mt-4")}>
+                        <div class={classes!("mb-2", "flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
+                            <div class={classes!("text-xs", "uppercase", "tracking-widest", "text-[var(--muted)]")}>{ "Upstream Headers" }</div>
+                            <button
+                                class={classes!("ghost")}
+                                onclick={{
+                                    let on_copy = on_copy.clone();
+                                    let upstream_headers_for_copy = upstream_headers_for_copy.clone();
+                                    Callback::from(move |_| on_copy.emit(("Upstream Headers".to_string(), upstream_headers_for_copy.clone())))
+                                }}
+                            >
+                                { "复制 Upstream Headers" }
+                            </button>
+                        </div>
+                        <pre class={classes!(
+                            "max-h-[42vh]",
+                            "overflow-x-auto",
+                            "overflow-y-auto",
+                            "rounded-lg",
+                            "bg-slate-950",
+                            "p-3",
+                            "text-xs",
+                            "leading-6",
+                            "text-violet-200",
+                            "whitespace-pre-wrap",
+                            "break-words"
+                        )}>
+                            { upstream_headers_for_copy }
+                        </pre>
+                    </div>
+
                     if let Some(client_request_json_for_copy) = client_request_json_for_copy {
                         <div class={classes!("mt-4")}>
                             <div class={classes!("mb-2", "flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
@@ -831,16 +880,16 @@ pub fn admin_llm_gateway_usage_page() -> Html {
                     if let Some(upstream_request_json_for_copy) = upstream_request_json_for_copy {
                         <div class={classes!("mt-4")}>
                             <div class={classes!("mb-2", "flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
-                                <div class={classes!("text-xs", "uppercase", "tracking-widest", "text-[var(--muted)]")}>{ "Upstream Request" }</div>
+                                <div class={classes!("text-xs", "uppercase", "tracking-widest", "text-[var(--muted)]")}>{ "Upstream Request Body" }</div>
                                 <button
                                     class={classes!("ghost")}
                                     onclick={{
                                         let on_copy = on_copy.clone();
                                         let upstream_request_json_for_copy = upstream_request_json_for_copy.clone();
-                                        Callback::from(move |_| on_copy.emit(("Upstream Request".to_string(), upstream_request_json_for_copy.clone())))
+                                        Callback::from(move |_| on_copy.emit(("Upstream Request Body".to_string(), upstream_request_json_for_copy.clone())))
                                     }}
                                 >
-                                    { "复制 Upstream Request" }
+                                { "复制 Upstream Request Body" }
                                 </button>
                             </div>
                             <pre class={classes!(

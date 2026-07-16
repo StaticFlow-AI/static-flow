@@ -6421,6 +6421,7 @@ pub struct AdminLlmGatewayUsageEventDetailView {
     pub client_ip: String,
     pub ip_region: String,
     pub request_headers_json: String,
+    pub upstream_request: AdminUsageUpstreamRequestView,
     pub last_message_content: Option<String>,
     pub client_request_body_json: Option<String>,
     pub upstream_request_body_json: Option<String>,
@@ -6433,6 +6434,15 @@ pub struct AdminLlmGatewayUsageEventDetailView {
     pub error_body: Option<String>,
     pub response_body: Option<String>,
     pub created_at: i64,
+}
+
+/// Lightweight metadata for the final request sent to the provider.
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
+#[serde(default)]
+pub struct AdminUsageUpstreamRequestView {
+    pub method: Option<String>,
+    pub url: Option<String>,
+    pub headers_json: Option<String>,
 }
 
 /// Paginated usage-event response from the admin diagnostics endpoint.
