@@ -2389,7 +2389,7 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                                                 <div>{ format!("route weight tier: {}", acc.route_weight_tier) }</div>
                                                 <div>{ format!("reset credits available: {}", reset_credits_label) }</div>
                                                 <div class={classes!("flex", "gap-3", "flex-wrap")}>
-                                                    <span>{ if auto_refresh_enabled { "auto refresh on" } else { "auto refresh off" } }</span>
+                                                    <span>{ if auto_refresh_enabled { "Token 自动刷新：已开启" } else { "Token 自动刷新：已关闭" } }</span>
                                                     <span>{ format!("token refresh {}", last_refresh_line) }</span>
                                                     <span>{ access_token_expiry_line.clone() }</span>
                                                 </div>
@@ -2541,6 +2541,25 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                                                     { if account_busy { "..." } else { "刷新 Token" } }
                                                 </button>
                                                 <button
+                                                    type="button"
+                                                    class={classes!(
+                                                        "ghost",
+                                                        if auto_refresh_enabled { "btn-terminal-primary" } else { "" }
+                                                    )}
+                                                    aria-pressed={auto_refresh_enabled.to_string()}
+                                                    aria-label={if auto_refresh_enabled { "关闭 Token 自动刷新" } else { "开启 Token 自动刷新" }}
+                                                    title={if auto_refresh_enabled { "Token 自动刷新已开启，点击关闭" } else { "Token 自动刷新已关闭，点击开启" }}
+                                                    onclick={Callback::from(move |_| {
+                                                        on_toggle_account_auto_refresh.emit((
+                                                            acc_name_for_auto_refresh_toggle.clone(),
+                                                            !auto_refresh_enabled,
+                                                        ))
+                                                    })}
+                                                    disabled={account_busy}
+                                                >
+                                                    { if account_busy { "..." } else if auto_refresh_enabled { "Token 自动刷新：开" } else { "Token 自动刷新：关" } }
+                                                </button>
+                                                <button
                                                     class={classes!("ghost")}
                                                     onclick={Callback::from(move |_| on_refresh_account_usage.emit(acc_name_for_usage_refresh.clone()))}
                                                     disabled={account_busy}
@@ -2564,21 +2583,6 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                                                     disabled={account_busy}
                                                 >
                                                     { if account_busy { "..." } else { "测试 Models" } }
-                                                </button>
-                                                <button
-                                                    class={classes!(
-                                                        "ghost",
-                                                        if auto_refresh_enabled { "btn-terminal-primary" } else { "" }
-                                                    )}
-                                                    onclick={Callback::from(move |_| {
-                                                        on_toggle_account_auto_refresh.emit((
-                                                            acc_name_for_auto_refresh_toggle.clone(),
-                                                            !auto_refresh_enabled,
-                                                        ))
-                                                    })}
-                                                    disabled={account_busy}
-                                                >
-                                                    { if account_busy { "..." } else if auto_refresh_enabled { "Auto ✓" } else { "Auto ✗" } }
                                                 </button>
                                                 <button
                                                     class={classes!("ghost")}
