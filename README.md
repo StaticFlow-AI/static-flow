@@ -22,24 +22,32 @@ local machine with optional cloud edge ingress.
 
 ## Architecture
 
-Full-stack Rust monorepo with 14 workspace crates:
+Full-stack Rust monorepo with 21 workspace crates:
 
 ```text
 static-flow/
-├── shared/              # Rust library — LanceDB stores, data types
-├── backend/             # Axum HTTP server — handlers, routes, workers
-├── frontend/            # Yew/WASM SPA — pages, components, i18n
-├── cli/                 # sf-cli — LanceDB operations (write/query/embed/optimize)
-├── gateway/             # Pingora-based local ingress (blue/green switching)
-├── runtime/             # Shared runtime utilities (logging, tracing, signals)
-├── media-service/       # Media processing service (image/audio pipelines)
-├── media-types/         # Shared media type definitions
-├── llm-access/          # Standalone LLM access service binary
-├── llm-access-core/     # Core LLM logic (routing, quota, proxy resolution)
-├── llm-access-codex/    # Codex/OpenAI-compatible gateway
-├── llm-access-kiro/     # Kiro/Anthropic-compatible gateway
-├── llm-access-migrations/ # Schema migrations for llm-access stores
-├── llm-access-store/    # Storage layer (Postgres/SQLite control + DuckDB analytics)
+├── crates/
+│   ├── frontend/                # Yew/WASM SPA — pages, components, i18n
+│   ├── shared/                  # Shared domain types and compatibility facade
+│   ├── store/                   # LanceDB-backed content, comments, and music stores
+│   ├── embedding/               # Text and image embedding services
+│   ├── backend/                 # Axum HTTP server — handlers, routes, workers
+│   ├── cli/                     # sf-cli — write/query/embed/optimize workflows
+│   ├── media-service/           # Image/audio processing service
+│   ├── media-types/             # Shared media type definitions
+│   ├── email-notifier/          # Email notification utilities
+│   ├── gateway/                 # Pingora ingress with blue/green switching
+│   ├── runtime/                 # Logging, tracing, and signal utilities
+│   ├── llm-access/              # Cloud LLM API and usage-worker binaries
+│   ├── llm-access-core/         # Routing, quota, account, and proxy contracts
+│   ├── llm-access-codex/        # Codex/OpenAI-compatible gateway
+│   ├── llm-access-codex-image/  # Codex image request gateway
+│   ├── llm-access-anthropic-pool/ # Shared Anthropic upstream pool
+│   ├── llm-access-kiro/         # Kiro/Anthropic-compatible gateway
+│   ├── llm-access-migrations/   # Postgres and DuckDB schema migrations
+│   ├── llm-access-store/        # Neon/SQLite control + DuckDB analytics
+│   ├── llm-access-ai-review/    # AI review service and worker
+│   └── llm-usage-journal/       # Durable hot usage journal
 ├── skills/              # Codex/Claude agent skill definitions
 ├── scripts/             # Shell scripts — launchers, worker runners, e2e tests
 ├── docs/                # Technical docs, deep-dives, ops runbook
@@ -63,7 +71,7 @@ static-flow/
 
 ```bash
 # 1. Clone and initialize submodules
-git clone https://github.com/acking-you/static-flow.git
+git clone https://github.com/RespawnLabs1/static-flow.git
 cd static-flow
 git submodule update --init --recursive
 
@@ -97,7 +105,8 @@ Backend: `http://127.0.0.1:39080` | Frontend dev: `http://127.0.0.1:38080`
 StaticFlow supports three deployment modes:
 
 - **Self-hosted (production)**: Backend serves API + frontend static files behind
-  a Pingora gateway. Current production uses GCP Caddy for TLS + pb-mapper for
+  a Pingora gateway. Current production uses AWS Lightsail Caddy for TLS and
+  route splitting, plus pb-mapper for the
   cloud-to-local relay. See [docs/ops-runbook.md](./docs/ops-runbook.md).
 - **Local development**: Trunk dev server with hot-reload, proxying `/api` to backend.
 - **GitHub Pages**: Frontend-only static deploy; API calls go to configured
@@ -107,7 +116,8 @@ StaticFlow supports three deployment modes:
 
 Current production is split between a cloud LLM tier and a local content tier:
 
-- `https://ackingliu.top` terminates at GCP Caddy
+- `https://ackingliu.top` and the Cloudflare-fronted `https://staticflow.cc`
+  terminate at the same AWS Lightsail Caddy origin
 - LLM paths (`/v1/*`, `/cc/v1/*`, `/api/llm-gateway/*`, `/api/kiro-gateway/*`,
   `/api/codex-gateway/*`, `/api/llm-access/*`) stay on the cloud VM and go to
   standalone `llm-access`

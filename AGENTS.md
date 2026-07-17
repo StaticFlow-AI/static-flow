@@ -355,7 +355,7 @@ All three are **git submodules** under `deps/`, user forks on `feat/static-flow`
 
 Key points:
 - Root `Cargo.toml` uses path deps, not crates.io. Root workspace has
-  `exclude = ["deps/lance", "deps/lancedb"]`.
+  `exclude = ["deps"]` so vendored projects never become workspace members.
 - After cloning: `git submodule update --init --recursive`
 - Do not run `cargo fmt` in `deps/lance` or `deps/lancedb`.
 - When modifying submodule source, commit inside the submodule first, then
@@ -363,23 +363,28 @@ Key points:
 
 ## Codebase Structure
 ```
-# Workspace crates (16) — all under crates/
-crates/shared/              Rust library — LanceDB stores, data types (#[cfg(not(wasm32))] gated)
-crates/backend/             Axum HTTP server — handlers, routes, state, workers, email
-crates/frontend/            Yew/WASM SPA — pages, components, api, router, i18n
-crates/cli/                 sf-cli binary — LanceDB operations (write/query/embed/optimize)
-crates/gateway/             Pingora-based local ingress gateway (blue/green upstream switching)
-crates/runtime/             Shared runtime utilities (logging, tracing, signal handling)
-crates/media-service/       Media processing service (image/audio pipelines)
-crates/media-types/         Shared media type definitions
-crates/email-notifier/      Email notification utilities (package static-flow-email)
-crates/llm-access/          Standalone LLM access service binary (cloud deployment)
-crates/llm-access-core/     Core LLM access logic (routing, quota, proxy resolution)
-crates/llm-access-codex/    Codex/OpenAI-compatible gateway implementation
-crates/llm-access-kiro/     Kiro/Anthropic-compatible gateway implementation
-crates/llm-access-migrations/ Schema migration tooling for llm-access stores
-crates/llm-access-store/    Storage layer for llm-access (Postgres/SQLite control + DuckDB analytics)
-crates/llm-usage-journal/   Hot local usage journal for llm-access
+# Workspace crates (21) — all under crates/
+crates/frontend/                  Yew/WASM SPA — pages, components, api, router, i18n
+crates/shared/                    Shared domain types and compatibility facade
+crates/store/                     LanceDB-backed content, comments, and music stores
+crates/embedding/                 Text and image embedding services
+crates/backend/                   Axum HTTP server — handlers, routes, state, workers, email
+crates/cli/                       sf-cli binary — LanceDB write/query/embed/optimize workflows
+crates/media-service/             Media processing service (image/audio pipelines)
+crates/media-types/               Shared media type definitions
+crates/email-notifier/            Email notification utilities (package static-flow-email)
+crates/gateway/                   Pingora local ingress gateway (blue/green upstream switching)
+crates/runtime/                   Shared runtime utilities (logging, tracing, signal handling)
+crates/llm-access/                Cloud LLM API and usage-worker binaries
+crates/llm-access-core/           Core routing, quota, account, and proxy contracts
+crates/llm-access-codex/          Codex/OpenAI-compatible gateway implementation
+crates/llm-access-codex-image/    Codex image request gateway
+crates/llm-access-anthropic-pool/ Shared Anthropic upstream pool
+crates/llm-access-kiro/           Kiro/Anthropic-compatible gateway implementation
+crates/llm-access-migrations/     Postgres and DuckDB schema migration tooling
+crates/llm-access-store/          Neon/SQLite control plane + DuckDB analytics
+crates/llm-access-ai-review/      AI review service and worker
+crates/llm-usage-journal/         Durable hot usage journal for llm-access
 
 # Non-crate directories
 skills/              Codex/Claude agent skill definitions (SKILL.md + references)

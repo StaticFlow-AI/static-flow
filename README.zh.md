@@ -20,24 +20,32 @@ LanceDB 存储。支持文章发布、AI 评论审核、音乐管理、图片资
 
 ## 项目结构
 
-全栈 Rust monorepo，14 个 workspace crate：
+全栈 Rust monorepo，21 个 workspace crate：
 
 ```text
 static-flow/
-├── shared/              # Rust 库 — LanceDB 存储、数据类型
-├── backend/             # Axum HTTP 服务 — handler、路由、worker
-├── frontend/            # Yew/WASM SPA — 页面、组件、i18n
-├── cli/                 # sf-cli — LanceDB 操作（写入/查询/嵌入/优化）
-├── gateway/             # Pingora 本地入口网关（蓝绿切换）
-├── runtime/             # 共享运行时工具（日志、追踪、信号处理）
-├── media-service/       # 媒体处理服务（图片/音频管线）
-├── media-types/         # 共享媒体类型定义
-├── llm-access/          # 独立 LLM 接入服务二进制
-├── llm-access-core/     # 核心 LLM 逻辑（路由、配额、代理解析）
-├── llm-access-codex/    # Codex/OpenAI 兼容网关
-├── llm-access-kiro/     # Kiro/Anthropic 兼容网关
-├── llm-access-migrations/ # llm-access 存储 schema 迁移
-├── llm-access-store/    # 存储层（Postgres/SQLite 控制面 + DuckDB 分析）
+├── crates/
+│   ├── frontend/                # Yew/WASM SPA — 页面、组件、i18n
+│   ├── shared/                  # 共享领域类型与兼容 facade
+│   ├── store/                   # 基于 LanceDB 的内容、评论和音乐存储
+│   ├── embedding/               # 文本和图片 embedding 服务
+│   ├── backend/                 # Axum HTTP 服务 — handler、路由、worker
+│   ├── cli/                     # sf-cli — 写入/查询/嵌入/优化流程
+│   ├── media-service/           # 图片/音频处理服务
+│   ├── media-types/             # 共享媒体类型
+│   ├── email-notifier/          # 邮件通知工具
+│   ├── gateway/                 # 支持蓝绿切换的 Pingora 入口
+│   ├── runtime/                 # 日志、追踪与信号处理工具
+│   ├── llm-access/              # 云端 LLM API 与 usage worker 二进制
+│   ├── llm-access-core/         # 路由、配额、账号和代理契约
+│   ├── llm-access-codex/        # Codex/OpenAI 兼容网关
+│   ├── llm-access-codex-image/  # Codex 图片请求网关
+│   ├── llm-access-anthropic-pool/ # 共享 Anthropic upstream pool
+│   ├── llm-access-kiro/         # Kiro/Anthropic 兼容网关
+│   ├── llm-access-migrations/   # Postgres 与 DuckDB schema 迁移
+│   ├── llm-access-store/        # Neon/SQLite 控制面 + DuckDB 分析
+│   ├── llm-access-ai-review/    # AI review 服务与 worker
+│   └── llm-usage-journal/       # 持久化 hot usage journal
 ├── skills/              # Codex/Claude agent skill 定义
 ├── scripts/             # Shell 脚本 — 启动器、worker runner、e2e 测试
 ├── docs/                # 技术文档、实现深潜、运维手册
@@ -60,7 +68,7 @@ static-flow/
 
 ```bash
 # 1. 克隆并初始化子模块
-git clone https://github.com/acking-you/static-flow.git
+git clone https://github.com/RespawnLabs1/static-flow.git
 cd static-flow
 git submodule update --init --recursive
 
@@ -92,7 +100,8 @@ bash scripts/start_frontend_with_api.sh --open       # 终端 2：trunk 开发�
 ## 部署模式
 
 - **自托管（生产）**：后端提供 API + 前端静态文件，运行在 Pingora gateway 后面。
-  当前生产使用 GCP Caddy 做 TLS + pb-mapper 做云端到本地的中继。
+  当前生产使用 AWS Lightsail Caddy 做 TLS 和路由拆分，并通过 pb-mapper
+  完成云端到本地的中继。
   详见 [docs/ops-runbook.md](./docs/ops-runbook.md)。
 - **本地开发**：Trunk 开发服务器热重载，自动代理 `/api` 到后端。
 - **GitHub Pages**：纯前端静态部署，API 通过 `STATICFLOW_API_BASE` 配置。
@@ -102,7 +111,8 @@ bash scripts/start_frontend_with_api.sh --open       # 终端 2：trunk 开发�
 
 当前生产已经拆成“云端 LLM 层 + 本地内容层”：
 
-- `https://ackingliu.top` 先进入 GCP Caddy
+- `https://ackingliu.top` 与经 Cloudflare 代理的 `https://staticflow.cc`
+  都进入同一个 AWS Lightsail Caddy 源站
 - LLM 路径（`/v1/*`、`/cc/v1/*`、`/api/llm-gateway/*`、`/api/kiro-gateway/*`、
   `/api/codex-gateway/*`、`/api/llm-access/*`）直接留在云端，进入独立
   `llm-access`
