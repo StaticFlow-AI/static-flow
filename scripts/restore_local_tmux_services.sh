@@ -11,6 +11,7 @@ PINGORA_CONF_TEMPLATE_FILE="${PINGORA_CONF_TEMPLATE_FILE:-$ROOT_DIR/conf/pingora
 BACKEND_BIN="${BACKEND_BIN:-$ROOT_DIR/target/release-backend/static-flow-backend}"
 AI_REVIEW_ENV_FILE="${AI_REVIEW_ENV_FILE:-$ROOT_DIR/.local/llm-access-neon.env}"
 AI_REVIEW_BIN="${AI_REVIEW_BIN:-/mnt/wsl/data4tb/static-flow-data/cargo-target/static_flow/release/llm-access-ai-review}"
+AI_REVIEW_START_SCRIPT="${AI_REVIEW_START_SCRIPT:-$ROOT_DIR/scripts/start_ai_review_local.sh}"
 GPT2API_BIN="${GPT2API_BIN:-/mnt/wsl/data4tb/static-flow-data/cargo-target/gpt2api_rs/release/gpt2api-rs}"
 GPT2API_TARGET_DIR="${GPT2API_TARGET_DIR:-/mnt/wsl/data4tb/static-flow-data/cargo-target/gpt2api_rs/release}"
 ANTIGRAVITY_DIR="${ANTIGRAVITY_DIR:-$ROOT_DIR/deps/AntigravityManager}"
@@ -363,9 +364,10 @@ start_ai_review() {
 
   if [[ "$DRY_RUN" != "1" ]]; then
     [[ -x "$AI_REVIEW_BIN" ]] || fail "missing executable: $AI_REVIEW_BIN"
+    [[ -x "$AI_REVIEW_START_SCRIPT" ]] || fail "missing executable: $AI_REVIEW_START_SCRIPT"
   fi
   [[ -f "$AI_REVIEW_ENV_FILE" ]] || fail "missing ai review env file: $AI_REVIEW_ENV_FILE"
-  api_cmd="cd $(q "$ROOT_DIR") && if [[ -f $(q "$ANTIGRAVITY_CONFIG_FILE") ]]; then export ANTIGRAVITY_MANAGER_API_KEY=\$(jq -r '.proxy.api_key // .api_key // empty' $(q "$ANTIGRAVITY_CONFIG_FILE")); fi && exec $(q "$AI_REVIEW_BIN") --env-file $(q "$AI_REVIEW_ENV_FILE") serve --bind 127.0.0.1:19190"
+  api_cmd="cd $(q "$ROOT_DIR") && if [[ -f $(q "$ANTIGRAVITY_CONFIG_FILE") ]]; then export ANTIGRAVITY_MANAGER_API_KEY=\$(jq -r '.proxy.api_key // .api_key // empty' $(q "$ANTIGRAVITY_CONFIG_FILE")); fi && exec $(q "$AI_REVIEW_START_SCRIPT") $(q "$AI_REVIEW_ENV_FILE") $(q "$AI_REVIEW_BIN") serve --bind 127.0.0.1:19190"
   ui_cmd="cd $(q "$ROOT_DIR/crates/llm-access-ai-review/ui") && export PATH=$(q "$PATH") && npm run build && exec npm run preview"
   pbmapper_cmd="cd $(q "$ROOT_DIR") && set -a && . .local/pbmapper/sf-backend.env && set +a && SERVICE_KEY=ai-review-ui && LOCAL_ADDR=127.0.0.1:19191 && exec pb-mapper-server-cli tcp-server --key \"\$SERVICE_KEY\" --addr \"\$LOCAL_ADDR\""
 
