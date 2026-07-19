@@ -39,6 +39,60 @@ fn parse_proxy_choice(raw: &str) -> (String, Option<String>) {
     }
 }
 
+fn parse_cache_hit_rate_limits(
+    raw: &str,
+) -> Result<Vec<llm_store::AnthropicCacheHitRateLimit>, String> {
+    let mut limits = Vec::new();
+    for raw_rule in raw.split([',', '\n']) {
+        let rule = raw_rule.trim();
+        if rule.is_empty() {
+            continue;
+        }
+        let Some((threshold, rate)) = rule.split_once(':') else {
+            return Err(format!("Cache cap rule `{rule}` must use context:percent."));
+        };
+        let min_context_tokens = threshold
+            .trim()
+            .parse::<u64>()
+            .map_err(|_| format!("Cache cap context `{threshold}` must be an integer."))?;
+        let rate = rate.trim().trim_end_matches('%').trim();
+        let percent = rate
+            .parse::<f64>()
+            .map_err(|_| format!("Cache cap rate `{rate}` must be a percentage."))?;
+        if !percent.is_finite() || !(0.0..=100.0).contains(&percent) {
+            return Err(format!("Cache cap rate `{rate}` must be between 0 and 100."));
+        }
+        let basis_points = percent * 100.0;
+        if (basis_points - basis_points.round()).abs() > 1e-9 {
+            return Err(format!("Cache cap rate `{rate}` supports at most two decimals."));
+        }
+        limits.push(llm_store::AnthropicCacheHitRateLimit {
+            min_context_tokens,
+            max_cache_hit_rate_basis_points: basis_points.round() as u32,
+        });
+    }
+    llm_store::validate_anthropic_cache_hit_rate_limits(&limits).map_err(|err| err.to_string())?;
+    Ok(limits)
+}
+
+fn format_cache_hit_rate_limits(limits: &[llm_store::AnthropicCacheHitRateLimit]) -> String {
+    limits
+        .iter()
+        .map(|limit| {
+            let basis_points = limit.max_cache_hit_rate_basis_points;
+            let rate = if basis_points % 100 == 0 {
+                (basis_points / 100).to_string()
+            } else if basis_points % 10 == 0 {
+                format!("{}.{:01}", basis_points / 100, (basis_points % 100) / 10)
+            } else {
+                format!("{}.{:02}", basis_points / 100, basis_points % 100)
+            };
+            format!("{}:{rate}", limit.min_context_tokens)
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 /// Build a full-field channel patch from the edit form's raw strings.
 fn build_channel_patch(
     base_url: &str,
@@ -46,6 +100,7 @@ fn build_channel_patch(
     max_concurrency: &str,
     rpm_limit: &str,
     min_start_interval_ms: &str,
+    cache_hit_rate_limits: &str,
     proxy_choice: &str,
 ) -> Result<PatchAdminAnthropicUpstreamChannelInput, String> {
     let base_url = base_url.trim();
@@ -71,6 +126,7 @@ fn build_channel_patch(
         .trim()
         .parse::<u64>()
         .map_err(|_| "Min interval must be an integer.".to_string())?;
+    let cache_hit_rate_limits = parse_cache_hit_rate_limits(cache_hit_rate_limits)?;
     let (proxy_mode, proxy_config_id) = parse_proxy_choice(proxy_choice);
     Ok(PatchAdminAnthropicUpstreamChannelInput {
         base_url: Some(base_url.to_string()),
@@ -78,6 +134,7 @@ fn build_channel_patch(
         max_concurrency: Some(max_concurrency),
         rpm_limit: Some(rpm_limit),
         min_start_interval_ms: Some(min_start_interval_ms),
+        cache_hit_rate_limits: Some(cache_hit_rate_limits),
         proxy_mode: Some(proxy_mode),
         proxy_config_id: Some(proxy_config_id),
         ..PatchAdminAnthropicUpstreamChannelInput::default()
@@ -95,7 +152,10 @@ fn proxy_choice_for_channel(channel: &AdminAnthropicUpstreamChannelView) -> Stri
 
 #[cfg(test)]
 mod tests {
-    use super::{build_channel_patch, proxy_choice_for_channel};
+    use super::{
+        build_channel_patch, format_cache_hit_rate_limits, parse_cache_hit_rate_limits,
+        proxy_choice_for_channel,
+    };
     use crate::api::AdminAnthropicUpstreamChannelView;
 
     #[test]
@@ -106,6 +166,7 @@ mod tests {
             "2",
             "5",
             "250",
+            "0:90, 32000:70, 128000:40",
             "fixed:proxy-1",
         )
         .expect("patch should build");
@@ -115,6 +176,7 @@ mod tests {
         assert_eq!(patch.max_concurrency, Some(2));
         assert_eq!(patch.rpm_limit, Some(5));
         assert_eq!(patch.min_start_interval_ms, Some(250));
+        assert_eq!(patch.cache_hit_rate_limits.as_ref().map(Vec::len), Some(3));
         assert_eq!(patch.proxy_mode.as_deref(), Some("fixed"));
         assert_eq!(patch.proxy_config_id, Some(Some("proxy-1".to_string())));
         assert_eq!(patch.status, None);
@@ -125,7 +187,7 @@ mod tests {
     #[test]
     fn build_channel_patch_clears_proxy_binding_for_inherit() {
         let patch =
-            build_channel_patch("https://api.anthropic.com", "100", "3", "5", "0", "inherit")
+            build_channel_patch("https://api.anthropic.com", "100", "3", "5", "0", "", "inherit")
                 .expect("patch should build");
 
         assert_eq!(patch.proxy_mode.as_deref(), Some("inherit"));
@@ -134,10 +196,20 @@ mod tests {
 
     #[test]
     fn build_channel_patch_rejects_invalid_numbers_and_empty_base_url() {
-        assert!(build_channel_patch("https://x.dev", "abc", "3", "5", "0", "direct").is_err());
-        assert!(build_channel_patch("https://x.dev", "1", "-2", "5", "0", "direct").is_err());
-        assert!(build_channel_patch("https://x.dev", "1", "2", "0", "0", "direct").is_err());
-        assert!(build_channel_patch("  ", "1", "3", "5", "0", "direct").is_err());
+        assert!(build_channel_patch("https://x.dev", "abc", "3", "5", "0", "", "direct").is_err());
+        assert!(build_channel_patch("https://x.dev", "1", "-2", "5", "0", "", "direct").is_err());
+        assert!(build_channel_patch("https://x.dev", "1", "2", "0", "0", "", "direct").is_err());
+        assert!(build_channel_patch("  ", "1", "3", "5", "0", "", "direct").is_err());
+    }
+
+    #[test]
+    fn cache_hit_rate_limit_text_round_trips_and_rejects_increasing_rates() {
+        let limits = parse_cache_hit_rate_limits("0:90, 32000:70.5, 128000:40.25%")
+            .expect("cache cap rules should parse");
+
+        assert_eq!(format_cache_hit_rate_limits(&limits), "0:90, 32000:70.5, 128000:40.25");
+        assert!(parse_cache_hit_rate_limits("0:50, 32000:60").is_err());
+        assert!(parse_cache_hit_rate_limits("0:80.123").is_err());
     }
 
     #[test]
@@ -179,6 +251,7 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
     let rpm_limit = use_state(|| llm_store::DEFAULT_ANTHROPIC_UPSTREAM_RPM_LIMIT.to_string());
     let min_start_interval_ms =
         use_state(|| llm_store::DEFAULT_ANTHROPIC_UPSTREAM_MIN_START_INTERVAL_MS.to_string());
+    let cache_hit_rate_limits = use_state(String::new);
     let proxy_mode = use_state(|| "inherit".to_string());
     let saving = use_state(|| false);
     let refreshing_channel = use_state(|| None::<String>);
@@ -190,6 +263,7 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
     let edit_max_concurrency = use_state(String::new);
     let edit_rpm_limit = use_state(String::new);
     let edit_min_start_interval_ms = use_state(String::new);
+    let edit_cache_hit_rate_limits = use_state(String::new);
     let edit_proxy_choice = use_state(|| "inherit".to_string());
     let edit_saving = use_state(|| false);
 
@@ -250,6 +324,7 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
         let max_concurrency = max_concurrency.clone();
         let rpm_limit = rpm_limit.clone();
         let min_start_interval_ms = min_start_interval_ms.clone();
+        let cache_hit_rate_limits = cache_hit_rate_limits.clone();
         let proxy_mode = proxy_mode.clone();
         let saving = saving.clone();
         let notify = notify.clone();
@@ -265,6 +340,7 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
             let max_value = (*max_concurrency).trim().parse::<u64>();
             let rpm_value = (*rpm_limit).trim().parse::<u64>();
             let min_value = (*min_start_interval_ms).trim().parse::<u64>();
+            let cache_limits_value = parse_cache_hit_rate_limits(&cache_hit_rate_limits);
             let proxy_choice = (*proxy_mode).clone();
             let name = name.clone();
             let api_key = api_key.clone();
@@ -292,6 +368,13 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                     notify.emit(("Min interval must be an integer.".to_string(), true));
                     return;
                 };
+                let cache_hit_rate_limits = match cache_limits_value {
+                    Ok(value) => value,
+                    Err(message) => {
+                        notify.emit((message, true));
+                        return;
+                    },
+                };
                 let (proxy_mode, proxy_config_id) = parse_proxy_choice(&proxy_choice);
                 saving.set(true);
                 let input = CreateAdminAnthropicUpstreamChannelInput {
@@ -303,6 +386,7 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                     max_concurrency: Some(max_value),
                     rpm_limit: Some(rpm_value),
                     min_start_interval_ms: Some(min_value),
+                    cache_hit_rate_limits,
                     proxy_mode: Some(proxy_mode),
                     proxy_config_id,
                 };
@@ -383,10 +467,10 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                 <section class={classes!("panel")}>
                     <div class={classes!("panel-head")}>
                         <h2>{ "New Channel" }</h2>
-                        <span class={classes!("text-xs", "text-[var(--muted-foreground)]")}>{ "直连 Anthropic 渠道；创建后可在下方列表随时编辑参数。" }</span>
+                        <span class={classes!("text-xs", "text-[var(--muted-foreground)]")}>{ "直连 Anthropic 渠道；创建后可编辑全部路由参数或单独轮换密钥。Cache hit caps 只限制额度/计费中的 cache-read 命中率，不改写 Anthropic 响应；空值表示不限制。" }</span>
                     </div>
                     <div class={classes!("panel-body")}>
-                        <div class={classes!("grid", "gap-3", "items-end", "sm:grid-cols-2", "lg:grid-cols-8")}>
+                        <div class={classes!("grid", "gap-3", "items-end", "sm:grid-cols-2", "lg:grid-cols-10")}>
                             <label class={classes!("grid", "gap-1", "text-xs", "text-[var(--muted-foreground)]")}>
                                 { "Name" }
                                 <input value={(*name).clone()} oninput={{
@@ -474,6 +558,21 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                                         min_start_interval_ms.set(input.value());
                                     })
                                 }} />
+                            </label>
+                            <label class={classes!("grid", "gap-1", "text-xs", "text-[var(--muted-foreground)]", "lg:col-span-3")}>
+                                { "Cache hit caps · context:percent" }
+                                <input
+                                    class={classes!("mono")}
+                                    placeholder="0:90, 32000:70, 128000:40"
+                                    value={(*cache_hit_rate_limits).clone()}
+                                    oninput={{
+                                        let cache_hit_rate_limits = cache_hit_rate_limits.clone();
+                                        Callback::from(move |event: InputEvent| {
+                                            let input: HtmlInputElement = event.target_unchecked_into();
+                                            cache_hit_rate_limits.set(input.value());
+                                        })
+                                    }}
+                                />
                             </label>
                             <button type="button" class={classes!("primary")} disabled={*saving} onclick={on_create}>
                                 { if *saving { "Creating..." } else { "Create" } }
@@ -662,6 +761,7 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                             let edit_max_concurrency = edit_max_concurrency.clone();
                             let edit_rpm_limit = edit_rpm_limit.clone();
                             let edit_min_start_interval_ms = edit_min_start_interval_ms.clone();
+                            let edit_cache_hit_rate_limits = edit_cache_hit_rate_limits.clone();
                             let edit_proxy_choice = edit_proxy_choice.clone();
                             let channel_name = channel_name.clone();
                             let channel_base_url = channel.base_url.clone();
@@ -669,6 +769,8 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                             let channel_max_concurrency = channel.max_concurrency.to_string();
                             let channel_rpm_limit = channel.rpm_limit.to_string();
                             let channel_min_start_interval_ms = channel.min_start_interval_ms.to_string();
+                            let channel_cache_hit_rate_limits =
+                                format_cache_hit_rate_limits(&channel.cache_hit_rate_limits);
                             let channel_proxy_choice = proxy_choice_for_channel(channel);
                             Callback::from(move |_| {
                                 if (*editing_channel).as_ref().is_some_and(|name| name == &channel_name) {
@@ -680,6 +782,7 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                                 edit_max_concurrency.set(channel_max_concurrency.clone());
                                 edit_rpm_limit.set(channel_rpm_limit.clone());
                                 edit_min_start_interval_ms.set(channel_min_start_interval_ms.clone());
+                                edit_cache_hit_rate_limits.set(channel_cache_hit_rate_limits.clone());
                                 edit_proxy_choice.set(channel_proxy_choice.clone());
                                 editing_channel.set(Some(channel_name.clone()));
                             })
@@ -693,6 +796,7 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                             let edit_max_concurrency = edit_max_concurrency.clone();
                             let edit_rpm_limit = edit_rpm_limit.clone();
                             let edit_min_start_interval_ms = edit_min_start_interval_ms.clone();
+                            let edit_cache_hit_rate_limits = edit_cache_hit_rate_limits.clone();
                             let edit_proxy_choice = edit_proxy_choice.clone();
                             let edit_saving = edit_saving.clone();
                             let channel_name = channel_name.clone();
@@ -706,6 +810,7 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                                     &edit_max_concurrency,
                                     &edit_rpm_limit,
                                     &edit_min_start_interval_ms,
+                                    &edit_cache_hit_rate_limits,
                                     &edit_proxy_choice,
                                 ) {
                                     Ok(patch) => patch,
@@ -767,6 +872,15 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                                     <div class={classes!("mono", "mt-1", "break-all", "text-[var(--muted-foreground)]")}>{ channel.base_url.clone() }</div>
                                     <div class={classes!("mono", "mt-1", "text-[var(--muted-foreground)]")}>
                                         { format!("w={} · c={} · rpm={} · min={}ms · proxy={}", channel.weight, channel.max_concurrency, channel.rpm_limit, channel.min_start_interval_ms, channel.proxy_mode) }
+                                    </div>
+                                    <div class={classes!("mono", "mt-1", "text-[var(--muted-foreground)]")}>
+                                        {
+                                            if channel.cache_hit_rate_limits.is_empty() {
+                                                "cache cap=unlimited".to_string()
+                                            } else {
+                                                format!("cache cap={}", format_cache_hit_rate_limits(&channel.cache_hit_rate_limits))
+                                            }
+                                        }
                                     </div>
                                 </div>
                                 <div class={classes!("mono", "space-y-1")}>
@@ -836,7 +950,7 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                             </div>
                             if is_editing {
                                 <div class={classes!("border-b", "border-[var(--border)]", "bg-[var(--card-2)]", "px-4", "py-3")}>
-                                    <div class={classes!("grid", "min-w-[74rem]", "gap-3", "items-end", "lg:grid-cols-8")}>
+                                    <div class={classes!("grid", "min-w-[74rem]", "gap-3", "items-end", "lg:grid-cols-10")}>
                                         <label class={classes!("grid", "gap-1", "text-xs", "text-[var(--muted-foreground)]", "lg:col-span-2")}>
                                             { "Base URL" }
                                             <input class={classes!("mono")} value={(*edit_base_url).clone()} oninput={{
@@ -904,6 +1018,21 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                                                     html! { <option value={value} selected={selected}>{ format!("Fixed · {}", proxy_config.name) }</option> }
                                                 }) }
                                             </select>
+                                        </label>
+                                        <label class={classes!("grid", "gap-1", "text-xs", "text-[var(--muted-foreground)]", "lg:col-span-3")}>
+                                            { "Cache hit caps · context:percent" }
+                                            <input
+                                                class={classes!("mono")}
+                                                placeholder="empty = unlimited"
+                                                value={(*edit_cache_hit_rate_limits).clone()}
+                                                oninput={{
+                                                    let edit_cache_hit_rate_limits = edit_cache_hit_rate_limits.clone();
+                                                    Callback::from(move |event: InputEvent| {
+                                                        let input: HtmlInputElement = event.target_unchecked_into();
+                                                        edit_cache_hit_rate_limits.set(input.value());
+                                                    })
+                                                }}
+                                            />
                                         </label>
                                         <div class={classes!("flex", "items-end", "gap-2")}>
                                             <button type="button" class={classes!("primary", "w-full")} disabled={*edit_saving} onclick={on_save_edit}>
