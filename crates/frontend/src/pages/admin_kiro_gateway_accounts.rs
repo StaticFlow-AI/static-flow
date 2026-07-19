@@ -57,6 +57,7 @@ pub fn admin_kiro_gateway_accounts_page() -> Html {
     let import_name = use_state(|| "default".to_string());
     let import_sqlite_path = use_state(String::new);
     let import_scheduler_max = use_state(|| "1".to_string());
+    let import_scheduler_rpm = use_state(|| "5".to_string());
     let import_scheduler_min = use_state(|| "0".to_string());
     let importing_local = use_state(|| false);
 
@@ -77,6 +78,7 @@ pub fn admin_kiro_gateway_accounts_page() -> Html {
     let manual_email = use_state(String::new);
     let manual_subscription_title = use_state(String::new);
     let manual_scheduler_max = use_state(|| "1".to_string());
+    let manual_scheduler_rpm = use_state(|| "5".to_string());
     let manual_scheduler_min = use_state(|| "0".to_string());
     let manual_minimum_remaining_credits_before_block = use_state(|| "0".to_string());
     let manual_pool_strategy = use_state(llm_access_core::store::default_kiro_pool_strategy);
@@ -126,6 +128,7 @@ pub fn admin_kiro_gateway_accounts_page() -> Html {
         let import_name = import_name.clone();
         let import_sqlite_path = import_sqlite_path.clone();
         let import_scheduler_max = import_scheduler_max.clone();
+        let import_scheduler_rpm = import_scheduler_rpm.clone();
         let import_scheduler_min = import_scheduler_min.clone();
         let notify = notify.clone();
         let on_reload = on_reload.clone();
@@ -137,6 +140,7 @@ pub fn admin_kiro_gateway_accounts_page() -> Html {
             let import_name = (*import_name).clone();
             let import_sqlite_path = (*import_sqlite_path).clone();
             let import_scheduler_max = (*import_scheduler_max).clone();
+            let import_scheduler_rpm = (*import_scheduler_rpm).clone();
             let import_scheduler_min = (*import_scheduler_min).clone();
             let notify = notify.clone();
             let on_reload = on_reload.clone();
@@ -156,6 +160,14 @@ pub fn admin_kiro_gateway_accounts_page() -> Html {
                     ));
                     return;
                 };
+                let Ok(parsed_rpm) = import_scheduler_rpm.trim().parse::<u64>() else {
+                    notify.emit(("Import RPM must be a valid integer.".to_string(), true));
+                    return;
+                };
+                if parsed_rpm == 0 {
+                    notify.emit(("Import RPM must be greater than zero.".to_string(), true));
+                    return;
+                }
                 importing_local.set(true);
                 match import_admin_kiro_account(
                     Some(import_name.as_str()),
@@ -165,6 +177,7 @@ pub fn admin_kiro_gateway_accounts_page() -> Html {
                         Some(import_sqlite_path.as_str())
                     },
                     Some(parsed_max),
+                    Some(parsed_rpm),
                     Some(parsed_min),
                 )
                 .await
@@ -200,6 +213,7 @@ pub fn admin_kiro_gateway_accounts_page() -> Html {
         let manual_email = manual_email.clone();
         let manual_subscription_title = manual_subscription_title.clone();
         let manual_scheduler_max = manual_scheduler_max.clone();
+        let manual_scheduler_rpm = manual_scheduler_rpm.clone();
         let manual_scheduler_min = manual_scheduler_min.clone();
         let manual_minimum_remaining_credits_before_block =
             manual_minimum_remaining_credits_before_block.clone();
@@ -229,6 +243,14 @@ pub fn admin_kiro_gateway_accounts_page() -> Html {
                 ));
                 return;
             };
+            let Ok(parsed_rpm) = (*manual_scheduler_rpm).trim().parse::<u64>() else {
+                notify.emit(("Manual account RPM must be a valid integer.".to_string(), true));
+                return;
+            };
+            if parsed_rpm == 0 {
+                notify.emit(("Manual account RPM must be greater than zero.".to_string(), true));
+                return;
+            }
             let parsed_minimum_remaining_credits_before_block =
                 match (*manual_minimum_remaining_credits_before_block)
                     .trim()
@@ -262,6 +284,7 @@ pub fn admin_kiro_gateway_accounts_page() -> Html {
                 email: normalized_str_option(&manual_email),
                 subscription_title: normalized_str_option(&manual_subscription_title),
                 kiro_channel_max_concurrency: Some(parsed_max),
+                kiro_channel_rpm_limit: Some(parsed_rpm),
                 kiro_channel_min_start_interval_ms: Some(parsed_min),
                 minimum_remaining_credits_before_block: Some(
                     parsed_minimum_remaining_credits_before_block,
@@ -346,8 +369,9 @@ pub fn admin_kiro_gateway_accounts_page() -> Html {
                         <div class={classes!("panel-body", "space-y-3")}>
                             { text_field("Account Name", &import_name, false, None) }
                             { text_field("SQLite Path Override", &import_sqlite_path, false, Some("默认 ~/.local/share/kiro-cli/data.sqlite3")) }
-                            <div class={classes!("grid", "gap-3", "md:grid-cols-2")}>
+                            <div class={classes!("grid", "gap-3", "md:grid-cols-3")}>
                                 { text_field("Max Concurrency", &import_scheduler_max, false, None) }
+                                { text_field("RPM", &import_scheduler_rpm, false, None) }
                                 { text_field("Min Start Interval Ms", &import_scheduler_min, false, None) }
                             </div>
                             <button type="button" class={classes!("primary")} onclick={on_import_local} disabled={*importing_local}>
@@ -406,6 +430,7 @@ pub fn admin_kiro_gateway_accounts_page() -> Html {
                                     { text_field("API Region", &manual_api_region, false, None) }
                                     { text_field("Machine ID", &manual_machine_id, false, None) }
                                     { text_field("Max Concurrency", &manual_scheduler_max, false, None) }
+                                    { text_field("RPM", &manual_scheduler_rpm, false, None) }
                                     { text_field("Min Start Interval Ms", &manual_scheduler_min, false, None) }
                                     { text_field(
                                         "Min Remaining Credits",

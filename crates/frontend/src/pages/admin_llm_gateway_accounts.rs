@@ -428,6 +428,7 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
     let account_proxy_inputs = use_state(BTreeMap::<String, String>::new);
     let account_route_weight_tier_inputs = use_state(BTreeMap::<String, String>::new);
     let account_request_max_inputs = use_state(BTreeMap::<String, String>::new);
+    let account_request_rpm_inputs = use_state(BTreeMap::<String, String>::new);
     let account_request_min_inputs = use_state(BTreeMap::<String, String>::new);
     let account_image_enabled_inputs = use_state(BTreeMap::<String, bool>::new);
     let account_image_concurrency_inputs = use_state(BTreeMap::<String, String>::new);
@@ -495,6 +496,7 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
         let account_proxy_inputs = account_proxy_inputs.clone();
         let account_route_weight_tier_inputs = account_route_weight_tier_inputs.clone();
         let account_request_max_inputs = account_request_max_inputs.clone();
+        let account_request_rpm_inputs = account_request_rpm_inputs.clone();
         let account_request_min_inputs = account_request_min_inputs.clone();
         let account_image_enabled_inputs = account_image_enabled_inputs.clone();
         let account_image_concurrency_inputs = account_image_concurrency_inputs.clone();
@@ -542,6 +544,7 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                 let account_proxy_inputs = account_proxy_inputs.clone();
                 let account_route_weight_tier_inputs = account_route_weight_tier_inputs.clone();
                 let account_request_max_inputs = account_request_max_inputs.clone();
+                let account_request_rpm_inputs = account_request_rpm_inputs.clone();
                 let account_request_min_inputs = account_request_min_inputs.clone();
                 let account_image_enabled_inputs = account_image_enabled_inputs.clone();
                 let account_image_concurrency_inputs = account_image_concurrency_inputs.clone();
@@ -618,6 +621,13 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                                     )
                                 })
                                 .collect::<BTreeMap<_, _>>();
+                            let next_request_rpm_inputs = accounts_resp
+                                .accounts
+                                .iter()
+                                .map(|account| {
+                                    (account.name.clone(), account.request_rpm_limit.to_string())
+                                })
+                                .collect::<BTreeMap<_, _>>();
                             let next_image_enabled_inputs = accounts_resp
                                 .accounts
                                 .iter()
@@ -641,6 +651,7 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                             account_proxy_inputs.set(next_proxy_inputs);
                             account_route_weight_tier_inputs.set(next_route_weight_tier_inputs);
                             account_request_max_inputs.set(next_request_max_inputs);
+                            account_request_rpm_inputs.set(next_request_rpm_inputs);
                             account_request_min_inputs.set(next_request_min_inputs);
                             account_image_enabled_inputs.set(next_image_enabled_inputs);
                             account_image_concurrency_inputs.set(next_image_concurrency_inputs);
@@ -720,6 +731,7 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                         proxy_mode: None,
                         proxy_config_id: None,
                         request_max_concurrency: None,
+                        request_rpm_limit: None,
                         request_min_start_interval_ms: None,
                         codex_image_generation_enabled: None,
                         codex_image_generation_max_concurrency: None,
@@ -771,6 +783,7 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                         proxy_mode: None,
                         proxy_config_id: None,
                         request_max_concurrency: None,
+                        request_rpm_limit: None,
                         request_min_start_interval_ms: None,
                         codex_image_generation_enabled: None,
                         codex_image_generation_max_concurrency: None,
@@ -822,6 +835,7 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                         proxy_mode: None,
                         proxy_config_id: None,
                         request_max_concurrency: None,
+                        request_rpm_limit: None,
                         request_min_start_interval_ms: None,
                         codex_image_generation_enabled: None,
                         codex_image_generation_max_concurrency: None,
@@ -855,6 +869,7 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
         let account_proxy_inputs = account_proxy_inputs.clone();
         let account_route_weight_tier_inputs = account_route_weight_tier_inputs.clone();
         let account_request_max_inputs = account_request_max_inputs.clone();
+        let account_request_rpm_inputs = account_request_rpm_inputs.clone();
         let account_request_min_inputs = account_request_min_inputs.clone();
         let account_image_enabled_inputs = account_image_enabled_inputs.clone();
         let account_image_concurrency_inputs = account_image_concurrency_inputs.clone();
@@ -865,6 +880,7 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
             let account_proxy_inputs = account_proxy_inputs.clone();
             let account_route_weight_tier_inputs = account_route_weight_tier_inputs.clone();
             let account_request_max_inputs = account_request_max_inputs.clone();
+            let account_request_rpm_inputs = account_request_rpm_inputs.clone();
             let account_request_min_inputs = account_request_min_inputs.clone();
             let account_image_enabled_inputs = account_image_enabled_inputs.clone();
             let account_image_concurrency_inputs = account_image_concurrency_inputs.clone();
@@ -891,6 +907,15 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                     .get(&account_name)
                     .cloned()
                     .unwrap_or_default();
+                let request_rpm_raw = (*account_request_rpm_inputs)
+                    .get(&account_name)
+                    .cloned()
+                    .or_else(|| {
+                        current_account
+                            .as_ref()
+                            .map(|account| account.request_rpm_limit.to_string())
+                    })
+                    .unwrap_or_else(|| "20".to_string());
                 let image_enabled = (*account_image_enabled_inputs)
                     .get(&account_name)
                     .copied()
@@ -941,6 +966,13 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                         },
                     }
                 };
+                let request_rpm_limit = match request_rpm_raw.trim().parse::<u64>() {
+                    Ok(value) if value > 0 => value,
+                    _ => {
+                        load_error.set(Some("账号 RPM 必须是大于 0 的整数".to_string()));
+                        return;
+                    },
+                };
                 let codex_image_generation_max_concurrency = if image_concurrency_raw
                     .trim()
                     .is_empty()
@@ -972,6 +1004,7 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                         proxy_mode,
                         proxy_config_id,
                         request_max_concurrency,
+                        request_rpm_limit: Some(request_rpm_limit),
                         request_min_start_interval_ms,
                         codex_image_generation_enabled: Some(image_enabled),
                         codex_image_generation_max_concurrency: Some(
@@ -1010,6 +1043,10 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                                 .unwrap_or_default(),
                         );
                         account_request_max_inputs.set(next_request_max_inputs);
+                        let mut next_request_rpm_inputs = (*account_request_rpm_inputs).clone();
+                        next_request_rpm_inputs
+                            .insert(updated.name.clone(), updated.request_rpm_limit.to_string());
+                        account_request_rpm_inputs.set(next_request_rpm_inputs);
                         let mut next_request_min_inputs = (*account_request_min_inputs).clone();
                         next_request_min_inputs.insert(
                             updated.name.clone(),
@@ -2154,6 +2191,7 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                                 let acc_name_for_route_weight_tier_change = acc.name.clone();
                                 let acc_name_for_settings_save = acc.name.clone();
                                 let acc_name_for_request_max_change = acc.name.clone();
+                                let acc_name_for_request_rpm_change = acc.name.clone();
                                 let acc_name_for_request_min_change = acc.name.clone();
                                 let acc_name_for_image_enabled_change = acc.name.clone();
                                 let acc_name_for_image_concurrency_change = acc.name.clone();
@@ -2200,6 +2238,10 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                                             .map(|value| value.to_string())
                                             .unwrap_or_default()
                                     });
+                                let selected_request_rpm_value = (*account_request_rpm_inputs)
+                                    .get(&acc_name)
+                                    .cloned()
+                                    .unwrap_or_else(|| acc.request_rpm_limit.to_string());
                                 let selected_image_enabled = (*account_image_enabled_inputs)
                                     .get(&acc_name)
                                     .copied()
@@ -2218,10 +2260,11 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                                     acc.effective_proxy_url.clone().unwrap_or_else(|| "direct".to_string())
                                 );
                                 let scheduler_line = format!(
-                                    "scheduler: concurrency {} · start interval {}",
+                                    "scheduler: concurrency {} · RPM {} · start interval {}",
                                     acc.request_max_concurrency
                                         .map(|value| value.to_string())
                                         .unwrap_or_else(|| "∞".to_string()),
+                                    acc.request_rpm_limit,
                                     acc.request_min_start_interval_ms
                                         .map(|value| format!("{} ms", value))
                                         .unwrap_or_else(|| "∞".to_string())
@@ -2424,6 +2467,23 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                                                                 let mut next = (*account_request_max_inputs).clone();
                                                                 next.insert(acc_name_for_request_max_change.clone(), target.value());
                                                                 account_request_max_inputs.set(next);
+                                                            }
+                                                        })
+                                                    }}
+                                                />
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    class={classes!("w-24", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-2", "py-1.5", "text-xs")}
+                                                    placeholder="RPM"
+                                                    value={selected_request_rpm_value.clone()}
+                                                    oninput={{
+                                                        let account_request_rpm_inputs = account_request_rpm_inputs.clone();
+                                                        Callback::from(move |event: InputEvent| {
+                                                            if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                                                let mut next = (*account_request_rpm_inputs).clone();
+                                                                next.insert(acc_name_for_request_rpm_change.clone(), target.value());
+                                                                account_request_rpm_inputs.set(next);
                                                             }
                                                         })
                                                     }}

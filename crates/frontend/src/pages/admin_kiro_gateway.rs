@@ -1141,6 +1141,7 @@ pub(crate) struct KiroAccountCardProps {
 pub(crate) fn kiro_account_card(props: &KiroAccountCardProps) -> Html {
     let expanded = use_state(|| false);
     let scheduler_max = use_state(|| props.account.kiro_channel_max_concurrency.to_string());
+    let scheduler_rpm = use_state(|| props.account.kiro_channel_rpm_limit.to_string());
     let scheduler_min = use_state(|| props.account.kiro_channel_min_start_interval_ms.to_string());
     let minimum_remaining_credits_before_block =
         use_state(|| format_float4(props.account.minimum_remaining_credits_before_block));
@@ -1159,6 +1160,7 @@ pub(crate) fn kiro_account_card(props: &KiroAccountCardProps) -> Html {
     {
         let account = props.account.clone();
         let scheduler_max = scheduler_max.clone();
+        let scheduler_rpm = scheduler_rpm.clone();
         let scheduler_min = scheduler_min.clone();
         let minimum_remaining_credits_before_block = minimum_remaining_credits_before_block.clone();
         let manual_usage_limit = manual_usage_limit.clone();
@@ -1166,6 +1168,7 @@ pub(crate) fn kiro_account_card(props: &KiroAccountCardProps) -> Html {
         let selected_proxy = selected_proxy.clone();
         use_effect_with(props.account.clone(), move |_| {
             scheduler_max.set(account.kiro_channel_max_concurrency.to_string());
+            scheduler_rpm.set(account.kiro_channel_rpm_limit.to_string());
             scheduler_min.set(account.kiro_channel_min_start_interval_ms.to_string());
             minimum_remaining_credits_before_block
                 .set(format_float4(account.minimum_remaining_credits_before_block));
@@ -1269,6 +1272,7 @@ pub(crate) fn kiro_account_card(props: &KiroAccountCardProps) -> Html {
     let on_save_scheduler = {
         let account_name = props.account.name.clone();
         let scheduler_max = scheduler_max.clone();
+        let scheduler_rpm = scheduler_rpm.clone();
         let scheduler_min = scheduler_min.clone();
         let minimum_remaining_credits_before_block = minimum_remaining_credits_before_block.clone();
         let manual_usage_limit = manual_usage_limit.clone();
@@ -1283,6 +1287,7 @@ pub(crate) fn kiro_account_card(props: &KiroAccountCardProps) -> Html {
         Callback::from(move |_| {
             let account_name = account_name.clone();
             let scheduler_max = scheduler_max.clone();
+            let scheduler_rpm = scheduler_rpm.clone();
             let scheduler_min = scheduler_min.clone();
             let minimum_remaining_credits_before_block =
                 minimum_remaining_credits_before_block.clone();
@@ -1309,6 +1314,15 @@ pub(crate) fn kiro_account_card(props: &KiroAccountCardProps) -> Html {
                     Ok(value) => value,
                     Err(_) => {
                         let message = "Min start interval must be a valid integer.".to_string();
+                        error.set(Some(message.clone()));
+                        notify.emit((message, true));
+                        return;
+                    },
+                };
+                let parsed_rpm = match (*scheduler_rpm).trim().parse::<u64>() {
+                    Ok(value) if value > 0 => value,
+                    _ => {
+                        let message = "RPM must be an integer greater than zero.".to_string();
                         error.set(Some(message.clone()));
                         notify.emit((message, true));
                         return;
@@ -1350,6 +1364,7 @@ pub(crate) fn kiro_account_card(props: &KiroAccountCardProps) -> Html {
                 match patch_admin_kiro_account(&account_name, &PatchKiroAccountInput {
                     status: None,
                     kiro_channel_max_concurrency: Some(parsed_max),
+                    kiro_channel_rpm_limit: Some(parsed_rpm),
                     kiro_channel_min_start_interval_ms: Some(parsed_min),
                     minimum_remaining_credits_before_block: Some(
                         parsed_minimum_remaining_credits_before_block,
@@ -1407,6 +1422,7 @@ pub(crate) fn kiro_account_card(props: &KiroAccountCardProps) -> Html {
                 match patch_admin_kiro_account(&account_name, &PatchKiroAccountInput {
                     status: Some(next_status.to_string()),
                     kiro_channel_max_concurrency: None,
+                    kiro_channel_rpm_limit: None,
                     kiro_channel_min_start_interval_ms: None,
                     minimum_remaining_credits_before_block: None,
                     manual_usage_limit: None,
@@ -1517,8 +1533,9 @@ pub(crate) fn kiro_account_card(props: &KiroAccountCardProps) -> Html {
                     </p>
                     <p class={classes!("mt-1", "mb-0", "text-xs", "font-mono", "text-[var(--muted)]")}>
                         { format!(
-                            "scheduler {} in-flight · {} ms spacing · credit floor {} · manual limit {} · pool {}",
+                            "scheduler {} in-flight · {} RPM · {} ms spacing · credit floor {} · manual limit {} · pool {}",
                             account.kiro_channel_max_concurrency,
+                            account.kiro_channel_rpm_limit,
                             account.kiro_channel_min_start_interval_ms,
                             format_float4(account.minimum_remaining_credits_before_block),
                             manual_limit_label,
@@ -1606,7 +1623,7 @@ pub(crate) fn kiro_account_card(props: &KiroAccountCardProps) -> Html {
                 </div>
                 <div class={classes!("mt-4", "rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "p-4")}>
                     <div class={classes!("text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Scheduler / Proxy" }</div>
-                    <div class={classes!("mt-3", "grid", "gap-3", "md:grid-cols-6")}>
+                    <div class={classes!("mt-3", "grid", "gap-3", "md:grid-cols-7")}>
                         <label class={classes!("text-sm")}>
                             <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "Max Concurrency" }</div>
                             <input
@@ -1617,6 +1634,22 @@ pub(crate) fn kiro_account_card(props: &KiroAccountCardProps) -> Html {
                                     Callback::from(move |event: InputEvent| {
                                         let input: HtmlInputElement = event.target_unchecked_into();
                                         scheduler_max.set(input.value());
+                                    })
+                                }}
+                            />
+                        </label>
+                        <label class={classes!("text-sm")}>
+                            <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>{ "RPM" }</div>
+                            <input
+                                type="number"
+                                min="1"
+                                class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2", "text-sm", "font-mono")}
+                                value={(*scheduler_rpm).clone()}
+                                oninput={{
+                                    let scheduler_rpm = scheduler_rpm.clone();
+                                    Callback::from(move |event: InputEvent| {
+                                        let input: HtmlInputElement = event.target_unchecked_into();
+                                        scheduler_rpm.set(input.value());
                                     })
                                 }}
                             />

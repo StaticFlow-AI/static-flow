@@ -44,6 +44,7 @@ fn build_channel_patch(
     base_url: &str,
     weight: &str,
     max_concurrency: &str,
+    rpm_limit: &str,
     min_start_interval_ms: &str,
     proxy_choice: &str,
 ) -> Result<PatchAdminAnthropicUpstreamChannelInput, String> {
@@ -59,6 +60,13 @@ fn build_channel_patch(
         .trim()
         .parse::<u64>()
         .map_err(|_| "Concurrency must be an integer.".to_string())?;
+    let rpm_limit = rpm_limit
+        .trim()
+        .parse::<u64>()
+        .map_err(|_| "RPM must be an integer.".to_string())?;
+    if rpm_limit == 0 {
+        return Err("RPM must be greater than zero.".to_string());
+    }
     let min_start_interval_ms = min_start_interval_ms
         .trim()
         .parse::<u64>()
@@ -68,6 +76,7 @@ fn build_channel_patch(
         base_url: Some(base_url.to_string()),
         weight: Some(weight),
         max_concurrency: Some(max_concurrency),
+        rpm_limit: Some(rpm_limit),
         min_start_interval_ms: Some(min_start_interval_ms),
         proxy_mode: Some(proxy_mode),
         proxy_config_id: Some(proxy_config_id),
@@ -91,13 +100,20 @@ mod tests {
 
     #[test]
     fn build_channel_patch_parses_fields_and_fixed_proxy() {
-        let patch =
-            build_channel_patch(" https://api.anthropic.com ", "50", "2", "250", "fixed:proxy-1")
-                .expect("patch should build");
+        let patch = build_channel_patch(
+            " https://api.anthropic.com ",
+            "50",
+            "2",
+            "5",
+            "250",
+            "fixed:proxy-1",
+        )
+        .expect("patch should build");
 
         assert_eq!(patch.base_url.as_deref(), Some("https://api.anthropic.com"));
         assert_eq!(patch.weight, Some(50));
         assert_eq!(patch.max_concurrency, Some(2));
+        assert_eq!(patch.rpm_limit, Some(5));
         assert_eq!(patch.min_start_interval_ms, Some(250));
         assert_eq!(patch.proxy_mode.as_deref(), Some("fixed"));
         assert_eq!(patch.proxy_config_id, Some(Some("proxy-1".to_string())));
@@ -108,8 +124,9 @@ mod tests {
 
     #[test]
     fn build_channel_patch_clears_proxy_binding_for_inherit() {
-        let patch = build_channel_patch("https://api.anthropic.com", "100", "3", "0", "inherit")
-            .expect("patch should build");
+        let patch =
+            build_channel_patch("https://api.anthropic.com", "100", "3", "5", "0", "inherit")
+                .expect("patch should build");
 
         assert_eq!(patch.proxy_mode.as_deref(), Some("inherit"));
         assert_eq!(patch.proxy_config_id, Some(None));
@@ -117,9 +134,10 @@ mod tests {
 
     #[test]
     fn build_channel_patch_rejects_invalid_numbers_and_empty_base_url() {
-        assert!(build_channel_patch("https://x.dev", "abc", "3", "0", "direct").is_err());
-        assert!(build_channel_patch("https://x.dev", "1", "-2", "0", "direct").is_err());
-        assert!(build_channel_patch("  ", "1", "3", "0", "direct").is_err());
+        assert!(build_channel_patch("https://x.dev", "abc", "3", "5", "0", "direct").is_err());
+        assert!(build_channel_patch("https://x.dev", "1", "-2", "5", "0", "direct").is_err());
+        assert!(build_channel_patch("https://x.dev", "1", "2", "0", "0", "direct").is_err());
+        assert!(build_channel_patch("  ", "1", "3", "5", "0", "direct").is_err());
     }
 
     #[test]
@@ -158,6 +176,7 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
     let weight = use_state(|| llm_store::DEFAULT_ANTHROPIC_UPSTREAM_WEIGHT.to_string());
     let max_concurrency =
         use_state(|| llm_store::DEFAULT_ANTHROPIC_UPSTREAM_MAX_CONCURRENCY.to_string());
+    let rpm_limit = use_state(|| llm_store::DEFAULT_ANTHROPIC_UPSTREAM_RPM_LIMIT.to_string());
     let min_start_interval_ms =
         use_state(|| llm_store::DEFAULT_ANTHROPIC_UPSTREAM_MIN_START_INTERVAL_MS.to_string());
     let proxy_mode = use_state(|| "inherit".to_string());
@@ -169,6 +188,7 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
     let edit_base_url = use_state(String::new);
     let edit_weight = use_state(String::new);
     let edit_max_concurrency = use_state(String::new);
+    let edit_rpm_limit = use_state(String::new);
     let edit_min_start_interval_ms = use_state(String::new);
     let edit_proxy_choice = use_state(|| "inherit".to_string());
     let edit_saving = use_state(|| false);
@@ -228,6 +248,7 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
         let api_key = api_key.clone();
         let weight = weight.clone();
         let max_concurrency = max_concurrency.clone();
+        let rpm_limit = rpm_limit.clone();
         let min_start_interval_ms = min_start_interval_ms.clone();
         let proxy_mode = proxy_mode.clone();
         let saving = saving.clone();
@@ -242,6 +263,7 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
             let api_key_value = (*api_key).trim().to_string();
             let weight_value = (*weight).trim().parse::<u64>();
             let max_value = (*max_concurrency).trim().parse::<u64>();
+            let rpm_value = (*rpm_limit).trim().parse::<u64>();
             let min_value = (*min_start_interval_ms).trim().parse::<u64>();
             let proxy_choice = (*proxy_mode).clone();
             let name = name.clone();
@@ -258,6 +280,14 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                     notify.emit(("Concurrency must be an integer.".to_string(), true));
                     return;
                 };
+                let Ok(rpm_value) = rpm_value else {
+                    notify.emit(("RPM must be an integer.".to_string(), true));
+                    return;
+                };
+                if rpm_value == 0 {
+                    notify.emit(("RPM must be greater than zero.".to_string(), true));
+                    return;
+                }
                 let Ok(min_value) = min_value else {
                     notify.emit(("Min interval must be an integer.".to_string(), true));
                     return;
@@ -271,6 +301,7 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                     status: Some("active".to_string()),
                     weight: Some(weight_value),
                     max_concurrency: Some(max_value),
+                    rpm_limit: Some(rpm_value),
                     min_start_interval_ms: Some(min_value),
                     proxy_mode: Some(proxy_mode),
                     proxy_config_id,
@@ -421,6 +452,16 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                                     Callback::from(move |event: InputEvent| {
                                         let input: HtmlInputElement = event.target_unchecked_into();
                                         max_concurrency.set(input.value());
+                                    })
+                                }} />
+                            </label>
+                            <label class={classes!("grid", "gap-1", "text-xs", "text-[var(--muted-foreground)]")}>
+                                { "RPM" }
+                                <input type="number" min="1" class={classes!("mono")} value={(*rpm_limit).clone()} oninput={{
+                                    let rpm_limit = rpm_limit.clone();
+                                    Callback::from(move |event: InputEvent| {
+                                        let input: HtmlInputElement = event.target_unchecked_into();
+                                        rpm_limit.set(input.value());
                                     })
                                 }} />
                             </label>
@@ -619,12 +660,14 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                             let edit_base_url = edit_base_url.clone();
                             let edit_weight = edit_weight.clone();
                             let edit_max_concurrency = edit_max_concurrency.clone();
+                            let edit_rpm_limit = edit_rpm_limit.clone();
                             let edit_min_start_interval_ms = edit_min_start_interval_ms.clone();
                             let edit_proxy_choice = edit_proxy_choice.clone();
                             let channel_name = channel_name.clone();
                             let channel_base_url = channel.base_url.clone();
                             let channel_weight = channel.weight.to_string();
                             let channel_max_concurrency = channel.max_concurrency.to_string();
+                            let channel_rpm_limit = channel.rpm_limit.to_string();
                             let channel_min_start_interval_ms = channel.min_start_interval_ms.to_string();
                             let channel_proxy_choice = proxy_choice_for_channel(channel);
                             Callback::from(move |_| {
@@ -635,6 +678,7 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                                 edit_base_url.set(channel_base_url.clone());
                                 edit_weight.set(channel_weight.clone());
                                 edit_max_concurrency.set(channel_max_concurrency.clone());
+                                edit_rpm_limit.set(channel_rpm_limit.clone());
                                 edit_min_start_interval_ms.set(channel_min_start_interval_ms.clone());
                                 edit_proxy_choice.set(channel_proxy_choice.clone());
                                 editing_channel.set(Some(channel_name.clone()));
@@ -647,6 +691,7 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                             let edit_base_url = edit_base_url.clone();
                             let edit_weight = edit_weight.clone();
                             let edit_max_concurrency = edit_max_concurrency.clone();
+                            let edit_rpm_limit = edit_rpm_limit.clone();
                             let edit_min_start_interval_ms = edit_min_start_interval_ms.clone();
                             let edit_proxy_choice = edit_proxy_choice.clone();
                             let edit_saving = edit_saving.clone();
@@ -659,6 +704,7 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                                     &edit_base_url,
                                     &edit_weight,
                                     &edit_max_concurrency,
+                                    &edit_rpm_limit,
                                     &edit_min_start_interval_ms,
                                     &edit_proxy_choice,
                                 ) {
@@ -720,7 +766,7 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                                     </div>
                                     <div class={classes!("mono", "mt-1", "break-all", "text-[var(--muted-foreground)]")}>{ channel.base_url.clone() }</div>
                                     <div class={classes!("mono", "mt-1", "text-[var(--muted-foreground)]")}>
-                                        { format!("w={} · c={} · min={}ms · proxy={}", channel.weight, channel.max_concurrency, channel.min_start_interval_ms, channel.proxy_mode) }
+                                        { format!("w={} · c={} · rpm={} · min={}ms · proxy={}", channel.weight, channel.max_concurrency, channel.rpm_limit, channel.min_start_interval_ms, channel.proxy_mode) }
                                     </div>
                                 </div>
                                 <div class={classes!("mono", "space-y-1")}>
@@ -790,7 +836,7 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                             </div>
                             if is_editing {
                                 <div class={classes!("border-b", "border-[var(--border)]", "bg-[var(--card-2)]", "px-4", "py-3")}>
-                                    <div class={classes!("grid", "min-w-[74rem]", "gap-3", "items-end", "lg:grid-cols-7")}>
+                                    <div class={classes!("grid", "min-w-[74rem]", "gap-3", "items-end", "lg:grid-cols-8")}>
                                         <label class={classes!("grid", "gap-1", "text-xs", "text-[var(--muted-foreground)]", "lg:col-span-2")}>
                                             { "Base URL" }
                                             <input class={classes!("mono")} value={(*edit_base_url).clone()} oninput={{
@@ -818,6 +864,16 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                                                 Callback::from(move |event: InputEvent| {
                                                     let input: HtmlInputElement = event.target_unchecked_into();
                                                     edit_max_concurrency.set(input.value());
+                                                })
+                                            }} />
+                                        </label>
+                                        <label class={classes!("grid", "gap-1", "text-xs", "text-[var(--muted-foreground)]")}>
+                                            { "RPM" }
+                                            <input type="number" min="1" class={classes!("mono")} value={(*edit_rpm_limit).clone()} oninput={{
+                                                let edit_rpm_limit = edit_rpm_limit.clone();
+                                                Callback::from(move |event: InputEvent| {
+                                                    let input: HtmlInputElement = event.target_unchecked_into();
+                                                    edit_rpm_limit.set(input.value());
                                                 })
                                             }} />
                                         </label>

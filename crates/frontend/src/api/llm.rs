@@ -207,6 +207,18 @@ const fn default_codex_image_generation_max_concurrency() -> u64 {
     3
 }
 
+const fn default_codex_account_rpm_limit() -> u64 {
+    llm_store::DEFAULT_CODEX_ACCOUNT_RPM_LIMIT
+}
+
+const fn default_kiro_channel_rpm_limit() -> u64 {
+    llm_store::DEFAULT_KIRO_CHANNEL_RPM_LIMIT
+}
+
+const fn default_anthropic_upstream_rpm_limit() -> u64 {
+    llm_store::DEFAULT_ANTHROPIC_UPSTREAM_RPM_LIMIT
+}
+
 fn default_kiro_pool_strategy() -> String {
     llm_store::default_kiro_pool_strategy()
 }
@@ -4087,6 +4099,8 @@ pub struct AccountSummaryView {
     pub map_gpt53_codex_to_spark: bool,
     pub auto_refresh_enabled: bool,
     pub request_max_concurrency: Option<u64>,
+    #[serde(default = "default_codex_account_rpm_limit")]
+    pub request_rpm_limit: u64,
     pub request_min_start_interval_ms: Option<u64>,
     #[serde(default)]
     pub codex_image_generation_enabled: bool,
@@ -4120,6 +4134,7 @@ impl Default for AccountSummaryView {
             map_gpt53_codex_to_spark: false,
             auto_refresh_enabled: true,
             request_max_concurrency: None,
+            request_rpm_limit: default_codex_account_rpm_limit(),
             request_min_start_interval_ms: None,
             codex_image_generation_enabled: false,
             codex_image_generation_max_concurrency: default_codex_image_generation_max_concurrency(
@@ -4489,6 +4504,7 @@ pub async fn import_admin_llm_gateway_account(
             map_gpt53_codex_to_spark: false,
             auto_refresh_enabled: true,
             request_max_concurrency: None,
+            request_rpm_limit: default_codex_account_rpm_limit(),
             request_min_start_interval_ms: None,
             codex_image_generation_enabled: false,
             codex_image_generation_max_concurrency: default_codex_image_generation_max_concurrency(
@@ -4591,6 +4607,7 @@ pub struct PatchAdminLlmGatewayAccountInput {
     pub proxy_mode: Option<String>,
     pub proxy_config_id: Option<String>,
     pub request_max_concurrency: Option<u64>,
+    pub request_rpm_limit: Option<u64>,
     pub request_min_start_interval_ms: Option<u64>,
     pub codex_image_generation_enabled: Option<bool>,
     pub codex_image_generation_max_concurrency: Option<u64>,
@@ -4620,6 +4637,9 @@ pub async fn patch_admin_llm_gateway_account(
             map_gpt53_codex_to_spark: input.map_gpt53_codex_to_spark.unwrap_or(false),
             auto_refresh_enabled: input.auto_refresh_enabled.unwrap_or(true),
             request_max_concurrency: input.request_max_concurrency,
+            request_rpm_limit: input
+                .request_rpm_limit
+                .unwrap_or_else(default_codex_account_rpm_limit),
             request_min_start_interval_ms: input.request_min_start_interval_ms,
             codex_image_generation_enabled: input.codex_image_generation_enabled.unwrap_or(false),
             codex_image_generation_max_concurrency: input
@@ -4682,6 +4702,7 @@ pub async fn refresh_admin_llm_gateway_account(name: &str) -> Result<AccountSumm
             map_gpt53_codex_to_spark: false,
             auto_refresh_enabled: true,
             request_max_concurrency: None,
+            request_rpm_limit: default_codex_account_rpm_limit(),
             request_min_start_interval_ms: None,
             codex_image_generation_enabled: false,
             codex_image_generation_max_concurrency: default_codex_image_generation_max_concurrency(
@@ -4748,6 +4769,7 @@ pub async fn refresh_admin_llm_gateway_account_auth(
             map_gpt53_codex_to_spark: false,
             auto_refresh_enabled: true,
             request_max_concurrency: None,
+            request_rpm_limit: default_codex_account_rpm_limit(),
             request_min_start_interval_ms: None,
             codex_image_generation_enabled: false,
             codex_image_generation_max_concurrency: default_codex_image_generation_max_concurrency(
@@ -4893,6 +4915,7 @@ pub async fn consume_admin_llm_gateway_account_rate_limit_reset_credit(
                 map_gpt53_codex_to_spark: false,
                 auto_refresh_enabled: true,
                 request_max_concurrency: None,
+                request_rpm_limit: default_codex_account_rpm_limit(),
                 request_min_start_interval_ms: None,
                 codex_image_generation_enabled: false,
                 codex_image_generation_max_concurrency:
@@ -5088,6 +5111,8 @@ pub struct AdminAnthropicUpstreamChannelView {
     pub has_api_key: bool,
     pub weight: u64,
     pub max_concurrency: u64,
+    #[serde(default = "default_anthropic_upstream_rpm_limit")]
+    pub rpm_limit: u64,
     pub min_start_interval_ms: u64,
     pub proxy_mode: String,
     pub proxy_config_id: Option<String>,
@@ -5138,6 +5163,7 @@ pub struct CreateAdminAnthropicUpstreamChannelInput {
     pub status: Option<String>,
     pub weight: Option<u64>,
     pub max_concurrency: Option<u64>,
+    pub rpm_limit: Option<u64>,
     pub min_start_interval_ms: Option<u64>,
     pub proxy_mode: Option<String>,
     pub proxy_config_id: Option<String>,
@@ -5150,6 +5176,7 @@ pub struct PatchAdminAnthropicUpstreamChannelInput {
     pub api_key: Option<String>,
     pub weight: Option<u64>,
     pub max_concurrency: Option<u64>,
+    pub rpm_limit: Option<u64>,
     pub min_start_interval_ms: Option<u64>,
     pub proxy_mode: Option<String>,
     pub proxy_config_id: Option<Option<String>>,
@@ -5319,6 +5346,8 @@ pub struct KiroAccountView {
     pub api_region: Option<String>,
     pub machine_id: Option<String>,
     pub kiro_channel_max_concurrency: u64,
+    #[serde(default = "default_kiro_channel_rpm_limit")]
+    pub kiro_channel_rpm_limit: u64,
     pub kiro_channel_min_start_interval_ms: u64,
     pub minimum_remaining_credits_before_block: f64,
     pub manual_usage_limit: Option<f64>,
@@ -5352,6 +5381,7 @@ pub struct CreateManualKiroAccountInput {
     pub email: Option<String>,
     pub subscription_title: Option<String>,
     pub kiro_channel_max_concurrency: Option<u64>,
+    pub kiro_channel_rpm_limit: Option<u64>,
     pub kiro_channel_min_start_interval_ms: Option<u64>,
     pub minimum_remaining_credits_before_block: Option<f64>,
     pub manual_usage_limit: Option<f64>,
@@ -5363,6 +5393,7 @@ pub struct CreateManualKiroAccountInput {
 pub struct PatchKiroAccountInput {
     pub status: Option<String>,
     pub kiro_channel_max_concurrency: Option<u64>,
+    pub kiro_channel_rpm_limit: Option<u64>,
     pub kiro_channel_min_start_interval_ms: Option<u64>,
     pub minimum_remaining_credits_before_block: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -6805,12 +6836,18 @@ pub async fn import_admin_kiro_account(
     name: Option<&str>,
     sqlite_path: Option<&str>,
     kiro_channel_max_concurrency: Option<u64>,
+    kiro_channel_rpm_limit: Option<u64>,
     kiro_channel_min_start_interval_ms: Option<u64>,
 ) -> Result<KiroAccountView, String> {
     #[cfg(feature = "mock")]
     {
-        let _ =
-            (name, sqlite_path, kiro_channel_max_concurrency, kiro_channel_min_start_interval_ms);
+        let _ = (
+            name,
+            sqlite_path,
+            kiro_channel_max_concurrency,
+            kiro_channel_rpm_limit,
+            kiro_channel_min_start_interval_ms,
+        );
         Err("mock not supported".to_string())
     }
 
@@ -6827,6 +6864,12 @@ pub async fn import_admin_kiro_account(
         if let Some(value) = kiro_channel_max_concurrency {
             body.insert(
                 "kiro_channel_max_concurrency".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(value)),
+            );
+        }
+        if let Some(value) = kiro_channel_rpm_limit {
+            body.insert(
+                "kiro_channel_rpm_limit".to_string(),
                 serde_json::Value::Number(serde_json::Number::from(value)),
             );
         }
