@@ -131,13 +131,17 @@ def account_user_id(account: dict[str, Any]) -> str | None:
 
 
 def existing_user_id_map(accounts: list[dict[str, Any]]) -> dict[str, str]:
-    result: dict[str, str] = {}
+    names_by_user_id: dict[str, set[str]] = {}
     for account in accounts:
         name = account_name(account)
         user_id = account_user_id(account)
         if name and user_id:
-            result.setdefault(user_id, name)
-    return result
+            names_by_user_id.setdefault(user_id, set()).add(name)
+    return {
+        user_id: next(iter(names))
+        for user_id, names in names_by_user_id.items()
+        if len(names) == 1
+    }
 
 
 def select_existing_account_name_from_probe(
@@ -147,6 +151,7 @@ def select_existing_account_name_from_probe(
     exclude_names: set[str] | None = None,
 ) -> str | None:
     exclude_names = exclude_names or set()
+    candidates: set[str] = set()
     results = probe_result.get("results")
     if not isinstance(results, list):
         return None
@@ -157,10 +162,11 @@ def select_existing_account_name_from_probe(
         if duplicate_of is not None:
             duplicate_name = str(duplicate_of)
             if duplicate_name not in exclude_names:
-                return duplicate_name
-    user_ids = existing_user_id_map(
-        [account for account in accounts if account_name(account) not in exclude_names]
-    )
+                candidates.add(duplicate_name)
+    eligible_accounts = [
+        account for account in accounts if account_name(account) not in exclude_names
+    ]
+    user_ids = existing_user_id_map(eligible_accounts)
     for result in results:
         if not isinstance(result, dict):
             continue
@@ -169,8 +175,8 @@ def select_existing_account_name_from_probe(
             continue
         user_id = field(balance, "user_id")
         if user_id is not None and str(user_id) in user_ids:
-            return user_ids[str(user_id)]
-    return None
+            candidates.add(user_ids[str(user_id)])
+    return next(iter(candidates)) if len(candidates) == 1 else None
 
 
 def find_account(accounts: list[dict[str, Any]], name: str) -> dict[str, Any] | None:
@@ -704,7 +710,9 @@ def auto_refresh_existing_account(
     )
     if target_name is None:
         delete_account(args.admin_base_url, probe_name, args.admin_token)
-        raise RuntimeError("refreshed credentials did not match an existing Kiro account")
+        raise RuntimeError(
+            "refreshed credentials did not uniquely match an existing Kiro account"
+        )
     if find_account(fetch_kiro_accounts(args.admin_base_url, args.admin_token), probe_name):
         delete_account(args.admin_base_url, probe_name, args.admin_token)
     updated = update_existing_account_from_token(
@@ -734,6 +742,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help=(
             "Explicit llm-access account name to import. Omit it to auto-match "
             "the refreshed credentials to an existing account by upstream user_id."
+        ),
+    )
+    parser.add_argument(
+        "--existing-account-name",
+        help=(
+            "Operator-confirmed existing llm-access account to refresh directly "
+            "when stable automatic identity matching is unavailable."
         ),
     )
     parser.add_argument("--proxy", default=DEFAULT_PROXY)
@@ -782,6 +797,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
+    if args.account_name and args.existing_account_name:
+        raise SystemExit("--account-name and --existing-account-name are mutually exclusive")
     if args.replace_account and not args.account_name:
         raise SystemExit("--replace-account requires --account-name")
     github_login = resolve_github_login(args)
@@ -841,7 +858,19 @@ def main(argv: list[str]) -> int:
     if whoami_email:
         log(f"Detected Kiro account email: {whoami_email}")
 
-    if args.account_name:
+    if args.existing_account_name:
+        target_name = args.existing_account_name
+        refreshed = update_existing_account_from_token(
+            args,
+            target_name,
+            token_payload,
+            written["expires_at"],
+            email=whoami_email,
+        )
+        log("Updated operator-confirmed existing Kiro account:")
+        log(json.dumps(refreshed, ensure_ascii=False, indent=2))
+        balance = refreshed["balance"]
+    elif args.account_name:
         dry_run = run_importer(args, apply=False)
         log("Importer dry-run:")
         log(json.dumps(dry_run, ensure_ascii=False, indent=2))

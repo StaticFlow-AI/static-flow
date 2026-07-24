@@ -75,3 +75,4 @@ in this file.
 | Kassulkee | Kassulke@asu.edu | 402.93 | 1000 | 597.07 | `laohan36` (exact upstream user-id and quota match; token and email restored) |
 | Scottieeex | Scottieee@asu.edu | 839.43 | 1000 | 160.57 | `laohan37` (exact upstream user-id and quota match; token and email restored) |
 | Francescoxz | Francesco@asu.edu | 993.14 | 1000 | 6.86 | `laohan38` (exact upstream user-id and quota match; token and email restored below the 10-credit importer threshold) |
+| Prosacco1 | Prosacco@asu.edu | 885.25 | 1000 | 114.75 | `laohan39` (operator-confirmed sequential mapping; token and email restored) |

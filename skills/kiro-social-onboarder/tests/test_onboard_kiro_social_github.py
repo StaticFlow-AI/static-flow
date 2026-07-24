@@ -94,7 +94,22 @@ class KiroSocialGithubOnboarderTest(unittest.TestCase):
         args = module.parse_args([])
 
         self.assertIsNone(args.account_name)
+        self.assertIsNone(args.existing_account_name)
         self.assertFalse(args.replace_account)
+
+    def test_parse_args_accepts_operator_confirmed_existing_account(self):
+        args = module.parse_args(
+            [
+                "--github-login",
+                "Prosacco1",
+                "--existing-account-name",
+                "laohan39",
+            ]
+        )
+
+        self.assertEqual(args.github_login, "Prosacco1")
+        self.assertEqual(args.existing_account_name, "laohan39")
+        self.assertIsNone(args.account_name)
 
     def test_github_via_google_disables_github_password_prompt(self):
         args = module.parse_args(
@@ -350,6 +365,44 @@ class KiroSocialGithubOnboarderTest(unittest.TestCase):
         matched = module.select_existing_account_name_from_probe(probe, accounts)
 
         self.assertEqual(matched, "target")
+
+    def test_select_existing_account_rejects_duplicate_user_id(self):
+        probe = {
+            "results": [
+                {
+                    "name": "kiro-refresh-probe-1",
+                    "validated": True,
+                    "balance": {"user_id": "shared-user"},
+                }
+            ]
+        }
+        accounts = [
+            {"name": "first", "upstream_user_id": "shared-user"},
+            {"name": "second", "upstream_user_id": "shared-user"},
+        ]
+
+        matched = module.select_existing_account_name_from_probe(probe, accounts)
+
+        self.assertIsNone(matched)
+
+    def test_select_existing_account_rejects_conflicting_matches(self):
+        probe = {
+            "results": [
+                {
+                    "name": "kiro-refresh-probe-1",
+                    "duplicate_of": "duplicate-match",
+                    "validated": True,
+                    "balance": {"user_id": "user-match"},
+                }
+            ]
+        }
+        accounts = [
+            {"name": "user-id-match", "upstream_user_id": "user-match"},
+        ]
+
+        matched = module.select_existing_account_name_from_probe(probe, accounts)
+
+        self.assertIsNone(matched)
 
     def test_select_existing_account_ignores_probe_account(self):
         probe = {

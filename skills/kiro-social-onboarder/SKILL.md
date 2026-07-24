@@ -29,14 +29,29 @@ unset KIRO_GOOGLE_PASSWORD
 
 For refreshing an existing GitHub-backed account that has fallen into
 `auth_401`, use the GitHub-specific script without `--account-name`. It probes
-the refreshed credentials with a temporary account, matches the upstream
-`user_id` to an existing llm-access Kiro account, then writes the new token
-pair back to that existing account:
+the refreshed credentials with a temporary account, uniquely matches the
+upstream `user_id` to an existing llm-access Kiro account, then writes the new
+token pair back to that existing account:
 
 ```bash
 python3 skills/kiro-social-onboarder/scripts/onboard_kiro_social_github.py \
   --manual-timeout-seconds 600
 ```
+
+When old records have no current upstream `user_id`, require the operator to
+confirm the existing llm-access account name explicitly:
+
+```bash
+python3 skills/kiro-social-onboarder/scripts/onboard_kiro_social_github.py \
+  --github-login Prosacco1 \
+  --existing-account-name laohan39 \
+  --manual-timeout-seconds 600
+```
+
+This path updates only that existing account and preserves its proxy and
+scheduling settings. Use refreshed quota as validation evidence, not an
+automatic identity key: quota values change across reset periods and can
+collide between accounts.
 
 For credential-prefilled GitHub login, put the password in an environment
 variable rather than a shell argument. The helper fills the GitHub username and
@@ -91,8 +106,9 @@ transitions. Set `KIRO_STEP_DELAY_MIN_MS` and `KIRO_STEP_DELAY_MAX_MS` to
 override the range; set both to `0` only when the delay must be disabled. When
 `--account-name` is omitted, it
 uses a temporary probe account only to refresh balance and identify the
-existing account by upstream `user_id`; the probe account is deleted when it is
-not automatically removed by duplicate detection.
+existing account by a unique upstream `user_id`; the probe account is deleted
+when it is not automatically removed by duplicate detection. The script stops
+instead of guessing when stable identifiers are absent or conflict.
 
 When GitHub itself must be entered through **Continue with Google**, use the
 sibling `kiro-github-google-onboarder` skill. It supplies a specialized browser
@@ -122,9 +138,12 @@ llm-access import, proxy assignment, and balance-verification implementation.
 For GitHub:
 
 - `--account-name`: optional. Omit it when refreshing an existing 401 account
-  and let the script match by upstream `user_id`. Provide it only for explicit
-  new-account import or exact-name replacement. Prefer
+  and let the script match by a unique upstream `user_id`. Provide it only for
+  explicit new-account import or exact-name replacement. Prefer
   `kiro-<localpart>-github-social` for new accounts.
+- `--existing-account-name`: operator-confirmed existing llm-access account to
+  refresh directly when upstream identity metadata cannot match the old record.
+  Keep it separate from `--account-name`, which is the new-import path.
 - `--github-login`: optional GitHub username or email for login prefill. If
   omitted and `--account-name` is present, the script may use `--account-name`
   as the GitHub login when a password is available.
