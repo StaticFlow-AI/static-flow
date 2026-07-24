@@ -86,3 +86,4 @@ in this file.
 | Lefflerxs | Lefflerxs@asu.edu | 507.02 | 1000 | 492.98 | `laohan48` (operator-confirmed sequential mapping; token and email restored) |
 | Emoryyy1 | Emoryyy@asu.edu | 437.47 | 1000 | 562.53 | `laohan49` (operator-confirmed sequential mapping; token and email restored) |
 | Deangeloo1 | Deangeloo@asu.edu | 580.08 | 1000 | 419.92 | `laohan50` (operator-confirmed sequential mapping; token and email restored) |
+| Smithamm1 | Smithamm@asu.edu | 722.32 | 1000 | 277.68 | `laohan51` (operator-confirmed sequential mapping; token and email restored) |
