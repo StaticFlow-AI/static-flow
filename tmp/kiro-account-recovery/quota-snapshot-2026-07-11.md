@@ -77,3 +77,4 @@ in this file.
 | Francescoxz | Francesco@asu.edu | 993.14 | 1000 | 6.86 | `laohan38` (exact upstream user-id and quota match; token and email restored below the 10-credit importer threshold) |
 | Prosacco1 | Prosacco@asu.edu | 885.25 | 1000 | 114.75 | `laohan39` (operator-confirmed sequential mapping; token and email restored) |
 | Imeldaa1 | Imeldaa@asu.edu | 535.07 | 1000 | 464.93 | `laohan41` (operator-corrected mapping; token and email restored; mistaken `laohan40` import removed) |
+| Hagenes12 | Hagenes@asu.edu | 546.07 | 1000 | 453.93 | `laohan42` (operator-confirmed sequential mapping; token and email restored) |
