@@ -87,3 +87,4 @@ in this file.
 | Emoryyy1 | Emoryyy@asu.edu | 437.47 | 1000 | 562.53 | `laohan49` (operator-confirmed sequential mapping; token and email restored) |
 | Deangeloo1 | Deangeloo@asu.edu | 580.08 | 1000 | 419.92 | `laohan50` (operator-confirmed sequential mapping; token and email restored) |
 | Smithamm1 | Smithamm@asu.edu | 722.32 | 1000 | 277.68 | `laohan51` (operator-confirmed sequential mapping; token and email restored) |
+| Nienoww | Nienoww@asu.edu | 1000.00 | 1000 | 0.00 | `laohan52` (operator-confirmed sequential mapping; token and email restored; current cycle exhausted) |
