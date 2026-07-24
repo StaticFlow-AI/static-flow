@@ -78,3 +78,4 @@ in this file.
 | Prosacco1 | Prosacco@asu.edu | 885.25 | 1000 | 114.75 | `laohan39` (operator-confirmed sequential mapping; token and email restored) |
 | Imeldaa1 | Imeldaa@asu.edu | 535.07 | 1000 | 464.93 | `laohan41` (operator-corrected mapping; token and email restored; mistaken `laohan40` import removed) |
 | Hagenes12 | Hagenes@asu.edu | 546.07 | 1000 | 453.93 | `laohan42` (operator-confirmed sequential mapping; token and email restored) |
+| Janessaa1 | Janessaa@asu.edu | 598.29 | 1000 | 401.71 | `laohan43` (operator-confirmed sequential mapping; token and email restored) |
