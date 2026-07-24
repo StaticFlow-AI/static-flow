@@ -80,3 +80,4 @@ in this file.
 | Hagenes12 | Hagenes@asu.edu | 546.07 | 1000 | 453.93 | `laohan42` (operator-confirmed sequential mapping; token and email restored) |
 | Janessaa1 | Janessaa@asu.edu | 598.29 | 1000 | 401.71 | `laohan43` (operator-confirmed sequential mapping; token and email restored) |
 | Kuhlmannn1 | Kuhlmannn@asu.edu | 586.64 | 1000 | 413.36 | `laohan44` (operator-confirmed sequential mapping; token and email restored) |
+| Laurinez | Laurine@asu.edu | 524.67 | 1000 | 475.33 | `laohan45` (operator-confirmed sequential mapping; token and email restored) |
