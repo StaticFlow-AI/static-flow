@@ -90,3 +90,4 @@ in this file.
 | Nienoww | Nienoww@asu.edu | 1000.00 | 1000 | 0.00 | `laohan52` (operator-confirmed sequential mapping; token and email restored; current cycle exhausted) |
 | Keelinggg | Keelinggg@asu.edu | 562.93 | 1000 | 437.07 | `laohan53` (operator-confirmed sequential mapping; token and email restored) |
 | Reingerrr | Reingerrr@asu.edu | 735.24 | 1000 | 264.76 | `laohan54` (operator-confirmed sequential mapping; token and email restored) |
+| Reynoldss12 | Reynoldss@asu.edu | 522.51 | 1000 | 477.49 | `laohan55` (operator-confirmed sequential mapping; token and email restored) |
