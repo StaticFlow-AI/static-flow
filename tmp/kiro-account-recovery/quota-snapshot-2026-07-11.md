@@ -108,3 +108,4 @@ in this file.
 | Gulgowskiii | Gulgowski@asu.edu | 541.97 | 1000 | 458.03 | `laohan70` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
 | Lindgrenx | Lindgrenx@asu.edu | 990.17 | 1000 | 9.83 | `laohan71` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored below the 10-credit scheduling threshold) |
 | Kristoffercc | Kristofferc@asu.edu | 806.75 | 1000 | 193.25 | `laohan72` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
+| Newellxxx | Newellxxx@asu.edu | 907.46 | 1000 | 92.54 | `laohan73` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
