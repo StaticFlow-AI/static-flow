@@ -93,3 +93,4 @@ in this file.
 | Reynoldss12 | Reynoldss@asu.edu | 522.51 | 1000 | 477.49 | `laohan55` (operator-confirmed sequential mapping; token and email restored) |
 | Kayleyu1 | Kayleyu@asu.edu | 521.82 | 1000 | 478.18 | `laohan56` (operator-confirmed sequential mapping after GitHub password and 2FA rotation; token and email restored) |
 | Sengerr2 | Sengerr@asu.edu | 603.60 | 1000 | 396.40 | `laohan57` (operator-confirmed sequential mapping after GitHub password and 2FA rotation; token and email restored) |
+| Schulist1 | Schulist@asu.edu | 991.94 | 1000 | 8.06 | `laohan58` (operator-confirmed sequential mapping after GitHub password and 2FA rotation; token and email restored below the 10-credit scheduling threshold) |
