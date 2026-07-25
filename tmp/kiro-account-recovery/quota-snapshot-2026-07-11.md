@@ -96,3 +96,4 @@ in this file.
 | Schulist1 | Schulist@asu.edu | 991.94 | 1000 | 8.06 | `laohan58` (operator-confirmed sequential mapping after GitHub password and 2FA rotation; token and email restored below the 10-credit scheduling threshold) |
 | Arnoldo123z | Arnoldo@asu.edu | 992.10 | 1000 | 7.90 | `laohan59` (operator-confirmed sequential mapping after GitHub password and 2FA rotation; token and email restored below the 10-credit scheduling threshold) |
 | Kunzeez | Kunzeez@asu.edu | 671.25 | 1000 | 328.75 | `laohan60` (operator-confirmed sequential mapping after GitHub password and 2FA rotation; token and email restored) |
+| Autumnn12 | Autumnn@asu.edu | 561.22 | 1000 | 438.78 | `laohan61` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
