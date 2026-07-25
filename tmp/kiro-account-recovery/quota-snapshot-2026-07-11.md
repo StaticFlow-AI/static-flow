@@ -98,3 +98,4 @@ in this file.
 | Kunzeez | Kunzeez@asu.edu | 671.25 | 1000 | 328.75 | `laohan60` (operator-confirmed sequential mapping after GitHub password and 2FA rotation; token and email restored) |
 | Autumnn12 | Autumnn@asu.edu | 561.22 | 1000 | 438.78 | `laohan61` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
 | Fritschh | Fritschh@asu.edu | 489.28 | 1000 | 510.72 | `laohan62` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
+| Carminee123 | Carmine@asu.edu | 1000.00 | 1000 | 0.00 | `laohan63` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored; current cycle exhausted) |
