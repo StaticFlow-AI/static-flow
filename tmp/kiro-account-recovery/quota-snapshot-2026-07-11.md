@@ -103,3 +103,4 @@ in this file.
 | Clementinee1 | Clementinee@asu.edu | 852.57 | 1000 | 147.43 | `laohan65` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
 | Kilback12 | Kilback@asu.edu | 592.06 | 1000 | 407.94 | `laohan66` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
 | Maxweelll | Maxweelll@asu.edu | 994.05 | 1000 | 5.95 | `laohan67` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored below the 10-credit scheduling threshold) |
+| Bernierzz | Bernierzz@asu.edu | 1000.00 | 1000 | 0.00 | `laohan68` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored; current cycle exhausted) |
