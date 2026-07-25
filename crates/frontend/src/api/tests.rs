@@ -186,8 +186,24 @@ fn account_summary_view_deserializes_rate_limit_reset_credits() {
     .expect("account summary should parse");
 
     assert_eq!(account.rate_limit_reset_credits_available, Some(2));
+    assert!(!account.auto_reset_rate_limit_enabled);
+    assert_eq!(account.auto_reset_rate_limit_threshold_percent, 3);
     assert!(!account.codex_image_generation_enabled);
     assert_eq!(account.codex_image_generation_max_concurrency, 3);
+}
+
+#[test]
+fn account_summary_view_deserializes_auto_reset_settings() {
+    let account: AccountSummaryView = serde_json::from_value(serde_json::json!({
+        "name": "codex-pro",
+        "status": "active",
+        "auto_reset_rate_limit_enabled": true,
+        "auto_reset_rate_limit_threshold_percent": 7
+    }))
+    .expect("auto reset settings should parse");
+
+    assert!(account.auto_reset_rate_limit_enabled);
+    assert_eq!(account.auto_reset_rate_limit_threshold_percent, 7);
 }
 
 #[test]

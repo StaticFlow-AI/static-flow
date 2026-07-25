@@ -43,6 +43,7 @@ const ADMIN_CODEX_IMPORT_JOB_LIST_LIMIT: usize = 10;
 const CODEX_IMAGE_DEFAULT_CONCURRENCY: u64 = 3;
 
 const CODEX_IMAGE_MAX_CONCURRENCY: u64 = 1024;
+const CODEX_AUTO_RESET_THRESHOLD_MAX_PERCENT: u64 = 100;
 
 #[derive(Clone, PartialEq, Eq)]
 struct ResetCreditPickerState {
@@ -432,6 +433,8 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
     let account_request_min_inputs = use_state(BTreeMap::<String, String>::new);
     let account_image_enabled_inputs = use_state(BTreeMap::<String, bool>::new);
     let account_image_concurrency_inputs = use_state(BTreeMap::<String, String>::new);
+    let account_auto_reset_enabled_inputs = use_state(BTreeMap::<String, bool>::new);
+    let account_auto_reset_threshold_inputs = use_state(BTreeMap::<String, String>::new);
     let show_import_form = use_state(|| false);
     let account_search = use_state(String::new);
     let account_active_query = use_state(String::new);
@@ -500,6 +503,8 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
         let account_request_min_inputs = account_request_min_inputs.clone();
         let account_image_enabled_inputs = account_image_enabled_inputs.clone();
         let account_image_concurrency_inputs = account_image_concurrency_inputs.clone();
+        let account_auto_reset_enabled_inputs = account_auto_reset_enabled_inputs.clone();
+        let account_auto_reset_threshold_inputs = account_auto_reset_threshold_inputs.clone();
         let accounts_total = accounts_total.clone();
         let account_page_limit = account_page_limit.clone();
         let loading = loading.clone();
@@ -548,6 +553,9 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                 let account_request_min_inputs = account_request_min_inputs.clone();
                 let account_image_enabled_inputs = account_image_enabled_inputs.clone();
                 let account_image_concurrency_inputs = account_image_concurrency_inputs.clone();
+                let account_auto_reset_enabled_inputs = account_auto_reset_enabled_inputs.clone();
+                let account_auto_reset_threshold_inputs =
+                    account_auto_reset_threshold_inputs.clone();
                 let accounts_total = accounts_total.clone();
                 let account_page_limit = account_page_limit.clone();
                 let loading = loading.clone();
@@ -645,6 +653,23 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                                     )
                                 })
                                 .collect::<BTreeMap<_, _>>();
+                            let next_auto_reset_enabled_inputs = accounts_resp
+                                .accounts
+                                .iter()
+                                .map(|account| {
+                                    (account.name.clone(), account.auto_reset_rate_limit_enabled)
+                                })
+                                .collect::<BTreeMap<_, _>>();
+                            let next_auto_reset_threshold_inputs = accounts_resp
+                                .accounts
+                                .iter()
+                                .map(|account| {
+                                    (
+                                        account.name.clone(),
+                                        account.auto_reset_rate_limit_threshold_percent.to_string(),
+                                    )
+                                })
+                                .collect::<BTreeMap<_, _>>();
                             accounts_total.set(accounts_resp.total);
                             account_page_limit.set(accounts_resp.limit.max(1));
                             accounts.set(accounts_resp.accounts);
@@ -655,6 +680,9 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                             account_request_min_inputs.set(next_request_min_inputs);
                             account_image_enabled_inputs.set(next_image_enabled_inputs);
                             account_image_concurrency_inputs.set(next_image_concurrency_inputs);
+                            account_auto_reset_enabled_inputs.set(next_auto_reset_enabled_inputs);
+                            account_auto_reset_threshold_inputs
+                                .set(next_auto_reset_threshold_inputs);
                             codex_rate_limit_status.set(Some(codex_status_resp));
                             recent_import_jobs.set(import_jobs);
                             load_error.set(None);
@@ -727,6 +755,8 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                         status: None,
                         map_gpt53_codex_to_spark: Some(enabled),
                         auto_refresh_enabled: None,
+                        auto_reset_rate_limit_enabled: None,
+                        auto_reset_rate_limit_threshold_percent: None,
                         route_weight_tier: None,
                         proxy_mode: None,
                         proxy_config_id: None,
@@ -779,6 +809,8 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                         status: None,
                         map_gpt53_codex_to_spark: None,
                         auto_refresh_enabled: Some(enabled),
+                        auto_reset_rate_limit_enabled: None,
+                        auto_reset_rate_limit_threshold_percent: None,
                         route_weight_tier: None,
                         proxy_mode: None,
                         proxy_config_id: None,
@@ -831,6 +863,8 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                         status: Some(status),
                         map_gpt53_codex_to_spark: None,
                         auto_refresh_enabled: None,
+                        auto_reset_rate_limit_enabled: None,
+                        auto_reset_rate_limit_threshold_percent: None,
                         route_weight_tier: None,
                         proxy_mode: None,
                         proxy_config_id: None,
@@ -873,6 +907,8 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
         let account_request_min_inputs = account_request_min_inputs.clone();
         let account_image_enabled_inputs = account_image_enabled_inputs.clone();
         let account_image_concurrency_inputs = account_image_concurrency_inputs.clone();
+        let account_auto_reset_enabled_inputs = account_auto_reset_enabled_inputs.clone();
+        let account_auto_reset_threshold_inputs = account_auto_reset_threshold_inputs.clone();
         let accounts = accounts.clone();
         let load_error = load_error.clone();
         Callback::from(move |account_name: String| {
@@ -884,6 +920,8 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
             let account_request_min_inputs = account_request_min_inputs.clone();
             let account_image_enabled_inputs = account_image_enabled_inputs.clone();
             let account_image_concurrency_inputs = account_image_concurrency_inputs.clone();
+            let account_auto_reset_enabled_inputs = account_auto_reset_enabled_inputs.clone();
+            let account_auto_reset_threshold_inputs = account_auto_reset_threshold_inputs.clone();
             let accounts = accounts.clone();
             let load_error = load_error.clone();
             wasm_bindgen_futures::spawn_local(async move {
@@ -934,6 +972,24 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                         })
                     })
                     .unwrap_or_else(|| CODEX_IMAGE_DEFAULT_CONCURRENCY.to_string());
+                let auto_reset_rate_limit_enabled = (*account_auto_reset_enabled_inputs)
+                    .get(&account_name)
+                    .copied()
+                    .or_else(|| {
+                        current_account
+                            .as_ref()
+                            .map(|account| account.auto_reset_rate_limit_enabled)
+                    })
+                    .unwrap_or(false);
+                let auto_reset_threshold_raw = (*account_auto_reset_threshold_inputs)
+                    .get(&account_name)
+                    .cloned()
+                    .or_else(|| {
+                        current_account.as_ref().map(|account| {
+                            account.auto_reset_rate_limit_threshold_percent.to_string()
+                        })
+                    })
+                    .unwrap_or_else(|| "3".to_string());
                 let (proxy_mode, proxy_config_id) = if selection == "direct" {
                     (Some("direct".to_string()), None)
                 } else if let Some(proxy_config_id) = selection.strip_prefix("fixed:") {
@@ -989,6 +1045,21 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                         },
                     }
                 };
+                let auto_reset_rate_limit_threshold_percent = match auto_reset_threshold_raw
+                    .trim()
+                    .parse::<u64>()
+                {
+                    Ok(value) if (1..=CODEX_AUTO_RESET_THRESHOLD_MAX_PERCENT).contains(&value) => {
+                        value
+                    },
+                    _ => {
+                        load_error.set(Some(format!(
+                            "自动 Reset 阈值必须是 1..={CODEX_AUTO_RESET_THRESHOLD_MAX_PERCENT} \
+                             的整数百分比"
+                        )));
+                        return;
+                    },
+                };
 
                 let mut inflight = (*account_action_inflight).clone();
                 inflight.insert(account_name.clone());
@@ -1000,6 +1071,10 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                         status: None,
                         map_gpt53_codex_to_spark: None,
                         auto_refresh_enabled: None,
+                        auto_reset_rate_limit_enabled: Some(auto_reset_rate_limit_enabled),
+                        auto_reset_rate_limit_threshold_percent: Some(
+                            auto_reset_rate_limit_threshold_percent,
+                        ),
                         route_weight_tier: Some(route_weight_tier),
                         proxy_mode,
                         proxy_config_id,
@@ -1067,6 +1142,18 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                             updated.codex_image_generation_max_concurrency.to_string(),
                         );
                         account_image_concurrency_inputs.set(next_image_concurrency_inputs);
+                        let mut next_auto_reset_enabled_inputs =
+                            (*account_auto_reset_enabled_inputs).clone();
+                        next_auto_reset_enabled_inputs
+                            .insert(updated.name.clone(), updated.auto_reset_rate_limit_enabled);
+                        account_auto_reset_enabled_inputs.set(next_auto_reset_enabled_inputs);
+                        let mut next_auto_reset_threshold_inputs =
+                            (*account_auto_reset_threshold_inputs).clone();
+                        next_auto_reset_threshold_inputs.insert(
+                            updated.name.clone(),
+                            updated.auto_reset_rate_limit_threshold_percent.to_string(),
+                        );
+                        account_auto_reset_threshold_inputs.set(next_auto_reset_threshold_inputs);
                         load_error.set(None);
                     },
                     Err(err) => load_error.set(Some(err)),
@@ -2195,6 +2282,8 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                                 let acc_name_for_request_min_change = acc.name.clone();
                                 let acc_name_for_image_enabled_change = acc.name.clone();
                                 let acc_name_for_image_concurrency_change = acc.name.clone();
+                                let acc_name_for_auto_reset_enabled_change = acc.name.clone();
+                                let acc_name_for_auto_reset_threshold_change = acc.name.clone();
                                 let acc_name = acc.name.clone();
                                 let acc_status = acc.status.clone();
                                 let account_disabled = acc_status == "disabled";
@@ -2252,6 +2341,18 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                                         .cloned()
                                         .unwrap_or_else(|| {
                                             acc.codex_image_generation_max_concurrency.to_string()
+                                        });
+                                let selected_auto_reset_enabled =
+                                    (*account_auto_reset_enabled_inputs)
+                                        .get(&acc_name)
+                                        .copied()
+                                        .unwrap_or(acc.auto_reset_rate_limit_enabled);
+                                let selected_auto_reset_threshold_value =
+                                    (*account_auto_reset_threshold_inputs)
+                                        .get(&acc_name)
+                                        .cloned()
+                                        .unwrap_or_else(|| {
+                                            acc.auto_reset_rate_limit_threshold_percent.to_string()
                                         });
                                 let configured_proxy_line = account_configured_proxy_label(acc);
                                 let effective_proxy_line = format!(
@@ -2584,6 +2685,58 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                                                         })
                                                     }}
                                                 />
+                                                <label
+                                                    class={classes!("inline-flex", "items-center", "gap-1.5", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-2", "py-1.5", "text-xs")}
+                                                    title="额度低于阈值时，自动使用未来最早过期的 available reset credit"
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        class={classes!("min-h-0", "w-auto")}
+                                                        checked={selected_auto_reset_enabled}
+                                                        onchange={{
+                                                            let account_auto_reset_enabled_inputs =
+                                                                account_auto_reset_enabled_inputs.clone();
+                                                            Callback::from(move |event: Event| {
+                                                                if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                                                    let mut next =
+                                                                        (*account_auto_reset_enabled_inputs).clone();
+                                                                    next.insert(
+                                                                        acc_name_for_auto_reset_enabled_change.clone(),
+                                                                        target.checked(),
+                                                                    );
+                                                                    account_auto_reset_enabled_inputs.set(next);
+                                                                }
+                                                            })
+                                                        }}
+                                                    />
+                                                    <span>{ "自动 Reset" }</span>
+                                                </label>
+                                                <label class={classes!("inline-flex", "items-center", "gap-1", "text-xs", "text-[var(--muted)]")}>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        max={CODEX_AUTO_RESET_THRESHOLD_MAX_PERCENT.to_string()}
+                                                        class={classes!("w-20", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-2", "py-1.5", "text-xs")}
+                                                        aria-label="自动 Reset 剩余额度阈值"
+                                                        value={selected_auto_reset_threshold_value.clone()}
+                                                        oninput={{
+                                                            let account_auto_reset_threshold_inputs =
+                                                                account_auto_reset_threshold_inputs.clone();
+                                                            Callback::from(move |event: InputEvent| {
+                                                                if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                                                    let mut next =
+                                                                        (*account_auto_reset_threshold_inputs).clone();
+                                                                    next.insert(
+                                                                        acc_name_for_auto_reset_threshold_change.clone(),
+                                                                        target.value(),
+                                                                    );
+                                                                    account_auto_reset_threshold_inputs.set(next);
+                                                                }
+                                                            })
+                                                        }}
+                                                    />
+                                                    <span>{ "% 以下" }</span>
+                                                </label>
                                                 <button
                                                     class={classes!("ghost")}
                                                     onclick={Callback::from(move |_| on_save_account_settings.emit(acc_name_for_settings_save.clone()))}

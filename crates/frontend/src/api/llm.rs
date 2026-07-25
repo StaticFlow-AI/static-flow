@@ -211,6 +211,10 @@ const fn default_codex_account_rpm_limit() -> u64 {
     llm_store::DEFAULT_CODEX_ACCOUNT_RPM_LIMIT
 }
 
+const fn default_codex_auto_reset_rate_limit_threshold_percent() -> u64 {
+    llm_store::DEFAULT_CODEX_AUTO_RESET_RATE_LIMIT_THRESHOLD_PERCENT
+}
+
 const fn default_kiro_channel_rpm_limit() -> u64 {
     llm_store::DEFAULT_KIRO_CHANNEL_RPM_LIMIT
 }
@@ -4096,6 +4100,10 @@ pub struct AccountSummaryView {
     pub primary_remaining_percent: Option<f64>,
     pub secondary_remaining_percent: Option<f64>,
     pub rate_limit_reset_credits_available: Option<i64>,
+    #[serde(default)]
+    pub auto_reset_rate_limit_enabled: bool,
+    #[serde(default = "default_codex_auto_reset_rate_limit_threshold_percent")]
+    pub auto_reset_rate_limit_threshold_percent: u64,
     pub map_gpt53_codex_to_spark: bool,
     pub auto_refresh_enabled: bool,
     pub request_max_concurrency: Option<u64>,
@@ -4131,6 +4139,9 @@ impl Default for AccountSummaryView {
             primary_remaining_percent: None,
             secondary_remaining_percent: None,
             rate_limit_reset_credits_available: None,
+            auto_reset_rate_limit_enabled: false,
+            auto_reset_rate_limit_threshold_percent:
+                default_codex_auto_reset_rate_limit_threshold_percent(),
             map_gpt53_codex_to_spark: false,
             auto_refresh_enabled: true,
             request_max_concurrency: None,
@@ -4501,6 +4512,9 @@ pub async fn import_admin_llm_gateway_account(
             primary_remaining_percent: Some(100.0),
             secondary_remaining_percent: Some(100.0),
             rate_limit_reset_credits_available: Some(1),
+            auto_reset_rate_limit_enabled: false,
+            auto_reset_rate_limit_threshold_percent:
+                default_codex_auto_reset_rate_limit_threshold_percent(),
             map_gpt53_codex_to_spark: false,
             auto_refresh_enabled: true,
             request_max_concurrency: None,
@@ -4603,6 +4617,8 @@ pub struct PatchAdminLlmGatewayAccountInput {
     pub status: Option<String>,
     pub map_gpt53_codex_to_spark: Option<bool>,
     pub auto_refresh_enabled: Option<bool>,
+    pub auto_reset_rate_limit_enabled: Option<bool>,
+    pub auto_reset_rate_limit_threshold_percent: Option<u64>,
     pub route_weight_tier: Option<String>,
     pub proxy_mode: Option<String>,
     pub proxy_config_id: Option<String>,
@@ -4634,6 +4650,10 @@ pub async fn patch_admin_llm_gateway_account(
             primary_remaining_percent: Some(100.0),
             secondary_remaining_percent: Some(100.0),
             rate_limit_reset_credits_available: Some(1),
+            auto_reset_rate_limit_enabled: input.auto_reset_rate_limit_enabled.unwrap_or(false),
+            auto_reset_rate_limit_threshold_percent: input
+                .auto_reset_rate_limit_threshold_percent
+                .unwrap_or_else(default_codex_auto_reset_rate_limit_threshold_percent),
             map_gpt53_codex_to_spark: input.map_gpt53_codex_to_spark.unwrap_or(false),
             auto_refresh_enabled: input.auto_refresh_enabled.unwrap_or(true),
             request_max_concurrency: input.request_max_concurrency,
@@ -4699,6 +4719,9 @@ pub async fn refresh_admin_llm_gateway_account(name: &str) -> Result<AccountSumm
             primary_remaining_percent: Some(100.0),
             secondary_remaining_percent: Some(100.0),
             rate_limit_reset_credits_available: Some(1),
+            auto_reset_rate_limit_enabled: false,
+            auto_reset_rate_limit_threshold_percent:
+                default_codex_auto_reset_rate_limit_threshold_percent(),
             map_gpt53_codex_to_spark: false,
             auto_refresh_enabled: true,
             request_max_concurrency: None,
@@ -4766,6 +4789,9 @@ pub async fn refresh_admin_llm_gateway_account_auth(
             primary_remaining_percent: Some(100.0),
             secondary_remaining_percent: Some(100.0),
             rate_limit_reset_credits_available: Some(1),
+            auto_reset_rate_limit_enabled: false,
+            auto_reset_rate_limit_threshold_percent:
+                default_codex_auto_reset_rate_limit_threshold_percent(),
             map_gpt53_codex_to_spark: false,
             auto_refresh_enabled: true,
             request_max_concurrency: None,
@@ -4912,6 +4938,9 @@ pub async fn consume_admin_llm_gateway_account_rate_limit_reset_credit(
                 primary_remaining_percent: Some(100.0),
                 secondary_remaining_percent: Some(100.0),
                 rate_limit_reset_credits_available: Some(0),
+                auto_reset_rate_limit_enabled: false,
+                auto_reset_rate_limit_threshold_percent:
+                    default_codex_auto_reset_rate_limit_threshold_percent(),
                 map_gpt53_codex_to_spark: false,
                 auto_refresh_enabled: true,
                 request_max_concurrency: None,
