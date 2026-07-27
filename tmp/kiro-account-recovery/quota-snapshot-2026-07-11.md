@@ -135,3 +135,4 @@ in this file.
 | Pourosx | Pouros@asu.edu | 911.69 | 1000 | 88.31 | `laohan99` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
 | Kautzerx | Kautzer@asu.edu | 991.47 | 1000 | 8.53 | `laohan100` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored below the 10-credit scheduling threshold) |
 | Denesikx | Denesik@asu.edu | 750.75 | 1000 | 249.25 | `laohan101` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
+| Ankundingx | Ankunding@asu.edu | 998.66 | 1000 | 1.34 | `laohan102` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored below the 10-credit scheduling threshold) |
