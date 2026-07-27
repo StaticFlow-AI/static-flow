@@ -129,3 +129,4 @@ in this file.
 | Rolfsonx | Rolfson@asu.edu | 0.00 | 1000 | 1000.00 | `laohan93` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
 | Torphyx | Torphy@asu.edu | 610.32 | 1000 | 389.68 | `laohan94` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
 | Strosinx | Strosin@asu.edu | 991.74 | 1000 | 8.26 | `laohan95` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored below the 10-credit scheduling threshold) |
+| Genovevax | Genoveva@asu.edu | 761.52 | 1000 | 238.48 | `laohan96` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
