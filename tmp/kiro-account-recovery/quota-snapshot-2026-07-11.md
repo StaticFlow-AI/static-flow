@@ -116,3 +116,4 @@ in this file.
 | Francescazzz | Francesca@asu.edu | 800.82 | 1000 | 199.18 | `laohan80` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
 | Okuneva1 | Okuneva@asu.edu | 558.58 | 1000 | 441.42 | `laohan81` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
 | Stammzz | Stammz@asu.edu | 625.79 | 1000 | 374.21 | `laohan82` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
+| Mayertzz | Mayertzz@asu.edu | 993.62 | 1000 | 6.38 | `laohan83` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored below the 10-credit scheduling threshold) |
