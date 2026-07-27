@@ -113,3 +113,4 @@ in this file.
 | Ahmedddz2 | Ahmedd@asu.edu | 547.25 | 1000 | 452.75 | `laohan77` (operator-confirmed sequence continued to the next existing auth_401 record because `laohan75` and `laohan76` are absent; token and email restored using the retained authenticated browser session) |
 | Phoebee1 | Phoebee@asu.edu | 768.96 | 1000 | 231.04 | `laohan78` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
 | Virginiaaz | Virginiaa@asu.edu | 609.17 | 1000 | 390.83 | `laohan79` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
+| Francescazzz | Francesca@asu.edu | 800.82 | 1000 | 199.18 | `laohan80` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
