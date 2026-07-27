@@ -145,3 +145,4 @@ in this file.
 | Carrollzx | Carrollz@asu.edu | 670.01 | 1000 | 329.99 | `laohan109` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
 | Quintonxx | Quintonx@asu.edu | 706.59 | 1000 | 293.41 | `laohan110` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
 | Paucekzz | Paucekzz@asu.edu | 703.91 | 1000 | 296.09 | `laohan111` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
+| Hermistonz | Hermiston@asu.edu | 990.94 | 1000 | 9.06 | `laohan112` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored below the 10-credit scheduling threshold) |
