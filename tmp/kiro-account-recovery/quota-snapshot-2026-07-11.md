@@ -110,3 +110,4 @@ in this file.
 | Kristoffercc | Kristofferc@asu.edu | 806.75 | 1000 | 193.25 | `laohan72` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
 | Newellxxx | Newellxxx@asu.edu | 907.46 | 1000 | 92.54 | `laohan73` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
 | Gutkowskizz | Gutkowskizz@asu.edu | 565.19 | 1000 | 434.81 | `laohan74` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
+| Ahmedddz2 | Ahmedd@asu.edu | 547.25 | 1000 | 452.75 | `laohan77` (operator-confirmed sequence continued to the next existing auth_401 record because `laohan75` and `laohan76` are absent; token and email restored using the retained authenticated browser session) |
