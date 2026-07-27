@@ -121,3 +121,4 @@ in this file.
 | Koeppzz | Koeppzz@asu.edu | 883.74 | 1000 | 116.26 | `laohan85` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
 | Kuhlman1 | Kuhlman@asu.edu | 863.52 | 1000 | 136.48 | `laohan86` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
 | Violetxxz | Violetxx@asu.edu | 678.45 | 1000 | 321.55 | `laohan87` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
+| Nienowz | unknown | unknown | 1000 (subscription metadata only) | unknown | `laohan88` (failed: GitHub login/verification did not complete through proxies 11115 or 11119; password and Kiro token were not changed) |
