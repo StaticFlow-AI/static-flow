@@ -138,3 +138,4 @@ in this file.
 | Ankundingx | Ankunding@asu.edu | 998.66 | 1000 | 1.34 | `laohan102` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored below the 10-credit scheduling threshold) |
 | Madisenxx | Madisenx@asu.edu | 697.94 | 1000 | 302.06 | `laohan103` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
 | Peytonzx | Peytonzx@asu.edu | 580.63 | 1000 | 419.37 | `laohan104` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
+| Bogisichx | Bogisich@asu.edu | 554.16 | 1000 | 445.84 | `laohan105` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
