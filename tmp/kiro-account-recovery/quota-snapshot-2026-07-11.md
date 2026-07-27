@@ -142,3 +142,4 @@ in this file.
 | Susannaan | Susannaan@asu.edu | 648.97 | 1000 | 351.03 | `laohan106` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
 | Kemmerx | Kemmer@asu.edu | 0.00 | 1000 | 1000.00 | `laohan107` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
 | Koeppx | Koepp@asu.edu | 729.72 | 1000 | 270.28 | `laohan108` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
+| Carrollzx | Carrollz@asu.edu | 670.01 | 1000 | 329.99 | `laohan109` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
