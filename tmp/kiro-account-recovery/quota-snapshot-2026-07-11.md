@@ -124,3 +124,4 @@ in this file.
 | Nienowz | unknown | unknown | 1000 (subscription metadata only) | unknown | `laohan88` (failed: GitHub login/verification did not complete through proxies 11115 or 11119; password and Kiro token were not changed) |
 | Dawnzzz1 | Dawnzzz@asu.edu | 970.97 | 1000 | 29.03 | `laohan89` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
 | Francessx | Francess@asu.edu | 1000.00 | 1000 | 0.00 | `laohan90` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored; current cycle exhausted) |
+| Bartonzzzx | unknown | unknown | 1000 (subscription metadata only) | unknown | `laohan91` (failed by operator: automated GitHub 2FA was retried after the first failed submission; password-change status is not trusted, and the Kiro token was not refreshed) |
