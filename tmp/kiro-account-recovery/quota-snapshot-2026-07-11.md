@@ -130,3 +130,4 @@ in this file.
 | Torphyx | Torphy@asu.edu | 610.32 | 1000 | 389.68 | `laohan94` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
 | Strosinx | Strosin@asu.edu | 991.74 | 1000 | 8.26 | `laohan95` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored below the 10-credit scheduling threshold) |
 | Genovevax | Genoveva@asu.edu | 761.52 | 1000 | 238.48 | `laohan96` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
+| Leuschkez | Leuschkez@asu.edu | 619.75 | 1000 | 380.25 | `laohan97` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
