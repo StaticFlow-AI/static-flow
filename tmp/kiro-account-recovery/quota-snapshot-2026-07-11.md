@@ -132,3 +132,4 @@ in this file.
 | Genovevax | Genoveva@asu.edu | 761.52 | 1000 | 238.48 | `laohan96` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
 | Leuschkez | Leuschkez@asu.edu | 619.75 | 1000 | 380.25 | `laohan97` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
 | Ottiliezz | Ottiliezz@asu.edu | 712.50 | 1000 | 287.50 | `laohan98` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
+| Pourosx | Pouros@asu.edu | 911.69 | 1000 | 88.31 | `laohan99` (operator-confirmed sequential mapping after GitHub password rotation using the retained authenticated browser session; token and email restored) |
