@@ -715,6 +715,7 @@ async function main() {
   let lastAction = "started";
   let lastManualNoticeAt = 0;
   let submittedGithubCredentials = false;
+  let submittedGithubTotp = false;
   let submittedSudoPassword = false;
   let submittedPasswordChange = false;
 
@@ -781,9 +782,15 @@ async function main() {
   }
 
   if (requiresManualGithubStep(url, lower)) {
-    if (auto2faFun && totpSecret && isGithubTwoFactorPrompt(url, lower)) {
+    if (
+      auto2faFun &&
+      totpSecret &&
+      !submittedGithubTotp &&
+      isGithubTwoFactorPrompt(url, lower)
+    ) {
       const code = await codeFrom2faFun();
       if (await submitGithubTotpCode(code)) {
+        submittedGithubTotp = true;
         console.log("Browser helper: submitted GitHub 2FA code from 2fa.fun");
         lastAction = "submitted GitHub 2FA code from 2fa.fun";
         await sleep(3500);
