@@ -5233,6 +5233,16 @@ pub struct ModerationKeywordView {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
 #[serde(default)]
+pub struct ModerationAllowlistKeywordView {
+    pub id: i64,
+    pub keyword: String,
+    pub note: Option<String>,
+    pub source: String,
+    pub created_at_ms: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
+#[serde(default)]
 pub struct ModerationCategoryView {
     pub code: String,
     pub label: String,
@@ -5267,6 +5277,7 @@ pub struct ModerationGateStatsView {
     pub loaded: bool,
     pub loaded_at_ms: Option<i64>,
     pub keyword_count: usize,
+    pub allowlist_keyword_count: usize,
     pub banned_session_count: usize,
     pub suppressed_hit_count: usize,
     pub blocked_requests_total: u64,
@@ -5285,12 +5296,31 @@ pub struct AdminModerationKeywordsResponse {
     pub generated_at: i64,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
+#[serde(default)]
+pub struct AdminModerationAllowlistKeywordsResponse {
+    pub allowlist_keywords: Vec<ModerationAllowlistKeywordView>,
+    pub total: usize,
+    pub limit: usize,
+    pub offset: usize,
+    pub has_more: bool,
+    pub stats: ModerationGateStatsView,
+    pub generated_at: i64,
+}
+
 #[derive(Debug, Serialize, Clone, PartialEq, Default)]
 pub struct AddAdminModerationKeywordsInput {
     pub content: String,
     pub format: Option<String>,
     pub note: Option<String>,
     pub categories: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq, Default)]
+pub struct AddAdminModerationAllowlistKeywordsInput {
+    pub content: String,
+    pub format: Option<String>,
+    pub note: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
@@ -6614,6 +6644,96 @@ pub async fn delete_admin_moderation_keyword(id: i64) -> Result<(), String> {
     #[cfg(not(feature = "mock"))]
     {
         let url = format!("{}/admin/llm-gateway/moderation/keywords/{id}", llm_access_admin_base());
+        let response = api_delete(&url)
+            .send()
+            .await
+            .map_err(|e| format!("Network error: {:?}", e))?;
+        if !response.ok() {
+            let text = response.text().await.unwrap_or_default();
+            return Err(format!("Failed: {text}"));
+        }
+        Ok(())
+    }
+}
+
+pub async fn fetch_admin_moderation_allowlist_keywords(
+    search: &str,
+    limit: usize,
+    offset: usize,
+) -> Result<AdminModerationAllowlistKeywordsResponse, String> {
+    #[cfg(feature = "mock")]
+    {
+        let _ = (search, limit, offset);
+        Ok(AdminModerationAllowlistKeywordsResponse::default())
+    }
+
+    #[cfg(not(feature = "mock"))]
+    {
+        let mut params = vec![format!("limit={limit}"), format!("offset={offset}")];
+        let trimmed = search.trim();
+        if !trimmed.is_empty() {
+            params.push(format!("q={}", urlencoding::encode(trimmed)));
+        }
+        let url = format!(
+            "{}/admin/llm-gateway/moderation/allowlist?{}",
+            llm_access_admin_base(),
+            params.join("&")
+        );
+        let response = api_get(&url)
+            .send()
+            .await
+            .map_err(|e| format!("Network error: {:?}", e))?;
+        if !response.ok() {
+            let text = response.text().await.unwrap_or_default();
+            return Err(format!("Failed: {text}"));
+        }
+        response
+            .json()
+            .await
+            .map_err(|e| format!("Parse error: {:?}", e))
+    }
+}
+
+pub async fn add_admin_moderation_allowlist_keywords(
+    input: &AddAdminModerationAllowlistKeywordsInput,
+) -> Result<AddAdminModerationKeywordsResponse, String> {
+    #[cfg(feature = "mock")]
+    {
+        let _ = input;
+        Ok(AddAdminModerationKeywordsResponse::default())
+    }
+
+    #[cfg(not(feature = "mock"))]
+    {
+        let url = format!("{}/admin/llm-gateway/moderation/allowlist", llm_access_admin_base());
+        let response = api_post(&url)
+            .json(input)
+            .map_err(|e| format!("Serialize error: {:?}", e))?
+            .send()
+            .await
+            .map_err(|e| format!("Network error: {:?}", e))?;
+        if !response.ok() {
+            let text = response.text().await.unwrap_or_default();
+            return Err(format!("Failed: {text}"));
+        }
+        response
+            .json()
+            .await
+            .map_err(|e| format!("Parse error: {:?}", e))
+    }
+}
+
+pub async fn delete_admin_moderation_allowlist_keyword(id: i64) -> Result<(), String> {
+    #[cfg(feature = "mock")]
+    {
+        let _ = id;
+        Ok(())
+    }
+
+    #[cfg(not(feature = "mock"))]
+    {
+        let url =
+            format!("{}/admin/llm-gateway/moderation/allowlist/{id}", llm_access_admin_base());
         let response = api_delete(&url)
             .send()
             .await

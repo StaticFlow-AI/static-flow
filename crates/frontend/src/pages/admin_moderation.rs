@@ -1,10 +1,11 @@
 //! Keyword moderation review console.
 //!
-//! Three tabs: **Keywords** (import via txt/json with category tagging, list,
-//! delete), **Banned sessions** (list captured bans, inspect the full request
-//! payload, keep or lift a ban), and **Categories** (manage the risk-category
-//! taxonomy). Backed by the `/admin/llm-gateway/moderation/*` endpoints on the
-//! cloud `llm-access` service.
+//! Four tabs: **Blocklist** (import via txt/json with category tagging, list,
+//! delete), **Allowlist** (manage safe phrases that cover specific blocklist
+//! hits), **Banned sessions** (inspect and review captured bans), and
+//! **Categories** (manage the risk-category taxonomy). Backed by the
+//! `/admin/llm-gateway/moderation/*` endpoints on the cloud `llm-access`
+//! service.
 
 use std::collections::BTreeMap;
 
@@ -14,14 +15,17 @@ use yew_router::prelude::Link;
 
 use crate::{
     api::{
-        add_admin_moderation_categories, add_admin_moderation_keywords,
+        add_admin_moderation_allowlist_keywords, add_admin_moderation_categories,
+        add_admin_moderation_keywords, delete_admin_moderation_allowlist_keyword,
         delete_admin_moderation_category, delete_admin_moderation_keyword,
-        fetch_admin_moderation_banned_session, fetch_admin_moderation_banned_sessions,
-        fetch_admin_moderation_categories, fetch_admin_moderation_keywords,
-        review_admin_moderation_banned_session, AddAdminModerationCategoriesInput,
+        fetch_admin_moderation_allowlist_keywords, fetch_admin_moderation_banned_session,
+        fetch_admin_moderation_banned_sessions, fetch_admin_moderation_categories,
+        fetch_admin_moderation_keywords, review_admin_moderation_banned_session,
+        AddAdminModerationAllowlistKeywordsInput, AddAdminModerationCategoriesInput,
         AddAdminModerationCategoryInput, AddAdminModerationKeywordsInput,
-        AdminModerationBannedSessionsResponse, AdminModerationCategoriesResponse,
-        AdminModerationKeywordsResponse, ModerationBannedSessionDetailView, ModerationCategoryView,
+        AdminModerationAllowlistKeywordsResponse, AdminModerationBannedSessionsResponse,
+        AdminModerationCategoriesResponse, AdminModerationKeywordsResponse,
+        ModerationBannedSessionDetailView, ModerationCategoryView,
         ReviewModerationBannedSessionInput,
     },
     components::tab_bar::render_tab_bar,
@@ -30,6 +34,7 @@ use crate::{
 };
 
 const TAB_KEYWORDS: &str = "keywords";
+const TAB_ALLOWLIST: &str = "allowlist";
 const TAB_SESSIONS: &str = "sessions";
 const TAB_CATEGORIES: &str = "categories";
 const KEYWORDS_PAGE_SIZE: usize = 50;
@@ -117,6 +122,16 @@ pub fn admin_moderation_page() -> Html {
     let keyword_search = use_state(String::new);
     let keyword_offset = use_state(|| 0usize);
 
+    // Allowlist tab state.
+    let allowlist_keywords = use_state(AdminModerationAllowlistKeywordsResponse::default);
+    let allowlist_loading = use_state(|| true);
+    let allowlist_import_content = use_state(String::new);
+    let allowlist_import_format = use_state(|| "txt".to_string());
+    let allowlist_import_note = use_state(String::new);
+    let allowlist_importing = use_state(|| false);
+    let allowlist_search = use_state(String::new);
+    let allowlist_offset = use_state(|| 0usize);
+
     // Banned session tab state.
     let sessions = use_state(AdminModerationBannedSessionsResponse::default);
     let sessions_loading = use_state(|| true);
@@ -188,6 +203,33 @@ pub fn admin_moderation_page() -> Html {
                     Err(message) => error.set(Some(message)),
                 }
                 keywords_loading.set(false);
+            });
+            || ()
+        });
+    }
+
+    // Load allowlist phrases.
+    {
+        let allowlist_keywords = allowlist_keywords.clone();
+        let allowlist_loading = allowlist_loading.clone();
+        let error = error.clone();
+        let search = (*allowlist_search).clone();
+        let offset = *allowlist_offset;
+        let tick = *refresh_tick;
+        let deps = (tick, search.clone(), offset);
+        use_effect_with(deps, move |_| {
+            allowlist_loading.set(true);
+            wasm_bindgen_futures::spawn_local(async move {
+                match fetch_admin_moderation_allowlist_keywords(&search, KEYWORDS_PAGE_SIZE, offset)
+                    .await
+                {
+                    Ok(response) => {
+                        error.set(None);
+                        allowlist_keywords.set(response);
+                    },
+                    Err(message) => error.set(Some(message)),
+                }
+                allowlist_loading.set(false);
             });
             || ()
         });
@@ -279,6 +321,54 @@ pub fn admin_moderation_page() -> Html {
         })
     };
 
+    let on_allowlist_import = {
+        let content = allowlist_import_content.clone();
+        let format = allowlist_import_format.clone();
+        let note = allowlist_import_note.clone();
+        let importing = allowlist_importing.clone();
+        let notify = notify.clone();
+        let reload = reload.clone();
+        Callback::from(move |_| {
+            if *importing {
+                return;
+            }
+            let import_content = (*content).clone();
+            if import_content.trim().is_empty() {
+                notify.emit(("Allowlist content is empty".to_string(), true));
+                return;
+            }
+            let import_note = (*note).clone();
+            let input = AddAdminModerationAllowlistKeywordsInput {
+                content: import_content,
+                format: Some((*format).clone()),
+                note: (!import_note.trim().is_empty()).then(|| import_note.trim().to_string()),
+            };
+            let importing = importing.clone();
+            let notify = notify.clone();
+            let reload = reload.clone();
+            let content = content.clone();
+            importing.set(true);
+            wasm_bindgen_futures::spawn_local(async move {
+                match add_admin_moderation_allowlist_keywords(&input).await {
+                    Ok(outcome) => {
+                        notify.emit((
+                            format!(
+                                "Imported {} allowlist phrase(s), {} duplicate(s) skipped (parsed \
+                                 {})",
+                                outcome.inserted, outcome.duplicates, outcome.parsed
+                            ),
+                            false,
+                        ));
+                        content.set(String::new());
+                        reload.emit(());
+                    },
+                    Err(message) => notify.emit((message, true)),
+                }
+                importing.set(false);
+            });
+        })
+    };
+
     let keywords_view = {
         let import_content = import_content.clone();
         let import_format = import_format.clone();
@@ -350,8 +440,9 @@ pub fn admin_moderation_page() -> Html {
         let search_active = !keyword_search.trim().is_empty();
         html! {
             <div class={classes!("space-y-4")}>
-                <div class={classes!("grid", "gap-3", "sm:grid-cols-2", "lg:grid-cols-4")}>
-                    { stat_card("Keywords", stats.keyword_count.to_string(), stats.loaded) }
+                <div class={classes!("grid", "gap-3", "sm:grid-cols-2", "lg:grid-cols-5")}>
+                    { stat_card("Blocklist", stats.keyword_count.to_string(), stats.loaded) }
+                    { stat_card("Allowlist", stats.allowlist_keyword_count.to_string(), stats.loaded) }
                     { stat_card("Banned sessions", stats.banned_session_count.to_string(), stats.loaded) }
                     { stat_card("Suppressed hits", stats.suppressed_hit_count.to_string(), stats.loaded) }
                     { stat_card("Blocked requests", stats.blocked_requests_total.to_string(), stats.loaded) }
@@ -517,6 +608,223 @@ pub fn admin_moderation_page() -> Html {
                                             <tr class={classes!("border-b", "border-[var(--border)]/50")}>
                                                 <td class={classes!("px-4", "py-2", "font-mono", "break-all")}>{ &keyword.keyword }</td>
                                                 <td class={classes!("px-4", "py-2")}>{ category_badges(&keyword.categories, &category_lookup) }</td>
+                                                <td class={classes!("px-4", "py-2", "text-[var(--muted)]")}>{ &keyword.source }</td>
+                                                <td class={classes!("px-4", "py-2", "text-[var(--muted)]")}>{ keyword.note.clone().unwrap_or_default() }</td>
+                                                <td class={classes!("px-4", "py-2", "text-[var(--muted)]", "whitespace-nowrap")}>{ format_timestamp_opt(Some(keyword.created_at_ms)) }</td>
+                                                <td class={classes!("px-4", "py-2", "text-right")}>
+                                                    <button type="button" class={classes!("btn-terminal", "!px-2.5", "!py-1.5", "!text-xs")} onclick={on_delete}>
+                                                        { "Delete" }
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    }) }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    };
+
+    let allowlist_view = {
+        let keywords = allowlist_keywords.clone();
+        let loading = allowlist_loading.clone();
+        let import_content = allowlist_import_content.clone();
+        let import_format = allowlist_import_format.clone();
+        let import_note = allowlist_import_note.clone();
+        let importing = allowlist_importing.clone();
+        let search = allowlist_search.clone();
+        let offset = allowlist_offset.clone();
+        let on_import = on_allowlist_import.clone();
+        let notify = notify.clone();
+        let reload = reload.clone();
+
+        let on_content_input = {
+            let import_content = import_content.clone();
+            Callback::from(move |e: InputEvent| {
+                let target: HtmlTextAreaElement = e.target_unchecked_into();
+                import_content.set(target.value());
+            })
+        };
+        let on_format_change = {
+            let import_format = import_format.clone();
+            Callback::from(move |e: Event| {
+                let target: HtmlSelectElement = e.target_unchecked_into();
+                import_format.set(target.value());
+            })
+        };
+        let on_note_input = {
+            let import_note = import_note.clone();
+            Callback::from(move |e: InputEvent| {
+                let target: HtmlInputElement = e.target_unchecked_into();
+                import_note.set(target.value());
+            })
+        };
+        let on_search_input = {
+            let search = search.clone();
+            let offset = offset.clone();
+            Callback::from(move |e: InputEvent| {
+                let target: HtmlInputElement = e.target_unchecked_into();
+                search.set(target.value());
+                offset.set(0);
+            })
+        };
+        let on_clear_search = {
+            let search = search.clone();
+            let offset = offset.clone();
+            Callback::from(move |_| {
+                search.set(String::new());
+                offset.set(0);
+            })
+        };
+        let current_offset = *offset;
+        let on_prev = {
+            let offset = offset.clone();
+            Callback::from(move |_| {
+                offset.set(current_offset.saturating_sub(KEYWORDS_PAGE_SIZE));
+            })
+        };
+        let on_next = {
+            let offset = offset.clone();
+            Callback::from(move |_| offset.set(current_offset + KEYWORDS_PAGE_SIZE))
+        };
+        let page_start = if keywords.total == 0 { 0 } else { keywords.offset + 1 };
+        let page_end = keywords.offset + keywords.allowlist_keywords.len();
+        let search_active = !search.trim().is_empty();
+
+        html! {
+            <div class={classes!("space-y-4")}>
+                <div class={classes!("rounded-xl", "border", "border-emerald-500/30", "bg-emerald-500/5", "p-4", "text-sm", "space-y-1")}>
+                    <p class={classes!("font-semibold")}>{ "Range-scoped allowlist" }</p>
+                    <p class={classes!("text-[var(--muted)]")}>
+                        { "A phrase exempts only blocklist hits fully contained inside that same matched phrase. It never skips the rest of the request. Existing bans still require review." }
+                    </p>
+                </div>
+
+                <div class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5", "space-y-3")}>
+                    <h3 class={classes!("font-mono", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>
+                        { "Import allowlist phrases" }
+                    </h3>
+                    <textarea
+                        class={classes!("w-full", "min-h-[8rem]", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--bg)]", "p-3", "font-mono", "text-sm")}
+                        placeholder={"txt: one safe phrase per line\njson: [\"timeline vulnerability\", \"security disclosure\"]"}
+                        value={(*import_content).clone()}
+                        oninput={on_content_input}
+                    />
+                    <div class={classes!("flex", "flex-wrap", "items-center", "gap-3")}>
+                        <select
+                            class={classes!("rounded-lg", "border", "border-[var(--border)]", "bg-[var(--bg)]", "px-3", "py-2", "text-sm")}
+                            onchange={on_format_change}
+                        >
+                            <option value="txt" selected={*import_format == "txt"}>{ "Plain text (.txt)" }</option>
+                            <option value="json" selected={*import_format == "json"}>{ "JSON" }</option>
+                        </select>
+                        <input
+                            type="text"
+                            class={classes!("flex-1", "min-w-[12rem]", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--bg)]", "px-3", "py-2", "text-sm")}
+                            placeholder="Optional note explaining the safe context"
+                            value={(*import_note).clone()}
+                            oninput={on_note_input}
+                        />
+                        <button
+                            type="button"
+                            class={classes!("btn-terminal", "btn-terminal-primary")}
+                            disabled={*importing}
+                            onclick={on_import}
+                        >
+                            { if *importing { "Importing…" } else { "Import" } }
+                        </button>
+                    </div>
+                </div>
+
+                <div class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "overflow-hidden")}>
+                    <div class={classes!("flex", "flex-wrap", "items-center", "gap-3", "border-b", "border-[var(--border)]", "p-4")}>
+                        <input
+                            type="search"
+                            class={classes!("min-w-[16rem]", "flex-1", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--bg)]", "px-3", "py-2", "font-mono", "text-sm")}
+                            placeholder="Search allowlist phrase, source, or note"
+                            value={(*search).clone()}
+                            oninput={on_search_input}
+                        />
+                        if search_active {
+                            <button
+                                type="button"
+                                class={classes!("btn-terminal", "!px-2.5", "!py-1.5", "!text-xs")}
+                                onclick={on_clear_search}
+                            >
+                                { "Clear" }
+                            </button>
+                        }
+                        <span class={classes!("text-sm", "text-[var(--muted)]", "whitespace-nowrap")}>
+                            { format!("{page_start}–{page_end} of {} phrase(s)", keywords.total) }
+                        </span>
+                        <div class={classes!("ml-auto", "flex", "items-center", "gap-2")}>
+                            <button
+                                type="button"
+                                class={classes!("btn-terminal", "!px-2.5", "!py-1.5", "!text-xs")}
+                                disabled={keywords.offset == 0}
+                                onclick={on_prev}
+                            >
+                                { "‹ Prev" }
+                            </button>
+                            <button
+                                type="button"
+                                class={classes!("btn-terminal", "!px-2.5", "!py-1.5", "!text-xs")}
+                                disabled={!keywords.has_more}
+                                onclick={on_next}
+                            >
+                                { "Next ›" }
+                            </button>
+                        </div>
+                    </div>
+                    if *loading {
+                        <div class={classes!("p-5", "text-sm", "text-[var(--muted)]")}>{ "Loading allowlist…" }</div>
+                    } else if keywords.allowlist_keywords.is_empty() {
+                        <div class={classes!("p-5", "text-sm", "text-[var(--muted)]")}>
+                            { if search_active { "No allowlist phrases match this search." } else { "No allowlist phrases configured." } }
+                        </div>
+                    } else {
+                        <div class={classes!("overflow-x-auto")}>
+                            <table class={classes!("w-full", "min-w-[36rem]", "text-sm")}>
+                                <thead>
+                                    <tr class={classes!("border-b", "border-[var(--border)]", "text-left", "text-xs", "uppercase", "tracking-wider", "text-[var(--muted)]")}>
+                                        <th scope="col" class={classes!("px-4", "py-2")}>{ "Phrase" }</th>
+                                        <th scope="col" class={classes!("px-4", "py-2")}>{ "Source" }</th>
+                                        <th scope="col" class={classes!("px-4", "py-2")}>{ "Note" }</th>
+                                        <th scope="col" class={classes!("px-4", "py-2")}>{ "Added" }</th>
+                                        <th scope="col" class={classes!("px-4", "py-2", "text-right")}>{ "Actions" }</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    { for keywords.allowlist_keywords.iter().map(|keyword| {
+                                        let id = keyword.id;
+                                        let keyword_text = keyword.keyword.clone();
+                                        let on_delete = {
+                                            let notify = notify.clone();
+                                            let reload = reload.clone();
+                                            let keyword_text = keyword_text.clone();
+                                            Callback::from(move |_| {
+                                                if !confirm_destructive(&format!("Delete allowlist phrase \"{keyword_text}\"?")) {
+                                                    return;
+                                                }
+                                                let notify = notify.clone();
+                                                let reload = reload.clone();
+                                                wasm_bindgen_futures::spawn_local(async move {
+                                                    match delete_admin_moderation_allowlist_keyword(id).await {
+                                                        Ok(()) => {
+                                                            notify.emit(("Allowlist phrase deleted".to_string(), false));
+                                                            reload.emit(());
+                                                        },
+                                                        Err(message) => notify.emit((message, true)),
+                                                    }
+                                                });
+                                            })
+                                        };
+                                        html! {
+                                            <tr class={classes!("border-b", "border-[var(--border)]/50")}>
+                                                <td class={classes!("px-4", "py-2", "font-mono", "break-all")}>{ &keyword.keyword }</td>
                                                 <td class={classes!("px-4", "py-2", "text-[var(--muted)]")}>{ &keyword.source }</td>
                                                 <td class={classes!("px-4", "py-2", "text-[var(--muted)]")}>{ keyword.note.clone().unwrap_or_default() }</td>
                                                 <td class={classes!("px-4", "py-2", "text-[var(--muted)]", "whitespace-nowrap")}>{ format_timestamp_opt(Some(keyword.created_at_ms)) }</td>
@@ -940,7 +1248,7 @@ pub fn admin_moderation_page() -> Html {
                     <div>
                         <h1 class={classes!("text-xl", "font-semibold")}>{ "Keyword moderation" }</h1>
                         <p class={classes!("text-sm", "text-[var(--muted)]")}>
-                            { "Block requests whose content matches banned keywords, and review flagged sessions." }
+                            { "Enforce blocklist phrases, exempt narrow safe contexts, and review flagged sessions." }
                         </p>
                     </div>
                     <div class={classes!("flex", "items-center", "gap-2")}>
@@ -967,7 +1275,8 @@ pub fn admin_moderation_page() -> Html {
                 { render_tab_bar(
                     &active_tab,
                     &[
-                        (TAB_KEYWORDS, "Keywords"),
+                        (TAB_KEYWORDS, "Blocklist"),
+                        (TAB_ALLOWLIST, "Allowlist"),
                         (TAB_SESSIONS, "Banned sessions"),
                         (TAB_CATEGORIES, "Categories"),
                     ],
@@ -977,6 +1286,8 @@ pub fn admin_moderation_page() -> Html {
 
                 if *active_tab == TAB_KEYWORDS {
                     { keywords_view }
+                } else if *active_tab == TAB_ALLOWLIST {
+                    { allowlist_view }
                 } else if *active_tab == TAB_SESSIONS {
                     { sessions_view }
                 } else {
