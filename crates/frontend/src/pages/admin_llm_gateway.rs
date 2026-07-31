@@ -730,6 +730,8 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
     let moderation_enabled = use_state(|| key_item.moderation_enabled);
     let codex_fast_enabled = use_state(|| key_item.codex_fast_enabled);
     let codex_responses_lite_enabled = use_state(|| key_item.codex_responses_lite_enabled);
+    let codex_full_request_logging_enabled =
+        use_state(|| key_item.codex_full_request_logging_enabled);
     let codex_strict_session_rejection_enabled =
         use_state(|| key_item.codex_strict_session_rejection_enabled);
     let codex_image_standalone_generation_enabled =
@@ -754,6 +756,7 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
         let moderation_enabled = moderation_enabled.clone();
         let codex_fast_enabled = codex_fast_enabled.clone();
         let codex_responses_lite_enabled = codex_responses_lite_enabled.clone();
+        let codex_full_request_logging_enabled = codex_full_request_logging_enabled.clone();
         let codex_strict_session_rejection_enabled = codex_strict_session_rejection_enabled.clone();
         let codex_image_standalone_generation_enabled =
             codex_image_standalone_generation_enabled.clone();
@@ -789,6 +792,7 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
             moderation_enabled.set(key_item.moderation_enabled);
             codex_fast_enabled.set(key_item.codex_fast_enabled);
             codex_responses_lite_enabled.set(key_item.codex_responses_lite_enabled);
+            codex_full_request_logging_enabled.set(key_item.codex_full_request_logging_enabled);
             codex_strict_session_rejection_enabled
                 .set(key_item.codex_strict_session_rejection_enabled);
             codex_image_standalone_generation_enabled
@@ -864,6 +868,7 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
         let moderation_enabled = moderation_enabled.clone();
         let codex_fast_enabled = codex_fast_enabled.clone();
         let codex_responses_lite_enabled = codex_responses_lite_enabled.clone();
+        let codex_full_request_logging_enabled = codex_full_request_logging_enabled.clone();
         let codex_strict_session_rejection_enabled = codex_strict_session_rejection_enabled.clone();
         let codex_image_standalone_generation_enabled =
             codex_image_standalone_generation_enabled.clone();
@@ -888,6 +893,7 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
             let moderation_enabled_value = *moderation_enabled;
             let codex_fast_enabled_value = *codex_fast_enabled;
             let codex_responses_lite_enabled_value = *codex_responses_lite_enabled;
+            let codex_full_request_logging_enabled_value = *codex_full_request_logging_enabled;
             let codex_strict_session_rejection_enabled_value =
                 *codex_strict_session_rejection_enabled;
             let codex_image_standalone_generation_enabled_value =
@@ -955,6 +961,9 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
                     moderation_enabled: Some(moderation_enabled_value),
                     codex_fast_enabled: Some(codex_fast_enabled_value),
                     codex_responses_lite_enabled: Some(codex_responses_lite_enabled_value),
+                    codex_full_request_logging_enabled: Some(
+                        codex_full_request_logging_enabled_value,
+                    ),
                     codex_strict_session_rejection_enabled: Some(
                         codex_strict_session_rejection_enabled_value,
                     ),
@@ -1183,6 +1192,31 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
             </div>
 
             <div class={classes!("mt-3", "flex", "items-center", "gap-3", "flex-wrap")}>
+                <label class={classes!("flex", "items-center", "gap-2", "text-sm")}>
+                    <input
+                        type="checkbox" class={classes!("min-h-0", "w-auto")}
+                        checked={*codex_full_request_logging_enabled}
+                        onchange={{
+                            let codex_full_request_logging_enabled =
+                                codex_full_request_logging_enabled.clone();
+                            Callback::from(move |event: Event| {
+                                if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                    codex_full_request_logging_enabled.set(target.checked());
+                                }
+                            })
+                        }}
+                    />
+                    <span>{ "记录完整请求报文" }</span>
+                </label>
+                <span class={classes!("text-xs", "leading-5", "text-[var(--muted)]")}>
+                    {
+                        if *codex_full_request_logging_enabled {
+                            "ON · 此 key 的成功和失败请求都会保留 client、upstream 与完整 body"
+                        } else {
+                            "OFF · 成功请求不保留完整 body；失败请求仍保留诊断报文"
+                        }
+                    }
+                </span>
                 <label class={classes!("flex", "items-center", "gap-2", "text-sm")}>
                     <input
                         type="checkbox" class={classes!("min-h-0", "w-auto")}

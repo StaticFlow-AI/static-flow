@@ -288,6 +288,8 @@ pub struct AdminLlmGatewayKeyView {
     #[serde(default = "default_true")]
     pub codex_responses_lite_enabled: bool,
     #[serde(default)]
+    pub codex_full_request_logging_enabled: bool,
+    #[serde(default)]
     pub codex_strict_session_rejection_enabled: bool,
     #[serde(default = "default_true")]
     pub codex_image_generation_enabled: bool,
@@ -3167,6 +3169,7 @@ pub async fn create_admin_llm_gateway_key(
             uses_global_kiro_billable_model_multipliers: true,
             codex_fast_enabled: true,
             codex_responses_lite_enabled: true,
+            codex_full_request_logging_enabled: false,
             codex_strict_session_rejection_enabled: false,
             codex_image_generation_enabled: true,
             codex_image_standalone_generation_enabled: true,
@@ -3222,6 +3225,7 @@ pub struct PatchAdminLlmGatewayKeyRequest<'a> {
     pub moderation_enabled: Option<bool>,
     pub codex_fast_enabled: Option<bool>,
     pub codex_responses_lite_enabled: Option<bool>,
+    pub codex_full_request_logging_enabled: Option<bool>,
     pub codex_strict_session_rejection_enabled: Option<bool>,
     pub codex_image_generation_enabled: Option<bool>,
     pub codex_image_standalone_generation_enabled: Option<bool>,
@@ -3266,6 +3270,7 @@ pub async fn patch_admin_llm_gateway_key(
             request.moderation_enabled,
             request.codex_fast_enabled,
             request.codex_responses_lite_enabled,
+            request.codex_full_request_logging_enabled,
             request.codex_strict_session_rejection_enabled,
             request.codex_image_generation_enabled,
             request.codex_image_standalone_generation_enabled,
@@ -3400,6 +3405,12 @@ pub async fn patch_admin_llm_gateway_key(
         if let Some(enabled) = request.codex_responses_lite_enabled {
             body.insert(
                 "codex_responses_lite_enabled".to_string(),
+                serde_json::Value::Bool(enabled),
+            );
+        }
+        if let Some(enabled) = request.codex_full_request_logging_enabled {
+            body.insert(
+                "codex_full_request_logging_enabled".to_string(),
                 serde_json::Value::Bool(enabled),
             );
         }
@@ -5901,6 +5912,7 @@ pub async fn create_admin_kiro_key(
             uses_global_kiro_billable_model_multipliers: true,
             codex_fast_enabled: true,
             codex_responses_lite_enabled: true,
+            codex_full_request_logging_enabled: false,
             codex_strict_session_rejection_enabled: false,
             codex_image_generation_enabled: false,
             codex_image_standalone_generation_enabled: false,
