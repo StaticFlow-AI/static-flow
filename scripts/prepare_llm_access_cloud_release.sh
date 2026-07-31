@@ -134,6 +134,7 @@ mkdir -p "$CARGO_TARGET_DIR"
 df -h "$CARGO_TARGET_DIR" >/dev/null
 
 export CARGO_TARGET_DIR
+export LLM_ACCESS_BUILD_REVISION="$(git rev-parse HEAD)"
 
 log "running llm-access test suite"
 cargo test -p llm-usage-journal -p llm-access-core -p llm-access-store -p llm-access -p llm-access-codex-image --jobs "$BUILD_JOBS"
