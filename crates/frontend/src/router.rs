@@ -235,6 +235,13 @@ pub enum Route {
     AdminKiroGatewayKeys,
 
     #[cfg(not(feature = "mock"))]
+    #[at("/admin/kiro-gateway/models")]
+    AdminKiroGatewayModels,
+    #[cfg(feature = "mock")]
+    #[at("/static_flow/admin/kiro-gateway/models")]
+    AdminKiroGatewayModels,
+
+    #[cfg(not(feature = "mock"))]
     #[at("/admin/kiro-gateway/groups")]
     AdminKiroGatewayGroups,
     #[cfg(feature = "mock")]
@@ -404,6 +411,9 @@ fn switch(route: Route) -> Html {
         },
         Route::AdminKiroGatewayKeys => {
             html! { <pages::admin_kiro_gateway_keys::AdminKiroGatewayKeysPage /> }
+        },
+        Route::AdminKiroGatewayModels => {
+            html! { <pages::admin_kiro_gateway_models::AdminKiroGatewayModelsPage /> }
         },
         Route::AdminKiroGatewayGroups => {
             html! { <pages::admin_kiro_gateway_groups::AdminKiroGatewayGroupsPage /> }

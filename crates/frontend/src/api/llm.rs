@@ -5080,6 +5080,53 @@ pub struct KiroModelsResponse {
     pub data: Vec<KiroModelView>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
+#[serde(default)]
+pub struct AdminKiroModelSummaryView {
+    pub model_id: String,
+    pub display_name: String,
+    pub target_model_id: String,
+    pub enabled: bool,
+    pub builtin: bool,
+    pub overridden: bool,
+    pub system_prompt_bytes: usize,
+    pub system_prompt_sha256: Option<String>,
+    pub created_at_ms: i64,
+    pub updated_at_ms: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
+#[serde(default)]
+pub struct AdminKiroModelDetailView {
+    #[serde(flatten)]
+    pub summary: AdminKiroModelSummaryView,
+    pub system_prompt: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
+#[serde(default)]
+pub struct AdminKiroModelsResponse {
+    pub models: Vec<AdminKiroModelSummaryView>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CreateAdminKiroModelInput<'a> {
+    pub model_id: &'a str,
+    pub display_name: &'a str,
+    pub target_model_id: &'a str,
+    pub system_prompt: Option<&'a str>,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PatchAdminKiroModelInput<'a> {
+    pub display_name: &'a str,
+    pub target_model_id: &'a str,
+    pub system_prompt: Option<&'a str>,
+    pub clear_system_prompt: bool,
+    pub enabled: bool,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
 #[serde(default)]
 pub struct KiroAccessResponse {
@@ -5626,6 +5673,139 @@ pub async fn fetch_kiro_models() -> Result<KiroModelsResponse, String> {
             .json()
             .await
             .map_err(|e| format!("Parse error: {:?}", e))
+    }
+}
+
+pub async fn fetch_admin_kiro_models() -> Result<AdminKiroModelsResponse, String> {
+    #[cfg(feature = "mock")]
+    {
+        Ok(AdminKiroModelsResponse::default())
+    }
+    #[cfg(not(feature = "mock"))]
+    {
+        let url = format!("{}/admin/kiro-gateway/models", llm_access_admin_base());
+        let response = api_get(&url)
+            .header("Cache-Control", "no-cache, no-store, max-age=0")
+            .send()
+            .await
+            .map_err(|err| format!("Network error: {err:?}"))?;
+        if !response.ok() {
+            return Err(format!("Failed: {}", response.text().await.unwrap_or_default()));
+        }
+        response
+            .json()
+            .await
+            .map_err(|err| format!("Parse error: {err:?}"))
+    }
+}
+
+pub async fn fetch_admin_kiro_model(model_id: &str) -> Result<AdminKiroModelDetailView, String> {
+    #[cfg(feature = "mock")]
+    {
+        let _ = model_id;
+        Ok(AdminKiroModelDetailView::default())
+    }
+    #[cfg(not(feature = "mock"))]
+    {
+        let url = format!(
+            "{}/admin/kiro-gateway/models/{}",
+            llm_access_admin_base(),
+            urlencoding::encode(model_id)
+        );
+        let response = api_get(&url)
+            .send()
+            .await
+            .map_err(|err| format!("Network error: {err:?}"))?;
+        if !response.ok() {
+            return Err(format!("Failed: {}", response.text().await.unwrap_or_default()));
+        }
+        response
+            .json()
+            .await
+            .map_err(|err| format!("Parse error: {err:?}"))
+    }
+}
+
+pub async fn create_admin_kiro_model(
+    input: CreateAdminKiroModelInput<'_>,
+) -> Result<AdminKiroModelDetailView, String> {
+    #[cfg(feature = "mock")]
+    {
+        let _ = input;
+        Ok(AdminKiroModelDetailView::default())
+    }
+    #[cfg(not(feature = "mock"))]
+    {
+        let url = format!("{}/admin/kiro-gateway/models", llm_access_admin_base());
+        let response = api_post(&url)
+            .json(&input)
+            .map_err(|err| format!("Serialize error: {err:?}"))?
+            .send()
+            .await
+            .map_err(|err| format!("Network error: {err:?}"))?;
+        if !response.ok() {
+            return Err(format!("Failed: {}", response.text().await.unwrap_or_default()));
+        }
+        response
+            .json()
+            .await
+            .map_err(|err| format!("Parse error: {err:?}"))
+    }
+}
+
+pub async fn patch_admin_kiro_model(
+    model_id: &str,
+    input: PatchAdminKiroModelInput<'_>,
+) -> Result<AdminKiroModelDetailView, String> {
+    #[cfg(feature = "mock")]
+    {
+        let _ = (model_id, input);
+        Ok(AdminKiroModelDetailView::default())
+    }
+    #[cfg(not(feature = "mock"))]
+    {
+        let url = format!(
+            "{}/admin/kiro-gateway/models/{}",
+            llm_access_admin_base(),
+            urlencoding::encode(model_id)
+        );
+        let response = api_patch(&url)
+            .json(&input)
+            .map_err(|err| format!("Serialize error: {err:?}"))?
+            .send()
+            .await
+            .map_err(|err| format!("Network error: {err:?}"))?;
+        if !response.ok() {
+            return Err(format!("Failed: {}", response.text().await.unwrap_or_default()));
+        }
+        response
+            .json()
+            .await
+            .map_err(|err| format!("Parse error: {err:?}"))
+    }
+}
+
+pub async fn delete_admin_kiro_model(model_id: &str) -> Result<(), String> {
+    #[cfg(feature = "mock")]
+    {
+        let _ = model_id;
+        Ok(())
+    }
+    #[cfg(not(feature = "mock"))]
+    {
+        let url = format!(
+            "{}/admin/kiro-gateway/models/{}",
+            llm_access_admin_base(),
+            urlencoding::encode(model_id)
+        );
+        let response = api_delete(&url)
+            .send()
+            .await
+            .map_err(|err| format!("Network error: {err:?}"))?;
+        if !response.ok() {
+            return Err(format!("Failed: {}", response.text().await.unwrap_or_default()));
+        }
+        Ok(())
     }
 }
 

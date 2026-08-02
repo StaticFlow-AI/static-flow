@@ -4035,6 +4035,7 @@ pub fn admin_kiro_gateway_page() -> Html {
                     { overview_nav_card("Accounts", "导入 / 手动创建 Kiro 账号", Route::AdminKiroGatewayAccountsManage) }
                     { overview_nav_card("Account Status", "分页浏览账号余额与异常状态", Route::AdminKiroAccountStatus) }
                     { overview_nav_card("Keys", "创建与管理私钥、路由与缓存策略", Route::AdminKiroGatewayKeys) }
+                    { overview_nav_card("Models", "全局模型映射、启停与高优先级 system prompt", Route::AdminKiroGatewayModels) }
                     { overview_nav_card("Groups", "维护账号组，供 key 选择固定/自动路由", Route::AdminKiroGatewayGroups) }
                     { overview_nav_card("Usage", "分页查看用量事件与详情", Route::AdminKiroGatewayUsage) }
                     { overview_nav_card("Upstream Channels", "直连 Anthropic 渠道、模型测试与冷却", Route::AdminKiroAnthropicUpstreams) }

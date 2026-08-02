@@ -306,6 +306,7 @@ fn route_path_for(route: &Route) -> String {
             config::route_path("/admin/kiro-gateway/accounts/manage")
         },
         Route::AdminKiroGatewayKeys => config::route_path("/admin/kiro-gateway/keys"),
+        Route::AdminKiroGatewayModels => config::route_path("/admin/kiro-gateway/models"),
         Route::AdminKiroGatewayGroups => config::route_path("/admin/kiro-gateway/groups"),
         Route::AdminKiroGatewayUsage => config::route_path("/admin/kiro-gateway/usage"),
         Route::AdminKiroAnthropicUpstreams => {
@@ -537,6 +538,7 @@ pub fn apply_route_seo(route: Option<&Route>) {
         | Route::AdminKiroAccountStatus
         | Route::AdminKiroGatewayAccountsManage
         | Route::AdminKiroGatewayKeys
+        | Route::AdminKiroGatewayModels
         | Route::AdminKiroGatewayGroups
         | Route::AdminKiroGatewayUsage
         | Route::AdminKiroAnthropicUpstreams
