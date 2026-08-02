@@ -52,6 +52,7 @@ const ADMIN_GATEWAY_SPA_SECTION_PATHS: &[&str] = &[
     "/admin/kiro-gateway/accounts/manage",
     "/admin/kiro-gateway/keys",
     "/admin/kiro-gateway/groups",
+    "/admin/kiro-gateway/models",
     "/admin/kiro-gateway/usage",
 ];
 
