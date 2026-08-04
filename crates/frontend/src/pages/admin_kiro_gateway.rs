@@ -241,7 +241,7 @@ pub(crate) struct KiroCachePolicyForm {
     anthropic_cache_creation_input_ratio: String,
     minimum_cache_hit_rate_enabled: bool,
     minimum_cache_hit_rate_ratio: String,
-    minimum_cache_hit_rate_max_input_inflation_multiplier: String,
+    minimum_cache_hit_rate_max_input_growth_multiplier: String,
     bands: Vec<KiroCachePolicyBandForm>,
 }
 
@@ -279,7 +279,7 @@ struct KiroCachePolicyBandJson {
 struct KiroMinimumCacheHitRateJson {
     enabled: bool,
     ratio: f64,
-    max_input_inflation_multiplier: f64,
+    max_input_growth_multiplier: f64,
 }
 
 impl Default for KiroMinimumCacheHitRateJson {
@@ -287,7 +287,7 @@ impl Default for KiroMinimumCacheHitRateJson {
         Self {
             enabled: false,
             ratio: 0.0,
-            max_input_inflation_multiplier: 2.0,
+            max_input_growth_multiplier: 2.0,
         }
     }
 }
@@ -326,7 +326,7 @@ struct KiroMinimumCacheHitRateOverrideJson {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     ratio: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    max_input_inflation_multiplier: Option<f64>,
+    max_input_growth_multiplier: Option<f64>,
 }
 
 fn format_kiro_cache_policy_number(value: f64) -> String {
@@ -383,8 +383,8 @@ fn kiro_cache_policy_form_from_json(policy: &KiroCachePolicyJson) -> KiroCachePo
         minimum_cache_hit_rate_ratio: format_kiro_cache_policy_number(
             policy.minimum_cache_hit_rate.ratio,
         ),
-        minimum_cache_hit_rate_max_input_inflation_multiplier: format_kiro_cache_policy_number(
-            policy.minimum_cache_hit_rate.max_input_inflation_multiplier,
+        minimum_cache_hit_rate_max_input_growth_multiplier: format_kiro_cache_policy_number(
+            policy.minimum_cache_hit_rate.max_input_growth_multiplier,
         ),
         bands: policy
             .prefix_tree_credit_ratio_bands
@@ -454,9 +454,9 @@ fn kiro_cache_policy_json_from_form(
                 "Minimum cache hit rate",
                 &form.minimum_cache_hit_rate_ratio,
             )?,
-            max_input_inflation_multiplier: parse_kiro_cache_policy_f64(
-                "Maximum input inflation multiplier",
-                &form.minimum_cache_hit_rate_max_input_inflation_multiplier,
+            max_input_growth_multiplier: parse_kiro_cache_policy_f64(
+                "Maximum input growth multiplier",
+                &form.minimum_cache_hit_rate_max_input_growth_multiplier,
             )?,
         },
     };
@@ -538,15 +538,15 @@ fn build_kiro_cache_policy_override_json(
     }
     if edited_policy
         .minimum_cache_hit_rate
-        .max_input_inflation_multiplier
+        .max_input_growth_multiplier
         != global_policy
             .minimum_cache_hit_rate
-            .max_input_inflation_multiplier
+            .max_input_growth_multiplier
     {
-        minimum_override.max_input_inflation_multiplier = Some(
+        minimum_override.max_input_growth_multiplier = Some(
             edited_policy
                 .minimum_cache_hit_rate
-                .max_input_inflation_multiplier,
+                .max_input_growth_multiplier,
         );
     }
     if minimum_override != KiroMinimumCacheHitRateOverrideJson::default() {
@@ -724,7 +724,7 @@ fn format_kiro_cache_policy_summary_with_scope(
             "floor {} @ max {}x",
             effective.minimum_cache_hit_rate_ratio.trim(),
             effective
-                .minimum_cache_hit_rate_max_input_inflation_multiplier
+                .minimum_cache_hit_rate_max_input_growth_multiplier
                 .trim(),
         )
     } else {
@@ -1120,7 +1120,7 @@ fn kiro_cache_policy_editor(props: &KiroCachePolicyEditorProps) -> Html {
                     <span>
                         <span class={classes!("block", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted-foreground)]")}>{ "Minimum Cache Hit Rate" }</span>
                         <span class={classes!("mt-1", "block", "text-xs", "text-[var(--muted-foreground)]")}>
-                            { "When the estimated hit rate is lower, keep uncached input unchanged and add cached input up to the configured total-input inflation and model-context limits." }
+                            { "When the estimated hit rate is lower, grow total input up to this multiplier and the model context limit, then move cost from uncached to cached while preserving the configured floor." }
                         </span>
                     </span>
                 </label>
@@ -1143,22 +1143,24 @@ fn kiro_cache_policy_editor(props: &KiroCachePolicyEditorProps) -> Html {
                         />
                     </label>
                     <label class={classes!("block", "text-sm")}>
-                        <div class={classes!("mb-1", "text-[11px]", "uppercase", "tracking-[0.16em]", "text-[var(--muted-foreground)]")}>{ "Maximum Input Inflation" }</div>
+                        <div class={classes!("mb-1", "text-[11px]", "uppercase", "tracking-[0.16em]", "text-[var(--muted-foreground)]")}>{ "Maximum Input Growth" }</div>
                         <input
                             class={classes!("mono")}
                             disabled={!props.form.minimum_cache_hit_rate_enabled}
-                            value={props.form.minimum_cache_hit_rate_max_input_inflation_multiplier.clone()}
+                            value={props.form.minimum_cache_hit_rate_max_input_growth_multiplier.clone()}
                             oninput={{
                                 let form = props.form.clone();
                                 Callback::from(move |event: InputEvent| {
                                     let input: HtmlInputElement = event.target_unchecked_into();
                                     let mut next = (*form).clone();
-                                    next.minimum_cache_hit_rate_max_input_inflation_multiplier = input.value();
+                                    next.minimum_cache_hit_rate_max_input_growth_multiplier = input.value();
                                     form.set(next);
                                 })
                             }}
                         />
-                        <div class={classes!("mt-1", "text-xs", "text-[var(--muted-foreground)]")}>{ "1.0 to 2.0; 2.0 is the hard maximum." }</div>
+                        <div class={classes!("mt-1", "text-xs", "text-[var(--muted-foreground)]")}>
+                            { "1.0 to 2.0. The actual multiplier follows the credit-ratio bands: it stays at 1x when the interval ratio meets the floor and approaches this maximum as the interval ratio falls to zero." }
+                        </div>
                     </label>
                 </div>
             </div>
@@ -4908,7 +4910,7 @@ mod tests {
         let mut edited = global.clone();
         edited.minimum_cache_hit_rate_enabled = true;
         edited.minimum_cache_hit_rate_ratio = "0.4".to_string();
-        edited.minimum_cache_hit_rate_max_input_inflation_multiplier = "1.5".to_string();
+        edited.minimum_cache_hit_rate_max_input_growth_multiplier = "1.5".to_string();
 
         let override_json = build_kiro_cache_policy_override_json(&global, &edited)
             .expect("override json")
@@ -4922,7 +4924,7 @@ mod tests {
                 "minimum_cache_hit_rate": {
                     "enabled": true,
                     "ratio": 0.4,
-                    "max_input_inflation_multiplier": 1.5
+                    "max_input_growth_multiplier": 1.5
                 }
             })
         );
@@ -5284,7 +5286,7 @@ mod tests {
                 "minimum_cache_hit_rate": {
                     "enabled": true,
                     "ratio": 0.4,
-                    "max_input_inflation_multiplier": 1.5
+                    "max_input_growth_multiplier": 1.5
                 }
             }"#,
         )
@@ -5292,7 +5294,7 @@ mod tests {
 
         assert!(form.minimum_cache_hit_rate_enabled);
         assert_eq!(form.minimum_cache_hit_rate_ratio, "0.4");
-        assert_eq!(form.minimum_cache_hit_rate_max_input_inflation_multiplier, "1.5");
+        assert_eq!(form.minimum_cache_hit_rate_max_input_growth_multiplier, "1.5");
     }
 
     #[test]

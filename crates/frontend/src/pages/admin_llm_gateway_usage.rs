@@ -41,6 +41,17 @@ use crate::{
     router::Route,
 };
 
+fn kiro_input_growth_badge(routing_diagnostics_json: Option<&str>) -> Option<String> {
+    let multiplier = serde_json::from_str::<serde_json::Value>(routing_diagnostics_json?)
+        .ok()?
+        .get("kiro_cache_adjustment")?
+        .get("applied_input_growth_multiplier")?
+        .as_f64()?;
+    multiplier
+        .is_finite()
+        .then(|| format!("input ×{multiplier:.3}"))
+}
+
 #[function_component(AdminLlmGatewayUsagePage)]
 pub fn admin_llm_gateway_usage_page() -> Html {
     let usage_events = use_state(Vec::<AdminLlmGatewayUsageEventView>::new);
@@ -1260,6 +1271,9 @@ pub fn admin_llm_gateway_usage_page() -> Html {
                                         let downstream_disconnect = event.downstream_disconnect == Some(true);
                                         let stream_incomplete =
                                             event.stream_completed_cleanly == Some(false) && !downstream_disconnect;
+                                        let kiro_input_growth = kiro_input_growth_badge(
+                                            event.routing_diagnostics_json.as_deref(),
+                                        );
                                         html! {
                                             <tr class={classes!("border-t", "border-[var(--border)]", "align-top")}>
                                                 <td class={classes!("py-2", "pl-3", "pr-3", "whitespace-nowrap")}>
@@ -1355,6 +1369,13 @@ pub fn admin_llm_gateway_usage_page() -> Html {
                                                     <span class={classes!("text-[var(--muted)]")}>
                                                         { format!("{}/{}/{}", format_number_u64(event.input_uncached_tokens), format_number_u64(event.input_cached_tokens), format_number_u64(event.output_tokens)) }
                                                     </span>
+                                                    if let Some(growth) = kiro_input_growth.clone() {
+                                                        <div class={classes!("mt-1")}>
+                                                            <span class={classes!("inline-flex", "rounded-full", "border", "border-sky-500/20", "bg-sky-500/10", "px-1.5", "py-0.5", "font-mono", "text-[10px]", "font-semibold", "text-sky-700", "dark:text-sky-200")}>
+                                                                { growth }
+                                                            </span>
+                                                        </div>
+                                                    }
                                                 </td>
                                                 <td class={classes!("py-2", "pr-3")}>
                                                     <button
@@ -1480,5 +1501,18 @@ mod tests {
         };
 
         assert_eq!(usage_last_message_table_preview(&event), "short text");
+    }
+
+    #[test]
+    fn kiro_input_growth_badge_is_visible_and_legacy_safe() {
+        assert_eq!(
+            kiro_input_growth_badge(Some(
+                r#"{"kiro_cache_adjustment":{"applied_input_growth_multiplier":1.6}}"#,
+            ))
+            .as_deref(),
+            Some("input ×1.600"),
+        );
+        assert_eq!(kiro_input_growth_badge(Some(r#"{}"#)), None);
+        assert_eq!(kiro_input_growth_badge(None), None);
     }
 }

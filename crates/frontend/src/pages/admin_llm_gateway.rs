@@ -356,6 +356,46 @@ pub(crate) fn routing_diagnostics_summary(raw: &str) -> Vec<(String, String)> {
     {
         rows.push(("Selected".to_string(), account.to_string()));
     }
+    if let Some(adjustment) = value
+        .get("kiro_cache_adjustment")
+        .and_then(|value| value.as_object())
+    {
+        let token = |key: &str| adjustment.get(key).and_then(|value| value.as_u64());
+        if let Some(multiplier) = adjustment
+            .get("applied_input_growth_multiplier")
+            .and_then(|value| value.as_f64())
+        {
+            rows.push(("Kiro input growth".to_string(), format!("{multiplier:.3}x")));
+        }
+        if let (Some(real), Some(adjusted)) =
+            (token("real_input_total_tokens"), token("adjusted_input_total_tokens"))
+        {
+            rows.push(("Kiro input total".to_string(), format!("{real} -> {adjusted}")));
+        }
+        if let (Some(uncached), Some(cached)) =
+            (token("real_input_uncached_tokens"), token("real_input_cached_tokens"))
+        {
+            rows.push(("Kiro real split".to_string(), format!("U {uncached} / C {cached}")));
+        }
+        if let (Some(uncached), Some(cached)) =
+            (token("adjusted_input_uncached_tokens"), token("adjusted_input_cached_tokens"))
+        {
+            rows.push(("Kiro adjusted split".to_string(), format!("U {uncached} / C {cached}")));
+        }
+        if let (Some(real), Some(adjusted)) = (
+            adjustment
+                .get("real_cache_hit_rate")
+                .and_then(|value| value.as_f64()),
+            adjustment
+                .get("adjusted_cache_hit_rate")
+                .and_then(|value| value.as_f64()),
+        ) {
+            rows.push((
+                "Kiro cache hit".to_string(),
+                format!("{:.2}% -> {:.2}%", real * 100.0, adjusted * 100.0),
+            ));
+        }
+    }
     rows
 }
 
@@ -2658,5 +2698,33 @@ mod tests {
         assert!(rows
             .iter()
             .any(|(label, value)| label == "Codex failover" && value == "1"));
+    }
+
+    #[test]
+    fn routing_diagnostics_summary_surfaces_kiro_token_growth_at_a_glance() {
+        let rows = routing_diagnostics_summary(
+            r#"{"kiro_cache_adjustment":{"real_input_uncached_tokens":80,"real_input_cached_tokens":20,"real_input_total_tokens":100,"real_cache_hit_rate":0.2,"adjusted_input_uncached_tokens":50,"adjusted_input_cached_tokens":110,"adjusted_input_total_tokens":160,"adjusted_cache_hit_rate":0.6875,"applied_input_growth_multiplier":1.6}}"#,
+        );
+
+        assert!(rows
+            .iter()
+            .any(|(label, value)| label == "Kiro input growth" && value == "1.600x"));
+        assert!(rows
+            .iter()
+            .any(|(label, value)| label == "Kiro input total" && value == "100 -> 160"));
+        assert!(rows
+            .iter()
+            .any(|(label, value)| label == "Kiro real split" && value == "U 80 / C 20"));
+        assert!(rows
+            .iter()
+            .any(|(label, value)| { label == "Kiro adjusted split" && value == "U 50 / C 110" }));
+    }
+
+    #[test]
+    fn routing_diagnostics_summary_accepts_legacy_usage_without_kiro_adjustment() {
+        assert!(routing_diagnostics_summary(r#"{}"#).is_empty());
+        assert!(routing_diagnostics_summary(r#"{"route_total_ms":12}"#)
+            .iter()
+            .all(|(label, _)| !label.starts_with("Kiro ")));
     }
 }

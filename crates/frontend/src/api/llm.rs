@@ -232,7 +232,7 @@ fn default_anthropic_upstream_pool_mode() -> String {
 }
 
 fn default_kiro_cache_policy_json() -> String {
-    r#"{"small_input_high_credit_boost":{"target_input_tokens":100000,"credit_start":1.0,"credit_end":1.8},"prefix_tree_credit_ratio_bands":[{"credit_start":0.3,"credit_end":1.0,"cache_ratio_start":0.7,"cache_ratio_end":0.2},{"credit_start":1.0,"credit_end":2.5,"cache_ratio_start":0.2,"cache_ratio_end":0.0}],"high_credit_diagnostic_threshold":2.0,"anthropic_cache_creation_input_ratio":0.0,"minimum_cache_hit_rate":{"enabled":false,"ratio":0.0,"max_input_inflation_multiplier":2.0}}"#.to_string()
+    r#"{"small_input_high_credit_boost":{"target_input_tokens":100000,"credit_start":1.0,"credit_end":1.8},"prefix_tree_credit_ratio_bands":[{"credit_start":0.3,"credit_end":1.0,"cache_ratio_start":0.7,"cache_ratio_end":0.2},{"credit_start":1.0,"credit_end":2.5,"cache_ratio_start":0.2,"cache_ratio_end":0.0}],"high_credit_diagnostic_threshold":2.0,"anthropic_cache_creation_input_ratio":0.0,"minimum_cache_hit_rate":{"enabled":false,"ratio":0.0,"max_input_growth_multiplier":2.0}}"#.to_string()
 }
 
 fn default_kiro_billable_model_multipliers_json() -> String {
