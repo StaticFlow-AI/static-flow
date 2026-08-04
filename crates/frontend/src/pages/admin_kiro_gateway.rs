@@ -239,6 +239,9 @@ pub(crate) struct KiroCachePolicyForm {
     credit_end: String,
     high_credit_diagnostic_threshold: String,
     anthropic_cache_creation_input_ratio: String,
+    minimum_cache_hit_rate_enabled: bool,
+    minimum_cache_hit_rate_ratio: String,
+    minimum_cache_hit_rate_max_input_inflation_multiplier: String,
     bands: Vec<KiroCachePolicyBandForm>,
 }
 
@@ -250,6 +253,8 @@ struct KiroCachePolicyJson {
     high_credit_diagnostic_threshold: f64,
     #[serde(default)]
     anthropic_cache_creation_input_ratio: f64,
+    #[serde(default)]
+    minimum_cache_hit_rate: KiroMinimumCacheHitRateJson,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -269,6 +274,24 @@ struct KiroCachePolicyBandJson {
     cache_ratio_end: f64,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct KiroMinimumCacheHitRateJson {
+    enabled: bool,
+    ratio: f64,
+    max_input_inflation_multiplier: f64,
+}
+
+impl Default for KiroMinimumCacheHitRateJson {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            ratio: 0.0,
+            max_input_inflation_multiplier: 2.0,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 struct KiroCachePolicyOverrideJson {
@@ -280,6 +303,8 @@ struct KiroCachePolicyOverrideJson {
     high_credit_diagnostic_threshold: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     anthropic_cache_creation_input_ratio: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    minimum_cache_hit_rate: Option<KiroMinimumCacheHitRateOverrideJson>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
@@ -291,6 +316,17 @@ struct KiroSmallInputHighCreditBoostOverrideJson {
     credit_start: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     credit_end: Option<f64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+struct KiroMinimumCacheHitRateOverrideJson {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    enabled: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    ratio: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    max_input_inflation_multiplier: Option<f64>,
 }
 
 fn format_kiro_cache_policy_number(value: f64) -> String {
@@ -342,6 +378,13 @@ fn kiro_cache_policy_form_from_json(policy: &KiroCachePolicyJson) -> KiroCachePo
         ),
         anthropic_cache_creation_input_ratio: format_kiro_cache_policy_number(
             policy.anthropic_cache_creation_input_ratio,
+        ),
+        minimum_cache_hit_rate_enabled: policy.minimum_cache_hit_rate.enabled,
+        minimum_cache_hit_rate_ratio: format_kiro_cache_policy_number(
+            policy.minimum_cache_hit_rate.ratio,
+        ),
+        minimum_cache_hit_rate_max_input_inflation_multiplier: format_kiro_cache_policy_number(
+            policy.minimum_cache_hit_rate.max_input_inflation_multiplier,
         ),
         bands: policy
             .prefix_tree_credit_ratio_bands
@@ -405,6 +448,17 @@ fn kiro_cache_policy_json_from_form(
             "Anthropic cache creation input ratio",
             &form.anthropic_cache_creation_input_ratio,
         )?,
+        minimum_cache_hit_rate: KiroMinimumCacheHitRateJson {
+            enabled: form.minimum_cache_hit_rate_enabled,
+            ratio: parse_kiro_cache_policy_f64(
+                "Minimum cache hit rate",
+                &form.minimum_cache_hit_rate_ratio,
+            )?,
+            max_input_inflation_multiplier: parse_kiro_cache_policy_f64(
+                "Maximum input inflation multiplier",
+                &form.minimum_cache_hit_rate_max_input_inflation_multiplier,
+            )?,
+        },
     };
     Ok(policy)
 }
@@ -473,6 +527,30 @@ fn build_kiro_cache_policy_override_json(
     {
         override_policy.anthropic_cache_creation_input_ratio =
             Some(edited_policy.anthropic_cache_creation_input_ratio);
+    }
+    let mut minimum_override = KiroMinimumCacheHitRateOverrideJson::default();
+    if edited_policy.minimum_cache_hit_rate.enabled != global_policy.minimum_cache_hit_rate.enabled
+    {
+        minimum_override.enabled = Some(edited_policy.minimum_cache_hit_rate.enabled);
+    }
+    if edited_policy.minimum_cache_hit_rate.ratio != global_policy.minimum_cache_hit_rate.ratio {
+        minimum_override.ratio = Some(edited_policy.minimum_cache_hit_rate.ratio);
+    }
+    if edited_policy
+        .minimum_cache_hit_rate
+        .max_input_inflation_multiplier
+        != global_policy
+            .minimum_cache_hit_rate
+            .max_input_inflation_multiplier
+    {
+        minimum_override.max_input_inflation_multiplier = Some(
+            edited_policy
+                .minimum_cache_hit_rate
+                .max_input_inflation_multiplier,
+        );
+    }
+    if minimum_override != KiroMinimumCacheHitRateOverrideJson::default() {
+        override_policy.minimum_cache_hit_rate = Some(minimum_override);
     }
     if override_policy == KiroCachePolicyOverrideJson::default() {
         Ok(None)
@@ -641,13 +719,25 @@ fn format_kiro_cache_policy_summary_with_scope(
     effective: &KiroCachePolicyForm,
 ) -> String {
     let scope = if scope.is_empty() { "inherit global" } else { scope };
+    let minimum_hit_rate = if effective.minimum_cache_hit_rate_enabled {
+        format!(
+            "floor {} @ max {}x",
+            effective.minimum_cache_hit_rate_ratio.trim(),
+            effective
+                .minimum_cache_hit_rate_max_input_inflation_multiplier
+                .trim(),
+        )
+    } else {
+        "floor off".to_string()
+    };
     format!(
-        "{scope} · boost {} -> {} => {} · diag {} · create {} · bands {}",
+        "{scope} · boost {} -> {} => {} · diag {} · create {} · {} · bands {}",
         effective.credit_start.trim(),
         effective.credit_end.trim(),
         effective.target_input_tokens.trim(),
         effective.high_credit_diagnostic_threshold.trim(),
         effective.anthropic_cache_creation_input_ratio.trim(),
+        minimum_hit_rate,
         effective.bands.len(),
     )
 }
@@ -1010,6 +1100,67 @@ fn kiro_cache_policy_editor(props: &KiroCachePolicyEditorProps) -> Html {
                         }}
                     />
                 </label>
+            </div>
+
+            <div class={classes!("rounded-[var(--r-field)]", "border", "border-[var(--border)]", "bg-[var(--card-2)]", "px-3", "py-3")}>
+                <label class={classes!("flex", "items-start", "gap-3", "text-sm")}>
+                    <input
+                        type="checkbox"
+                        checked={props.form.minimum_cache_hit_rate_enabled}
+                        onchange={{
+                            let form = props.form.clone();
+                            Callback::from(move |event: Event| {
+                                let input: HtmlInputElement = event.target_unchecked_into();
+                                let mut next = (*form).clone();
+                                next.minimum_cache_hit_rate_enabled = input.checked();
+                                form.set(next);
+                            })
+                        }}
+                    />
+                    <span>
+                        <span class={classes!("block", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted-foreground)]")}>{ "Minimum Cache Hit Rate" }</span>
+                        <span class={classes!("mt-1", "block", "text-xs", "text-[var(--muted-foreground)]")}>
+                            { "When the estimated hit rate is lower, keep uncached input unchanged and add cached input up to the configured total-input inflation and model-context limits." }
+                        </span>
+                    </span>
+                </label>
+                <div class={classes!("mt-3", "grid", "gap-3", "md:grid-cols-2")}>
+                    <label class={classes!("block", "text-sm")}>
+                        <div class={classes!("mb-1", "text-[11px]", "uppercase", "tracking-[0.16em]", "text-[var(--muted-foreground)]")}>{ "Minimum Hit Ratio" }</div>
+                        <input
+                            class={classes!("mono")}
+                            disabled={!props.form.minimum_cache_hit_rate_enabled}
+                            value={props.form.minimum_cache_hit_rate_ratio.clone()}
+                            oninput={{
+                                let form = props.form.clone();
+                                Callback::from(move |event: InputEvent| {
+                                    let input: HtmlInputElement = event.target_unchecked_into();
+                                    let mut next = (*form).clone();
+                                    next.minimum_cache_hit_rate_ratio = input.value();
+                                    form.set(next);
+                                })
+                            }}
+                        />
+                    </label>
+                    <label class={classes!("block", "text-sm")}>
+                        <div class={classes!("mb-1", "text-[11px]", "uppercase", "tracking-[0.16em]", "text-[var(--muted-foreground)]")}>{ "Maximum Input Inflation" }</div>
+                        <input
+                            class={classes!("mono")}
+                            disabled={!props.form.minimum_cache_hit_rate_enabled}
+                            value={props.form.minimum_cache_hit_rate_max_input_inflation_multiplier.clone()}
+                            oninput={{
+                                let form = props.form.clone();
+                                Callback::from(move |event: InputEvent| {
+                                    let input: HtmlInputElement = event.target_unchecked_into();
+                                    let mut next = (*form).clone();
+                                    next.minimum_cache_hit_rate_max_input_inflation_multiplier = input.value();
+                                    form.set(next);
+                                })
+                            }}
+                        />
+                        <div class={classes!("mt-1", "text-xs", "text-[var(--muted-foreground)]")}>{ "1.0 to 2.0; 2.0 is the hard maximum." }</div>
+                    </label>
+                </div>
             </div>
 
             <div class={classes!("rounded-[var(--r-field)]", "border", "border-[var(--border)]", "bg-[var(--card-2)]", "px-3", "py-3")}>
@@ -4630,7 +4781,8 @@ mod tests {
 
         assert_eq!(
             summary,
-            "inherit global · boost 1.0 -> 1.8 => 100000 · diag 2.0 · create 0.0 · bands 2"
+            "inherit global · boost 1.0 -> 1.8 => 100000 · diag 2.0 · create 0.0 · floor off · \
+             bands 2"
         );
     }
 
@@ -4728,6 +4880,50 @@ mod tests {
             override_value,
             json!({
                 "anthropic_cache_creation_input_ratio": 0.25
+            })
+        );
+    }
+
+    #[test]
+    fn build_kiro_cache_policy_override_json_only_emits_changed_minimum_hit_rate_fields() {
+        let global = parse_kiro_cache_policy_form_json(
+            r#"{
+                "small_input_high_credit_boost": {
+                    "target_input_tokens": 100000,
+                    "credit_start": 1.0,
+                    "credit_end": 1.8
+                },
+                "prefix_tree_credit_ratio_bands": [
+                    {
+                        "credit_start": 0.3,
+                        "credit_end": 1.0,
+                        "cache_ratio_start": 0.7,
+                        "cache_ratio_end": 0.2
+                    }
+                ],
+                "high_credit_diagnostic_threshold": 2.0
+            }"#,
+        )
+        .expect("global policy should parse");
+        let mut edited = global.clone();
+        edited.minimum_cache_hit_rate_enabled = true;
+        edited.minimum_cache_hit_rate_ratio = "0.4".to_string();
+        edited.minimum_cache_hit_rate_max_input_inflation_multiplier = "1.5".to_string();
+
+        let override_json = build_kiro_cache_policy_override_json(&global, &edited)
+            .expect("override json")
+            .expect("changed policy should emit override json");
+        let override_value: serde_json::Value =
+            serde_json::from_str(&override_json).expect("override json should parse");
+
+        assert_eq!(
+            override_value,
+            json!({
+                "minimum_cache_hit_rate": {
+                    "enabled": true,
+                    "ratio": 0.4,
+                    "max_input_inflation_multiplier": 1.5
+                }
             })
         );
     }
@@ -5065,6 +5261,38 @@ mod tests {
         .expect("policy should parse");
 
         assert_eq!(form.anthropic_cache_creation_input_ratio, "0.25");
+    }
+
+    #[test]
+    fn parse_kiro_cache_policy_form_json_accepts_minimum_cache_hit_rate() {
+        let form = parse_kiro_cache_policy_form_json(
+            r#"{
+                "small_input_high_credit_boost": {
+                    "target_input_tokens": 100000,
+                    "credit_start": 1.0,
+                    "credit_end": 1.8
+                },
+                "prefix_tree_credit_ratio_bands": [
+                    {
+                        "credit_start": 0.3,
+                        "credit_end": 1.0,
+                        "cache_ratio_start": 0.7,
+                        "cache_ratio_end": 0.2
+                    }
+                ],
+                "high_credit_diagnostic_threshold": 2.0,
+                "minimum_cache_hit_rate": {
+                    "enabled": true,
+                    "ratio": 0.4,
+                    "max_input_inflation_multiplier": 1.5
+                }
+            }"#,
+        )
+        .expect("policy should parse");
+
+        assert!(form.minimum_cache_hit_rate_enabled);
+        assert_eq!(form.minimum_cache_hit_rate_ratio, "0.4");
+        assert_eq!(form.minimum_cache_hit_rate_max_input_inflation_multiplier, "1.5");
     }
 
     #[test]
