@@ -1146,6 +1146,10 @@ fn kiro_cache_policy_editor(props: &KiroCachePolicyEditorProps) -> Html {
                         <div class={classes!("mb-1", "text-[11px]", "uppercase", "tracking-[0.16em]", "text-[var(--muted-foreground)]")}>{ "Maximum Input Growth" }</div>
                         <input
                             class={classes!("mono")}
+                            type="number"
+                            min="1"
+                            max="10"
+                            step="0.1"
                             disabled={!props.form.minimum_cache_hit_rate_enabled}
                             value={props.form.minimum_cache_hit_rate_max_input_growth_multiplier.clone()}
                             oninput={{
@@ -1159,7 +1163,7 @@ fn kiro_cache_policy_editor(props: &KiroCachePolicyEditorProps) -> Html {
                             }}
                         />
                         <div class={classes!("mt-1", "text-xs", "text-[var(--muted-foreground)]")}>
-                            { "1.0 to 2.0. The actual multiplier follows the credit-ratio bands: it stays at 1x when the interval ratio meets the floor and approaches this maximum as the interval ratio falls to zero." }
+                            { "1.0 to 10.0; the default remains 2.0. The actual multiplier follows the credit-ratio bands: it stays at 1x when the interval ratio meets the floor and approaches this maximum as the interval ratio falls to zero." }
                         </div>
                     </label>
                 </div>
