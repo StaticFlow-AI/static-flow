@@ -1982,6 +1982,9 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
     let kiro_zero_cache_debug_enabled = use_state(|| props.key_item.kiro_zero_cache_debug_enabled);
     let kiro_full_request_logging_enabled =
         use_state(|| props.key_item.kiro_full_request_logging_enabled);
+    let kiro_policy_fallback_enabled = use_state(|| props.key_item.kiro_policy_fallback_enabled);
+    let kiro_policy_fallback_model =
+        use_state(|| props.key_item.kiro_policy_fallback_model.clone());
     let kiro_remote_media_resolution_enabled =
         use_state(|| props.key_item.kiro_remote_media_resolution_enabled);
     let kiro_latency_routing_enabled = use_state(|| props.key_item.kiro_latency_routing_enabled);
@@ -2024,6 +2027,8 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
         let kiro_cache_estimation_enabled = kiro_cache_estimation_enabled.clone();
         let kiro_zero_cache_debug_enabled = kiro_zero_cache_debug_enabled.clone();
         let kiro_full_request_logging_enabled = kiro_full_request_logging_enabled.clone();
+        let kiro_policy_fallback_enabled = kiro_policy_fallback_enabled.clone();
+        let kiro_policy_fallback_model = kiro_policy_fallback_model.clone();
         let kiro_remote_media_resolution_enabled = kiro_remote_media_resolution_enabled.clone();
         let kiro_latency_routing_enabled = kiro_latency_routing_enabled.clone();
         let kiro_protected_content_validation_enabled =
@@ -2065,6 +2070,8 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
             kiro_cache_estimation_enabled.set(key_item.kiro_cache_estimation_enabled);
             kiro_zero_cache_debug_enabled.set(key_item.kiro_zero_cache_debug_enabled);
             kiro_full_request_logging_enabled.set(key_item.kiro_full_request_logging_enabled);
+            kiro_policy_fallback_enabled.set(key_item.kiro_policy_fallback_enabled);
+            kiro_policy_fallback_model.set(key_item.kiro_policy_fallback_model.clone());
             kiro_remote_media_resolution_enabled.set(key_item.kiro_remote_media_resolution_enabled);
             kiro_latency_routing_enabled.set(key_item.kiro_latency_routing_enabled);
             kiro_protected_content_validation_enabled
@@ -2111,6 +2118,8 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
         let kiro_cache_estimation_enabled = kiro_cache_estimation_enabled.clone();
         let kiro_zero_cache_debug_enabled = kiro_zero_cache_debug_enabled.clone();
         let kiro_full_request_logging_enabled = kiro_full_request_logging_enabled.clone();
+        let kiro_policy_fallback_enabled = kiro_policy_fallback_enabled.clone();
+        let kiro_policy_fallback_model = kiro_policy_fallback_model.clone();
         let kiro_remote_media_resolution_enabled = kiro_remote_media_resolution_enabled.clone();
         let kiro_latency_routing_enabled = kiro_latency_routing_enabled.clone();
         let kiro_protected_content_validation_enabled =
@@ -2148,6 +2157,8 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
             let kiro_cache_estimation_enabled_value = *kiro_cache_estimation_enabled;
             let kiro_zero_cache_debug_enabled_value = *kiro_zero_cache_debug_enabled;
             let kiro_full_request_logging_enabled_value = *kiro_full_request_logging_enabled;
+            let kiro_policy_fallback_enabled_value = *kiro_policy_fallback_enabled;
+            let kiro_policy_fallback_model_value = (*kiro_policy_fallback_model).clone();
             let kiro_remote_media_resolution_enabled_value = *kiro_remote_media_resolution_enabled;
             let kiro_latency_routing_enabled_value = *kiro_latency_routing_enabled;
             let kiro_protected_content_validation_enabled_value =
@@ -2242,6 +2253,8 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                     kiro_full_request_logging_enabled: Some(
                         kiro_full_request_logging_enabled_value,
                     ),
+                    kiro_policy_fallback_enabled: Some(kiro_policy_fallback_enabled_value),
+                    kiro_policy_fallback_model: Some(kiro_policy_fallback_model_value.as_str()),
                     kiro_remote_media_resolution_enabled: Some(
                         kiro_remote_media_resolution_enabled_value,
                     ),
@@ -2366,6 +2379,8 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                     kiro_full_request_logging_enabled: Some(
                         kiro_full_request_logging_enabled_value,
                     ),
+                    kiro_policy_fallback_enabled: None,
+                    kiro_policy_fallback_model: None,
                     kiro_remote_media_resolution_enabled: Some(
                         kiro_remote_media_resolution_enabled_value,
                     ),
@@ -2971,6 +2986,57 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                         </span>
                     </span>
                 </label>
+                <div class={classes!("md:col-span-2", "grid", "gap-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)]")}>
+                    <label class={classes!("flex", "cursor-pointer", "items-start", "gap-3", "text-sm")}>
+                        <input
+                            type="checkbox"
+                            class={classes!("switch")}
+                            checked={*kiro_policy_fallback_enabled}
+                            onchange={{
+                                let kiro_policy_fallback_enabled =
+                                    kiro_policy_fallback_enabled.clone();
+                                Callback::from(move |event: Event| {
+                                    let input: HtmlInputElement = event.target_unchecked_into();
+                                    kiro_policy_fallback_enabled.set(input.checked());
+                                })
+                            }}
+                        />
+                        <span>
+                            <strong>{ "Policy 拒绝模型重试" }</strong>
+                            <span class={classes!("block", "mt-1", "text-xs", "text-[var(--muted)]")}>
+                                { "默认关闭。开启后，仅当 Kiro Runtime 在尚未输出内容时返回模型级 REFUSAL，才会用右侧模型重试一次。fallback 再次拒绝仍会记录 moderation id 并禁用 session。" }
+                            </span>
+                        </span>
+                    </label>
+                    <label class={classes!("text-sm")}>
+                        <div class={classes!("mb-1", "text-xs", "uppercase", "tracking-[0.16em]", "text-[var(--muted)]")}>
+                            { "Fallback Model" }
+                        </div>
+                        <select
+                            class={classes!("w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2", "text-sm")}
+                            value={(*kiro_policy_fallback_model).clone()}
+                            disabled={!*kiro_policy_fallback_enabled}
+                            onchange={{
+                                let kiro_policy_fallback_model = kiro_policy_fallback_model.clone();
+                                Callback::from(move |event: Event| {
+                                    let input: HtmlSelectElement = event.target_unchecked_into();
+                                    kiro_policy_fallback_model.set(input.value());
+                                })
+                            }}
+                        >
+                            if !props.available_models.iter().any(|model| model.id == *kiro_policy_fallback_model) {
+                                <option value={(*kiro_policy_fallback_model).clone()}>
+                                    { (*kiro_policy_fallback_model).clone() }
+                                </option>
+                            }
+                            { for props.available_models.iter().map(|model| html! {
+                                <option value={model.id.clone()} selected={model.id == *kiro_policy_fallback_model}>
+                                    { format!("{} · {}", model.display_name, model.id) }
+                                </option>
+                            }) }
+                        </select>
+                    </label>
+                </div>
                 <div class={classes!("md:col-span-2", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "space-y-3")}>
                     <div class={classes!("flex", "items-start", "justify-between", "gap-3", "flex-wrap")}>
                         <div class={classes!("space-y-1")}>

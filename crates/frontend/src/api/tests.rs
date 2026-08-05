@@ -94,6 +94,8 @@ fn admin_gateway_key_view_defaults_full_request_logging_off() {
             .expect("key should parse");
 
     assert!(!key.kiro_full_request_logging_enabled);
+    assert!(!key.kiro_policy_fallback_enabled);
+    assert_eq!(key.kiro_policy_fallback_model, "claude-opus-4-6");
     assert!(!key.kiro_remote_media_resolution_enabled);
     assert!(key.codex_image_generation_enabled);
     assert!(key.codex_image_standalone_generation_enabled);

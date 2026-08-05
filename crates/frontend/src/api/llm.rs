@@ -231,6 +231,10 @@ fn default_anthropic_upstream_pool_mode() -> String {
     llm_store::default_anthropic_upstream_pool_mode()
 }
 
+fn default_kiro_policy_fallback_model() -> String {
+    llm_store::default_kiro_policy_fallback_model()
+}
+
 fn default_kiro_cache_policy_json() -> String {
     r#"{"small_input_high_credit_boost":{"target_input_tokens":100000,"credit_start":1.0,"credit_end":1.8},"prefix_tree_credit_ratio_bands":[{"credit_start":0.3,"credit_end":1.0,"cache_ratio_start":0.7,"cache_ratio_end":0.2},{"credit_start":1.0,"credit_end":2.5,"cache_ratio_start":0.2,"cache_ratio_end":0.0}],"high_credit_diagnostic_threshold":2.0,"anthropic_cache_creation_input_ratio":0.0,"minimum_cache_hit_rate":{"enabled":false,"ratio":0.0,"max_input_growth_multiplier":2.0}}"#.to_string()
 }
@@ -305,6 +309,10 @@ pub struct AdminLlmGatewayKeyView {
     pub kiro_zero_cache_debug_enabled: bool,
     #[serde(default)]
     pub kiro_full_request_logging_enabled: bool,
+    #[serde(default)]
+    pub kiro_policy_fallback_enabled: bool,
+    #[serde(default = "default_kiro_policy_fallback_model")]
+    pub kiro_policy_fallback_model: String,
     #[serde(default)]
     pub kiro_remote_media_resolution_enabled: bool,
     #[serde(default = "default_true")]
@@ -3156,6 +3164,8 @@ pub async fn create_admin_llm_gateway_key(
             kiro_cache_estimation_enabled: true,
             kiro_zero_cache_debug_enabled: false,
             kiro_full_request_logging_enabled: false,
+            kiro_policy_fallback_enabled: false,
+            kiro_policy_fallback_model: default_kiro_policy_fallback_model(),
             kiro_remote_media_resolution_enabled: false,
             kiro_latency_routing_enabled: true,
             kiro_protected_content_validation_enabled: false,
@@ -3234,6 +3244,8 @@ pub struct PatchAdminLlmGatewayKeyRequest<'a> {
     pub kiro_cache_estimation_enabled: Option<bool>,
     pub kiro_zero_cache_debug_enabled: Option<bool>,
     pub kiro_full_request_logging_enabled: Option<bool>,
+    pub kiro_policy_fallback_enabled: Option<bool>,
+    pub kiro_policy_fallback_model: Option<&'a str>,
     pub kiro_remote_media_resolution_enabled: Option<bool>,
     pub kiro_latency_routing_enabled: Option<bool>,
     pub kiro_protected_content_validation_enabled: Option<bool>,
@@ -3279,6 +3291,8 @@ pub async fn patch_admin_llm_gateway_key(
             request.kiro_cache_estimation_enabled,
             request.kiro_zero_cache_debug_enabled,
             request.kiro_full_request_logging_enabled,
+            request.kiro_policy_fallback_enabled,
+            request.kiro_policy_fallback_model,
             request.kiro_remote_media_resolution_enabled,
             request.kiro_latency_routing_enabled,
             request.kiro_protected_content_validation_enabled,
@@ -3460,6 +3474,18 @@ pub async fn patch_admin_llm_gateway_key(
             body.insert(
                 "kiro_full_request_logging_enabled".to_string(),
                 serde_json::Value::Bool(kiro_full_request_logging_enabled),
+            );
+        }
+        if let Some(enabled) = request.kiro_policy_fallback_enabled {
+            body.insert(
+                "kiro_policy_fallback_enabled".to_string(),
+                serde_json::Value::Bool(enabled),
+            );
+        }
+        if let Some(model) = request.kiro_policy_fallback_model {
+            body.insert(
+                "kiro_policy_fallback_model".to_string(),
+                serde_json::Value::String(model.to_string()),
             );
         }
         if let Some(kiro_remote_media_resolution_enabled) =
@@ -6079,6 +6105,8 @@ pub async fn create_admin_kiro_key(
             kiro_cache_estimation_enabled: true,
             kiro_zero_cache_debug_enabled: false,
             kiro_full_request_logging_enabled: false,
+            kiro_policy_fallback_enabled: false,
+            kiro_policy_fallback_model: default_kiro_policy_fallback_model(),
             kiro_remote_media_resolution_enabled: false,
             kiro_latency_routing_enabled: true,
             kiro_protected_content_validation_enabled: false,
@@ -6152,6 +6180,8 @@ pub async fn patch_admin_kiro_key(
             request.kiro_cache_estimation_enabled,
             request.kiro_zero_cache_debug_enabled,
             request.kiro_full_request_logging_enabled,
+            request.kiro_policy_fallback_enabled,
+            request.kiro_policy_fallback_model,
             request.kiro_remote_media_resolution_enabled,
             request.kiro_latency_routing_enabled,
             request.kiro_protected_content_validation_enabled,
@@ -6279,6 +6309,18 @@ pub async fn patch_admin_kiro_key(
             body.insert(
                 "kiro_full_request_logging_enabled".to_string(),
                 serde_json::Value::Bool(kiro_full_request_logging_enabled),
+            );
+        }
+        if let Some(enabled) = request.kiro_policy_fallback_enabled {
+            body.insert(
+                "kiro_policy_fallback_enabled".to_string(),
+                serde_json::Value::Bool(enabled),
+            );
+        }
+        if let Some(model) = request.kiro_policy_fallback_model {
+            body.insert(
+                "kiro_policy_fallback_model".to_string(),
+                serde_json::Value::String(model.to_string()),
             );
         }
         if let Some(kiro_remote_media_resolution_enabled) =

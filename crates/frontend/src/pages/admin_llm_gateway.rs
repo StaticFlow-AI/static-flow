@@ -396,6 +396,24 @@ pub(crate) fn routing_diagnostics_summary(raw: &str) -> Vec<(String, String)> {
             ));
         }
     }
+    if let Some(fallback) = value
+        .get("kiro_policy_fallback")
+        .and_then(|value| value.as_object())
+    {
+        let source = fallback
+            .get("source_model")
+            .and_then(|value| value.as_str())
+            .unwrap_or("unknown");
+        let target = fallback
+            .get("target_model")
+            .and_then(|value| value.as_str())
+            .unwrap_or("unknown");
+        let result = fallback
+            .get("result")
+            .and_then(|value| value.as_str())
+            .unwrap_or("unknown");
+        rows.push(("Kiro policy fallback".to_string(), format!("{source} -> {target} ({result})")));
+    }
     rows
 }
 
@@ -1018,6 +1036,8 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
                     kiro_cache_estimation_enabled: None,
                     kiro_zero_cache_debug_enabled: None,
                     kiro_full_request_logging_enabled: None,
+                    kiro_policy_fallback_enabled: None,
+                    kiro_policy_fallback_model: None,
                     kiro_remote_media_resolution_enabled: None,
                     kiro_latency_routing_enabled: None,
                     kiro_protected_content_validation_enabled: None,
@@ -2726,5 +2746,17 @@ mod tests {
         assert!(routing_diagnostics_summary(r#"{"route_total_ms":12}"#)
             .iter()
             .all(|(label, _)| !label.starts_with("Kiro ")));
+    }
+
+    #[test]
+    fn routing_diagnostics_summary_surfaces_kiro_policy_fallback_result() {
+        let rows = routing_diagnostics_summary(
+            r#"{"kiro_policy_fallback":{"source_model":"claude-opus-5","target_model":"claude-opus-4-6","result":"succeeded"}}"#,
+        );
+
+        assert!(rows.iter().any(|(label, value)| {
+            label == "Kiro policy fallback"
+                && value == "claude-opus-5 -> claude-opus-4-6 (succeeded)"
+        }));
     }
 }
