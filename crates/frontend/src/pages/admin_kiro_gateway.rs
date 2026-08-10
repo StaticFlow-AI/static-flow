@@ -3,7 +3,6 @@
 use std::collections::BTreeMap;
 
 use gloo_timers::callback::Timeout;
-use llm_access_core::store as llm_store;
 use serde::{Deserialize, Serialize};
 use web_sys::{HtmlInputElement, HtmlSelectElement, HtmlTextAreaElement};
 use yew::prelude::*;
@@ -22,6 +21,7 @@ use crate::{
         AdminUpstreamProxyConfigView, KiroAccountView, KiroBalanceView, KiroModelView,
         LlmGatewayRuntimeConfig, PatchAdminLlmGatewayKeyRequest, PatchKiroAccountInput,
     },
+    llm_gateway_contracts as llm_store,
     pages::llm_access_shared::{
         confirm_destructive, format_float2, format_kiro_disabled_reason, format_ms,
         format_number_i64, format_number_u64, format_reset_hint, format_timestamp_opt,
@@ -4574,6 +4574,7 @@ mod tests {
             AdminAccountGroupOptionView, AdminKiroKeyCandidateCreditSummaryView,
             PatchKiroAccountInput,
         },
+        llm_gateway_contracts as llm_store,
         router::Route,
     };
 
@@ -4656,12 +4657,8 @@ mod tests {
 
     #[test]
     fn kiro_key_route_summary_uses_full_pool_text_when_group_is_empty() {
-        let summary = kiro_key_route_summary(
-            "auto",
-            "",
-            llm_access_core::store::KIRO_POOL_STRATEGY_BALANCED,
-            &[],
-        );
+        let summary =
+            kiro_key_route_summary("auto", "", llm_store::KIRO_POOL_STRATEGY_BALANCED, &[]);
         assert!(summary.contains("全账号池自动择优"));
         assert!(summary.contains("标记为"));
         assert!(summary.contains("亲和 + 动态"));
@@ -4673,7 +4670,7 @@ mod tests {
         let summary = kiro_key_route_summary(
             "auto",
             "group-alpha",
-            llm_access_core::store::KIRO_POOL_STRATEGY_CREDIT_FIRST,
+            llm_store::KIRO_POOL_STRATEGY_CREDIT_FIRST,
             &groups,
         );
 
@@ -4687,7 +4684,7 @@ mod tests {
         let summary = kiro_key_route_summary(
             "fixed",
             "group-alpha",
-            llm_access_core::store::KIRO_POOL_STRATEGY_CREDIT_FIRST,
+            llm_store::KIRO_POOL_STRATEGY_CREDIT_FIRST,
             &groups,
         );
 
@@ -4716,7 +4713,7 @@ mod tests {
     fn kiro_preferred_pool_warning_reports_empty_preferred_pool() {
         let warning = kiro_preferred_pool_warning(
             "auto",
-            llm_access_core::store::KIRO_POOL_STRATEGY_CREDIT_FIRST,
+            llm_store::KIRO_POOL_STRATEGY_CREDIT_FIRST,
             &AdminKiroKeyCandidateCreditSummaryView {
                 candidate_count: 2,
                 preferred_pool_candidate_count: Some(0),
@@ -4744,7 +4741,7 @@ mod tests {
         };
         assert!(kiro_preferred_pool_warning(
             "fixed",
-            llm_access_core::store::KIRO_POOL_STRATEGY_CREDIT_FIRST,
+            llm_store::KIRO_POOL_STRATEGY_CREDIT_FIRST,
             &summary
         )
         .is_none());
@@ -4755,7 +4752,7 @@ mod tests {
         };
         assert!(kiro_preferred_pool_warning(
             "auto",
-            llm_access_core::store::KIRO_POOL_STRATEGY_CREDIT_FIRST,
+            llm_store::KIRO_POOL_STRATEGY_CREDIT_FIRST,
             &missing_new_backend_field
         )
         .is_none());
@@ -4765,7 +4762,7 @@ mod tests {
     fn kiro_preferred_pool_candidate_note_reports_matched_count() {
         let note = kiro_preferred_pool_candidate_note(
             "auto",
-            llm_access_core::store::KIRO_POOL_STRATEGY_CREDIT_FIRST,
+            llm_store::KIRO_POOL_STRATEGY_CREDIT_FIRST,
             &AdminKiroKeyCandidateCreditSummaryView {
                 candidate_count: 5,
                 preferred_pool_candidate_count: Some(2),
@@ -4792,7 +4789,7 @@ mod tests {
         };
         assert!(kiro_preferred_pool_candidate_note(
             "fixed",
-            llm_access_core::store::KIRO_POOL_STRATEGY_CREDIT_FIRST,
+            llm_store::KIRO_POOL_STRATEGY_CREDIT_FIRST,
             &matched
         )
         .is_none());
@@ -4804,7 +4801,7 @@ mod tests {
         };
         assert!(kiro_preferred_pool_candidate_note(
             "auto",
-            llm_access_core::store::KIRO_POOL_STRATEGY_CREDIT_FIRST,
+            llm_store::KIRO_POOL_STRATEGY_CREDIT_FIRST,
             &empty_pool
         )
         .is_none());
@@ -4815,7 +4812,7 @@ mod tests {
         };
         assert!(kiro_preferred_pool_candidate_note(
             "auto",
-            llm_access_core::store::KIRO_POOL_STRATEGY_CREDIT_FIRST,
+            llm_store::KIRO_POOL_STRATEGY_CREDIT_FIRST,
             &missing_new_backend_field
         )
         .is_none());

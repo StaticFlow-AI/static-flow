@@ -11,6 +11,7 @@ mod config;
 )]
 pub mod hooks;
 mod i18n;
+mod llm_gateway_contracts;
 mod media_session;
 mod models;
 /// Music playback context and provider state shared across the application.

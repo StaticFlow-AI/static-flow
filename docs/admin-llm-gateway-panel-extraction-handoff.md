@@ -24,7 +24,7 @@
 ## 1. 背景与目标
 
 这是一次持续的管理面板重构（内部代号 P1→P4），视觉基准是
-`crates/llm-access-ai-review/ui` 的 React 控制台。目标：
+`deps/llm-access/crates/llm-access-ai-review/ui` 的 React 控制台。目标：
 
 - 视觉像 ai-review 控制台（`.admin-shell` 设计系统，定义在 `crates/frontend/input.css` 末尾）。
 - 功能不堆在一个巨型组件里；每个 section 一条真路由、一个独立页。

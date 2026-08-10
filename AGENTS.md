@@ -344,26 +344,34 @@ Key conventions:
 - Result files: written to `/tmp/staticflow-*-results/` as JSON
 - All data processing in workers happens under `/tmp/`, not the project root
 
-## Local Lance / LanceDB / Pingora Forks
-All three are **git submodules** under `deps/`, user forks on `feat/static-flow`.
+## Local Dependency and Private Service Submodules
+Lance, LanceDB, and Pingora remain personal public forks under `deps/`.
+`jieba-rs` is the only dependency hosted by `StaticFlow-AI`. The private
+`llm-access` workspace is mounted at `deps/llm-access` for authorized
+maintainers and is intentionally excluded from the public root workspace.
 
 | Submodule | Path | Fork |
 |---|---|---|
-| lance | `deps/lance` | `acking-you/lance` |
-| lancedb | `deps/lancedb` | `acking-you/lancedb` |
-| pingora | `deps/pingora` | `acking-you/pingora` |
+| lance | `deps/lance` | `RespawnLabs1/lance` |
+| lancedb | `deps/lancedb` | `RespawnLabs1/lancedb` |
+| pingora | `deps/pingora` | `RespawnLabs1/pingora` |
+| jieba-rs | `deps/jieba-rs` | `StaticFlow-AI/jieba-rs` |
+| llm-access | `deps/llm-access` | private `acking-you/llm-access` |
 
 Key points:
 - Root `Cargo.toml` uses path deps, not crates.io. Root workspace has
   `exclude = ["deps"]` so vendored projects never become workspace members.
-- After cloning: `git submodule update --init --recursive`
+- After cloning for public StaticFlow work:
+  `scripts/init_public_build_submodules.sh`
+- Authorized llm-access maintainers may additionally run:
+  `git submodule update --init deps/llm-access`
 - Do not run `cargo fmt` in `deps/lance` or `deps/lancedb`.
 - When modifying submodule source, commit inside the submodule first, then
   update the submodule ref in the parent repo.
 
 ## Codebase Structure
 ```
-# Workspace crates (21) — all under crates/
+# Public workspace crates (11) — all under crates/
 crates/frontend/                  Yew/WASM SPA — pages, components, api, router, i18n
 crates/shared/                    Shared domain types and compatibility facade
 crates/store/                     LanceDB-backed content, comments, and music stores
@@ -375,16 +383,6 @@ crates/media-types/               Shared media type definitions
 crates/email-notifier/            Email notification utilities (package static-flow-email)
 crates/gateway/                   Pingora local ingress gateway (blue/green upstream switching)
 crates/runtime/                   Shared runtime utilities (logging, tracing, signal handling)
-crates/llm-access/                Cloud LLM API and usage-worker binaries
-crates/llm-access-core/           Core routing, quota, account, and proxy contracts
-crates/llm-access-codex/          Codex/OpenAI-compatible gateway implementation
-crates/llm-access-codex-image/    Codex image request gateway
-crates/llm-access-anthropic-pool/ Shared Anthropic upstream pool
-crates/llm-access-kiro/           Kiro/Anthropic-compatible gateway implementation
-crates/llm-access-migrations/     Postgres and DuckDB schema migration tooling
-crates/llm-access-store/          Neon/SQLite control plane + DuckDB analytics
-crates/llm-access-ai-review/      AI review service and worker
-crates/llm-usage-journal/         Durable hot usage journal for llm-access
 
 # Non-crate directories
 skills/              Codex/Claude agent skill definitions (SKILL.md + references)
@@ -396,5 +394,5 @@ tools/               Third-party utilities (ncmdump-rs, pb-mapper)
 bin/                 Pre-built backend binary
 deployment-examples/ Legacy Nginx reverse proxy configs (superseded by Caddy)
 patches/             Vendored crate patches (object_store)
-deps/                Git submodules — lance/lancedb/pingora forks
+deps/                Public dependency submodules + private llm-access workspace
 ```

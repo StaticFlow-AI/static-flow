@@ -30,3 +30,9 @@
 [submodule "deps/AntigravityManager"]
 	path = deps/AntigravityManager
 	url = https://github.com/RespawnLabs1/AntigravityManager.git
+[submodule "deps/llm-access"]
+	path = deps/llm-access
+	url = git@github.com:acking-you/llm-access.git
+[submodule "deps/jieba-rs"]
+	path = deps/jieba-rs
+	url = https://github.com/StaticFlow-AI/jieba-rs.git

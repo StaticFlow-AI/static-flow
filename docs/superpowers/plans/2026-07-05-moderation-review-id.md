@@ -12,30 +12,30 @@
 
 ## File Structure
 
-- Modify `crates/llm-access-core/src/store/moderation.rs`
+- Modify `deps/llm-access/crates/llm-access-core/src/store/moderation.rs`
   - Add a compact `ModerationBannedSessionRef { session_key, hit_key }`.
   - Change runtime snapshot banned state from `Vec<String>` to `Vec<ModerationBannedSessionRef>`.
   - Add a banned-session admin query type for status + search.
-- Modify `crates/llm-access-core/src/store/traits.rs`
+- Modify `deps/llm-access/crates/llm-access-core/src/store/traits.rs`
   - Update `list_moderation_banned_sessions` to accept the query type.
-- Modify `crates/llm-access-core/src/store/empty.rs`
+- Modify `deps/llm-access/crates/llm-access-core/src/store/empty.rs`
   - Keep the empty store returning empty pages under the new signature.
-- Modify `crates/llm-access-store/src/postgres/moderation.rs`
+- Modify `deps/llm-access/crates/llm-access-store/src/postgres/moderation.rs`
   - Load `session_key + hit_key` into the runtime snapshot.
   - Add search filtering for admin banned-session list.
-- Modify `crates/llm-access-store/src/postgres.rs`
+- Modify `deps/llm-access/crates/llm-access-store/src/postgres.rs`
   - Update existing moderation store tests for `banned_sessions`.
   - Add search-by-`hit_key` coverage.
-- Modify `crates/llm-access/src/moderation.rs`
+- Modify `deps/llm-access/crates/llm-access/src/moderation.rs`
   - Change runtime cache to `HashMap<String, String>`.
   - Return `ModerationDecision::Block { review_id }`.
   - Add `moderation_blocked_message(&review_id)`.
 - Modify dispatch callers:
-  - `crates/llm-access/src/provider/codex_dispatch.rs`
-  - `crates/llm-access/src/provider/kiro_dispatch.rs`
-  - `crates/llm-access/src/provider/anthropic_upstream_dispatch.rs`
+  - `deps/llm-access/crates/llm-access/src/provider/codex_dispatch.rs`
+  - `deps/llm-access/crates/llm-access/src/provider/kiro_dispatch.rs`
+  - `deps/llm-access/crates/llm-access/src/provider/anthropic_upstream_dispatch.rs`
 - Modify admin API:
-  - `crates/llm-access/src/admin.rs`
+  - `deps/llm-access/crates/llm-access/src/admin.rs`
 - Modify frontend:
   - `crates/frontend/src/api.rs`
   - `crates/frontend/src/pages/admin_moderation.rs`
@@ -44,12 +44,12 @@
 ## Task 1: Runtime Cache Carries Review Id
 
 **Files:**
-- Modify: `crates/llm-access-core/src/store/moderation.rs`
-- Modify: `crates/llm-access/src/moderation.rs`
+- Modify: `deps/llm-access/crates/llm-access-core/src/store/moderation.rs`
+- Modify: `deps/llm-access/crates/llm-access/src/moderation.rs`
 
 - [ ] **Step 1: Write the failing moderation runtime test**
 
-Add a test in `crates/llm-access/src/moderation.rs` near the existing moderation tests:
+Add a test in `deps/llm-access/crates/llm-access/src/moderation.rs` near the existing moderation tests:
 
 ```rust
 #[tokio::test]
@@ -118,7 +118,7 @@ Expected: FAIL because `ModerationRuntimeSnapshot` has no `banned_sessions` fiel
 
 - [ ] **Step 3: Add runtime snapshot ban references**
 
-In `crates/llm-access-core/src/store/moderation.rs`:
+In `deps/llm-access/crates/llm-access-core/src/store/moderation.rs`:
 
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -139,7 +139,7 @@ pub struct ModerationRuntimeSnapshot {
 
 - [ ] **Step 4: Change the in-memory gate cache**
 
-In `crates/llm-access/src/moderation.rs`, replace `HashSet` banned state with `HashMap`:
+In `deps/llm-access/crates/llm-access/src/moderation.rs`, replace `HashSet` banned state with `HashMap`:
 
 ```rust
 use std::collections::{HashMap, HashSet};
@@ -194,7 +194,7 @@ impl ModerationGateState {
 
 - [ ] **Step 5: Return review id from decisions**
 
-In `crates/llm-access/src/moderation.rs`:
+In `deps/llm-access/crates/llm-access/src/moderation.rs`:
 
 ```rust
 pub(crate) enum ModerationDecision {
@@ -243,14 +243,14 @@ Expected: PASS.
 ## Task 2: Provider Responses Include Review Id
 
 **Files:**
-- Modify: `crates/llm-access/src/provider/codex_dispatch.rs`
-- Modify: `crates/llm-access/src/provider/kiro_dispatch.rs`
-- Modify: `crates/llm-access/src/provider/anthropic_upstream_dispatch.rs`
-- Modify: `crates/llm-access/src/moderation.rs`
+- Modify: `deps/llm-access/crates/llm-access/src/provider/codex_dispatch.rs`
+- Modify: `deps/llm-access/crates/llm-access/src/provider/kiro_dispatch.rs`
+- Modify: `deps/llm-access/crates/llm-access/src/provider/anthropic_upstream_dispatch.rs`
+- Modify: `deps/llm-access/crates/llm-access/src/moderation.rs`
 
 - [ ] **Step 1: Add a message unit test**
 
-In `crates/llm-access/src/moderation.rs`:
+In `deps/llm-access/crates/llm-access/src/moderation.rs`:
 
 ```rust
 #[test]
@@ -320,16 +320,16 @@ Expected: PASS.
 ## Task 3: Store Snapshot and Admin Search
 
 **Files:**
-- Modify: `crates/llm-access-core/src/store/moderation.rs`
-- Modify: `crates/llm-access-core/src/store/traits.rs`
-- Modify: `crates/llm-access-core/src/store/empty.rs`
-- Modify: `crates/llm-access-store/src/postgres/moderation.rs`
-- Modify: `crates/llm-access-store/src/postgres.rs`
-- Modify: `crates/llm-access/src/admin.rs`
+- Modify: `deps/llm-access/crates/llm-access-core/src/store/moderation.rs`
+- Modify: `deps/llm-access/crates/llm-access-core/src/store/traits.rs`
+- Modify: `deps/llm-access/crates/llm-access-core/src/store/empty.rs`
+- Modify: `deps/llm-access/crates/llm-access-store/src/postgres/moderation.rs`
+- Modify: `deps/llm-access/crates/llm-access-store/src/postgres.rs`
+- Modify: `deps/llm-access/crates/llm-access/src/admin.rs`
 
 - [ ] **Step 1: Add banned-session query type**
 
-In `crates/llm-access-core/src/store/moderation.rs`:
+In `deps/llm-access/crates/llm-access-core/src/store/moderation.rs`:
 
 ```rust
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -343,7 +343,7 @@ pub struct AdminModerationBannedSessionPageQuery {
 
 - [ ] **Step 2: Update trait signature**
 
-In `crates/llm-access-core/src/store/traits.rs`:
+In `deps/llm-access/crates/llm-access-core/src/store/traits.rs`:
 
 ```rust
 async fn list_moderation_banned_sessions(
@@ -355,7 +355,7 @@ async fn list_moderation_banned_sessions(
 
 - [ ] **Step 3: Load active hit refs in Postgres snapshot**
 
-In `crates/llm-access-store/src/postgres/moderation.rs`:
+In `deps/llm-access/crates/llm-access-store/src/postgres/moderation.rs`:
 
 ```rust
 let banned_rows = self
@@ -413,7 +413,7 @@ Use SQL predicates like:
 
 - [ ] **Step 5: Add store test coverage**
 
-In `crates/llm-access-store/src/postgres.rs`, after the existing banned-session list assertions:
+In `deps/llm-access/crates/llm-access-store/src/postgres.rs`, after the existing banned-session list assertions:
 
 ```rust
 let hit_search = repo
@@ -447,7 +447,7 @@ assert_eq!(
 
 - [ ] **Step 6: Update admin API query**
 
-In `crates/llm-access/src/admin.rs`:
+In `deps/llm-access/crates/llm-access/src/admin.rs`:
 
 ```rust
 #[derive(Debug, Deserialize, Default)]
@@ -616,16 +616,16 @@ Expected: no unrelated dirty output caused by this task.
 
 ```bash
 rustfmt \
-  crates/llm-access-core/src/store/moderation.rs \
-  crates/llm-access-core/src/store/traits.rs \
-  crates/llm-access-core/src/store/empty.rs \
-  crates/llm-access-store/src/postgres/moderation.rs \
-  crates/llm-access-store/src/postgres.rs \
-  crates/llm-access/src/moderation.rs \
-  crates/llm-access/src/admin.rs \
-  crates/llm-access/src/provider/codex_dispatch.rs \
-  crates/llm-access/src/provider/kiro_dispatch.rs \
-  crates/llm-access/src/provider/anthropic_upstream_dispatch.rs \
+  deps/llm-access/crates/llm-access-core/src/store/moderation.rs \
+  deps/llm-access/crates/llm-access-core/src/store/traits.rs \
+  deps/llm-access/crates/llm-access-core/src/store/empty.rs \
+  deps/llm-access/crates/llm-access-store/src/postgres/moderation.rs \
+  deps/llm-access/crates/llm-access-store/src/postgres.rs \
+  deps/llm-access/crates/llm-access/src/moderation.rs \
+  deps/llm-access/crates/llm-access/src/admin.rs \
+  deps/llm-access/crates/llm-access/src/provider/codex_dispatch.rs \
+  deps/llm-access/crates/llm-access/src/provider/kiro_dispatch.rs \
+  deps/llm-access/crates/llm-access/src/provider/anthropic_upstream_dispatch.rs \
   crates/frontend/src/api.rs \
   crates/frontend/src/pages/admin_moderation.rs
 ```

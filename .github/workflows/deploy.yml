@@ -3,7 +3,7 @@ name: Deploy StaticFlow Frontend (Production)
 on:
   push:
     branches:
-      - master
+      - main
     paths:
       - 'crates/frontend/**'
       - 'crates/shared/src/**'
@@ -25,8 +25,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      - name: Initialize public build submodules
+        run: scripts/init_public_build_submodules.sh
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable

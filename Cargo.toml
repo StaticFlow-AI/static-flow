@@ -12,16 +12,6 @@ members = [
     "crates/email-notifier",
     "crates/gateway",
     "crates/runtime",
-    "crates/llm-access",
-    "crates/llm-access-core",
-    "crates/llm-access-codex",
-    "crates/llm-access-codex-image",
-    "crates/llm-access-anthropic-pool",
-    "crates/llm-access-kiro",
-    "crates/llm-access-migrations",
-    "crates/llm-access-store",
-    "crates/llm-access-ai-review",
-    "crates/llm-usage-journal",
 ]
 # Vendored forks under deps/ (lance, lancedb, pingora, ffmpeg-sidecar, ...) are
 # their own upstream projects. Exclude the whole directory from this workspace
@@ -48,10 +38,6 @@ httparse = "1"
 lru = "0.16.3"
 once_cell = "1"
 ahash = "0.8.12"
-aho-corasick = "1.1"
-icu_segmenter = "2.2"
-jieba-rs = { git = "https://github.com/RespawnLabs1/jieba-rs.git", branch = "staticflow/moderation-tokenizer" }
-unicode-normalization = "0.1"
 
 # 日志
 log = "0.4"
@@ -65,9 +51,6 @@ chrono = { version = "0.4.42", features = ["serde"] }
 
 # HTTP 客户端
 reqwest = { version = "0.12", features = ["json", "socks"] }
-redis = { version = "0.28", default-features = false, features = ["tokio-comp", "connection-manager", "script"] }
-sqlx-core = { version = "0.8.6", default-features = false, features = ["_rt-tokio", "_tls-native-tls", "chrono", "json"] }
-sqlx-postgres = { version = "0.8.6", default-features = false, features = ["chrono", "json"] }
 
 # Frontend 特定
 yew = { version = "0.21", features = ["csr"] }
@@ -147,5 +130,3 @@ opt-level = 2
 # failure on WSL2 9p/drvfs (NTFS mounts)
 [patch.crates-io]
 object_store = { path = "patches/object_store" }
-tokio-tungstenite = { git = "https://github.com/openai-oss-forks/tokio-tungstenite", rev = "0e5b2d73aa18dd9f0a50ee9ff199d5aef7594186" }
-tungstenite = { git = "https://github.com/openai-oss-forks/tungstenite-rs", rev = "4fffad30fe373adbdcffab9545e9e9bf4f2fc19f" }

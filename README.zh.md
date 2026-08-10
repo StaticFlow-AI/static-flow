@@ -20,7 +20,8 @@ LanceDB 存储。支持文章发布、AI 评论审核、音乐管理、图片资
 
 ## 项目结构
 
-全栈 Rust monorepo，21 个 workspace crate：
+全栈 Rust monorepo，包含 11 个公开 workspace crate。托管式 LLM 网关位于
+独立私有 workspace，仅向有权限的维护者以可选 submodule 形式提供：
 
 ```text
 static-flow/
@@ -35,24 +36,14 @@ static-flow/
 │   ├── media-types/             # 共享媒体类型
 │   ├── email-notifier/          # 邮件通知工具
 │   ├── gateway/                 # 支持蓝绿切换的 Pingora 入口
-│   ├── runtime/                 # 日志、追踪与信号处理工具
-│   ├── llm-access/              # 云端 LLM API 与 usage worker 二进制
-│   ├── llm-access-core/         # 路由、配额、账号和代理契约
-│   ├── llm-access-codex/        # Codex/OpenAI 兼容网关
-│   ├── llm-access-codex-image/  # Codex 图片请求网关
-│   ├── llm-access-anthropic-pool/ # 共享 Anthropic upstream pool
-│   ├── llm-access-kiro/         # Kiro/Anthropic 兼容网关
-│   ├── llm-access-migrations/   # Postgres 与 DuckDB schema 迁移
-│   ├── llm-access-store/        # Neon/SQLite 控制面 + DuckDB 分析
-│   ├── llm-access-ai-review/    # AI review 服务与 worker
-│   └── llm-usage-journal/       # 持久化 hot usage journal
+│   └── runtime/                 # 日志、追踪与信号处理工具
 ├── skills/              # Codex/Claude agent skill 定义
 ├── scripts/             # Shell 脚本 — 启动器、worker runner、e2e 测试
 ├── docs/                # 技术文档、实现深潜、运维手册
 ├── conf/                # 配置文件（Pingora gateway YAML、systemd 模板）
 ├── content/             # 文章 Markdown 源文件与图片
 ├── tools/               # 第三方工具（ncmdump-rs、pb-mapper）
-├── deps/                # Git 子模块 — lance/lancedb/pingora fork
+├── deps/                # 公开依赖 submodule + 私有 llm-access
 └── patches/             # 供应商 crate 补丁
 ```
 
@@ -61,16 +52,16 @@ static-flow/
 - Rust stable 工具链（edition 2021）
 - `wasm32-unknown-unknown` target：`rustup target add wasm32-unknown-unknown`
 - [Trunk](https://trunkrs.dev/) 前端构建：`cargo install trunk`
-- Git 子模块：`git submodule update --init --recursive`
+- 公开构建子模块：`scripts/init_public_build_submodules.sh`
 - 建议：将 `CARGO_TARGET_DIR` 设置到大容量挂载点，避免根文件系统空间不足
 
 ## 快速开始
 
 ```bash
 # 1. 克隆并初始化子模块
-git clone https://github.com/RespawnLabs1/static-flow.git
+git clone https://github.com/StaticFlow-AI/static-flow.git
 cd static-flow
-git submodule update --init --recursive
+scripts/init_public_build_submodules.sh
 
 # 2. 设置构建产物目录（根据实际环境调整路径）
 export CARGO_TARGET_DIR=/path/to/large-mount/cargo-target/static_flow

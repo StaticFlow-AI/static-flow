@@ -22,7 +22,9 @@ local machine with optional cloud edge ingress.
 
 ## Architecture
 
-Full-stack Rust monorepo with 21 workspace crates:
+Full-stack Rust monorepo with 11 public workspace crates. The managed LLM
+gateway is developed in a separate private workspace mounted as an optional
+submodule for authorized maintainers:
 
 ```text
 static-flow/
@@ -37,24 +39,14 @@ static-flow/
 │   ├── media-types/             # Shared media type definitions
 │   ├── email-notifier/          # Email notification utilities
 │   ├── gateway/                 # Pingora ingress with blue/green switching
-│   ├── runtime/                 # Logging, tracing, and signal utilities
-│   ├── llm-access/              # Cloud LLM API and usage-worker binaries
-│   ├── llm-access-core/         # Routing, quota, account, and proxy contracts
-│   ├── llm-access-codex/        # Codex/OpenAI-compatible gateway
-│   ├── llm-access-codex-image/  # Codex image request gateway
-│   ├── llm-access-anthropic-pool/ # Shared Anthropic upstream pool
-│   ├── llm-access-kiro/         # Kiro/Anthropic-compatible gateway
-│   ├── llm-access-migrations/   # Postgres and DuckDB schema migrations
-│   ├── llm-access-store/        # Neon/SQLite control + DuckDB analytics
-│   ├── llm-access-ai-review/    # AI review service and worker
-│   └── llm-usage-journal/       # Durable hot usage journal
+│   └── runtime/                 # Logging, tracing, and signal utilities
 ├── skills/              # Codex/Claude agent skill definitions
 ├── scripts/             # Shell scripts — launchers, worker runners, e2e tests
 ├── docs/                # Technical docs, deep-dives, ops runbook
 ├── conf/                # Configuration (Pingora gateway YAML, systemd templates)
 ├── content/             # Article Markdown source files and images
 ├── tools/               # Third-party utilities (ncmdump-rs, pb-mapper)
-├── deps/                # Git submodules — lance/lancedb/pingora forks
+├── deps/                # Public dependency submodules + private llm-access
 └── patches/             # Vendored crate patches
 ```
 
@@ -63,7 +55,7 @@ static-flow/
 - Rust stable toolchain (edition 2021)
 - `wasm32-unknown-unknown` target: `rustup target add wasm32-unknown-unknown`
 - [Trunk](https://trunkrs.dev/) for frontend builds: `cargo install trunk`
-- Git submodules: `git submodule update --init --recursive`
+- Public build submodules: `scripts/init_public_build_submodules.sh`
 - Recommended: set `CARGO_TARGET_DIR` to a large-capacity mount to avoid
   filling the root filesystem
 
@@ -71,9 +63,9 @@ static-flow/
 
 ```bash
 # 1. Clone and initialize submodules
-git clone https://github.com/RespawnLabs1/static-flow.git
+git clone https://github.com/StaticFlow-AI/static-flow.git
 cd static-flow
-git submodule update --init --recursive
+scripts/init_public_build_submodules.sh
 
 # 2. Set build artifact directory (adjust path to your setup)
 export CARGO_TARGET_DIR=/path/to/large-mount/cargo-target/static_flow

@@ -21,6 +21,9 @@ if command -v shellcheck >/dev/null 2>&1; then
 fi
 
 grep -F 'CARGO_TARGET_DIR' "$LOCAL_SCRIPT" >/dev/null
+grep -F 'LLM_ACCESS_DIR="${LLM_ACCESS_DIR:-$ROOT_DIR/deps/llm-access}"' "$LOCAL_SCRIPT" >/dev/null
+grep -F 'cd "$LLM_ACCESS_DIR"' "$LOCAL_SCRIPT" >/dev/null
+grep -F 'git -C "$LLM_ACCESS_DIR" status --porcelain' "$LOCAL_SCRIPT" >/dev/null
 grep -F 'cargo test -p llm-usage-journal -p llm-access-core -p llm-access-store -p llm-access -p llm-access-codex-image' "$LOCAL_SCRIPT" >/dev/null
 grep -F 'cargo clippy -p llm-usage-journal -p llm-access-core -p llm-access-store -p llm-access -p llm-access-codex-image' "$LOCAL_SCRIPT" >/dev/null
 grep -F 'cargo build -p llm-access -p llm-access-codex-image --release' "$LOCAL_SCRIPT" >/dev/null

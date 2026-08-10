@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LLM_ACCESS_DIR="${LLM_ACCESS_DIR:-$ROOT_DIR/deps/llm-access}"
 REMOTE_SCRIPT="$ROOT_DIR/scripts/activate_llm_access_cloud_release.sh"
 RENDER_SCRIPT="$ROOT_DIR/scripts/render_llm_access_cloud_bundle.sh"
 CONFIG_FILE=""
@@ -115,6 +116,7 @@ LOCAL_NEON_ENV_FILE="$(expand_path "$LOCAL_NEON_ENV_FILE")"
 
 [[ -x "$REMOTE_SCRIPT" ]] || fail "remote activation script is not executable: $REMOTE_SCRIPT"
 [[ -x "$RENDER_SCRIPT" ]] || fail "render script is not executable: $RENDER_SCRIPT"
+[[ -r "$LLM_ACCESS_DIR/Cargo.toml" ]] || fail "llm-access submodule is not initialized: $LLM_ACCESS_DIR"
 [[ -r "$GCP_SSH_KEY" ]] || fail "SSH key is not readable: $GCP_SSH_KEY"
 [[ -r "$LOCAL_NEON_ENV_FILE" ]] || fail "local llm-access runtime env is not readable: $LOCAL_NEON_ENV_FILE"
 require_env_file_var "$LOCAL_NEON_ENV_FILE" LLM_ACCESS_CONTROL_DATABASE_URL "local llm-access runtime env"
@@ -123,18 +125,22 @@ if [[ "$PREPARE_TARGET" == "image" || "$PREPARE_TARGET" == "both" ]]; then
 fi
 require_env_file_var "$LOCAL_NEON_ENV_FILE" KIRO_THINKING_SIGNATURE_SECRET "local llm-access runtime env"
 
-cd "$ROOT_DIR"
-
-if [[ "$ALLOW_DIRTY" != "1" ]] && [[ -n "$(git status --porcelain)" ]]; then
-  git status --short >&2
-  fail "working tree is dirty; commit first or run with ALLOW_DIRTY=1"
+if [[ "$ALLOW_DIRTY" != "1" ]] && [[ -n "$(git -C "$ROOT_DIR" status --porcelain --ignore-submodules=dirty)" ]]; then
+  git -C "$ROOT_DIR" status --short --ignore-submodules=dirty >&2
+  fail "StaticFlow working tree or llm-access submodule revision is dirty; commit first or run with ALLOW_DIRTY=1"
+fi
+if [[ "$ALLOW_DIRTY" != "1" ]] && [[ -n "$(git -C "$LLM_ACCESS_DIR" status --porcelain)" ]]; then
+  git -C "$LLM_ACCESS_DIR" status --short >&2
+  fail "llm-access working tree is dirty; commit first or run with ALLOW_DIRTY=1"
 fi
 
 mkdir -p "$CARGO_TARGET_DIR"
 df -h "$CARGO_TARGET_DIR" >/dev/null
 
 export CARGO_TARGET_DIR
-export LLM_ACCESS_BUILD_REVISION="$(git rev-parse HEAD)"
+export LLM_ACCESS_BUILD_REVISION="$(git -C "$LLM_ACCESS_DIR" rev-parse HEAD)"
+
+cd "$LLM_ACCESS_DIR"
 
 log "running llm-access test suite"
 cargo test -p llm-usage-journal -p llm-access-core -p llm-access-store -p llm-access -p llm-access-codex-image --jobs "$BUILD_JOBS"
@@ -154,6 +160,7 @@ IMAGE_BIN="$CARGO_TARGET_DIR/release/llm-access-codex-image"
 
 GIT_COMMIT="$(git rev-parse HEAD)"
 GIT_SHORT="$(git rev-parse --short=12 HEAD)"
+STATICFLOW_GIT_COMMIT="$(git -C "$ROOT_DIR" rev-parse HEAD)"
 RELEASE_ID="${RELEASE_ID:-$(date -u +%Y%m%dT%H%M%SZ)-$GIT_SHORT}"
 OUT_DIR="${LLM_ACCESS_RELEASE_OUT:-$ROOT_DIR/tmp/llm-access-cloud-release/$RELEASE_ID}"
 STAGED_BIN="$OUT_DIR/llm-access.$RELEASE_ID"
@@ -193,6 +200,7 @@ cat >"$MANIFEST" <<EOF
 release_id=$RELEASE_ID
 git_commit=$GIT_COMMIT
 git_short=$GIT_SHORT
+staticflow_git_commit=$STATICFLOW_GIT_COMMIT
 built_at_utc=$(date -u +%FT%TZ)
 sha256=$API_BIN_SHA
 binary=llm-access.$RELEASE_ID

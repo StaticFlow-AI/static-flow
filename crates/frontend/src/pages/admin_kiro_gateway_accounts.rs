@@ -17,6 +17,7 @@ use crate::{
         create_admin_kiro_manual_account, fetch_admin_kiro_accounts_page,
         import_admin_kiro_account, AdminAccountsSummaryView, CreateManualKiroAccountInput,
     },
+    llm_gateway_contracts,
     router::Route,
 };
 
@@ -81,7 +82,7 @@ pub fn admin_kiro_gateway_accounts_page() -> Html {
     let manual_scheduler_rpm = use_state(|| "5".to_string());
     let manual_scheduler_min = use_state(|| "0".to_string());
     let manual_minimum_remaining_credits_before_block = use_state(|| "0".to_string());
-    let manual_pool_strategy = use_state(llm_access_core::store::default_kiro_pool_strategy);
+    let manual_pool_strategy = use_state(llm_gateway_contracts::default_kiro_pool_strategy);
     let manual_disabled = use_state(|| false);
     let creating_manual = use_state(|| false);
 

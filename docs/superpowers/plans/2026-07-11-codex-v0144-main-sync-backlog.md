@@ -64,13 +64,13 @@ Pin the imported model catalog to the audited upstream commit in the update comm
 
 **Files:**
 
-- Modify `crates/llm-access/src/provider/codex_upstream_error.rs`
-- Modify `crates/llm-access/src/provider/limiter.rs`
-- Modify `crates/llm-access/src/provider/codex_dispatch.rs`
-- Modify `crates/llm-access/src/provider/route_selection.rs`
-- Modify `crates/llm-access/src/provider/errors.rs`
-- Modify `crates/llm-access-store/src/postgres/codex_routing.rs`
-- Modify related types under `crates/llm-access-core/src/store/`
+- Modify `deps/llm-access/crates/llm-access/src/provider/codex_upstream_error.rs`
+- Modify `deps/llm-access/crates/llm-access/src/provider/limiter.rs`
+- Modify `deps/llm-access/crates/llm-access/src/provider/codex_dispatch.rs`
+- Modify `deps/llm-access/crates/llm-access/src/provider/route_selection.rs`
+- Modify `deps/llm-access/crates/llm-access/src/provider/errors.rs`
+- Modify `deps/llm-access/crates/llm-access-store/src/postgres/codex_routing.rs`
+- Modify related types under `deps/llm-access/crates/llm-access-core/src/store/`
 
 - [ ] Extend classified quota errors with `limit_id`, `limit_name`, selected primary/secondary reset timestamp, and upstream `Retry-After`.
 - [ ] Parse the full `x-codex-*rate-limit*` header family and `x-codex-active-limit`, matching upstream `codex-api/src/rate_limits.rs` semantics.
@@ -86,9 +86,9 @@ Pin the imported model catalog to the audited upstream commit in the update comm
 
 **Evidence anchors:**
 
-- Local routing: `crates/llm-access-store/src/postgres/codex_routing.rs:20`
-- Local classifier/retry: `crates/llm-access/src/provider/codex_upstream_error.rs:52`, `crates/llm-access/src/provider/errors.rs:85`
-- Local cooldown/dispatch: `crates/llm-access/src/provider/limiter.rs:69`, `crates/llm-access/src/provider/codex_dispatch.rs:937`
+- Local routing: `deps/llm-access/crates/llm-access-store/src/postgres/codex_routing.rs:20`
+- Local classifier/retry: `deps/llm-access/crates/llm-access/src/provider/codex_upstream_error.rs:52`, `deps/llm-access/crates/llm-access/src/provider/errors.rs:85`
+- Local cooldown/dispatch: `deps/llm-access/crates/llm-access/src/provider/limiter.rs:69`, `deps/llm-access/crates/llm-access/src/provider/codex_dispatch.rs:937`
 - Upstream headers: `../codex/codex-rs/codex-api/src/api_bridge.rs:85`, `../codex/codex-rs/codex-api/src/rate_limits.rs:27`
 
 ## Task 2: Make Reset-Credit Consumption Explicit, Idempotent, and Auditable
@@ -97,13 +97,13 @@ Pin the imported model catalog to the audited upstream commit in the update comm
 
 **Files:**
 
-- Modify `crates/llm-access-core/src/store/codex_status.rs`
-- Add `crates/llm-access-core/src/store/codex_reset_credit.rs`
-- Modify `crates/llm-access-core/src/store/traits.rs`
-- Modify `crates/llm-access-store/src/postgres.rs` and its Codex store modules
-- Add `crates/llm-access-migrations/migrations/postgres/0046_codex_reset_credit_attempts.sql`
-- Modify `crates/llm-access/src/codex_status.rs`
-- Modify `crates/llm-access/src/admin.rs`
+- Modify `deps/llm-access/crates/llm-access-core/src/store/codex_status.rs`
+- Add `deps/llm-access/crates/llm-access-core/src/store/codex_reset_credit.rs`
+- Modify `deps/llm-access/crates/llm-access-core/src/store/traits.rs`
+- Modify `deps/llm-access/crates/llm-access-store/src/postgres.rs` and its Codex store modules
+- Add `deps/llm-access/crates/llm-access-migrations/migrations/postgres/0046_codex_reset_credit_attempts.sql`
+- Modify `deps/llm-access/crates/llm-access/src/codex_status.rs`
+- Modify `deps/llm-access/crates/llm-access/src/admin.rs`
 - Modify `crates/frontend/src/api.rs`
 - Modify `crates/frontend/src/pages/admin_llm_gateway_accounts.rs`
 
@@ -120,8 +120,8 @@ Pin the imported model catalog to the audited upstream commit in the update comm
 
 **Evidence anchors:**
 
-- Local UUID/consume: `crates/llm-access/src/codex_status.rs:1166`
-- Local admin/UI trigger: `crates/llm-access/src/admin.rs:2405`, `crates/frontend/src/pages/admin_llm_gateway_accounts.rs:2410`
+- Local UUID/consume: `deps/llm-access/crates/llm-access/src/codex_status.rs:1166`
+- Local admin/UI trigger: `deps/llm-access/crates/llm-access/src/admin.rs:2405`, `crates/frontend/src/pages/admin_llm_gateway_accounts.rs:2410`
 - Upstream detail/consume client: `../codex/codex-rs/backend-client/src/client/rate_limit_resets.rs:37`
 - Upstream contracts/UI safety: `../codex/codex-rs/app-server-protocol/src/protocol/v2/account.rs:308`, `../codex/codex-rs/tui/src/chatwidget/usage.rs:159`
 
@@ -129,9 +129,9 @@ Pin the imported model catalog to the audited upstream commit in the update comm
 
 **Files:**
 
-- Modify `crates/llm-access/src/provider/codex_sse.rs`
-- Modify `crates/llm-access/src/provider/codex_dispatch.rs`
-- Modify relevant response adapter tests in `crates/llm-access-codex/src/response.rs`
+- Modify `deps/llm-access/crates/llm-access/src/provider/codex_sse.rs`
+- Modify `deps/llm-access/crates/llm-access/src/provider/codex_dispatch.rs`
+- Modify relevant response adapter tests in `deps/llm-access/crates/llm-access-codex/src/response.rs`
 
 - [ ] Introduce an explicit stream terminal state: pending, completed, incomplete, failed.
 - [ ] Treat `response.incomplete` as an upstream error and retain its incomplete reason/code.
@@ -142,7 +142,7 @@ Pin the imported model catalog to the audited upstream commit in the update comm
 
 **Evidence anchors:**
 
-- Local false-success paths: `crates/llm-access/src/provider/codex_sse.rs:66`, `crates/llm-access/src/provider/codex_dispatch.rs:2243`
+- Local false-success paths: `deps/llm-access/crates/llm-access/src/provider/codex_sse.rs:66`, `deps/llm-access/crates/llm-access/src/provider/codex_dispatch.rs:2243`
 - Upstream terminal rules: `../codex/codex-rs/codex-api/src/sse/responses.rs:422`, `../codex/codex-rs/codex-api/src/sse/responses.rs:515`
 
 ## Task 4: Stage the Pinned Catalog and Implement Responses Lite
@@ -151,14 +151,14 @@ Pin the imported model catalog to the audited upstream commit in the update comm
 
 **Files:**
 
-- Replace `crates/llm-access-codex/codex_models.json` from upstream commit `d2d00b6632`
-- Modify `crates/llm-access-codex/src/models.rs`
-- Modify `crates/llm-access-codex/src/request/prepare.rs`
-- Modify `crates/llm-access-codex/src/request/native_responses.rs`
-- Modify `crates/llm-access-codex/src/request/chat_completions.rs`
-- Modify `crates/llm-access-codex/src/anthropic_messages.rs`
-- Modify `crates/llm-access/src/provider/codex_auth.rs`
-- Modify `crates/llm-access/src/provider/codex_models.rs`
+- Replace `deps/llm-access/crates/llm-access-codex/codex_models.json` from upstream commit `d2d00b6632`
+- Modify `deps/llm-access/crates/llm-access-codex/src/models.rs`
+- Modify `deps/llm-access/crates/llm-access-codex/src/request/prepare.rs`
+- Modify `deps/llm-access/crates/llm-access-codex/src/request/native_responses.rs`
+- Modify `deps/llm-access/crates/llm-access-codex/src/request/chat_completions.rs`
+- Modify `deps/llm-access/crates/llm-access-codex/src/anthropic_messages.rs`
+- Modify `deps/llm-access/crates/llm-access/src/provider/codex_auth.rs`
+- Modify `deps/llm-access/crates/llm-access/src/provider/codex_models.rs`
 
 - [ ] Import the audited catalog fields by pinned commit, then retain `gpt-5.3-codex`/Spark only through an explicit, tested compatibility overlay.
 - [ ] Filter every public model/catalog response by effective client version and implemented transport capability. With the runtime still at `0.142.0`, staging this file must not expose any 5.6 entry.
@@ -176,7 +176,7 @@ Pin the imported model catalog to the audited upstream commit in the update comm
 
 **Evidence anchors:**
 
-- Local instruction overwrite/header allowlist: `crates/llm-access-codex/src/request/native_responses.rs:19`, `crates/llm-access/src/provider/codex_auth.rs:329`
+- Local instruction overwrite/header allowlist: `deps/llm-access/crates/llm-access-codex/src/request/native_responses.rs:19`, `deps/llm-access/crates/llm-access/src/provider/codex_auth.rs:329`
 - Upstream Lite body/header: `../codex/codex-rs/core/src/client.rs:836`, `../codex/codex-rs/core/src/client.rs:1897`
 - Upstream search endpoint: `../codex/codex-rs/codex-api/src/endpoint/search.rs:31`
 
@@ -184,7 +184,7 @@ Pin the imported model catalog to the audited upstream commit in the update comm
 
 **Files:**
 
-- Modify `crates/llm-access-core/src/store/mod.rs`
+- Modify `deps/llm-access/crates/llm-access-core/src/store/mod.rs`
 - Add the next Postgres migration after Task 2 to update only the known `0.142.0` runtime value to `0.144.1`
 - Modify `crates/frontend/src/api.rs`
 - Modify `crates/frontend/src/pages/llm_access_guide.rs`
@@ -201,10 +201,10 @@ Pin the imported model catalog to the audited upstream commit in the update comm
 
 **Files:**
 
-- Modify `crates/llm-access-codex/src/request/normalization.rs`
-- Modify `crates/llm-access-codex/src/anthropic_messages.rs`
-- Modify `crates/llm-access-codex/src/request/chat_completions.rs`
-- Review `crates/llm-access/src/provider/codex_auth.rs`
+- Modify `deps/llm-access/crates/llm-access-codex/src/request/normalization.rs`
+- Modify `deps/llm-access/crates/llm-access-codex/src/anthropic_messages.rs`
+- Modify `deps/llm-access/crates/llm-access-codex/src/request/chat_completions.rs`
+- Review `deps/llm-access/crates/llm-access/src/provider/codex_auth.rs`
 
 - [ ] Replace duplicated effort mappings with one open normalizer used by native, Chat, and Anthropic paths.
 - [ ] Preserve `max` as `max`; map user-facing `ultra` to wire `max`; preserve future non-empty efforts unless the selected model profile explicitly rejects them.
@@ -216,7 +216,7 @@ Pin the imported model catalog to the audited upstream commit in the update comm
 
 **Evidence anchors:**
 
-- Local wrong mappings: `crates/llm-access-codex/src/request/normalization.rs:98`, `crates/llm-access-codex/src/anthropic_messages.rs:100`
+- Local wrong mappings: `deps/llm-access/crates/llm-access-codex/src/request/normalization.rs:98`, `deps/llm-access/crates/llm-access-codex/src/anthropic_messages.rs:100`
 - Upstream effort/wire behavior: `../codex/codex-rs/protocol/src/openai_models.rs:40`, `../codex/codex-rs/core/src/client.rs:174`
 - Upstream always-reasoning request: `../codex/codex-rs/core/src/client.rs:803`
 
@@ -224,10 +224,10 @@ Pin the imported model catalog to the audited upstream commit in the update comm
 
 **Files:**
 
-- Modify `crates/llm-access-codex/src/request/mod.rs`
-- Modify `crates/llm-access-codex/src/request/normalization.rs`
-- Modify `crates/llm-access/src/provider/codex_upstream_error.rs`
-- Modify `crates/llm-access/src/provider/codex_stream_error.rs`
+- Modify `deps/llm-access/crates/llm-access-codex/src/request/mod.rs`
+- Modify `deps/llm-access/crates/llm-access-codex/src/request/normalization.rs`
+- Modify `deps/llm-access/crates/llm-access/src/provider/codex_upstream_error.rs`
+- Modify `deps/llm-access/crates/llm-access/src/provider/codex_stream_error.rs`
 - Modify the corresponding provider stream-error tests
 
 - [ ] Allow the known `stream_options.reasoning_summary_delivery = "sequential_cutoff"` value instead of deleting all `stream_options`.
@@ -243,10 +243,10 @@ Pin the imported model catalog to the audited upstream commit in the update comm
 
 **Files:**
 
-- Modify `crates/llm-access-codex/src/request/normalization.rs`
-- Modify `crates/llm-access/src/provider/codex_auth.rs`
-- Modify `crates/llm-access/src/provider/codex_models.rs`
-- Modify `crates/llm-access/src/codex_status.rs`
+- Modify `deps/llm-access/crates/llm-access-codex/src/request/normalization.rs`
+- Modify `deps/llm-access/crates/llm-access/src/provider/codex_auth.rs`
+- Modify `deps/llm-access/crates/llm-access/src/provider/codex_models.rs`
+- Modify `deps/llm-access/crates/llm-access/src/codex_status.rs`
 
 - [ ] Generate a server-owned `version: <effective_codex_client_version>` header for Responses, compact, models, usage, reset-credit detail, and consume calls.
 - [ ] Do not forward an inbound client-controlled `version` as the gateway's identity.
@@ -258,9 +258,9 @@ Pin the imported model catalog to the audited upstream commit in the update comm
 
 **Files:**
 
-- Modify `crates/llm-access-codex/src/response.rs`
-- Modify `crates/llm-access-codex/src/request/normalization.rs`
-- Modify `crates/llm-access-codex/src/models.rs`
+- Modify `deps/llm-access/crates/llm-access-codex/src/response.rs`
+- Modify `deps/llm-access/crates/llm-access-codex/src/request/normalization.rs`
+- Modify `deps/llm-access/crates/llm-access-codex/src/models.rs`
 
 - [ ] Preserve `custom_tool_call.namespace` through the Chat compatibility adapter, or reject the unsupported conversion explicitly; never silently discard it.
 - [ ] Decide and document how Chat surfaces expose `tool_search_call`/`tool_search_output`; native Responses already preserves them.
@@ -272,7 +272,7 @@ Pin the imported model catalog to the audited upstream commit in the update comm
 
 **Files:**
 
-- Modify `crates/llm-access/src/provider/codex_models.rs`
+- Modify `deps/llm-access/crates/llm-access/src/provider/codex_models.rs`
 - Reuse the runtime cache pattern already present in `llm-access`; do not introduce a second cache service.
 
 - [ ] Keep request transport profiles sourced from the pinned bundled catalog established in Task 4; this cache is only for account-specific visibility/model responses.

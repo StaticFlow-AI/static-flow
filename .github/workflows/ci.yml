@@ -48,8 +48,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      - name: Initialize public build submodules
+        run: scripts/init_public_build_submodules.sh
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -82,8 +83,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      - name: Initialize public build submodules
+        run: scripts/init_public_build_submodules.sh
 
       - name: Free runner disk space (vendored-heavy builds)
         # Building the vendored lance/lancedb + datafusion trees from a
@@ -113,93 +115,6 @@ jobs:
       - name: Cache Rust build artifacts
         uses: Swatinem/rust-cache@v2
 
-      - name: Provision DuckDB prebuilt library
-        # llm-access-store -> libduckdb-sys links libduckdb at the test-binary
-        # link stage. On the default (non-bundled) path libduckdb-sys downloads
-        # the .so into target/duckdb-download/, but Swatinem/rust-cache prunes
-        # that non-cargo artifact from the restored target/ while keeping the
-        # build-script fingerprint, so a warm cache links against a now-missing
-        # .so ("rust-lld: unable to find library -lduckdb"). clippy never links
-        # so it stays green and hides the breakage. Fetch the matching prebuilt
-        # into a dir outside target/ and point libduckdb-sys at it via
-        # DUCKDB_LIB_DIR (checked before the download path; flipping it from
-        # unset to set also forces build.rs to re-run, self-healing an already
-        # poisoned cache). LD_LIBRARY_PATH lets the test binaries load it at run
-        # time. Version is decoded from Cargo.lock so it tracks future bumps.
-        run: |
-          set -euo pipefail
-          sys_ver="$(awk '/^name = "libduckdb-sys"$/ { getline; gsub(/version = "|"/, ""); print; exit }' Cargo.lock)"
-          mid="$(printf '%s' "$sys_ver" | cut -d. -f2)"
-          duckdb_ver="$((10#$mid / 10000)).$(((10#$mid / 100) % 100)).$((10#$mid % 100))"
-          echo "libduckdb-sys $sys_ver -> DuckDB v$duckdb_ver"
-          lib_dir="$RUNNER_TEMP/duckdb-lib"
-          mkdir -p "$lib_dir"
-          curl -fsSL --retry 3 -o "$RUNNER_TEMP/libduckdb.zip" \
-            "https://github.com/duckdb/duckdb/releases/download/v${duckdb_ver}/libduckdb-linux-amd64.zip"
-          unzip -o "$RUNNER_TEMP/libduckdb.zip" -d "$lib_dir"
-          test -f "$lib_dir/libduckdb.so"
-          {
-            echo "DUCKDB_LIB_DIR=$lib_dir"
-            echo "DUCKDB_INCLUDE_DIR=$lib_dir"
-            echo "LD_LIBRARY_PATH=$lib_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-          } >> "$GITHUB_ENV"
-
-      - name: Detect Neon CI credentials
-        id: neon-ci-credentials
-        if: >-
-          (needs.changes.outputs.mode == 'all' ||
-            contains(needs.changes.outputs.test_crates, 'llm-access-store'))
-        env:
-          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
-          NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
-        run: |
-          set -euo pipefail
-          if [ -n "$NEON_API_KEY" ] && [ -n "$NEON_PROJECT_ID" ]; then
-            echo "available=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "available=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Explain skipped Neon CI branch
-        if: >-
-          (needs.changes.outputs.mode == 'all' ||
-            contains(needs.changes.outputs.test_crates, 'llm-access-store')) &&
-          steps.neon-ci-credentials.outputs.available != 'true'
-        run: |
-          echo "Skipping Neon-backed Postgres tests; NEON_API_KEY or NEON_PROJECT_ID is unavailable."
-
-      - name: Compute Neon branch expiration
-        if: >-
-          (needs.changes.outputs.mode == 'all' ||
-            contains(needs.changes.outputs.test_crates, 'llm-access-store')) &&
-          steps.neon-ci-credentials.outputs.available == 'true'
-        run: echo "NEON_BRANCH_EXPIRES_AT=$(date -u --date '+1 day' +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
-
-      - name: Create Neon test branch
-        id: create-neon-branch
-        if: >-
-          (needs.changes.outputs.mode == 'all' ||
-            contains(needs.changes.outputs.test_crates, 'llm-access-store')) &&
-          steps.neon-ci-credentials.outputs.available == 'true'
-        uses: neondatabase/create-branch-action@v6
-        with:
-          project_id: ${{ vars.NEON_PROJECT_ID }}
-          api_key: ${{ secrets.NEON_API_KEY }}
-          branch_name: ci-${{ github.event.pull_request.number || github.run_id }}-${{ github.run_id }}-${{ github.run_attempt }}
-          database: llm_access_control
-          role: llm_access_owner
-          expires_at: ${{ env.NEON_BRANCH_EXPIRES_AT }}
-
-      - name: Export Neon test database URL
-        if: steps.create-neon-branch.outputs.branch_id != ''
-        env:
-          DB_URL: ${{ steps.create-neon-branch.outputs.db_url }}
-        run: |
-          set -euo pipefail
-          test -n "$DB_URL"
-          echo "::add-mask::$DB_URL"
-          printf 'TEST_POSTGRES_URL=%s\n' "$DB_URL" >> "$GITHUB_ENV"
-
       - name: Run tests for affected crates
         # subset -> test the changed crates + their dependents; all -> the
         # full workspace. See scripts/ci_affected.py.
@@ -207,11 +122,3 @@ jobs:
           MODE: ${{ needs.changes.outputs.mode }}
           CRATES: ${{ needs.changes.outputs.test_crates }}
         run: python3 scripts/ci_affected.py run-test
-
-      - name: Delete Neon test branch
-        if: always() && steps.create-neon-branch.outputs.branch_id != ''
-        uses: neondatabase/delete-branch-action@v3
-        with:
-          project_id: ${{ vars.NEON_PROJECT_ID }}
-          api_key: ${{ secrets.NEON_API_KEY }}
-          branch: ${{ steps.create-neon-branch.outputs.branch_id }}

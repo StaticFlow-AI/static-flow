@@ -3,7 +3,6 @@ use std::collections::BTreeMap;
 #[cfg(not(feature = "mock"))]
 use gloo_net::http::{Request, RequestBuilder};
 use js_sys::Date;
-use llm_access_core::store as llm_store;
 #[cfg(not(feature = "mock"))]
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -11,6 +10,7 @@ use static_flow_shared::{Article, ArticleListItem};
 #[cfg(not(feature = "mock"))]
 use wasm_bindgen::JsValue;
 
+use crate::llm_gateway_contracts as llm_store;
 #[cfg(feature = "mock")]
 use crate::models;
 

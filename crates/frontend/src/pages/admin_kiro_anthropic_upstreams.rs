@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 
-use llm_access_core::store as llm_store;
 use web_sys::{HtmlInputElement, HtmlSelectElement};
 use yew::prelude::*;
 use yew_router::prelude::Link;
@@ -14,6 +13,7 @@ use crate::{
         AdminUpstreamProxyConfigView, CreateAdminAnthropicUpstreamChannelInput,
         PatchAdminAnthropicUpstreamChannelInput, TestAdminAnthropicUpstreamModelInput,
     },
+    llm_gateway_contracts as llm_store,
     pages::llm_access_shared::{confirm_destructive, format_number_u64, format_timestamp_opt},
     router::Route,
 };

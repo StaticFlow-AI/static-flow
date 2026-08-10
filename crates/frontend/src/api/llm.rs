@@ -5227,7 +5227,7 @@ pub struct AdminAnthropicUpstreamChannelView {
     #[serde(default = "default_anthropic_upstream_rpm_limit")]
     pub rpm_limit: u64,
     pub min_start_interval_ms: u64,
-    pub cache_hit_rate_limits: Vec<llm_access_core::store::AnthropicCacheHitRateLimit>,
+    pub cache_hit_rate_limits: Vec<llm_store::AnthropicCacheHitRateLimit>,
     pub proxy_mode: String,
     pub proxy_config_id: Option<String>,
     pub last_error: Option<String>,
@@ -5279,7 +5279,7 @@ pub struct CreateAdminAnthropicUpstreamChannelInput {
     pub max_concurrency: Option<u64>,
     pub rpm_limit: Option<u64>,
     pub min_start_interval_ms: Option<u64>,
-    pub cache_hit_rate_limits: Vec<llm_access_core::store::AnthropicCacheHitRateLimit>,
+    pub cache_hit_rate_limits: Vec<llm_store::AnthropicCacheHitRateLimit>,
     pub proxy_mode: Option<String>,
     pub proxy_config_id: Option<String>,
 }
@@ -5293,7 +5293,7 @@ pub struct PatchAdminAnthropicUpstreamChannelInput {
     pub max_concurrency: Option<u64>,
     pub rpm_limit: Option<u64>,
     pub min_start_interval_ms: Option<u64>,
-    pub cache_hit_rate_limits: Option<Vec<llm_access_core::store::AnthropicCacheHitRateLimit>>,
+    pub cache_hit_rate_limits: Option<Vec<llm_store::AnthropicCacheHitRateLimit>>,
     pub proxy_mode: Option<String>,
     pub proxy_config_id: Option<Option<String>>,
     pub clear_last_error: bool,

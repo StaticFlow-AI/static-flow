@@ -43,7 +43,7 @@ flowchart LR
 cd /opt/staticflow
 git clone <your-staticflow-repo-url> current
 cd /opt/staticflow/current
-git submodule update --init --recursive
+scripts/init_public_build_submodules.sh
 
 rustup target add wasm32-unknown-unknown
 cargo install trunk
