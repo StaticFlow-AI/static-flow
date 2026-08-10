@@ -4,23 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'crates/frontend/**'
-      - 'crates/shared/src/**'
-      - 'crates/shared/Cargo.toml'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'rust-toolchain.toml'
-      - '.gitmodules'
-      - 'deps/ffmpeg-sidecar'
-      - 'deps/lance'
-      - 'deps/lancedb'
-      - 'deps/pingora'
-      - 'patches/object_store'
-      - 'scripts/build_frontend_selfhosted.sh'
-      - 'scripts/build_gpt2api_frontend.sh'
-      - 'scripts/init_public_build_submodules.sh'
-      - '.github/workflows/deploy.yml'
   workflow_dispatch:  # 允许手动触发
 
 permissions:
