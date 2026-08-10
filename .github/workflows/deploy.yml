@@ -11,6 +11,15 @@ on:
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'rust-toolchain.toml'
+      - '.gitmodules'
+      - 'deps/ffmpeg-sidecar'
+      - 'deps/lance'
+      - 'deps/lancedb'
+      - 'deps/pingora'
+      - 'patches/object_store'
+      - 'scripts/build_frontend_selfhosted.sh'
+      - 'scripts/build_gpt2api_frontend.sh'
+      - 'scripts/init_public_build_submodules.sh'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:  # 允许手动触发
 
@@ -51,7 +60,7 @@ jobs:
 
       - name: Install npm dependencies
         working-directory: crates/frontend
-        run: npm install
+        run: npm ci
 
       - name: Install wasm-opt (from binaryen)
         run: |
@@ -63,25 +72,13 @@ jobs:
           ~/.cache/trunk/wasm-opt-version_116/bin/wasm-opt --version
 
       - name: Build frontend (production)
-        working-directory: crates/frontend
-        run: trunk build --release
+        run: scripts/build_frontend_selfhosted.sh --skip-npm
         env:
-          STATICFLOW_API_BASE: ${{ vars.STATICFLOW_API_BASE }}
           TRUNK_SKIP_VERSION_CHECK: "true"
 
       - name: Copy 404.html to dist root (GitHub Pages SPA routing)
         working-directory: crates/frontend
         run: cp 404.html dist/404.html
-
-      - name: Copy standalone pages to dist
-        working-directory: crates/frontend
-        run: |
-          if [ -d "standalone" ] && [ "$(ls -A standalone 2>/dev/null)" ]; then
-            cp -r standalone dist/
-            echo "Copied standalone pages to dist/standalone/"
-          else
-            echo "No standalone pages found, skipping"
-          fi
 
       - name: Deploy to User Pages (acking-you.github.io)
         uses: peaceiris/actions-gh-pages@v3
