@@ -418,7 +418,7 @@ pub fn home_page() -> Html {
                                 <span class="terminal-content">
                                     { t::OPEN_SOURCE_INLINE }
                                     { " " }
-                                    <a href="https://github.com/acking-you/static_flow"
+                                    <a href="https://github.com/StaticFlow-AI/static-flow"
                                        target="_blank" rel="noopener noreferrer"
                                        class={classes!("underline", "text-[var(--primary)]", "font-semibold")}>
                                         { t::OPEN_SOURCE_GITHUB_CTA }

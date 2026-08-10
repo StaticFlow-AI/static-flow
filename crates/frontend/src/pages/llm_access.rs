@@ -828,7 +828,7 @@ pub fn llm_access_page() -> Html {
                         <div class={classes!("mt-3", "llm-access-notice", "font-mono", "text-[11px]")}
                             style="border-left-color: #14b8a6;">
                             { "🦀 你正在用的这个站就是纯 Rust 全栈开源项目哦 (ノ°▽°)ノ 几乎 100% vibe coded — " }
-                            <a href="https://github.com/acking-you/static_flow"
+                            <a href="https://github.com/StaticFlow-AI/static-flow"
                                target="_blank" rel="noopener noreferrer"
                                class={classes!("underline", "text-[var(--primary)]")}>
                                 { "来 GitHub 看看这个站的源码？" }
