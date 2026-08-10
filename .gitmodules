@@ -1,35 +1,35 @@
 [submodule "tools/ncmdump-rs"]
 	path = tools/ncmdump-rs
-	url = https://github.com/RespawnLabs1/ncmdump-rs.git
+	url = https://github.com/acking-you/ncmdump-rs.git
 [submodule "tools/pb-mapper"]
 	path = tools/pb-mapper
-	url = https://github.com/RespawnLabs1/pb-mapper.git
+	url = https://github.com/acking-you/pb-mapper.git
 [submodule "patches/object_store"]
 	path = patches/object_store
-	url = https://github.com/RespawnLabs1/arrow-rs-object-store.git
+	url = https://github.com/acking-you/arrow-rs-object-store.git
 	branch = dev
 [submodule "deps/lance"]
 	path = deps/lance
-	url = https://github.com/RespawnLabs1/lance.git
+	url = https://github.com/acking-you/lance.git
 [submodule "deps/lancedb"]
 	path = deps/lancedb
-	url = https://github.com/RespawnLabs1/lancedb.git
+	url = https://github.com/acking-you/lancedb.git
 [submodule "deps/juicefs"]
 	path = deps/juicefs
-	url = https://github.com/RespawnLabs1/juicefs.git
+	url = https://github.com/acking-you/juicefs.git
 [submodule "deps/ffmpeg-sidecar"]
 	path = deps/ffmpeg-sidecar
-	url = https://github.com/RespawnLabs1/ffmpeg-sidecar.git
+	url = https://github.com/acking-you/ffmpeg-sidecar.git
 [submodule "deps/pingora"]
 	path = deps/pingora
-	url = https://github.com/RespawnLabs1/pingora.git
+	url = https://github.com/acking-you/pingora.git
 	branch = feat/static-flow
 [submodule "deps/gpt2api_rs"]
 	path = deps/gpt2api_rs
-	url = https://github.com/RespawnLabs1/gpt2api_rs.git
+	url = https://github.com/acking-you/gpt2api_rs.git
 [submodule "deps/AntigravityManager"]
 	path = deps/AntigravityManager
-	url = https://github.com/RespawnLabs1/AntigravityManager.git
+	url = https://github.com/acking-you/AntigravityManager.git
 [submodule "deps/llm-access"]
 	path = deps/llm-access
 	url = git@github.com:acking-you/llm-access.git

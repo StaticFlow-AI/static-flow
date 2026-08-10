@@ -352,9 +352,9 @@ maintainers and is intentionally excluded from the public root workspace.
 
 | Submodule | Path | Fork |
 |---|---|---|
-| lance | `deps/lance` | `RespawnLabs1/lance` |
-| lancedb | `deps/lancedb` | `RespawnLabs1/lancedb` |
-| pingora | `deps/pingora` | `RespawnLabs1/pingora` |
+| lance | `deps/lance` | `acking-you/lance` |
+| lancedb | `deps/lancedb` | `acking-you/lancedb` |
+| pingora | `deps/pingora` | `acking-you/pingora` |
 | jieba-rs | `deps/jieba-rs` | `StaticFlow-AI/jieba-rs` |
 | llm-access | `deps/llm-access` | private `acking-you/llm-access` |
 
