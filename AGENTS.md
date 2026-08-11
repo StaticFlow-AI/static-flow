@@ -7,6 +7,29 @@ Core capabilities: article publishing, metadata enrichment, image/music asset
 ingestion, AI-powered comment review, music wish fulfillment, external article
 repost ingestion, and searchable knowledge organization — all on a local machine.
 
+## Repository Boundary
+
+StaticFlow is the public product and integration repository. The private
+`llm-access` source is a standalone repository checked out at
+`deps/llm-access` only for authorized maintainers; it is not a member of this
+Cargo workspace.
+
+Route work by owner before editing:
+
+- StaticFlow owns the site/backend, admin frontend and API clients, mirrored LLM
+  HTTP contract types, Caddy/systemd integration, cloud release scripts, and the
+  production operations runbook.
+- `deps/llm-access` owns provider integrations, request conversion, routing,
+  account/key policy, moderation, persistence, migrations, usage processing,
+  image generation, and AI review. Its own `AGENTS.md` is mandatory for work in
+  that repository.
+- A change spanning the HTTP boundary must update and verify both sides. Do not
+  move private implementation back into StaticFlow or hide a contract mismatch
+  behind a speculative compatibility shim.
+- Git status, branches, commits, tests, and build artifacts are repository-local.
+  Use `git -C deps/llm-access ...` when inspecting the child from this root; do
+  not treat a clean parent status as proof that the child is clean.
+
 ## LanceDB Data Location
 StaticFlow uses three LanceDB roots:
 - Content DB — `/mnt/wsl/data4tb/static-flow-data/lancedb`
@@ -77,18 +100,12 @@ existing binary, then use the rebuilt `target/release` or `target/debug`
 artifact. Do not prefer legacy `./bin/sf-cli` snapshots for
 storage-format-sensitive writes.
 
-## Temporary Local-Only Development Mode
-Current constraint: both GitHub accounts used for this project are falsely
-suspended by GitHub, so remote development, pushes, pull requests, and GitHub CI
-are blocked.
+## Git and Cross-Repository Workflow
 
-Until the accounts are reinstated:
-- Treat this checkout as the source of truth for development work.
-- Do not assume GitHub remotes, PR workflows, or CI status checks are available.
-- Prefer local branches, local diffs, local tests, and explicit command output
-  for verification and handoff.
-- Do not require a remote push, PR link, or CI run to consider local work ready;
-  state clearly which local checks were run and which CI checks remain blocked.
+Do not encode temporary GitHub account incidents as a standing workflow. Check
+the current remote and authentication state only when a task actually requires
+a fetch, push, pull request, or CI result. Local diffs and required local quality
+gates remain the primary evidence before any remote action.
 
 Completion rule:
 - When a task is fully complete on a non-`main` branch, squash-merge the result
@@ -97,9 +114,13 @@ Completion rule:
   `main`.
 - Do not leave completed work only as an unmerged feature branch unless the user
   explicitly asks to pause or keep it separate.
-
-After GitHub access is restored, return to the normal remote development plus CI
-workflow.
+- For a coordinated llm-access change, commit the child repository first, then
+  commit StaticFlow consumer/release changes and the updated gitlink. Before the
+  parent commit is pushed, ensure the referenced private child commit is
+  available from its remote; never publish an unreproducible gitlink.
+- A source commit, parent gitlink update, remote push, and production release are
+  separate actions. Do not infer authorization for a push or deployment from a
+  request to implement or commit a change.
 
 ## Communication Preference
 Spend time thinking through the task before acting. Do not send optional
@@ -156,6 +177,10 @@ Key rules:
 - If the change only touches `llm-access*`, `llm-access-kiro`, Kiro/Codex/LLM
   gateway behavior, default the production release target to the AWS
   `llm-access` service, not the local `39180` Pingora stack.
+- Make llm-access source changes in the standalone `deps/llm-access` repository.
+  Run cloud release orchestration from this StaticFlow root, whose scripts use
+  `LLM_ACCESS_DIR=deps/llm-access` by default; verify that the parent gitlink and
+  intended child commit agree before release.
 - Do not build or hot-update the local self-hosted backend as part of a cloud
   `llm-access` release unless the user explicitly asks for the non-LLM/local
   site path too.
@@ -168,11 +193,12 @@ Key rules:
 - Live AWS `llm-access.service` and `llm-access-usage-worker.service` run as
   `ts_user`, not `llm-access`; do not change the systemd templates back to a
   non-existent service user unless you also provision that user on the host.
-- Cloud `llm-access` API and usage worker releases must stay independently
-  deployable. Use `scripts/release_llm_access_cloud_api_only.sh` when only the
-  API binary/unit changed, and `scripts/release_llm_access_cloud_worker_only.sh`
-  when only the worker changed. Do not restart the other service just because
-  you are shipping one side.
+- Cloud `llm-access` API, usage worker, and Codex image gateway releases must
+  stay independently deployable. Use
+  `scripts/release_llm_access_cloud_api_only.sh`,
+  `scripts/release_llm_access_cloud_worker_only.sh`, or
+  `scripts/release_llm_access_cloud_codex_image_only.sh` according to the
+  changed binary/unit. Do not restart an unaffected service.
 - The usage worker now depends on the shared control JuiceFS mount, the
   dedicated usage JuiceFS mount, and the shared Neon config file
   `/mnt/llm-access/config/neon.env`. Do not reintroduce
@@ -216,19 +242,22 @@ the active production path.
 - **Only one local Rust build/check may run at a time.** Concurrent builds can
   OOM the machine and kill the live backend. Before starting, check with
   `pgrep -af 'cargo|rustc|trunk|ld|lld|mold'`.
-- **All Cargo build artifacts must live on the large mount:**
+- **All StaticFlow workspace Cargo artifacts must live on the large mount:**
   `CARGO_TARGET_DIR=/mnt/wsl/data4tb/static-flow-data/cargo-target/static_flow`.
   Confirm mount with `df -h /mnt/wsl/data4tb`. Do not grow
   `/home/ts_user/rust_pro/static_flow/target` for routine work.
-- Treat `static_flow`, `deps/lance`, `deps/lancedb`, `deps/gpt2api_rs` as one
-  shared build budget. No parallel builds across them.
+- The standalone llm-access workspace uses
+  `/mnt/wsl/data4tb/static-flow-data/cargo-target/llm-access`; follow its own
+  `AGENTS.md` and do not reuse StaticFlow's target directory for its builds.
+- Treat `static_flow`, `deps/llm-access`, `deps/lance`, `deps/lancedb`, and
+  `deps/gpt2api_rs` as one shared build budget. No parallel builds across them.
 - When memory is comfortable, use `--jobs 4` to `--jobs 8`. Drop below 4 only
   under memory pressure.
 - **NEVER run `cargo fmt --all` or `cargo fmt` at workspace root.**
   `deps/lance` and `deps/lancedb` have their own formatting and must not be
   touched by broad formatter commands.
 - **NEVER run `cargo fmt` inside `deps/lance` or `deps/lancedb`.**
-- Before running any formatter:
+- Before formatting StaticFlow-owned files:
   1. Enumerate the exact target files.
   2. Check `git -C deps/lance status --short` and
      `git -C deps/lancedb status --short`.
@@ -347,8 +376,9 @@ Key conventions:
 ## Local Dependency and Private Service Submodules
 Lance, LanceDB, and Pingora remain personal public forks under `deps/`.
 `jieba-rs` is the only dependency hosted by `StaticFlow-AI`. The private
-`llm-access` workspace is mounted at `deps/llm-access` for authorized
-maintainers and is intentionally excluded from the public root workspace.
+`llm-access` service repository is mounted at `deps/llm-access` for authorized
+maintainers and is intentionally excluded from the public root workspace. It is
+a release input and integration peer, not a StaticFlow Cargo dependency.
 
 | Submodule | Path | Fork |
 |---|---|---|
@@ -366,8 +396,10 @@ Key points:
 - Authorized llm-access maintainers may additionally run:
   `git submodule update --init deps/llm-access`
 - Do not run `cargo fmt` in `deps/lance` or `deps/lancedb`.
-- When modifying submodule source, commit inside the submodule first, then
-  update the submodule ref in the parent repo.
+- When modifying submodule source, obey the submodule's own instructions and
+  commit inside it first. Update the parent gitlink only after the child commit
+  is final; before publishing the parent, make sure that child commit is
+  reachable from the configured remote.
 
 ## Codebase Structure
 ```
