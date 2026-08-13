@@ -45,9 +45,11 @@ ROOT_MANIFEST = "Cargo.toml"
 # run rather than a per-crate subset: the toolchain pin (rust-toolchain*), cargo
 # config (.cargo/), and the vendored trees first-party crates compile through
 # path deps / patches -- deps/ (lance, lancedb, pingora, ffmpeg-sidecar) and
-# patches/ (object_store, patched in by the root [patch.crates-io]). CI YAML and
-# scripts deliberately are NOT here: they change no Rust code, so a PR touching
-# only them compiles nothing; the `detect` job itself exercises this selector.
+# patches/ (object_store, patched in by the root [patch.crates-io]). Standalone
+# repositories checked out below deps/ but excluded from this Cargo workspace
+# are explicitly ignored. CI YAML and scripts deliberately are NOT here: they
+# change no Rust code, so a PR touching only them compiles nothing; the `detect`
+# job itself exercises this selector.
 #
 # The root manifest is handled separately. Global workspace dependency, patch,
 # profile, or resolver changes are cross-cutting, but a pure
@@ -62,7 +64,7 @@ ROOT_MANIFEST = "Cargo.toml"
 # into CI just because Cargo unified shared third-party versions in Cargo.lock.
 CROSS_EXACT = set()
 CROSS_PREFIX = (".cargo/", "deps/", "patches/")
-NON_RUST_DEPS_PREFIX = ("deps/AntigravityManager",)
+NON_RUST_DEPS_PREFIX = ("deps/AntigravityManager", "deps/llm-access")
 
 
 def run(cmd, **kw):
