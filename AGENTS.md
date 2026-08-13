@@ -114,10 +114,15 @@ Completion rule:
   `main`.
 - Do not leave completed work only as an unmerged feature branch unless the user
   explicitly asks to pause or keep it separate.
-- For a coordinated llm-access change, commit the child repository first, then
-  commit StaticFlow consumer/release changes and the updated gitlink. Before the
-  parent commit is pushed, ensure the referenced private child commit is
-  available from its remote; never publish an unreproducible gitlink.
+- For a coordinated llm-access change, commit the child repository first. When
+  publishing through pull requests, the child PR must pass its required review
+  and CI and be merged into the child repository's default branch before the
+  StaticFlow gitlink is updated or any parent PR (including a draft) is created.
+  A child feature branch or open PR being remotely reachable is not sufficient.
+  After the child merge, fetch its default branch and verify that the exact
+  referenced child commit is an ancestor of that remote branch; only then
+  commit/push the parent consumer, release, and gitlink changes. Never publish
+  an unreproducible or not-yet-integrated gitlink.
 - A source commit, parent gitlink update, remote push, and production release are
   separate actions. Do not infer authorization for a push or deployment from a
   request to implement or commit a change.
@@ -397,9 +402,11 @@ Key points:
   `git submodule update --init deps/llm-access`
 - Do not run `cargo fmt` in `deps/lance` or `deps/lancedb`.
 - When modifying submodule source, obey the submodule's own instructions and
-  commit inside it first. Update the parent gitlink only after the child commit
-  is final; before publishing the parent, make sure that child commit is
-  reachable from the configured remote.
+  commit inside it first. For PR-based work, do not update or publish the parent
+  gitlink until the child PR has passed review/CI and merged into the child
+  default branch; remote reachability from only the child PR branch does not
+  satisfy this rule. Verify the referenced child commit against the fetched
+  child default branch before creating the parent PR.
 
 ## Codebase Structure
 ```
