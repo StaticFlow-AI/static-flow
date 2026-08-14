@@ -15,9 +15,10 @@ use super::{
     },
     admin_llm_gateway::{
         effective_routing_wait_ms, format_datetime_local_input, format_latency_breakdown,
-        parse_datetime_local_input_to_ms, pretty_headers_json, pretty_json_text, LatencyBreakdown,
-        USAGE_SOURCE_ALL, USAGE_SOURCE_ARCHIVE, USAGE_SOURCE_HOT, USAGE_STATUS_KIND_ALL,
-        USAGE_STATUS_KIND_NON_OK, USAGE_STATUS_KIND_OK,
+        kiro_guard_usage_badge, parse_datetime_local_input_to_ms, pretty_headers_json,
+        pretty_json_text, KiroGuardBadgeTone, LatencyBreakdown, USAGE_SOURCE_ALL,
+        USAGE_SOURCE_ARCHIVE, USAGE_SOURCE_HOT, USAGE_STATUS_KIND_ALL, USAGE_STATUS_KIND_NON_OK,
+        USAGE_STATUS_KIND_OK,
     },
 };
 use crate::{
@@ -529,6 +530,9 @@ pub fn admin_kiro_gateway_usage_page() -> Html {
                                         );
                                         let anthropic_badge =
                                             anthropic_routing_badge(event.routing_diagnostics_json.as_deref());
+                                        let kiro_guard_badge = kiro_guard_usage_badge(
+                                            event.routing_diagnostics_json.as_deref(),
+                                        );
                                         let latency_color = total_latency_color(event.latency_ms);
                                         let first_token = event.first_sse_write_ms.map(|first_ms| {
                                             let first_ms = first_ms.max(0);
@@ -572,6 +576,16 @@ pub fn admin_kiro_gateway_usage_page() -> Html {
                                                         }
                                                         if let Some(badge) = anthropic_badge {
                                                             <span class={classes!("badge", "info")}>{ badge }</span>
+                                                        }
+                                                        if let Some(badge) = kiro_guard_badge {
+                                                            <span class={classes!(
+                                                                "badge",
+                                                                match badge.tone {
+                                                                    KiroGuardBadgeTone::Info => "info",
+                                                                    KiroGuardBadgeTone::Allow => "ok",
+                                                                    KiroGuardBadgeTone::Block => "failed",
+                                                                },
+                                                            )}>{ badge.label }</span>
                                                         }
                                                     </div>
                                                     if let Some(summary) = status_error_summary {

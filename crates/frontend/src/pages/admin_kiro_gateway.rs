@@ -1992,10 +1992,7 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
     let kiro_remote_media_resolution_enabled =
         use_state(|| props.key_item.kiro_remote_media_resolution_enabled);
     let kiro_latency_routing_enabled = use_state(|| props.key_item.kiro_latency_routing_enabled);
-    let kiro_protected_content_validation_enabled =
-        use_state(|| props.key_item.kiro_protected_content_validation_enabled);
-    let kiro_cctest_text_handling_enabled =
-        use_state(|| props.key_item.kiro_cctest_text_handling_enabled);
+    let kiro_thinking_guard_enabled = use_state(|| props.key_item.kiro_thinking_guard_enabled);
     let policy_override_enabled = use_state(|| initial_override_enabled);
     let key_policy_form = use_state(|| initial_effective_policy_form.clone());
     let key_policy_effective_baseline = use_state(|| initial_effective_policy_form.clone());
@@ -2035,9 +2032,7 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
         let kiro_policy_fallback_model = kiro_policy_fallback_model.clone();
         let kiro_remote_media_resolution_enabled = kiro_remote_media_resolution_enabled.clone();
         let kiro_latency_routing_enabled = kiro_latency_routing_enabled.clone();
-        let kiro_protected_content_validation_enabled =
-            kiro_protected_content_validation_enabled.clone();
-        let kiro_cctest_text_handling_enabled = kiro_cctest_text_handling_enabled.clone();
+        let kiro_thinking_guard_enabled = kiro_thinking_guard_enabled.clone();
         let policy_override_enabled = policy_override_enabled.clone();
         let key_policy_form = key_policy_form.clone();
         let key_policy_effective_baseline = key_policy_effective_baseline.clone();
@@ -2078,9 +2073,7 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
             kiro_policy_fallback_model.set(key_item.kiro_policy_fallback_model.clone());
             kiro_remote_media_resolution_enabled.set(key_item.kiro_remote_media_resolution_enabled);
             kiro_latency_routing_enabled.set(key_item.kiro_latency_routing_enabled);
-            kiro_protected_content_validation_enabled
-                .set(key_item.kiro_protected_content_validation_enabled);
-            kiro_cctest_text_handling_enabled.set(key_item.kiro_cctest_text_handling_enabled);
+            kiro_thinking_guard_enabled.set(key_item.kiro_thinking_guard_enabled);
             policy_override_enabled.set(initial_override_enabled);
             key_policy_form.set(initial_effective_policy_form.clone());
             key_policy_effective_baseline.set(initial_effective_policy_form.clone());
@@ -2126,9 +2119,7 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
         let kiro_policy_fallback_model = kiro_policy_fallback_model.clone();
         let kiro_remote_media_resolution_enabled = kiro_remote_media_resolution_enabled.clone();
         let kiro_latency_routing_enabled = kiro_latency_routing_enabled.clone();
-        let kiro_protected_content_validation_enabled =
-            kiro_protected_content_validation_enabled.clone();
-        let kiro_cctest_text_handling_enabled = kiro_cctest_text_handling_enabled.clone();
+        let kiro_thinking_guard_enabled = kiro_thinking_guard_enabled.clone();
         let policy_override_enabled = policy_override_enabled.clone();
         let key_policy_form = key_policy_form.clone();
         let billable_multiplier_override_enabled = billable_multiplier_override_enabled.clone();
@@ -2165,9 +2156,7 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
             let kiro_policy_fallback_model_value = (*kiro_policy_fallback_model).clone();
             let kiro_remote_media_resolution_enabled_value = *kiro_remote_media_resolution_enabled;
             let kiro_latency_routing_enabled_value = *kiro_latency_routing_enabled;
-            let kiro_protected_content_validation_enabled_value =
-                *kiro_protected_content_validation_enabled;
-            let kiro_cctest_text_handling_enabled_value = *kiro_cctest_text_handling_enabled;
+            let kiro_thinking_guard_enabled_value = *kiro_thinking_guard_enabled;
             let policy_override_enabled_value = *policy_override_enabled;
             let key_policy_form_value = (*key_policy_form).clone();
             let billable_multiplier_override_enabled_value = *billable_multiplier_override_enabled;
@@ -2263,12 +2252,7 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                         kiro_remote_media_resolution_enabled_value,
                     ),
                     kiro_latency_routing_enabled: Some(kiro_latency_routing_enabled_value),
-                    kiro_protected_content_validation_enabled: Some(
-                        kiro_protected_content_validation_enabled_value,
-                    ),
-                    kiro_cctest_text_handling_enabled: Some(
-                        kiro_cctest_text_handling_enabled_value,
-                    ),
+                    kiro_thinking_guard_enabled: Some(kiro_thinking_guard_enabled_value),
                     kiro_cache_policy_override_json: policy_override_json
                         .as_ref()
                         .map(|value| value.as_deref()),
@@ -2389,8 +2373,7 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                         kiro_remote_media_resolution_enabled_value,
                     ),
                     kiro_latency_routing_enabled: Some(kiro_latency_routing_enabled_value),
-                    kiro_protected_content_validation_enabled: None,
-                    kiro_cctest_text_handling_enabled: None,
+                    kiro_thinking_guard_enabled: None,
                     kiro_cache_policy_override_json: None,
                     kiro_billable_model_multipliers_override_json: None,
                     request_max_concurrency_unlimited: false,
@@ -2889,41 +2872,20 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                     <input
                         type="checkbox"
                         class={classes!("switch")}
-                        checked={*kiro_protected_content_validation_enabled}
+                        checked={*kiro_thinking_guard_enabled}
                         onchange={{
-                            let kiro_protected_content_validation_enabled =
-                                kiro_protected_content_validation_enabled.clone();
+                            let kiro_thinking_guard_enabled =
+                                kiro_thinking_guard_enabled.clone();
                             Callback::from(move |event: Event| {
                                 let input: HtmlInputElement = event.target_unchecked_into();
-                                kiro_protected_content_validation_enabled.set(input.checked());
+                                kiro_thinking_guard_enabled.set(input.checked());
                             })
                         }}
                     />
                     <span>
-                        <strong>{ "Thinking 防篡改校验" }</strong>
+                        <strong>{ "Kiro 身份与提示词探测审核" }</strong>
                         <span class={classes!("block", "mt-1", "text-xs", "text-[var(--muted)]")}>
-                            { "开启后，会拒绝无法校验的 encrypted_content、非 thinking 块上的 signature，以及被改动过的 thinking/signature 历史内容。" }
-                        </span>
-                    </span>
-                </label>
-                <label class={classes!("md:col-span-2", "flex", "cursor-pointer", "items-start", "gap-3", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface-alt)]", "px-3", "py-3", "text-sm", "toggle-card")}>
-                    <input
-                        type="checkbox"
-                        class={classes!("switch")}
-                        checked={*kiro_cctest_text_handling_enabled}
-                        onchange={{
-                            let kiro_cctest_text_handling_enabled =
-                                kiro_cctest_text_handling_enabled.clone();
-                            Callback::from(move |event: Event| {
-                                let input: HtmlInputElement = event.target_unchecked_into();
-                                kiro_cctest_text_handling_enabled.set(input.checked());
-                            })
-                        }}
-                    />
-                    <span>
-                        <strong>{ "cctest 文本专门处理" }</strong>
-                        <span class={classes!("block", "mt-1", "text-xs", "text-[var(--muted)]")}>
-                            { "默认关闭。开启后只会识别已知 cctest 纯文本探针；多模态和 websearch 请求仍走正常 Kiro 路径，signature 题会转发到配置的专用 Anthropic 上游。" }
+                            { "开启后只检查最新用户消息的显式文本。命中身份、Kiro 环境或系统提示词探测词后，会同步调用专用 codex-auto-review；审核失败或审核服务不可用时直接返回预设回答，不请求 Kiro 上游。" }
                         </span>
                     </span>
                 </label>

@@ -172,7 +172,7 @@ kiro 侧拆 keys 的经验（见 `admin-panel-redesign-progress` 记忆 P3b-5）
 - **专属状态**（约 40 个 config `*_input` + proxy 簇）：`ttl_input`、
   `max_request_body_input`、`account_failure_retry_limit_input`、所有 `codex_*_input`、
   `kiro_*_input`、`usage_flush_*_input`、`duckdb_usage_*_input`、
-  `usage_analytics_retention_days_input`、`kiro_cctest_proxy_*_input`、
+  `usage_analytics_retention_days_input`、`kiro_thinking_guard_*_input`、
   `saving_runtime_config`、`proxy_configs`、`proxy_config_scope`、`proxy_bindings`、
   `create_proxy_*`、`creating_proxy`、`codex_proxy_binding_input`、
   `kiro_proxy_binding_input`、`saving_proxy_binding_provider`、
@@ -301,4 +301,3 @@ git -C deps/lance status --short && git -C deps/lancedb status --short
 - 进度记忆：`admin-panel-redesign-progress`（本仓外，agent 记忆）
 - 关键 commit：`5906431`(usage) / `dd4d3a3`(journal) / `61809f6`(kiro overview) /
   `ba419af`(kiro keys) / `1bbd219`(kiro 路由驱动)
-

@@ -6,8 +6,10 @@
 //! `admin_llm_gateway` and is reused here so the editor logic is not
 //! duplicated.
 
+use std::collections::BTreeMap;
+
 use gloo_timers::callback::Timeout;
-use web_sys::{HtmlInputElement, HtmlSelectElement};
+use web_sys::{HtmlInputElement, HtmlSelectElement, HtmlTextAreaElement};
 use yew::prelude::*;
 use yew_router::prelude::Link;
 
@@ -60,8 +62,13 @@ pub fn admin_llm_gateway_settings_page() -> Html {
     let duckdb_usage_memory_limit_mib_input = use_state(|| "1024".to_string());
     let duckdb_usage_checkpoint_threshold_mib_input = use_state(|| "16".to_string());
     let usage_analytics_retention_days_input = use_state(|| "7".to_string());
-    let kiro_cctest_proxy_base_url_input = use_state(String::new);
-    let kiro_cctest_proxy_api_key_input = use_state(String::new);
+    let kiro_thinking_guard_codex_key_id_input = use_state(String::new);
+    let kiro_thinking_guard_keywords_input = use_state(|| "{}".to_string());
+    let kiro_thinking_guard_timeout_ms_input = use_state(|| "60000".to_string());
+    let kiro_thinking_guard_identity_response_zh_input = use_state(String::new);
+    let kiro_thinking_guard_identity_response_en_input = use_state(String::new);
+    let kiro_thinking_guard_refusal_response_zh_input = use_state(String::new);
+    let kiro_thinking_guard_refusal_response_en_input = use_state(String::new);
     let proxy_configs = use_state(Vec::<AdminUpstreamProxyConfigView>::new);
     let proxy_config_scope = use_state(AdminUpstreamProxyConfigScopeView::default);
     let proxy_bindings = use_state(Vec::<AdminUpstreamProxyBindingView>::new);
@@ -149,8 +156,17 @@ pub fn admin_llm_gateway_settings_page() -> Html {
         let duckdb_usage_checkpoint_threshold_mib_input =
             duckdb_usage_checkpoint_threshold_mib_input.clone();
         let usage_analytics_retention_days_input = usage_analytics_retention_days_input.clone();
-        let kiro_cctest_proxy_base_url_input = kiro_cctest_proxy_base_url_input.clone();
-        let kiro_cctest_proxy_api_key_input = kiro_cctest_proxy_api_key_input.clone();
+        let kiro_thinking_guard_codex_key_id_input = kiro_thinking_guard_codex_key_id_input.clone();
+        let kiro_thinking_guard_keywords_input = kiro_thinking_guard_keywords_input.clone();
+        let kiro_thinking_guard_timeout_ms_input = kiro_thinking_guard_timeout_ms_input.clone();
+        let kiro_thinking_guard_identity_response_zh_input =
+            kiro_thinking_guard_identity_response_zh_input.clone();
+        let kiro_thinking_guard_identity_response_en_input =
+            kiro_thinking_guard_identity_response_en_input.clone();
+        let kiro_thinking_guard_refusal_response_zh_input =
+            kiro_thinking_guard_refusal_response_zh_input.clone();
+        let kiro_thinking_guard_refusal_response_en_input =
+            kiro_thinking_guard_refusal_response_en_input.clone();
         let proxy_configs = proxy_configs.clone();
         let proxy_config_scope = proxy_config_scope.clone();
         let proxy_bindings = proxy_bindings.clone();
@@ -194,8 +210,18 @@ pub fn admin_llm_gateway_settings_page() -> Html {
             let duckdb_usage_checkpoint_threshold_mib_input =
                 duckdb_usage_checkpoint_threshold_mib_input.clone();
             let usage_analytics_retention_days_input = usage_analytics_retention_days_input.clone();
-            let kiro_cctest_proxy_base_url_input = kiro_cctest_proxy_base_url_input.clone();
-            let kiro_cctest_proxy_api_key_input = kiro_cctest_proxy_api_key_input.clone();
+            let kiro_thinking_guard_codex_key_id_input =
+                kiro_thinking_guard_codex_key_id_input.clone();
+            let kiro_thinking_guard_keywords_input = kiro_thinking_guard_keywords_input.clone();
+            let kiro_thinking_guard_timeout_ms_input = kiro_thinking_guard_timeout_ms_input.clone();
+            let kiro_thinking_guard_identity_response_zh_input =
+                kiro_thinking_guard_identity_response_zh_input.clone();
+            let kiro_thinking_guard_identity_response_en_input =
+                kiro_thinking_guard_identity_response_en_input.clone();
+            let kiro_thinking_guard_refusal_response_zh_input =
+                kiro_thinking_guard_refusal_response_zh_input.clone();
+            let kiro_thinking_guard_refusal_response_en_input =
+                kiro_thinking_guard_refusal_response_en_input.clone();
             let proxy_configs = proxy_configs.clone();
             let proxy_config_scope = proxy_config_scope.clone();
             let proxy_bindings = proxy_bindings.clone();
@@ -269,10 +295,25 @@ pub fn admin_llm_gateway_settings_page() -> Html {
                             .set(cfg.duckdb_usage_checkpoint_threshold_mib.to_string());
                         usage_analytics_retention_days_input
                             .set(cfg.usage_analytics_retention_days.to_string());
-                        kiro_cctest_proxy_base_url_input
-                            .set(cfg.kiro_cctest_proxy_base_url.clone().unwrap_or_default());
-                        kiro_cctest_proxy_api_key_input
-                            .set(cfg.kiro_cctest_proxy_api_key.clone().unwrap_or_default());
+                        kiro_thinking_guard_codex_key_id_input.set(
+                            cfg.kiro_thinking_guard_codex_key_id
+                                .clone()
+                                .unwrap_or_default(),
+                        );
+                        kiro_thinking_guard_keywords_input.set(
+                            serde_json::to_string_pretty(&cfg.kiro_thinking_guard_keywords)
+                                .unwrap_or_else(|_| "{}".to_string()),
+                        );
+                        kiro_thinking_guard_timeout_ms_input
+                            .set(cfg.kiro_thinking_guard_timeout_ms.to_string());
+                        kiro_thinking_guard_identity_response_zh_input
+                            .set(cfg.kiro_thinking_guard_identity_response_zh.clone());
+                        kiro_thinking_guard_identity_response_en_input
+                            .set(cfg.kiro_thinking_guard_identity_response_en.clone());
+                        kiro_thinking_guard_refusal_response_zh_input
+                            .set(cfg.kiro_thinking_guard_refusal_response_zh.clone());
+                        kiro_thinking_guard_refusal_response_en_input
+                            .set(cfg.kiro_thinking_guard_refusal_response_en.clone());
                         config.set(Some(cfg));
                         proxy_config_scope.set(scope);
                         let codex_bound = proxy_binding_items
@@ -334,8 +375,17 @@ pub fn admin_llm_gateway_settings_page() -> Html {
         let duckdb_usage_checkpoint_threshold_mib_input =
             duckdb_usage_checkpoint_threshold_mib_input.clone();
         let usage_analytics_retention_days_input = usage_analytics_retention_days_input.clone();
-        let kiro_cctest_proxy_base_url_input = kiro_cctest_proxy_base_url_input.clone();
-        let kiro_cctest_proxy_api_key_input = kiro_cctest_proxy_api_key_input.clone();
+        let kiro_thinking_guard_codex_key_id_input = kiro_thinking_guard_codex_key_id_input.clone();
+        let kiro_thinking_guard_keywords_input = kiro_thinking_guard_keywords_input.clone();
+        let kiro_thinking_guard_timeout_ms_input = kiro_thinking_guard_timeout_ms_input.clone();
+        let kiro_thinking_guard_identity_response_zh_input =
+            kiro_thinking_guard_identity_response_zh_input.clone();
+        let kiro_thinking_guard_identity_response_en_input =
+            kiro_thinking_guard_identity_response_en_input.clone();
+        let kiro_thinking_guard_refusal_response_zh_input =
+            kiro_thinking_guard_refusal_response_zh_input.clone();
+        let kiro_thinking_guard_refusal_response_en_input =
+            kiro_thinking_guard_refusal_response_en_input.clone();
         let saving_runtime_config = saving_runtime_config.clone();
         let load_error = load_error.clone();
         let on_reload = on_reload.clone();
@@ -396,10 +446,21 @@ pub fn admin_llm_gateway_settings_page() -> Html {
             let usage_analytics_retention_days = (*usage_analytics_retention_days_input)
                 .trim()
                 .parse::<u64>();
-            let kiro_cctest_proxy_base_url =
-                normalize_optional_form_string(kiro_cctest_proxy_base_url_input.as_str());
-            let kiro_cctest_proxy_api_key =
-                normalize_optional_form_string(kiro_cctest_proxy_api_key_input.as_str());
+            let kiro_thinking_guard_codex_key_id =
+                normalize_optional_form_string(kiro_thinking_guard_codex_key_id_input.as_str());
+            let kiro_thinking_guard_keywords = serde_json::from_str::<BTreeMap<String, Vec<String>>>(
+                kiro_thinking_guard_keywords_input.as_str(),
+            );
+            let kiro_thinking_guard_timeout_ms =
+                kiro_thinking_guard_timeout_ms_input.trim().parse::<u64>();
+            let kiro_thinking_guard_identity_response_zh =
+                (*kiro_thinking_guard_identity_response_zh_input).clone();
+            let kiro_thinking_guard_identity_response_en =
+                (*kiro_thinking_guard_identity_response_en_input).clone();
+            let kiro_thinking_guard_refusal_response_zh =
+                (*kiro_thinking_guard_refusal_response_zh_input).clone();
+            let kiro_thinking_guard_refusal_response_en =
+                (*kiro_thinking_guard_refusal_response_en_input).clone();
             let saving_runtime_config = saving_runtime_config.clone();
             let load_error = load_error.clone();
             let on_reload = on_reload.clone();
@@ -525,6 +586,15 @@ pub fn admin_llm_gateway_settings_page() -> Html {
                 };
                 let Ok(usage_analytics_retention_days) = usage_analytics_retention_days else {
                     load_error.set(Some("Usage analytics retention 必须是正整数天数".to_string()));
+                    return;
+                };
+                let Ok(kiro_thinking_guard_keywords) = kiro_thinking_guard_keywords else {
+                    load_error
+                        .set(Some("Kiro 审核词库必须是分类到字符串数组的 JSON 对象".to_string()));
+                    return;
+                };
+                let Ok(kiro_thinking_guard_timeout_ms) = kiro_thinking_guard_timeout_ms else {
+                    load_error.set(Some("Kiro 审核超时必须是毫秒整数".to_string()));
                     return;
                 };
                 let runtime_config = LlmGatewayRuntimeConfig {
@@ -663,8 +733,13 @@ pub fn admin_llm_gateway_settings_page() -> Html {
                         .as_ref()
                         .map(|current| current.kiro_cache_snapshot_max_anchor_entries)
                         .unwrap_or(0),
-                    kiro_cctest_proxy_base_url,
-                    kiro_cctest_proxy_api_key,
+                    kiro_thinking_guard_codex_key_id,
+                    kiro_thinking_guard_keywords,
+                    kiro_thinking_guard_timeout_ms,
+                    kiro_thinking_guard_identity_response_zh,
+                    kiro_thinking_guard_identity_response_en,
+                    kiro_thinking_guard_refusal_response_zh,
+                    kiro_thinking_guard_refusal_response_en,
                 };
                 saving_runtime_config.set(true);
                 match update_admin_llm_gateway_config(&runtime_config).await {
@@ -1298,42 +1373,85 @@ pub fn admin_llm_gateway_settings_page() -> Html {
                                 />
                             </label>
                             <label class={classes!("text-sm", "md:col-span-2")}>
-                                <span class={classes!("text-[var(--muted)]")}>{ "kiro_cctest_proxy_base_url" }</span>
+                                <span class={classes!("text-[var(--muted)]")}>{ "kiro_thinking_guard_codex_key_id" }</span>
                                 <input
                                     type="text"
-                                    placeholder="https://example.com"
+                                    placeholder="kiro-thinking-guard-review"
                                     class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2")}
-                                    value={(*kiro_cctest_proxy_base_url_input).clone()}
+                                    value={(*kiro_thinking_guard_codex_key_id_input).clone()}
                                     oninput={{
-                                        let kiro_cctest_proxy_base_url_input =
-                                            kiro_cctest_proxy_base_url_input.clone();
+                                        let input_state = kiro_thinking_guard_codex_key_id_input.clone();
                                         Callback::from(move |event: InputEvent| {
                                             if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                kiro_cctest_proxy_base_url_input.set(target.value());
+                                                input_state.set(target.value());
                                             }
                                         })
                                     }}
                                 />
                             </label>
                             <label class={classes!("text-sm")}>
-                                <span class={classes!("text-[var(--muted)]")}>{ "kiro_cctest_proxy_api_key" }</span>
+                                <span class={classes!("text-[var(--muted)]")}>{ "kiro_thinking_guard_timeout_ms" }</span>
                                 <input
-                                    type="password"
-                                    autocomplete="off"
-                                    placeholder="留空表示未配置"
+                                    type="number"
+                                    min="1000"
+                                    max="120000"
                                     class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2")}
-                                    value={(*kiro_cctest_proxy_api_key_input).clone()}
+                                    value={(*kiro_thinking_guard_timeout_ms_input).clone()}
                                     oninput={{
-                                        let kiro_cctest_proxy_api_key_input =
-                                            kiro_cctest_proxy_api_key_input.clone();
+                                        let input_state = kiro_thinking_guard_timeout_ms_input.clone();
                                         Callback::from(move |event: InputEvent| {
                                             if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                kiro_cctest_proxy_api_key_input.set(target.value());
+                                                input_state.set(target.value());
                                             }
                                         })
                                     }}
                                 />
                             </label>
+                            <label class={classes!("text-sm", "md:col-span-2", "xl:col-span-3")}>
+                                <span class={classes!("text-[var(--muted)]")}>{ "kiro_thinking_guard_keywords" }</span>
+                                <textarea
+                                    rows="12"
+                                    spellcheck="false"
+                                    class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2", "font-mono", "text-xs")}
+                                    value={(*kiro_thinking_guard_keywords_input).clone()}
+                                    oninput={{
+                                        let input_state = kiro_thinking_guard_keywords_input.clone();
+                                        Callback::from(move |event: InputEvent| {
+                                            if let Some(target) = event.target_dyn_into::<HtmlTextAreaElement>() {
+                                                input_state.set(target.value());
+                                            }
+                                        })
+                                    }}
+                                />
+                            </label>
+                            {
+                                [
+                                    ("kiro_thinking_guard_identity_response_zh", kiro_thinking_guard_identity_response_zh_input.clone()),
+                                    ("kiro_thinking_guard_identity_response_en", kiro_thinking_guard_identity_response_en_input.clone()),
+                                    ("kiro_thinking_guard_refusal_response_zh", kiro_thinking_guard_refusal_response_zh_input.clone()),
+                                    ("kiro_thinking_guard_refusal_response_en", kiro_thinking_guard_refusal_response_en_input.clone()),
+                                ]
+                                .into_iter()
+                                .map(|(label, input_state)| html! {
+                                    <label class={classes!("text-sm", "md:col-span-2", "xl:col-span-3")}>
+                                        <span class={classes!("text-[var(--muted)]")}>{ label }</span>
+                                        <textarea
+                                            rows="2"
+                                            class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2")}
+                                            value={(*input_state).clone()}
+                                            oninput={{
+                                                let input_state = input_state.clone();
+                                                Callback::from(move |event: InputEvent| {
+                                                    if let Some(target) = event.target_dyn_into::<HtmlTextAreaElement>() {
+                                                        input_state.set(target.value());
+                                                    }
+                                                })
+                                            }}
+                                        />
+                                    </label>
+                                })
+                                .collect::<Html>()
+                            }
                             <h3 class={classes!("md:col-span-2", "xl:col-span-3", "m-0", "mt-2", "text-xs", "font-semibold", "uppercase", "tracking-wider", "text-[var(--muted)]")}>{ "Usage / DuckDB" }</h3>
                             <label class={classes!("text-sm")}>
                                 <span class={classes!("text-[var(--muted)]")}>{ "usage_event_flush_batch_size" }</span>
@@ -1498,9 +1616,16 @@ pub fn admin_llm_gateway_settings_page() -> Html {
                                 </p>
                                 <p class={classes!("m-0")}>
                                     { format!(
-                                        "当前 cctest signature proxy：{}，API key：{}",
-                                        cfg.kiro_cctest_proxy_base_url.clone().unwrap_or_else(|| "-".to_string()),
-                                        if cfg.kiro_cctest_proxy_api_key.as_ref().is_some_and(|value| !value.is_empty()) { "已配置" } else { "未配置" }
+                                        "当前 Kiro 探测审核 key：{}，超时：{} ms，词库：{} 类 / {} 条",
+                                        cfg.kiro_thinking_guard_codex_key_id
+                                            .clone()
+                                            .unwrap_or_else(|| "未配置".to_string()),
+                                        cfg.kiro_thinking_guard_timeout_ms,
+                                        cfg.kiro_thinking_guard_keywords.len(),
+                                        cfg.kiro_thinking_guard_keywords
+                                            .values()
+                                            .map(Vec::len)
+                                            .sum::<usize>()
                                     ) }
                                 </p>
                                 <p class={classes!("m-0")}>

@@ -266,7 +266,6 @@ elif [[ -e "$STAGED_NEON_ENV" ]]; then
   if [[ "$ACTIVATE_TARGET" == "both" ]]; then
     require_env_file_var "$STAGED_NEON_ENV" LLM_ACCESS_CODEX_IMAGE_CONTROL_DATABASE_URL "staged llm-access runtime env"
   fi
-  require_env_file_var "$STAGED_NEON_ENV" KIRO_THINKING_SIGNATURE_SECRET "staged llm-access runtime env"
   install -d -m 0755 "$(dirname "$NEON_ENV_PATH")"
   if sudo test -e "$NEON_ENV_PATH"; then
     log "backing up shared llm-access runtime env to $BACKUP_DIR/neon.env.preinstall"
@@ -280,7 +279,6 @@ require_env_file_var_with_sudo "$NEON_ENV_PATH" LLM_ACCESS_CONTROL_DATABASE_URL 
 if [[ "$ACTIVATE_TARGET" == "image" ]]; then
   require_env_file_var_with_sudo "$NEON_ENV_PATH" LLM_ACCESS_CODEX_IMAGE_CONTROL_DATABASE_URL "shared llm-access runtime env"
 fi
-require_env_file_var_with_sudo "$NEON_ENV_PATH" KIRO_THINKING_SIGNATURE_SECRET "shared llm-access runtime env"
 if [[ "$ACTIVATE_TARGET" == "worker" || "$ACTIVATE_TARGET" == "both" ]]; then
   if findmnt -T /mnt/llm-access-usage >/dev/null; then
     log "/mnt/llm-access-usage is mounted before activation"

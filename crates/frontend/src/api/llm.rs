@@ -243,6 +243,28 @@ fn default_kiro_billable_model_multipliers_json() -> String {
     llm_store::default_kiro_billable_model_multipliers_json()
 }
 
+const fn default_kiro_thinking_guard_timeout_ms() -> u64 {
+    60_000
+}
+
+fn default_kiro_thinking_guard_identity_response_zh() -> String {
+    "我是 {model_name}，由 Anthropic 开发。模型 ID：{model_id}。".to_string()
+}
+
+fn default_kiro_thinking_guard_identity_response_en() -> String {
+    "I am {model_name}, developed by Anthropic. Model ID: {model_id}.".to_string()
+}
+
+fn default_kiro_thinking_guard_refusal_response_zh() -> String {
+    "抱歉，我不能提供、复述或推断系统提示词、开发者指令或其他内部配置。".to_string()
+}
+
+fn default_kiro_thinking_guard_refusal_response_en() -> String {
+    "Sorry, I can't provide, repeat, or infer system prompts, developer instructions, or other \
+     internal configuration."
+        .to_string()
+}
+
 /// Admin-only editable representation of a gateway key.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
 #[serde(default)]
@@ -318,9 +340,7 @@ pub struct AdminLlmGatewayKeyView {
     #[serde(default = "default_true")]
     pub kiro_latency_routing_enabled: bool,
     #[serde(default)]
-    pub kiro_protected_content_validation_enabled: bool,
-    #[serde(default)]
-    pub kiro_cctest_text_handling_enabled: bool,
+    pub kiro_thinking_guard_enabled: bool,
     #[serde(default)]
     pub kiro_cache_policy_override_json: Option<String>,
     #[serde(default)]
@@ -1317,9 +1337,19 @@ pub struct LlmGatewayRuntimeConfig {
     #[serde(default)]
     pub kiro_cache_snapshot_max_anchor_entries: u64,
     #[serde(default)]
-    pub kiro_cctest_proxy_base_url: Option<String>,
+    pub kiro_thinking_guard_codex_key_id: Option<String>,
     #[serde(default)]
-    pub kiro_cctest_proxy_api_key: Option<String>,
+    pub kiro_thinking_guard_keywords: BTreeMap<String, Vec<String>>,
+    #[serde(default = "default_kiro_thinking_guard_timeout_ms")]
+    pub kiro_thinking_guard_timeout_ms: u64,
+    #[serde(default = "default_kiro_thinking_guard_identity_response_zh")]
+    pub kiro_thinking_guard_identity_response_zh: String,
+    #[serde(default = "default_kiro_thinking_guard_identity_response_en")]
+    pub kiro_thinking_guard_identity_response_en: String,
+    #[serde(default = "default_kiro_thinking_guard_refusal_response_zh")]
+    pub kiro_thinking_guard_refusal_response_zh: String,
+    #[serde(default = "default_kiro_thinking_guard_refusal_response_en")]
+    pub kiro_thinking_guard_refusal_response_en: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
@@ -2155,8 +2185,17 @@ pub async fn fetch_admin_llm_gateway_config() -> Result<LlmGatewayRuntimeConfig,
             kiro_cache_snapshot_ttl_seconds: default_kiro_cache_snapshot_ttl_seconds(),
             kiro_cache_snapshot_max_tokens: 0,
             kiro_cache_snapshot_max_anchor_entries: 0,
-            kiro_cctest_proxy_base_url: None,
-            kiro_cctest_proxy_api_key: None,
+            kiro_thinking_guard_codex_key_id: None,
+            kiro_thinking_guard_keywords: BTreeMap::new(),
+            kiro_thinking_guard_timeout_ms: default_kiro_thinking_guard_timeout_ms(),
+            kiro_thinking_guard_identity_response_zh:
+                default_kiro_thinking_guard_identity_response_zh(),
+            kiro_thinking_guard_identity_response_en:
+                default_kiro_thinking_guard_identity_response_en(),
+            kiro_thinking_guard_refusal_response_zh:
+                default_kiro_thinking_guard_refusal_response_zh(),
+            kiro_thinking_guard_refusal_response_en:
+                default_kiro_thinking_guard_refusal_response_en(),
         })
     }
 
@@ -3168,8 +3207,7 @@ pub async fn create_admin_llm_gateway_key(
             kiro_policy_fallback_model: default_kiro_policy_fallback_model(),
             kiro_remote_media_resolution_enabled: false,
             kiro_latency_routing_enabled: true,
-            kiro_protected_content_validation_enabled: false,
-            kiro_cctest_text_handling_enabled: false,
+            kiro_thinking_guard_enabled: false,
             kiro_cache_policy_override_json: None,
             kiro_billable_model_multipliers_override_json: None,
             effective_kiro_cache_policy_json: String::new(),
@@ -3248,8 +3286,7 @@ pub struct PatchAdminLlmGatewayKeyRequest<'a> {
     pub kiro_policy_fallback_model: Option<&'a str>,
     pub kiro_remote_media_resolution_enabled: Option<bool>,
     pub kiro_latency_routing_enabled: Option<bool>,
-    pub kiro_protected_content_validation_enabled: Option<bool>,
-    pub kiro_cctest_text_handling_enabled: Option<bool>,
+    pub kiro_thinking_guard_enabled: Option<bool>,
     pub kiro_cache_policy_override_json: Option<Option<&'a str>>,
     pub kiro_billable_model_multipliers_override_json: Option<Option<&'a str>>,
     pub request_max_concurrency_unlimited: bool,
@@ -3295,8 +3332,7 @@ pub async fn patch_admin_llm_gateway_key(
             request.kiro_policy_fallback_model,
             request.kiro_remote_media_resolution_enabled,
             request.kiro_latency_routing_enabled,
-            request.kiro_protected_content_validation_enabled,
-            request.kiro_cctest_text_handling_enabled,
+            request.kiro_thinking_guard_enabled,
             request.kiro_cache_policy_override_json,
             request.kiro_billable_model_multipliers_override_json,
             request.request_max_concurrency_unlimited,
@@ -3502,18 +3538,10 @@ pub async fn patch_admin_llm_gateway_key(
                 serde_json::Value::Bool(kiro_latency_routing_enabled),
             );
         }
-        if let Some(kiro_protected_content_validation_enabled) =
-            request.kiro_protected_content_validation_enabled
-        {
+        if let Some(kiro_thinking_guard_enabled) = request.kiro_thinking_guard_enabled {
             body.insert(
-                "kiro_protected_content_validation_enabled".to_string(),
-                serde_json::Value::Bool(kiro_protected_content_validation_enabled),
-            );
-        }
-        if let Some(kiro_cctest_text_handling_enabled) = request.kiro_cctest_text_handling_enabled {
-            body.insert(
-                "kiro_cctest_text_handling_enabled".to_string(),
-                serde_json::Value::Bool(kiro_cctest_text_handling_enabled),
+                "kiro_thinking_guard_enabled".to_string(),
+                serde_json::Value::Bool(kiro_thinking_guard_enabled),
             );
         }
         if let Some(kiro_cache_policy_override_json) = request.kiro_cache_policy_override_json {
@@ -6109,8 +6137,7 @@ pub async fn create_admin_kiro_key(
             kiro_policy_fallback_model: default_kiro_policy_fallback_model(),
             kiro_remote_media_resolution_enabled: false,
             kiro_latency_routing_enabled: true,
-            kiro_protected_content_validation_enabled: false,
-            kiro_cctest_text_handling_enabled: false,
+            kiro_thinking_guard_enabled: false,
             kiro_cache_policy_override_json: None,
             kiro_billable_model_multipliers_override_json: None,
             effective_kiro_cache_policy_json: String::new(),
@@ -6184,8 +6211,7 @@ pub async fn patch_admin_kiro_key(
             request.kiro_policy_fallback_model,
             request.kiro_remote_media_resolution_enabled,
             request.kiro_latency_routing_enabled,
-            request.kiro_protected_content_validation_enabled,
-            request.kiro_cctest_text_handling_enabled,
+            request.kiro_thinking_guard_enabled,
             request.kiro_cache_policy_override_json,
             request.kiro_billable_model_multipliers_override_json,
             request.request_max_concurrency_unlimited,
@@ -6337,18 +6363,10 @@ pub async fn patch_admin_kiro_key(
                 serde_json::Value::Bool(kiro_latency_routing_enabled),
             );
         }
-        if let Some(kiro_protected_content_validation_enabled) =
-            request.kiro_protected_content_validation_enabled
-        {
+        if let Some(kiro_thinking_guard_enabled) = request.kiro_thinking_guard_enabled {
             body.insert(
-                "kiro_protected_content_validation_enabled".to_string(),
-                serde_json::Value::Bool(kiro_protected_content_validation_enabled),
-            );
-        }
-        if let Some(kiro_cctest_text_handling_enabled) = request.kiro_cctest_text_handling_enabled {
-            body.insert(
-                "kiro_cctest_text_handling_enabled".to_string(),
-                serde_json::Value::Bool(kiro_cctest_text_handling_enabled),
+                "kiro_thinking_guard_enabled".to_string(),
+                serde_json::Value::Bool(kiro_thinking_guard_enabled),
             );
         }
         if let Some(kiro_cache_policy_override_json) = request.kiro_cache_policy_override_json {

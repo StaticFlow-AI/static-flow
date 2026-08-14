@@ -39,7 +39,7 @@ grep -F '.local/llm-access-cloud-release.env' "$WORKER_ONLY_SCRIPT" >/dev/null
 grep -F '.local/llm-access-cloud-release-aws.env' "$IMAGE_ONLY_SCRIPT" >/dev/null
 grep -F '.local/llm-access-cloud-release.env' "$IMAGE_ONLY_SCRIPT" >/dev/null
 grep -F 'source "$CONFIG_FILE"' "$LOCAL_SCRIPT" >/dev/null
-grep -F 'KIRO_THINKING_SIGNATURE_SECRET' "$LOCAL_SCRIPT" >/dev/null
+! grep -F 'KIRO_THINKING_SIGNATURE_SECRET' "$LOCAL_SCRIPT" >/dev/null
 ! grep -F 'pgrep' "$LOCAL_SCRIPT" >/dev/null
 ! grep -F 'another Rust/frontend build appears to be running' "$LOCAL_SCRIPT" >/dev/null
 ! grep -F 'GCP_HOST="${GCP_HOST:-' "$LOCAL_SCRIPT" >/dev/null
@@ -49,7 +49,7 @@ grep -F 'KIRO_THINKING_SIGNATURE_SECRET' "$LOCAL_SCRIPT" >/dev/null
 grep -F 'sudo mv -f' "$REMOTE_SCRIPT" >/dev/null
 grep -F 'systemctl restart' "$REMOTE_SCRIPT" >/dev/null
 grep -F 'http://127.0.0.1:19080/healthz' "$REMOTE_SCRIPT" >/dev/null
-grep -F 'KIRO_THINKING_SIGNATURE_SECRET' "$REMOTE_SCRIPT" >/dev/null
+! grep -F 'KIRO_THINKING_SIGNATURE_SECRET' "$REMOTE_SCRIPT" >/dev/null
 grep -F 'LLM_ACCESS_CODEX_IMAGE_CONTROL_DATABASE_URL' "$LOCAL_SCRIPT" >/dev/null
 grep -F 'LLM_ACCESS_CODEX_IMAGE_CONTROL_DATABASE_URL' "$REMOTE_SCRIPT" >/dev/null
 grep -F 'LLM_ACCESS_ACTIVATE_TARGET=api' "$API_ONLY_SCRIPT" >/dev/null
@@ -70,7 +70,7 @@ grep -F 'skipping staged shared runtime env install for image-only activation' "
 grep -F 'GCP_HOST=' "$CONFIG_EXAMPLE" >/dev/null
 grep -F 'GCP_SSH_KEY=' "$CONFIG_EXAMPLE" >/dev/null
 grep -F 'REMOTE_RELEASE_DIR=' "$CONFIG_EXAMPLE" >/dev/null
-grep -F 'KIRO_THINKING_SIGNATURE_SECRET' "$CONFIG_EXAMPLE" >/dev/null
+! grep -F 'KIRO_THINKING_SIGNATURE_SECRET' "$CONFIG_EXAMPLE" >/dev/null
 grep -F 'PB_MAPPER_RELAY_ADDR=' "$CONFIG_EXAMPLE" >/dev/null
 grep -F 'PB_MAPPER_LOCAL_RELAY_ADDR=' "$CONFIG_EXAMPLE" >/dev/null
 grep -F 'VALKEY_SSH_TARGET=' "$CONFIG_EXAMPLE" >/dev/null

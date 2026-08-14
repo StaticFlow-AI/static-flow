@@ -328,6 +328,51 @@ pub(crate) fn routing_diagnostics_summary(raw: &str) -> Vec<(String, String)> {
         return Vec::new();
     };
     let mut rows = Vec::new();
+    if value
+        .get("special_request_type")
+        .and_then(|value| value.as_str())
+        == Some("kiro_thinking_guard_review")
+    {
+        rows.push(("Special request".to_string(), "Kiro Codex auto review".to_string()));
+    }
+    if let Some(review_id) = value.get("review_id").and_then(|value| value.as_str()) {
+        rows.push(("Review ID".to_string(), review_id.to_string()));
+    }
+    if let Some(guard) = value
+        .get("kiro_thinking_guard")
+        .and_then(|value| value.as_object())
+    {
+        if let Some(outcome) = guard.get("review_outcome").and_then(|value| value.as_str()) {
+            rows.push(("Guard outcome".to_string(), outcome.to_string()));
+        } else if guard.get("matched").and_then(|value| value.as_bool()) == Some(true) {
+            rows.push(("Guard outcome".to_string(), "review failed closed".to_string()));
+        }
+        if let Some(categories) = guard
+            .get("matched_categories")
+            .and_then(|value| value.as_array())
+        {
+            let categories = categories
+                .iter()
+                .filter_map(|value| value.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
+            if !categories.is_empty() {
+                rows.push(("Guard categories".to_string(), categories));
+            }
+        }
+        if let Some(latency_ms) = guard
+            .get("review_latency_ms")
+            .and_then(|value| value.as_u64())
+        {
+            rows.push(("Guard review".to_string(), format!("{latency_ms} ms")));
+        }
+    }
+    if let Some(kind) = value
+        .get("review_failure_kind")
+        .and_then(|value| value.as_str())
+    {
+        rows.push(("Review failure".to_string(), kind.to_string()));
+    }
     let mut push_ms = |label: &str, key: &str| {
         if let Some(value) = value.get(key).and_then(|value| value.as_u64()) {
             rows.push((label.to_string(), format!("{value} ms")));
@@ -415,6 +460,50 @@ pub(crate) fn routing_diagnostics_summary(raw: &str) -> Vec<(String, String)> {
         rows.push(("Kiro policy fallback".to_string(), format!("{source} -> {target} ({result})")));
     }
     rows
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum KiroGuardBadgeTone {
+    Info,
+    Allow,
+    Block,
+}
+
+pub(crate) struct KiroGuardUsageBadge {
+    pub(crate) label: String,
+    pub(crate) tone: KiroGuardBadgeTone,
+}
+
+pub(crate) fn kiro_guard_usage_badge(raw: Option<&str>) -> Option<KiroGuardUsageBadge> {
+    let value = serde_json::from_str::<serde_json::Value>(raw?).ok()?;
+    if value
+        .get("special_request_type")
+        .and_then(|value| value.as_str())
+        == Some("kiro_thinking_guard_review")
+    {
+        return Some(KiroGuardUsageBadge {
+            label: "Codex 自动审核".to_string(),
+            tone: KiroGuardBadgeTone::Info,
+        });
+    }
+    let guard = value.get("kiro_thinking_guard")?.as_object()?;
+    if guard.get("matched").and_then(|value| value.as_bool()) != Some(true) {
+        return None;
+    }
+    match guard.get("review_outcome").and_then(|value| value.as_str()) {
+        Some("allow") => Some(KiroGuardUsageBadge {
+            label: "审核放行".to_string(),
+            tone: KiroGuardBadgeTone::Allow,
+        }),
+        Some(outcome) => Some(KiroGuardUsageBadge {
+            label: format!("审核拦截 · {outcome}"),
+            tone: KiroGuardBadgeTone::Block,
+        }),
+        None => Some(KiroGuardUsageBadge {
+            label: "审核失败 · 已拦截".to_string(),
+            tone: KiroGuardBadgeTone::Block,
+        }),
+    }
 }
 
 pub(crate) fn format_credit4(value: f64) -> String {
@@ -1040,8 +1129,7 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
                     kiro_policy_fallback_model: None,
                     kiro_remote_media_resolution_enabled: None,
                     kiro_latency_routing_enabled: None,
-                    kiro_protected_content_validation_enabled: None,
-                    kiro_cctest_text_handling_enabled: None,
+                    kiro_thinking_guard_enabled: None,
                     kiro_cache_policy_override_json: None,
                     kiro_billable_model_multipliers_override_json: None,
                     request_max_concurrency_unlimited: request_max_concurrency_value.is_none(),
@@ -2758,5 +2846,26 @@ mod tests {
             label == "Kiro policy fallback"
                 && value == "claude-opus-5 -> claude-opus-4-6 (succeeded)"
         }));
+    }
+
+    #[test]
+    fn routing_diagnostics_summary_surfaces_kiro_guard_review() {
+        let rows = routing_diagnostics_summary(
+            r#"{"kiro_thinking_guard":{"matched":true,"matched_categories":["identity_probe"],"review_outcome":"identity_probe","review_latency_ms":42},"review_id":"kiro-review-1"}"#,
+        );
+
+        assert!(rows
+            .iter()
+            .any(|(label, value)| label == "Guard outcome" && value == "identity_probe"));
+        assert!(rows
+            .iter()
+            .any(|(label, value)| label == "Review ID" && value == "kiro-review-1"));
+        assert_eq!(
+            kiro_guard_usage_badge(Some(
+                r#"{"kiro_thinking_guard":{"matched":true,"review_outcome":"identity_probe"}}"#,
+            ))
+            .map(|badge| badge.label),
+            Some("审核拦截 · identity_probe".to_string())
+        );
     }
 }

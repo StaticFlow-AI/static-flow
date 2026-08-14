@@ -14,13 +14,13 @@ use super::admin_llm_gateway::{
     compute_other_latency_ms, copy_icon_button, effective_routing_wait_ms, format_credit4,
     format_datetime_local_input, format_latency_breakdown, format_optional_bytes,
     format_optional_latency_ms, format_optional_latency_ms_or_na, format_stream_summary,
-    normalized_usage_filter_text, normalized_usage_status_kind, parse_datetime_local_input_to_ms,
-    pretty_headers_json, pretty_json_text, routing_diagnostics_summary, usage_account_label,
-    usage_retry_title, usage_source_label, usage_status_kind_label,
-    usage_stream_state_badge_classes, usage_stream_state_label, usage_time_description,
-    LatencyBreakdown, UsageReloadArgs, USAGE_KEY_OPTION_LIMIT, USAGE_PAGE_SIZE, USAGE_SOURCE_ALL,
-    USAGE_SOURCE_ARCHIVE, USAGE_SOURCE_HOT, USAGE_STATUS_KIND_ALL, USAGE_STATUS_KIND_NON_OK,
-    USAGE_STATUS_KIND_OK,
+    kiro_guard_usage_badge, normalized_usage_filter_text, normalized_usage_status_kind,
+    parse_datetime_local_input_to_ms, pretty_headers_json, pretty_json_text,
+    routing_diagnostics_summary, usage_account_label, usage_retry_title, usage_source_label,
+    usage_status_kind_label, usage_stream_state_badge_classes, usage_stream_state_label,
+    usage_time_description, KiroGuardBadgeTone, LatencyBreakdown, UsageReloadArgs,
+    USAGE_KEY_OPTION_LIMIT, USAGE_PAGE_SIZE, USAGE_SOURCE_ALL, USAGE_SOURCE_ARCHIVE,
+    USAGE_SOURCE_HOT, USAGE_STATUS_KIND_ALL, USAGE_STATUS_KIND_NON_OK, USAGE_STATUS_KIND_OK,
 };
 use crate::{
     api::{
@@ -1274,6 +1274,9 @@ pub fn admin_llm_gateway_usage_page() -> Html {
                                         let kiro_input_growth = kiro_input_growth_badge(
                                             event.routing_diagnostics_json.as_deref(),
                                         );
+                                        let kiro_guard_badge = kiro_guard_usage_badge(
+                                            event.routing_diagnostics_json.as_deref(),
+                                        );
                                         html! {
                                             <tr class={classes!("border-t", "border-[var(--border)]", "align-top")}>
                                                 <td class={classes!("py-2", "pl-3", "pr-3", "whitespace-nowrap")}>
@@ -1315,6 +1318,28 @@ pub fn admin_llm_gateway_usage_page() -> Html {
                                                         )}>
                                                             { format!("status {}", event.status_code) }
                                                         </span>
+                                                        if let Some(badge) = kiro_guard_badge {
+                                                            <span class={classes!(
+                                                                "inline-flex", "items-center", "rounded-full", "border", "px-2", "py-0.5", "font-mono", "text-[11px]", "font-semibold",
+                                                                match badge.tone {
+                                                                    KiroGuardBadgeTone::Info => "border-sky-500/20",
+                                                                    KiroGuardBadgeTone::Allow => "border-emerald-500/20",
+                                                                    KiroGuardBadgeTone::Block => "border-red-500/20",
+                                                                },
+                                                                match badge.tone {
+                                                                    KiroGuardBadgeTone::Info => "bg-sky-500/10",
+                                                                    KiroGuardBadgeTone::Allow => "bg-emerald-500/10",
+                                                                    KiroGuardBadgeTone::Block => "bg-red-500/10",
+                                                                },
+                                                                match badge.tone {
+                                                                    KiroGuardBadgeTone::Info => "text-sky-700 dark:text-sky-200",
+                                                                    KiroGuardBadgeTone::Allow => "text-emerald-700 dark:text-emerald-200",
+                                                                    KiroGuardBadgeTone::Block => "text-red-700 dark:text-red-200",
+                                                                },
+                                                            )}>
+                                                                { badge.label }
+                                                            </span>
+                                                        }
                                                         if let Some(class_label) = error_class_label.clone() {
                                                             <span class={classes!("inline-flex", "items-center", "rounded-full", "border", "border-red-500/20", "bg-red-500/10", "px-2", "py-0.5", "font-mono", "text-[11px]", "font-semibold", "text-red-700", "dark:text-red-200")}>
                                                                 { class_label }

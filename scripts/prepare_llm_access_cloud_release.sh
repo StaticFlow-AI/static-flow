@@ -123,8 +123,6 @@ require_env_file_var "$LOCAL_NEON_ENV_FILE" LLM_ACCESS_CONTROL_DATABASE_URL "loc
 if [[ "$PREPARE_TARGET" == "image" || "$PREPARE_TARGET" == "both" ]]; then
   require_env_file_var "$LOCAL_NEON_ENV_FILE" LLM_ACCESS_CODEX_IMAGE_CONTROL_DATABASE_URL "local llm-access runtime env"
 fi
-require_env_file_var "$LOCAL_NEON_ENV_FILE" KIRO_THINKING_SIGNATURE_SECRET "local llm-access runtime env"
-
 if [[ "$ALLOW_DIRTY" != "1" ]] && [[ -n "$(git -C "$ROOT_DIR" status --porcelain --ignore-submodules=dirty)" ]]; then
   git -C "$ROOT_DIR" status --short --ignore-submodules=dirty >&2
   fail "StaticFlow working tree or llm-access submodule revision is dirty; commit first or run with ALLOW_DIRTY=1"
