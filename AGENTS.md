@@ -127,6 +127,30 @@ Completion rule:
   separate actions. Do not infer authorization for a push or deployment from a
   request to implement or commit a change.
 
+### Active Private `llm-access` Direct-Main Mode
+
+The private-repository GitHub Actions allowance is currently exhausted. Until
+the user explicitly says that private Actions capacity has been restored,
+completed maintainer work in `deps/llm-access` uses a local-review/direct-main
+workflow instead of opening a PR or waiting for GitHub-hosted CI:
+
+- Work on the child repository's `main` branch. Before publishing, perform a
+  dedicated local code-review pass over the exact diff for correctness,
+  security, provider/API contract alignment, failure behavior, and test
+  coverage; resolve every credible finding.
+- Run the child repository's required local formatting, tests, and zero-warning
+  Clippy gates. The exhausted hosted minutes do not weaken any local quality
+  gate.
+- Fetch `origin`, confirm that local `main` has not diverged from the remote,
+  then commit and push directly to the child `main` when the task includes
+  publication. Verify the remote branch tip after the push.
+- For coordinated StaticFlow changes, only after the child commit is remotely
+  reachable may the parent consumer/gitlink be committed and pushed to its own
+  `main`, again after its applicable local review and quality gates.
+- This mode applies to the private `llm-access` repository only. Existing PR/CI
+  rules remain available for repositories with working hosted CI. It does not
+  turn a request to implement or commit into authorization to deploy production.
+
 ## Communication Preference
 Spend time thinking through the task before acting. Do not send optional
 commentary or routine progress/status updates unless they unblock the work,
