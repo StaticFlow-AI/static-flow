@@ -1,5 +1,13 @@
 # LLM Gateway 管理面板拆页交接文档（P4 剩余部分）
 
+> **2026-08-16 后续状态：** llm-access 运维界面已整体迁移到独立仓库边界内的
+> `deps/llm-access/apps/llm-access-frontend`。下述 StaticFlow Admin 页面只保留为
+> 历史实现参考；现有路由统一显示迁移交接入口，不再作为功能更新目标。独立前端
+> 继续复用 AI Reviewer 工作区，并接管 Codex/Kiro、Usage、Journal、Moderation、
+> Runtime Config 与 Proxy 管理。
+> 紧急回退只能在重新构建 StaticFlow 前端时显式设置
+> `STATICFLOW_ENABLE_LEGACY_LLM_ADMIN=1`；默认构建始终显示新服务交接入口。
+
 > **✅ 本文档描述的全部工作已于 2026-07-10 完成**（commits `e6ec2f6` keys /
 > `a9d4ca7` settings / `7ddbb3d` groups / `958b40a` accounts / `f2df173`
 > requests / `3af98c3` overview 换装）。mega 面板从 8786 行缩到 ~2600 行，
@@ -24,7 +32,8 @@
 ## 1. 背景与目标
 
 这是一次持续的管理面板重构（内部代号 P1→P4），视觉基准是
-`deps/llm-access/crates/llm-access-ai-review/ui` 的 React 控制台。目标：
+当时位于 `deps/llm-access/crates/llm-access-ai-review/ui`、现已迁移到
+`deps/llm-access/apps/llm-access-frontend` 的 React 控制台。目标：
 
 - 视觉像 ai-review 控制台（`.admin-shell` 设计系统，定义在 `crates/frontend/input.css` 末尾）。
 - 功能不堆在一个巨型组件里；每个 section 一条真路由、一个独立页。

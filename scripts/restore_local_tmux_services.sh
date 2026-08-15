@@ -12,6 +12,8 @@ BACKEND_BIN="${BACKEND_BIN:-$ROOT_DIR/target/release-backend/static-flow-backend
 AI_REVIEW_ENV_FILE="${AI_REVIEW_ENV_FILE:-$ROOT_DIR/.local/llm-access-neon.env}"
 AI_REVIEW_BIN="${AI_REVIEW_BIN:-/mnt/wsl/data4tb/static-flow-data/cargo-target/static_flow/release/llm-access-ai-review}"
 AI_REVIEW_START_SCRIPT="${AI_REVIEW_START_SCRIPT:-$ROOT_DIR/scripts/start_ai_review_local.sh}"
+LLM_ACCESS_FRONTEND_DIR="${LLM_ACCESS_FRONTEND_DIR:-$ROOT_DIR/deps/llm-access/apps/llm-access-frontend}"
+LLM_ACCESS_FRONTEND_SERVICE_KEY="${LLM_ACCESS_FRONTEND_SERVICE_KEY:-ai-review-ui}"
 GPT2API_BIN="${GPT2API_BIN:-/mnt/wsl/data4tb/static-flow-data/cargo-target/gpt2api_rs/release/gpt2api-rs}"
 GPT2API_TARGET_DIR="${GPT2API_TARGET_DIR:-/mnt/wsl/data4tb/static-flow-data/cargo-target/gpt2api_rs/release}"
 ANTIGRAVITY_DIR="${ANTIGRAVITY_DIR:-$ROOT_DIR/deps/AntigravityManager}"
@@ -23,7 +25,7 @@ DRY_RUN=0
 STRICT_READINESS=0
 FULL_RECOVERY=0
 WITH_ANTIGRAVITY=0
-WITH_AI_REVIEW=0
+WITH_LLM_ACCESS_FRONTEND=0
 ONLY_STATUS=0
 
 log() { echo "[restore-tmux] $*"; }
@@ -35,7 +37,7 @@ usage() {
   cat <<'EOF'
 Usage:
   ./scripts/restore_local_tmux_services.sh [--dry-run] [--strict] [--full]
-  ./scripts/restore_local_tmux_services.sh [--with-antigravity] [--with-ai-review]
+  ./scripts/restore_local_tmux_services.sh [--with-antigravity] [--with-llm-access-frontend]
   ./scripts/restore_local_tmux_services.sh status
 
 Restores the local tmux-supervised service set after a reboot:
@@ -49,12 +51,14 @@ Restores the local tmux-supervised service set after a reboot:
 
 Optional services:
   --with-antigravity starts Antigravity Manager and verifies its authenticated API.
-  --with-ai-review starts sf-ai-review, sf-ai-review-ui, and pbmapper-ai-review-ui-aws.
+  --with-llm-access-frontend starts sf-ai-review, sf-llm-access-frontend, and pbmapper-llm-access-frontend-aws.
+  --with-ai-review is retained as an alias for the same combined frontend stack.
   --full enables both optional service groups and verifies the local /llm-access route.
   --strict exits immediately when a service does not become ready.
 
-AI review is intentionally opt-in unless --full is used:
-  It only registers the local UI through pbmapper; it does not create a public Caddy route.
+AI review and the llm-access frontend are intentionally opt-in unless --full is used:
+  The frontend keeps the existing ai-review-ui mapper key by default for remote
+  compatibility; it does not create a public Caddy route.
 EOF
 }
 
@@ -71,15 +75,15 @@ while [[ $# -gt 0 ]]; do
     --full)
       FULL_RECOVERY=1
       WITH_ANTIGRAVITY=1
-      WITH_AI_REVIEW=1
+      WITH_LLM_ACCESS_FRONTEND=1
       shift
       ;;
     --with-antigravity)
       WITH_ANTIGRAVITY=1
       shift
       ;;
-    --with-ai-review)
-      WITH_AI_REVIEW=1
+    --with-ai-review|--with-llm-access-frontend)
+      WITH_LLM_ACCESS_FRONTEND=1
       shift
       ;;
     status)
@@ -357,7 +361,7 @@ start_antigravity() {
   wait_antigravity 120
 }
 
-start_ai_review() {
+start_llm_access_frontend_stack() {
   local api_cmd
   local ui_cmd
   local pbmapper_cmd
@@ -367,15 +371,17 @@ start_ai_review() {
     [[ -x "$AI_REVIEW_START_SCRIPT" ]] || fail "missing executable: $AI_REVIEW_START_SCRIPT"
   fi
   [[ -f "$AI_REVIEW_ENV_FILE" ]] || fail "missing ai review env file: $AI_REVIEW_ENV_FILE"
+  [[ -f "$LLM_ACCESS_FRONTEND_DIR/package.json" ]] || fail "missing llm-access frontend: $LLM_ACCESS_FRONTEND_DIR"
   api_cmd="cd $(q "$ROOT_DIR") && if [[ -f $(q "$ANTIGRAVITY_CONFIG_FILE") ]]; then export ANTIGRAVITY_MANAGER_API_KEY=\$(jq -r '.proxy.api_key // .api_key // empty' $(q "$ANTIGRAVITY_CONFIG_FILE")); fi && exec $(q "$AI_REVIEW_START_SCRIPT") $(q "$AI_REVIEW_ENV_FILE") $(q "$AI_REVIEW_BIN") serve --bind 127.0.0.1:19190"
-  ui_cmd="cd $(q "$ROOT_DIR/deps/llm-access/crates/llm-access-ai-review/ui") && export PATH=$(q "$PATH") && npm run build && exec npm run preview"
-  pbmapper_cmd="cd $(q "$ROOT_DIR") && set -a && . .local/pbmapper/sf-backend.env && set +a && SERVICE_KEY=ai-review-ui && LOCAL_ADDR=127.0.0.1:19191 && exec pb-mapper-server-cli tcp-server --key \"\$SERVICE_KEY\" --addr \"\$LOCAL_ADDR\""
+  ui_cmd="cd $(q "$LLM_ACCESS_FRONTEND_DIR") && export PATH=$(q "$PATH") && npm run build && exec npm run preview"
+  pbmapper_cmd="cd $(q "$ROOT_DIR") && set -a && . .local/pbmapper/sf-backend.env && set +a && SERVICE_KEY=$(q "$LLM_ACCESS_FRONTEND_SERVICE_KEY") && LOCAL_ADDR=127.0.0.1:19191 && exec pb-mapper-server-cli tcp-server --key \"\$SERVICE_KEY\" --addr \"\$LOCAL_ADDR\""
 
   start_tmux "sf-ai-review" "$api_cmd"
   wait_http "sf-ai-review" "http://127.0.0.1:19190/api/ai-review/health" 60
-  start_tmux "sf-ai-review-ui" "$ui_cmd"
-  wait_http "sf-ai-review-ui" "http://127.0.0.1:19191/api/ai-review/health" 120
-  start_tmux "pbmapper-ai-review-ui-aws" "$pbmapper_cmd"
+  start_tmux "sf-llm-access-frontend" "$ui_cmd"
+  wait_http "sf-llm-access-frontend" "http://127.0.0.1:19191/healthz" 120
+  wait_http "sf-llm-access-frontend-ai-review" "http://127.0.0.1:19191/api/ai-review/health" 20
+  start_tmux "pbmapper-llm-access-frontend-aws" "$pbmapper_cmd"
 }
 
 verify_full_recovery() {
@@ -383,6 +389,7 @@ verify_full_recovery() {
   wait_http "llm-access-page" "http://127.0.0.1:39180/llm-access" 20
   wait_antigravity 20
   wait_http "sf-ai-review" "http://127.0.0.1:19190/api/ai-review/health" 20
+  wait_http "sf-llm-access-frontend" "http://127.0.0.1:19191/console" 20
 }
 
 main() {
@@ -414,11 +421,11 @@ main() {
     log "skip Antigravity Manager: use --with-antigravity or --full to restore it"
   fi
 
-  if [[ "$WITH_AI_REVIEW" == "1" ]]; then
+  if [[ "$WITH_LLM_ACCESS_FRONTEND" == "1" ]]; then
     ensure_node_toolchain
-    start_ai_review
+    start_llm_access_frontend_stack
   else
-    log "skip ai review: use --with-ai-review or --full to restore it"
+    log "skip llm-access frontend: use --with-llm-access-frontend or --full to restore it"
   fi
 
   if [[ "$FULL_RECOVERY" == "1" ]]; then

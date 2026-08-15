@@ -377,55 +377,93 @@ fn switch(route: Route) -> Html {
         },
         Route::KiroAccess => html! { <pages::kiro_access::KiroAccessPage /> },
         Route::Admin => html! { <pages::admin::AdminPage /> },
-        Route::AdminLlmGateway => html! { <pages::admin_llm_gateway::AdminLlmGatewayPage /> },
+        Route::AdminLlmGateway => migrated_llm_admin("/console", "LLM Gateway", || {
+            html! { <pages::admin_llm_gateway::AdminLlmGatewayPage /> }
+        }),
         Route::AdminLlmGatewayKeys => {
-            html! { <pages::admin_llm_gateway_keys::AdminLlmGatewayKeysPage /> }
+            migrated_llm_admin("/console/codex/keys", "Codex Keys", || {
+                html! { <pages::admin_llm_gateway_keys::AdminLlmGatewayKeysPage /> }
+            })
         },
         Route::AdminLlmGatewayGroups => {
-            html! { <pages::admin_llm_gateway_groups::AdminLlmGatewayGroupsPage /> }
+            migrated_llm_admin("/console/codex/groups", "Codex 账号组", || {
+                html! { <pages::admin_llm_gateway_groups::AdminLlmGatewayGroupsPage /> }
+            })
         },
         Route::AdminLlmGatewayAccounts => {
-            html! { <pages::admin_llm_gateway_accounts::AdminLlmGatewayAccountsPage /> }
+            migrated_llm_admin("/console/codex/accounts", "Codex 账号池", || {
+                html! { <pages::admin_llm_gateway_accounts::AdminLlmGatewayAccountsPage /> }
+            })
         },
         Route::AdminLlmGatewayUsage => {
-            html! { <pages::admin_llm_gateway_usage::AdminLlmGatewayUsagePage /> }
+            migrated_llm_admin("/console/usage/codex", "Codex 用量", || {
+                html! { <pages::admin_llm_gateway_usage::AdminLlmGatewayUsagePage /> }
+            })
         },
         Route::AdminLlmGatewayJournal => {
-            html! { <pages::admin_llm_gateway_journal::AdminLlmGatewayJournalPage /> }
+            migrated_llm_admin("/console/journal", "Usage Journal", || {
+                html! { <pages::admin_llm_gateway_journal::AdminLlmGatewayJournalPage /> }
+            })
         },
         Route::AdminLlmGatewayRequests => {
-            html! { <pages::admin_llm_gateway_requests::AdminLlmGatewayRequestsPage /> }
+            migrated_llm_admin("/console/codex/requests", "LLM 申请审核", || {
+                html! { <pages::admin_llm_gateway_requests::AdminLlmGatewayRequestsPage /> }
+            })
         },
-        Route::AdminLlmGatewaySettings => {
-            html! { <pages::admin_llm_gateway_settings::AdminLlmGatewaySettingsPage /> }
-        },
+        Route::AdminLlmGatewaySettings => migrated_llm_admin(
+            "/console/system/runtime",
+            "llm-access 运行时配置",
+            || html! { <pages::admin_llm_gateway_settings::AdminLlmGatewaySettingsPage /> },
+        ),
         Route::AdminLlmGatewayMonitor => {
-            html! { <pages::admin_llm_gateway_monitor::AdminLlmGatewayMonitorPage /> }
+            migrated_llm_admin("/console/observability", "LLM 运行监控", || {
+                html! { <pages::admin_llm_gateway_monitor::AdminLlmGatewayMonitorPage /> }
+            })
         },
         Route::AdminLlmGatewayModeration => {
-            html! { <pages::admin_moderation::AdminModerationPage /> }
+            migrated_llm_admin("/console/policy/moderation", "LLM 审核策略", || {
+                html! { <pages::admin_moderation::AdminModerationPage /> }
+            })
         },
-        Route::AdminKiroGateway => html! { <pages::admin_kiro_gateway::AdminKiroGatewayPage /> },
+        Route::AdminKiroGateway => {
+            migrated_llm_admin("/console/kiro/runtime", "Kiro Gateway", || {
+                html! { <pages::admin_kiro_gateway::AdminKiroGatewayPage /> }
+            })
+        },
         Route::AdminKiroGatewayAccountsManage => {
-            html! { <pages::admin_kiro_gateway_accounts::AdminKiroGatewayAccountsPage /> }
+            migrated_llm_admin("/console/kiro/accounts", "Kiro 账号池", || {
+                html! { <pages::admin_kiro_gateway_accounts::AdminKiroGatewayAccountsPage /> }
+            })
         },
         Route::AdminKiroGatewayKeys => {
-            html! { <pages::admin_kiro_gateway_keys::AdminKiroGatewayKeysPage /> }
+            migrated_llm_admin("/console/kiro/keys", "Kiro Keys", || {
+                html! { <pages::admin_kiro_gateway_keys::AdminKiroGatewayKeysPage /> }
+            })
         },
         Route::AdminKiroGatewayModels => {
-            html! { <pages::admin_kiro_gateway_models::AdminKiroGatewayModelsPage /> }
+            migrated_llm_admin("/console/kiro/models", "Kiro 模型目录", || {
+                html! { <pages::admin_kiro_gateway_models::AdminKiroGatewayModelsPage /> }
+            })
         },
         Route::AdminKiroGatewayGroups => {
-            html! { <pages::admin_kiro_gateway_groups::AdminKiroGatewayGroupsPage /> }
+            migrated_llm_admin("/console/kiro/groups", "Kiro 账号组", || {
+                html! { <pages::admin_kiro_gateway_groups::AdminKiroGatewayGroupsPage /> }
+            })
         },
         Route::AdminKiroGatewayUsage => {
-            html! { <pages::admin_kiro_gateway_usage::AdminKiroGatewayUsagePage /> }
+            migrated_llm_admin("/console/usage/kiro", "Kiro 用量", || {
+                html! { <pages::admin_kiro_gateway_usage::AdminKiroGatewayUsagePage /> }
+            })
         },
         Route::AdminKiroAnthropicUpstreams => {
-            html! { <pages::admin_kiro_anthropic_upstreams::AdminKiroAnthropicUpstreamsPage /> }
+            migrated_llm_admin("/console/kiro/upstreams", "Anthropic 上游通道", || {
+                html! { <pages::admin_kiro_anthropic_upstreams::AdminKiroAnthropicUpstreamsPage /> }
+            })
         },
         Route::AdminKiroAccountStatus => {
-            html! { <pages::admin_kiro_account_status::AdminKiroAccountStatusPage /> }
+            migrated_llm_admin("/console/kiro/health", "Kiro 账号健康", || {
+                html! { <pages::admin_kiro_account_status::AdminKiroAccountStatusPage /> }
+            })
         },
         Route::AdminGpt2ApiRs => html! { <pages::admin_gpt2api_rs::AdminGpt2ApiRsPage /> },
         Route::AdminCommentRuns {
@@ -456,6 +494,22 @@ fn switch(route: Route) -> Html {
             id,
         } => html! { <pages::music_player::MusicPlayerPage id={id} /> },
         Route::NotFound => html! { <pages::not_found::NotFoundPage /> },
+    }
+}
+
+fn migrated_llm_admin<F>(destination: &'static str, workspace: &'static str, legacy: F) -> Html
+where
+    F: FnOnce() -> Html,
+{
+    if option_env!("STATICFLOW_ENABLE_LEGACY_LLM_ADMIN") == Some("1") {
+        legacy()
+    } else {
+        html! {
+            <pages::admin_llm_access_handoff::AdminLlmAccessHandoffPage
+                destination={destination}
+                workspace={workspace}
+            />
+        }
     }
 }
 

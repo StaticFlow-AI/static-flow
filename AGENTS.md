@@ -16,13 +16,14 @@ Cargo workspace.
 
 Route work by owner before editing:
 
-- StaticFlow owns the site/backend, admin frontend and API clients, mirrored LLM
-  HTTP contract types, Caddy/systemd integration, cloud release scripts, and the
-  production operations runbook.
+- StaticFlow owns the site/backend, public frontend consumers, the legacy admin
+  handoff, mirrored LLM HTTP contract types, Caddy/systemd integration, cloud
+  release scripts, and the production operations runbook.
 - `deps/llm-access` owns provider integrations, request conversion, routing,
   account/key policy, moderation, persistence, migrations, usage processing,
-  image generation, and AI review. Its own `AGENTS.md` is mandatory for work in
-  that repository.
+  image generation, AI review, and the standalone
+  `apps/llm-access-frontend` operations console. Its own `AGENTS.md` is
+  mandatory for work in that repository.
 - A change spanning the HTTP boundary must update and verify both sides. Do not
   move private implementation back into StaticFlow or hide a contract mismatch
   behind a speculative compatibility shim.
