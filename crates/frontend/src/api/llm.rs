@@ -4159,6 +4159,7 @@ pub struct AccountSummaryView {
     pub name: String,
     pub status: String,
     pub account_id: Option<String>,
+    pub installation_id: Option<String>,
     pub email: Option<String>,
     pub plan_type: Option<String>,
     pub route_weight_tier: String,
@@ -4198,6 +4199,7 @@ impl Default for AccountSummaryView {
             name: String::new(),
             status: String::new(),
             account_id: None,
+            installation_id: None,
             email: None,
             plan_type: None,
             route_weight_tier: "auto".to_string(),
@@ -4571,6 +4573,7 @@ pub async fn import_admin_llm_gateway_account(
             name: name.to_string(),
             status: "active".to_string(),
             account_id: account_id.map(str::to_string),
+            installation_id: Some("f930da16-c89f-4d3c-b5d0-58b50f5d71e8".to_string()),
             email: None,
             plan_type: Some("Pro".to_string()),
             route_weight_tier: "auto".to_string(),
@@ -4706,6 +4709,7 @@ pub async fn patch_admin_llm_gateway_account(
             name: name.to_string(),
             status: input.status.clone().unwrap_or_else(|| "active".to_string()),
             account_id: None,
+            installation_id: Some("f930da16-c89f-4d3c-b5d0-58b50f5d71e8".to_string()),
             email: None,
             plan_type: Some("Pro".to_string()),
             route_weight_tier: input
@@ -4771,6 +4775,43 @@ pub async fn patch_admin_llm_gateway_account(
     }
 }
 
+pub async fn regenerate_admin_llm_gateway_account_installation_id(
+    name: &str,
+) -> Result<AccountSummaryView, String> {
+    #[cfg(feature = "mock")]
+    {
+        Ok(AccountSummaryView {
+            name: name.to_string(),
+            status: "active".to_string(),
+            installation_id: Some("7ecf33a8-e333-4d79-99d5-c246ddbdf4af".to_string()),
+            ..AccountSummaryView::default()
+        })
+    }
+
+    #[cfg(not(feature = "mock"))]
+    {
+        let url = format!(
+            "{}/admin/llm-gateway/accounts/{}",
+            llm_access_admin_base(),
+            urlencoding::encode(name)
+        );
+        let response = api_patch(&url)
+            .json(&serde_json::json!({ "regenerate_installation_id": true }))
+            .map_err(|e| format!("Serialize error: {:?}", e))?
+            .send()
+            .await
+            .map_err(|e| format!("Network error: {:?}", e))?;
+        if !response.ok() {
+            let text = response.text().await.unwrap_or_default();
+            return Err(format!("Failed: {text}"));
+        }
+        response
+            .json()
+            .await
+            .map_err(|e| format!("Parse error: {:?}", e))
+    }
+}
+
 pub async fn refresh_admin_llm_gateway_account(name: &str) -> Result<AccountSummaryView, String> {
     #[cfg(feature = "mock")]
     {
@@ -4778,6 +4819,7 @@ pub async fn refresh_admin_llm_gateway_account(name: &str) -> Result<AccountSumm
             name: name.to_string(),
             status: "active".to_string(),
             account_id: None,
+            installation_id: Some("f930da16-c89f-4d3c-b5d0-58b50f5d71e8".to_string()),
             email: None,
             plan_type: Some("Pro".to_string()),
             route_weight_tier: "auto".to_string(),
@@ -4848,6 +4890,7 @@ pub async fn refresh_admin_llm_gateway_account_auth(
             name: name.to_string(),
             status: "active".to_string(),
             account_id: None,
+            installation_id: Some("f930da16-c89f-4d3c-b5d0-58b50f5d71e8".to_string()),
             email: None,
             plan_type: Some("Pro".to_string()),
             route_weight_tier: "auto".to_string(),
@@ -4997,6 +5040,7 @@ pub async fn consume_admin_llm_gateway_account_rate_limit_reset_credit(
                 name: name.to_string(),
                 status: "active".to_string(),
                 account_id: None,
+                installation_id: Some("f930da16-c89f-4d3c-b5d0-58b50f5d71e8".to_string()),
                 email: None,
                 plan_type: Some("Pro".to_string()),
                 route_weight_tier: "auto".to_string(),

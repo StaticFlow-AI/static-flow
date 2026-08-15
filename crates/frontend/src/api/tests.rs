@@ -116,15 +116,18 @@ fn admin_gateway_key_view_defaults_codex_image_usage_to_zero() {
 }
 
 #[test]
-fn account_summary_view_preserves_email_and_defaults_missing_email() {
-    let account: AccountSummaryView =
-        serde_json::from_str(r#"{"name":"codex-a","email":"a@example.com"}"#)
-            .expect("account should parse");
+fn account_summary_view_preserves_account_identity_and_defaults_missing_fields() {
+    let account: AccountSummaryView = serde_json::from_str(
+        r#"{"name":"codex-a","email":"a@example.com","installation_id":"f930da16-c89f-4d3c-b5d0-58b50f5d71e8"}"#,
+    )
+    .expect("account should parse");
     assert_eq!(account.email.as_deref(), Some("a@example.com"));
+    assert_eq!(account.installation_id.as_deref(), Some("f930da16-c89f-4d3c-b5d0-58b50f5d71e8"));
 
     let legacy: AccountSummaryView =
         serde_json::from_str(r#"{"name":"codex-a"}"#).expect("legacy account should parse");
     assert_eq!(legacy.email, None);
+    assert_eq!(legacy.installation_id, None);
 }
 
 #[test]

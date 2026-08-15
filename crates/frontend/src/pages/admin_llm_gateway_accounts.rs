@@ -25,12 +25,12 @@ use crate::{
         fetch_llm_gateway_status, import_admin_llm_gateway_account,
         patch_admin_llm_gateway_account, probe_admin_llm_gateway_account_models,
         refresh_admin_llm_gateway_account_auth, refresh_admin_llm_gateway_account_usage,
-        AccountSummaryView, AdminAccountsSummaryView, AdminLlmGatewayAccountPageQuery,
-        AdminUpstreamProxyConfigView, CodexAccountImportJobDetailView,
-        CodexAccountImportJobSummaryView, CodexRateLimitResetCreditsDetails,
-        ConsumeCodexRateLimitResetCreditRequest, LlmGatewayRateLimitBucketView,
-        LlmGatewayRateLimitStatusResponse, LlmGatewayRateLimitWindowView,
-        PatchAdminLlmGatewayAccountInput,
+        regenerate_admin_llm_gateway_account_installation_id, AccountSummaryView,
+        AdminAccountsSummaryView, AdminLlmGatewayAccountPageQuery, AdminUpstreamProxyConfigView,
+        CodexAccountImportJobDetailView, CodexAccountImportJobSummaryView,
+        CodexRateLimitResetCreditsDetails, ConsumeCodexRateLimitResetCreditRequest,
+        LlmGatewayRateLimitBucketView, LlmGatewayRateLimitStatusResponse,
+        LlmGatewayRateLimitWindowView, PatchAdminLlmGatewayAccountInput,
     },
     components::{modal::Modal, pagination::Pagination},
     pages::llm_access_shared::{confirm_destructive, format_ms, format_percent, format_reset_hint},
@@ -1215,6 +1215,65 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
         })
     };
 
+    let on_regenerate_account_installation_id = {
+        let account_action_inflight = account_action_inflight.clone();
+        let accounts = accounts.clone();
+        let flash = flash.clone();
+        let load_error = load_error.clone();
+        Callback::from(move |account_name: String| {
+            if !confirm_destructive(&format!(
+                "确认更换账号 `{account_name}` 的 Codex Install ID？\n\n更换后，该账号的所有后续 \
+                 Codex 请求都会使用新的 Install ID，旧 ID 将不再使用。"
+            )) {
+                return;
+            }
+
+            let account_action_inflight = account_action_inflight.clone();
+            let accounts = accounts.clone();
+            let flash = flash.clone();
+            let load_error = load_error.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let mut inflight = (*account_action_inflight).clone();
+                inflight.insert(account_name.clone());
+                account_action_inflight.set(inflight);
+
+                match regenerate_admin_llm_gateway_account_installation_id(&account_name).await {
+                    Ok(updated) => {
+                        let installation_id = updated
+                            .installation_id
+                            .clone()
+                            .unwrap_or_else(|| "-".to_string());
+                        let mut items = (*accounts).clone();
+                        if let Some(item) = items.iter_mut().find(|item| item.name == updated.name)
+                        {
+                            *item = updated.clone();
+                        }
+                        accounts.set(items);
+                        load_error.set(None);
+                        flash.emit((
+                            format!(
+                                "已更换账号 `{}` 的 Codex Install ID：{}",
+                                updated.name, installation_id
+                            ),
+                            false,
+                        ));
+                    },
+                    Err(err) => {
+                        load_error.set(Some(err.clone()));
+                        flash.emit((
+                            format!("更换账号 `{}` 的 Codex Install ID 失败\n{err}", account_name),
+                            true,
+                        ));
+                    },
+                }
+
+                let mut inflight = (*account_action_inflight).clone();
+                inflight.remove(&account_name);
+                account_action_inflight.set(inflight);
+            });
+        })
+    };
+
     let on_refresh_account_usage = {
         let account_action_inflight = account_action_inflight.clone();
         let account_proxy_inputs = account_proxy_inputs.clone();
@@ -2271,6 +2330,7 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                                 let acc_name_for_status_toggle = acc.name.clone();
                                 let acc_name_for_delete = acc.name.clone();
                                 let acc_name_for_auth_refresh = acc.name.clone();
+                                let acc_name_for_installation_id_regenerate = acc.name.clone();
                                 let acc_name_for_usage_refresh = acc.name.clone();
                                 let acc_name_for_reset_credit_open = acc.name.clone();
                                 let acc_name_for_models_probe = acc.name.clone();
@@ -2294,6 +2354,7 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                                 };
                                 let acc_plan_type = acc.plan_type.clone();
                                 let acc_account_id = acc.account_id.clone();
+                                let acc_installation_id = acc.installation_id.clone();
                                 let acc_email = acc.email.clone();
                                 let spark_mapping_enabled = acc.map_gpt53_codex_to_spark;
                                 let auto_refresh_enabled = acc.auto_refresh_enabled;
@@ -2409,6 +2470,8 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                                 let on_delete = on_delete_account.clone();
                                 let on_probe_account_models = on_probe_account_models.clone();
                                 let on_refresh_account_auth = on_refresh_account_auth.clone();
+                                let on_regenerate_account_installation_id =
+                                    on_regenerate_account_installation_id.clone();
                                 let on_refresh_account_usage = on_refresh_account_usage.clone();
                                 let on_open_account_reset_credit =
                                     on_open_account_reset_credit.clone();
@@ -2518,6 +2581,12 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                                                 if let Some(ref aid) = acc_account_id {
                                                     <div class={classes!("break-all")}>{ format!("id: {}", aid) }</div>
                                                 }
+                                                <div class={classes!("break-all")}>
+                                                    { format!(
+                                                        "installation id: {}",
+                                                        acc_installation_id.as_deref().unwrap_or("-")
+                                                    ) }
+                                                </div>
                                                 if let Some(email) = acc_email.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
                                                     <div class={classes!("break-all")}>{ format!("email: {}", email) }</div>
                                                 }
@@ -2778,6 +2847,19 @@ pub fn admin_llm_gateway_accounts_page() -> Html {
                                                     disabled={account_busy}
                                                 >
                                                     { if account_busy { "..." } else { "刷新 Usage" } }
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    class={classes!("ghost")}
+                                                    onclick={Callback::from(move |_| {
+                                                        on_regenerate_account_installation_id.emit(
+                                                            acc_name_for_installation_id_regenerate.clone(),
+                                                        )
+                                                    })}
+                                                    disabled={account_busy}
+                                                    title="生成并切换到新的账号级 Codex Install ID"
+                                                >
+                                                    { if account_busy { "..." } else { "更换 Install ID" } }
                                                 </button>
                                                 <button
                                                     class={classes!(
