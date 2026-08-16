@@ -373,7 +373,7 @@ start_llm_access_frontend_stack() {
   [[ -f "$AI_REVIEW_ENV_FILE" ]] || fail "missing ai review env file: $AI_REVIEW_ENV_FILE"
   [[ -f "$LLM_ACCESS_FRONTEND_DIR/package.json" ]] || fail "missing llm-access frontend: $LLM_ACCESS_FRONTEND_DIR"
   api_cmd="cd $(q "$ROOT_DIR") && if [[ -f $(q "$ANTIGRAVITY_CONFIG_FILE") ]]; then export ANTIGRAVITY_MANAGER_API_KEY=\$(jq -r '.proxy.api_key // .api_key // empty' $(q "$ANTIGRAVITY_CONFIG_FILE")); fi && exec $(q "$AI_REVIEW_START_SCRIPT") $(q "$AI_REVIEW_ENV_FILE") $(q "$AI_REVIEW_BIN") serve --bind 127.0.0.1:19190"
-  ui_cmd="cd $(q "$LLM_ACCESS_FRONTEND_DIR") && export PATH=$(q "$PATH") && npm run build && exec npm run preview"
+  ui_cmd="cd $(q "$LLM_ACCESS_FRONTEND_DIR") && export PATH=$(q "$PATH") && pnpm build && exec pnpm preview"
   pbmapper_cmd="cd $(q "$ROOT_DIR") && set -a && . .local/pbmapper/sf-backend.env && set +a && SERVICE_KEY=$(q "$LLM_ACCESS_FRONTEND_SERVICE_KEY") && LOCAL_ADDR=127.0.0.1:19191 && exec pb-mapper-server-cli tcp-server --key \"\$SERVICE_KEY\" --addr \"\$LOCAL_ADDR\""
 
   start_tmux "sf-ai-review" "$api_cmd"
