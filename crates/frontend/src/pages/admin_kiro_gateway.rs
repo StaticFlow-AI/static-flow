@@ -947,9 +947,11 @@ fn format_kiro_key_candidate_credit_summary(
     }
 
     format!(
-        "候选账号额度: 剩余 {} / 总额 {} · {}/{} 已加载{}",
+        "候选账号额度: 剩余 {} / 总额 {} · 启用 {} / 非启用 {} · {}/{} 已加载{}",
         format_float4(summary.total_remaining),
         format_float4(summary.total_limit),
+        summary.enabled_candidate_count,
+        summary.disabled_candidate_count,
         summary.loaded_balance_count,
         summary.candidate_count,
         if summary.missing_balance_count == 0 {
@@ -4658,6 +4660,8 @@ mod tests {
         let text =
             format_kiro_key_candidate_credit_summary(&AdminKiroKeyCandidateCreditSummaryView {
                 candidate_count: 3,
+                enabled_candidate_count: 2,
+                disabled_candidate_count: 1,
                 preferred_pool_candidate_count: Some(1),
                 loaded_balance_count: 2,
                 missing_balance_count: 1,
@@ -4667,7 +4671,8 @@ mod tests {
 
         assert_eq!(
             text,
-            "候选账号额度: 剩余 50.0000 / 总额 160.0000 · 2/3 已加载 · 1 个账号余额未加载"
+            "候选账号额度: 剩余 50.0000 / 总额 160.0000 · 启用 2 / 非启用 1 · 2/3 已加载 · 1 \
+             个账号余额未加载"
         );
     }
 
@@ -4678,6 +4683,8 @@ mod tests {
             llm_store::KIRO_POOL_STRATEGY_CREDIT_FIRST,
             &AdminKiroKeyCandidateCreditSummaryView {
                 candidate_count: 2,
+                enabled_candidate_count: 2,
+                disabled_candidate_count: 0,
                 preferred_pool_candidate_count: Some(0),
                 loaded_balance_count: 2,
                 missing_balance_count: 0,
@@ -4695,6 +4702,8 @@ mod tests {
     fn kiro_preferred_pool_warning_ignores_fixed_or_unknown_backend_count() {
         let summary = AdminKiroKeyCandidateCreditSummaryView {
             candidate_count: 2,
+            enabled_candidate_count: 2,
+            disabled_candidate_count: 0,
             preferred_pool_candidate_count: Some(0),
             loaded_balance_count: 2,
             missing_balance_count: 0,
@@ -4727,6 +4736,8 @@ mod tests {
             llm_store::KIRO_POOL_STRATEGY_CREDIT_FIRST,
             &AdminKiroKeyCandidateCreditSummaryView {
                 candidate_count: 5,
+                enabled_candidate_count: 4,
+                disabled_candidate_count: 1,
                 preferred_pool_candidate_count: Some(2),
                 loaded_balance_count: 5,
                 missing_balance_count: 0,
@@ -4743,6 +4754,8 @@ mod tests {
     fn kiro_preferred_pool_candidate_note_silent_for_fixed_empty_or_unknown() {
         let matched = AdminKiroKeyCandidateCreditSummaryView {
             candidate_count: 5,
+            enabled_candidate_count: 4,
+            disabled_candidate_count: 1,
             preferred_pool_candidate_count: Some(2),
             loaded_balance_count: 5,
             missing_balance_count: 0,

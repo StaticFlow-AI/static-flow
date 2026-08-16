@@ -361,6 +361,8 @@ pub struct AdminLlmGatewayKeyView {
 #[serde(default)]
 pub struct AdminKiroKeyCandidateCreditSummaryView {
     pub candidate_count: usize,
+    pub enabled_candidate_count: usize,
+    pub disabled_candidate_count: usize,
     pub preferred_pool_candidate_count: Option<usize>,
     pub loaded_balance_count: usize,
     pub missing_balance_count: usize,
