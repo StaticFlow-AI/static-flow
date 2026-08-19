@@ -1036,8 +1036,13 @@ pub fn admin_llm_gateway_settings_page() -> Html {
                             </label>
                             <label class={classes!("text-sm")}>
                                 <span class={classes!("text-[var(--muted)]")}>{ "max_request_body_bytes" }</span>
+                                <p class={classes!("m-0", "mt-1", "text-xs", "text-[var(--muted)]")}>
+                                    { "Codex 先按 Content-Length 拒绝超限请求，不再把整包读进内存。允许范围 1024–268435456。" }
+                                </p>
                                 <input
                                     type="number"
+                                    min="1024"
+                                    max="268435456"
                                     class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "px-3", "py-2")}
                                     value={(*max_request_body_input).clone()}
                                     oninput={{
