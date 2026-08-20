@@ -1,9 +1,12 @@
-//! Kiro private keys page (`/admin/kiro-gateway/keys`).
+//! Legacy Yew Kiro keys page (`/admin/kiro-gateway/keys`).
 //!
-//! Owns the create-key form, the server-paginated key inventory and the
-//! per-key editor. The heavyweight `KiroKeyEditorCard` and its cache-policy
-//! editor stay defined in `admin_kiro_gateway` and are reused here so the
-//! editor logic is not duplicated.
+//! Default production builds render a handoff to
+//! `deps/llm-access/apps/llm-access-frontend` at `/console/kiro/keys`.
+//! This page is mounted only when `STATICFLOW_ENABLE_LEGACY_LLM_ADMIN=1`.
+//!
+//! The heavyweight `KiroKeyEditorCard` and its cache-policy editor stay
+//! defined in `admin_kiro_gateway` and are reused here so the editor logic
+//! is not duplicated.
 
 use yew::prelude::*;
 use yew_router::prelude::Link;

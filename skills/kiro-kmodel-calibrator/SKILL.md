@@ -11,7 +11,10 @@ This skill defines the reproducible offline process for recomputing per-model
 `Kmodel` coefficients used by StaticFlow's conservative Kiro cache estimate.
 
 The output is a recommendation, not a production write. Update the live values
-manually in `/admin/kiro-gateway` after reviewing the sample quality.
+manually in the llm-access console (`/console/kiro/runtime` or runtime
+settings in `deps/llm-access/apps/llm-access-frontend`) after reviewing the
+sample quality. Do not edit the legacy StaticFlow Yew `/admin/kiro-gateway`
+page; that route is a handoff by default.
 
 ## When to Use
 

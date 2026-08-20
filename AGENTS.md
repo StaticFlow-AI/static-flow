@@ -31,6 +31,30 @@ Route work by owner before editing:
   Use `git -C deps/llm-access ...` when inspecting the child from this root; do
   not treat a clean parent status as proof that the child is clean.
 
+## LLM / Kiro / Codex Admin UI (Hard Rule)
+
+The live operator console for Codex/Kiro keys, accounts, groups, usage,
+moderation, runtime config, and proxies is the React app in
+`deps/llm-access/apps/llm-access-frontend` (local `127.0.0.1:19191`, tmux
+`sf-llm-access-frontend`). Follow `deps/llm-access/AGENTS.md` for that work.
+
+Default StaticFlow Yew `/admin/llm-gateway*` and `/admin/kiro-gateway*` routes
+are handoff pages into that console. The old Yew admin
+(`crates/frontend/src/pages/admin_llm_gateway*.rs`,
+`admin_kiro_gateway*.rs`) is mounted only when the parent frontend is built
+with `STATICFLOW_ENABLE_LEGACY_LLM_ADMIN=1`.
+
+When the task is creating or editing a Codex/Kiro key, or any other llm-access
+control-plane form:
+
+- Edit `deps/llm-access/apps/llm-access-frontend` (create-key lives in
+  `src/console/pages/InventoryPage.tsx` plus `TypedActionDialog` /
+  `TypedValueFields` in `src/console/components.tsx`; existing-key edits live
+  in `src/console/key-editor.tsx`).
+- Do not treat the Yew pages as the live UI. A `/admin/kiro-gateway/keys` or
+  `/admin/llm-gateway/keys` URL in the browser is a handoff, not the form that
+  submits the JSON body.
+
 ## LanceDB Data Location
 StaticFlow uses three LanceDB roots:
 - Content DB — `/mnt/wsl/data4tb/static-flow-data/lancedb`
@@ -238,9 +262,12 @@ Key rules:
   `/etc/systemd/system/llm-access.service.d/resource-guard.conf` can override
   the base unit. Raising the limit in the template alone is not sufficient if a
   later drop-in still pins the old ceiling.
-- Keep `/admin/kiro-gateway` Overview lightweight. Do not eagerly fetch full
-  `accounts`/`keys`/`groups` inventory on first paint when the tab only needs
-  summary/config/cache preview data.
+- Keep the llm-access console Overview and Kiro runtime landing pages
+  lightweight (`/console`, `/console/kiro/runtime` in
+  `apps/llm-access-frontend`). Do not eagerly fetch full
+  `accounts`/`keys`/`groups` inventory on first paint when those pages only
+  need summary/config/cache preview data. Key inventory belongs on
+  `/console/kiro/keys` and `/console/codex/keys`.
 
 For full cloud/AWS/Valkey/JuiceFS/systemd details and emergency recovery, see
 `docs/ops-runbook.md`.
@@ -259,6 +286,8 @@ the active production path.
 | `gpt2api-rs` | GPT2API image gateway | `127.0.0.1:18787` |
 | `pbmapper-sf-backend-aws` | Registers gateway with active AWS cloud relay | configured in private env |
 | `pbmapper-llm-access-aws` | Subscribes active AWS cloud `llm-access` locally | `127.0.0.1:19182` |
+| `sf-llm-access-frontend` | llm-access operations console (Vite preview) | `127.0.0.1:19191` |
+| `pbmapper-llm-access-frontend-aws` | Publishes the local console through the AWS relay | `127.0.0.1:19191` |
 | `pbmapper-home-ubuntu-aws` | Registers local SSH with active AWS cloud relay | configured in private env |
 | `pbmapper-codex-remote-aws` | Registers local Codex remote endpoint with active AWS cloud relay | configured in private env |
 
@@ -333,6 +362,10 @@ bash scripts/start_frontend_with_api.sh --open
 
 Do not run bare `trunk build --release` for the public deployment.
 
+The Codex/Kiro/LLM operator console is not this Yew app. Build and preview it
+from `deps/llm-access/apps/llm-access-frontend` (`pnpm typecheck && pnpm build`,
+then `pnpm preview` on `127.0.0.1:19191`).
+
 ## Skill Routing (Soft Rule)
 Use the following skill by default according to task type:
 
@@ -362,6 +395,10 @@ Use the following skill by default according to task type:
   `interactive-page-repost-publisher`
 - Operating the gpt2api-rs image gateway (lifecycle, admin, StaticFlow integration):
   `gpt2api-rs-admin`
+- Codex/Kiro/LLM admin console (create/edit keys, accounts, groups, usage,
+  moderation, runtime config): `deps/llm-access/apps/llm-access-frontend`
+  and `deps/llm-access/AGENTS.md`. Not the Yew `/admin/kiro-gateway*` or
+  `/admin/llm-gateway*` pages.
 - Checking daily Kiro usage credits and account breakdowns:
   `kiro-usage-day-report`
 - Recalibrating Kiro cache-estimation coefficients from usage samples:
@@ -436,7 +473,9 @@ Key points:
 ## Codebase Structure
 ```
 # Public workspace crates (11) — all under crates/
-crates/frontend/                  Yew/WASM SPA — pages, components, api, router, i18n
+crates/frontend/                  Yew/WASM public site + site admin. LLM/Kiro/Codex
+                                  `/admin/{llm,kiro}-gateway*` routes are handoff
+                                  pages unless STATICFLOW_ENABLE_LEGACY_LLM_ADMIN=1
 crates/shared/                    Shared domain types and compatibility facade
 crates/store/                     LanceDB-backed content, comments, and music stores
 crates/embedding/                 Text and image embedding services
@@ -459,4 +498,5 @@ bin/                 Pre-built backend binary
 deployment-examples/ Legacy Nginx reverse proxy configs (superseded by Caddy)
 patches/             Vendored crate patches (object_store)
 deps/                Public dependency submodules + private llm-access workspace
+                     (live operator console: deps/llm-access/apps/llm-access-frontend)
 ```

@@ -1,4 +1,8 @@
-//! Admin UI for managing Kiro accounts, keys, usage, and proxy bindings.
+//! Legacy Yew admin UI for Kiro accounts, keys, usage, and proxy bindings.
+//!
+//! Default production builds do not mount this page. The live operator UI is
+//! `deps/llm-access/apps/llm-access-frontend`. Enable these Yew pages only
+//! with `STATICFLOW_ENABLE_LEGACY_LLM_ADMIN=1`.
 
 use std::collections::BTreeMap;
 

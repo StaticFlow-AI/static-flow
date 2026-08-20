@@ -1,6 +1,8 @@
 # Static Flow Frontend
 
-This crate contains the Yew-based client for the Static Flow experience. It renders the blog shell, theme toggles, article detail pages, tag/category listings, and shared layout in WebAssembly so the UI can stay extremely fast while consuming static or API-provided content.
+This crate contains the Yew-based client for the Static Flow experience. It renders the blog shell, theme toggles, article detail pages, tag/category listings, site admin, and shared layout in WebAssembly so the UI can stay extremely fast while consuming static or API-provided content.
+
+Codex/Kiro/LLM operator pages (`/admin/llm-gateway*`, `/admin/kiro-gateway*`) are handoff routes into `deps/llm-access/apps/llm-access-frontend` unless the build sets `STATICFLOW_ENABLE_LEGACY_LLM_ADMIN=1`. Do not treat the Yew files under `src/pages/admin_llm_gateway*.rs` or `admin_kiro_gateway*.rs` as the live key/account console.
 
 ## Development Environment
 

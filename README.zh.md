@@ -26,7 +26,7 @@ LanceDB 存储。支持文章发布、AI 评论审核、音乐管理、图片资
 ```text
 static-flow/
 ├── crates/
-│   ├── frontend/                # Yew/WASM SPA — 页面、组件、i18n
+│   ├── frontend/                # Yew/WASM 站点与站点 Admin（LLM/Kiro 运维控制台在 deps/llm-access/apps/llm-access-frontend）
 │   ├── shared/                  # 共享领域类型与兼容 facade
 │   ├── store/                   # 基于 LanceDB 的内容、评论和音乐存储
 │   ├── embedding/               # 文本和图片 embedding 服务

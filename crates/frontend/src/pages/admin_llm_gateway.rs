@@ -1,3 +1,9 @@
+//! Legacy Yew Codex/LLM gateway admin overview and shared editor cards.
+//!
+//! Default production builds render a handoff to
+//! `deps/llm-access/apps/llm-access-frontend`. This page is mounted only when
+//! `STATICFLOW_ENABLE_LEGACY_LLM_ADMIN=1`.
+
 use std::collections::HashSet;
 
 use js_sys::Date;

@@ -29,7 +29,7 @@ submodule for authorized maintainers:
 ```text
 static-flow/
 ├── crates/
-│   ├── frontend/                # Yew/WASM SPA — pages, components, i18n
+│   ├── frontend/                # Yew/WASM public site + site admin (LLM/Kiro operator console is deps/llm-access/apps/llm-access-frontend)
 │   ├── shared/                  # Shared domain types and compatibility facade
 │   ├── store/                   # LanceDB-backed content, comments, and music stores
 │   ├── embedding/               # Text and image embedding services

@@ -497,6 +497,9 @@ fn switch(route: Route) -> Html {
     }
 }
 
+/// Default `/admin/{llm,kiro}-gateway*` routes are handoff pages into
+/// `deps/llm-access/apps/llm-access-frontend`. The Yew admin is mounted only
+/// when the frontend is built with `STATICFLOW_ENABLE_LEGACY_LLM_ADMIN=1`.
 fn migrated_llm_admin<F>(destination: &'static str, workspace: &'static str, legacy: F) -> Html
 where
     F: FnOnce() -> Html,

@@ -1,9 +1,11 @@
-//! LLM gateway keys page (`/admin/llm-gateway/keys`).
+//! Legacy Yew Codex keys page (`/admin/llm-gateway/keys`).
 //!
-//! Owns the create-key form and the server-paginated key inventory with
-//! search / sort / active-only filters. The heavyweight `KeyEditorCard` stays
-//! defined in `admin_llm_gateway` and is reused here so the editor logic is
-//! not duplicated.
+//! Default production builds render a handoff to
+//! `deps/llm-access/apps/llm-access-frontend` at `/console/codex/keys`.
+//! This page is mounted only when `STATICFLOW_ENABLE_LEGACY_LLM_ADMIN=1`.
+//!
+//! The heavyweight `KeyEditorCard` stays defined in `admin_llm_gateway` and
+//! is reused here so the editor logic is not duplicated.
 
 use gloo_timers::callback::Timeout;
 use web_sys::HtmlInputElement;
