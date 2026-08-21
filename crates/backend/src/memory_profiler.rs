@@ -386,7 +386,7 @@ impl MemoryProfiler {
         let top = normalize_top(top);
         let (process_rss_bytes, _) = read_process_memory();
         let (total_live_bytes, mut rows) = self.collect_stack_rows();
-        rows.sort_by(|left, right| right.1.live_bytes.cmp(&left.1.live_bytes));
+        rows.sort_by_key(|left| std::cmp::Reverse(left.1.live_bytes));
 
         let entries = rows
             .into_iter()
@@ -461,7 +461,7 @@ impl MemoryProfiler {
         }
 
         let mut values = agg.into_values().collect::<Vec<_>>();
-        values.sort_by(|left, right| right.live_bytes.cmp(&left.live_bytes));
+        values.sort_by_key(|left| std::cmp::Reverse(left.live_bytes));
 
         let entries = values
             .into_iter()
@@ -528,7 +528,7 @@ impl MemoryProfiler {
         }
 
         let mut values = agg.into_values().collect::<Vec<_>>();
-        values.sort_by(|left, right| right.live_bytes.cmp(&left.live_bytes));
+        values.sort_by_key(|left| std::cmp::Reverse(left.live_bytes));
 
         let entries = values
             .into_iter()

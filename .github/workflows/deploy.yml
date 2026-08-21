@@ -21,10 +21,19 @@ jobs:
       - name: Initialize public build submodules
         run: scripts/init_public_build_submodules.sh
 
+      - name: Read pinned Rust toolchain
+        id: rust-toolchain
+        run: |
+          channel="$(scripts/ci_rust_toolchain_channel.sh)"
+          echo "Pinned Rust toolchain: $channel"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ steps.rust-toolchain.outputs.channel }}
           targets: wasm32-unknown-unknown
+          components: rustfmt
 
       - name: Install Trunk 0.21.14
         run: |

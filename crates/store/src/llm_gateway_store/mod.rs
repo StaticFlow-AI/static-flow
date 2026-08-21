@@ -1246,7 +1246,7 @@ impl LlmGatewayStore {
         let mut rows = self
             .query_token_requests(status, fetch_count, reverse_offset)
             .await?;
-        rows.sort_by(|left, right| right.created_at.cmp(&left.created_at));
+        rows.sort_by_key(|left| std::cmp::Reverse(left.created_at));
         Ok(rows)
     }
 
@@ -1366,7 +1366,7 @@ impl LlmGatewayStore {
         let mut rows = self
             .query_account_contribution_requests(status, fetch_count, reverse_offset)
             .await?;
-        rows.sort_by(|left, right| right.created_at.cmp(&left.created_at));
+        rows.sort_by_key(|left| std::cmp::Reverse(left.created_at));
         Ok(rows)
     }
 
@@ -1511,7 +1511,7 @@ impl LlmGatewayStore {
         let mut rows = self
             .query_gpt2api_account_contribution_requests(status, fetch_count, reverse_offset)
             .await?;
-        rows.sort_by(|left, right| right.created_at.cmp(&left.created_at));
+        rows.sort_by_key(|left| std::cmp::Reverse(left.created_at));
         Ok(rows)
     }
 
@@ -1637,7 +1637,7 @@ impl LlmGatewayStore {
         let mut rows = self
             .query_sponsor_requests(status, fetch_count, reverse_offset)
             .await?;
-        rows.sort_by(|left, right| right.created_at.cmp(&left.created_at));
+        rows.sort_by_key(|left| std::cmp::Reverse(left.created_at));
         Ok(rows)
     }
 

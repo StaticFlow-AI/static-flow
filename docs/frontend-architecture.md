@@ -19,7 +19,7 @@
 
 | 技术 | 版本 | 作用 |
 |------|------|------|
-| **Rust** | nightly-2025-10-28 | 编程语言 |
+| **Rust** | nightly-2026-08-21 | 编程语言 |
 | **Yew** | 0.21 | 前端框架（类似 React） |
 | **WebAssembly** | - | 编译目标格式 |
 | **Trunk** | 0.20.3 | 构建工具和开发服务器 |
@@ -585,7 +585,7 @@ yew = { workspace = true }
 ### 工具安装
 ```bash
 # 安装 Rust 工具链
-rustup install nightly-2025-10-28
+rustup install nightly-2026-08-21
 rustup target add wasm32-unknown-unknown
 
 # 安装 Trunk

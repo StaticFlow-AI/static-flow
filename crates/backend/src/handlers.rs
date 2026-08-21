@@ -1614,7 +1614,7 @@ pub async fn admin_list_api_behavior_events(
         .query_api_behavior_events(filter_expr, Some(fetch_count), Some(reverse_offset))
         .await
         .map_err(|e| internal_error("Failed to query api behavior events", e))?;
-    events.sort_by(|left, right| right.occurred_at.cmp(&left.occurred_at));
+    events.sort_by_key(|left| std::cmp::Reverse(left.occurred_at));
     let has_more = offset.saturating_add(events.len()) < total;
 
     Ok(Json(AdminApiBehaviorEventsResponse {
@@ -2000,7 +2000,7 @@ pub async fn admin_list_comment_tasks_grouped(
     let mut groups = by_article
         .into_iter()
         .map(|(article_id, mut tasks)| {
-            tasks.sort_by(|left, right| right.created_at.cmp(&left.created_at));
+            tasks.sort_by_key(|left| std::cmp::Reverse(left.created_at));
             let mut counts = HashMap::new();
             for task in &tasks {
                 *counts.entry(task.status.clone()).or_insert(0) += 1;
@@ -3492,7 +3492,7 @@ fn public_comment_from_task(
 
 fn merge_ai_output_chunks(chunks: &[CommentAiRunChunkRecord]) -> (String, String, String) {
     let mut ordered = chunks.to_vec();
-    ordered.sort_by(|left, right| left.batch_index.cmp(&right.batch_index));
+    ordered.sort_by_key(|left| left.batch_index);
 
     let mut merged_stdout = String::new();
     let mut merged_stderr = String::new();

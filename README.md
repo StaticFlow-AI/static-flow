@@ -52,7 +52,7 @@ static-flow/
 
 ## Prerequisites
 
-- Rust stable toolchain (edition 2021)
+- Rust toolchain pinned by `rust-toolchain.toml` (currently `nightly-2026-08-21`)
 - `wasm32-unknown-unknown` target: `rustup target add wasm32-unknown-unknown`
 - [Trunk](https://trunkrs.dev/) for frontend builds: `cargo install trunk`
 - Public build submodules: `scripts/init_public_build_submodules.sh`

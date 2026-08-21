@@ -6,7 +6,7 @@ Codex/Kiro/LLM operator pages (`/admin/llm-gateway*`, `/admin/kiro-gateway*`) ar
 
 ## Development Environment
 
-- **Rust** stable toolchain (1.75+ recommended)
+- **Rust** toolchain pinned by the repository `rust-toolchain.toml` (currently `nightly-2026-08-21`)
 - **wasm32-unknown-unknown** target: `rustup target add wasm32-unknown-unknown`
 - **Trunk** CLI for bundling and serving (`cargo install trunk`)
 - Optional: a local backend on `http://127.0.0.1:39080` for API proxy during development

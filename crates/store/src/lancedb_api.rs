@@ -499,7 +499,7 @@ impl StaticFlowDataStore {
         } else {
             self.query_api_behavior_events(filter, None, None).await?
         };
-        events.sort_by(|left, right| right.occurred_at.cmp(&left.occurred_at));
+        events.sort_by_key(|left| std::cmp::Reverse(left.occurred_at));
         Ok(events)
     }
 
@@ -2461,7 +2461,7 @@ async fn fallback_search_rows(
         }
     }
 
-    scored.sort_by(|a, b| b.1.cmp(&a.1));
+    scored.sort_by_key(|a| std::cmp::Reverse(a.1));
     let mut rows = scored.into_iter().map(|(row, _)| row).collect::<Vec<_>>();
     if let Some(limit) = limit {
         rows.truncate(limit);

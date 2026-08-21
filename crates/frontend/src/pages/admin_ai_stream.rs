@@ -238,7 +238,7 @@ pub fn admin_comment_runs_page(props: &AdminCommentRunsProps) -> Html {
 
     let chunk_rows = {
         let mut rows = (*stream_chunks).clone();
-        rows.sort_by(|left, right| left.batch_index.cmp(&right.batch_index));
+        rows.sort_by_key(|left| left.batch_index);
         rows
     };
 

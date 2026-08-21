@@ -49,7 +49,7 @@ static-flow/
 
 ## 前置依赖
 
-- Rust stable 工具链（edition 2021）
+- Rust 工具链由 `rust-toolchain.toml` 锁定（当前为 `nightly-2026-08-21`）
 - `wasm32-unknown-unknown` target：`rustup target add wasm32-unknown-unknown`
 - [Trunk](https://trunkrs.dev/) 前端构建：`cargo install trunk`
 - 公开构建子模块：`scripts/init_public_build_submodules.sh`

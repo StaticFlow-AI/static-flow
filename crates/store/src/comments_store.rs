@@ -345,7 +345,7 @@ impl CommentDataStore {
             .filter(|value| !value.is_empty())
             .map(|value| format!("status = '{}'", escape_literal(value)));
         let mut rows = query_comment_tasks(&table, filter.as_deref(), Some(limit.max(1))).await?;
-        rows.sort_by(|left, right| right.created_at.cmp(&left.created_at));
+        rows.sort_by_key(|left| std::cmp::Reverse(left.created_at));
         Ok(rows)
     }
 
@@ -362,7 +362,7 @@ impl CommentDataStore {
         let table = self.tasks_table().await?;
         let filter = format!("article_id = '{}'", escape_literal(article_id));
         let mut rows = query_comment_tasks(&table, Some(&filter), Some(limit.max(1))).await?;
-        rows.sort_by(|left, right| right.created_at.cmp(&left.created_at));
+        rows.sort_by_key(|left| std::cmp::Reverse(left.created_at));
         Ok(rows)
     }
 
@@ -576,7 +576,7 @@ impl CommentDataStore {
             .map(|value| format!("article_id = '{}'", escape_literal(value)));
         let mut rows =
             query_published_comments(&table, filter.as_deref(), Some(limit.max(1))).await?;
-        rows.sort_by(|left, right| right.published_at.cmp(&left.published_at));
+        rows.sort_by_key(|left| std::cmp::Reverse(left.published_at));
         Ok(rows)
     }
 
@@ -663,7 +663,7 @@ impl CommentDataStore {
 
         let mut rows =
             query_comment_audit_logs(&table, filter.as_deref(), Some(limit.max(1))).await?;
-        rows.sort_by(|left, right| right.created_at.cmp(&left.created_at));
+        rows.sort_by_key(|left| std::cmp::Reverse(left.created_at));
         Ok(rows)
     }
 
@@ -716,7 +716,7 @@ impl CommentDataStore {
         }
         let filter = if filters.is_empty() { None } else { Some(filters.join(" AND ")) };
         let mut rows = query_comment_ai_runs(&table, filter.as_deref(), Some(limit.max(1))).await?;
-        rows.sort_by(|left, right| right.started_at.cmp(&left.started_at));
+        rows.sort_by_key(|left| std::cmp::Reverse(left.started_at));
         Ok(rows)
     }
 
@@ -756,7 +756,7 @@ impl CommentDataStore {
         let table = self.ai_chunks_table().await?;
         let filter = format!("run_id = '{}'", escape_literal(run_id));
         let mut rows = query_comment_ai_chunks(&table, Some(&filter), Some(limit.max(1))).await?;
-        rows.sort_by(|left, right| left.batch_index.cmp(&right.batch_index));
+        rows.sort_by_key(|left| left.batch_index);
         Ok(rows)
     }
 

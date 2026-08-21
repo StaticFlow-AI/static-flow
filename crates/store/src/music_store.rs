@@ -1551,7 +1551,7 @@ impl MusicDataStore {
                 song_count,
             })
             .collect();
-        artists.sort_by(|a, b| b.song_count.cmp(&a.song_count));
+        artists.sort_by_key(|a| std::cmp::Reverse(a.song_count));
         Ok(artists)
     }
 
@@ -1582,7 +1582,7 @@ impl MusicDataStore {
                 cover_image,
             })
             .collect();
-        albums.sort_by(|a, b| b.song_count.cmp(&a.song_count));
+        albums.sort_by_key(|a| std::cmp::Reverse(a.song_count));
         Ok(albums)
     }
 
@@ -1701,7 +1701,7 @@ impl MusicDataStore {
             }
         }
         // newest first
-        comments.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        comments.sort_by_key(|a| std::cmp::Reverse(a.created_at));
 
         Ok(MusicCommentListResponse {
             comments,

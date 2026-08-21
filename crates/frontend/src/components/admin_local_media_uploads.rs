@@ -355,7 +355,7 @@ fn upserted_tasks(
     let mut next = tasks.to_vec();
     next.retain(|row| row.task_id != task.task_id);
     next.push(task);
-    next.sort_by(|left, right| right.updated_at_ms.cmp(&left.updated_at_ms));
+    next.sort_by_key(|left| std::cmp::Reverse(left.updated_at_ms));
     next
 }
 

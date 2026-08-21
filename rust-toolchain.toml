@@ -2,8 +2,8 @@
 # 锁定项目使用的 Rust 版本，确保团队开发环境一致
 
 [toolchain]
-# 使用 nightly-2025-10-28 版本以支持所有 rustfmt 高级特性
-channel = "nightly-2025-10-28"
+# Dated nightly pin so rustfmt unstable options, local builds, and CI stay aligned.
+channel = "nightly-2026-08-21"
 
 # 添加 WebAssembly 编译目标（frontend 需要）
 targets = ["wasm32-unknown-unknown"]
