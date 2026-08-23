@@ -3,7 +3,7 @@ use std::env;
 use axum::{
     extract::{OriginalUri, Path, State},
     http::{header, StatusCode},
-    response::{Html, IntoResponse, Response},
+    response::{Html, IntoResponse, Redirect, Response},
 };
 use pulldown_cmark::{Event, Parser, Tag, TagEnd};
 use static_flow_shared::Article;
@@ -409,6 +409,23 @@ fn build_fallback_seo_html(article: &Article) -> String {
 // Handlers
 // ---------------------------------------------------------------------------
 
+fn legacy_article_redirect_location(id: &str, query: Option<&str>) -> String {
+    let mut location = format!("/posts/{}", urlencoding::encode(id));
+    if let Some(query) = query.filter(|query| !query.is_empty()) {
+        location.push('?');
+        location.push_str(query);
+    }
+    location
+}
+
+/// GET /article/:id — redirect legacy article links to the canonical route.
+pub async fn legacy_article_redirect(
+    Path(id): Path<String>,
+    OriginalUri(uri): OriginalUri,
+) -> Response {
+    Redirect::permanent(&legacy_article_redirect_location(&id, uri.query())).into_response()
+}
+
 /// GET /posts/:id — serve SPA HTML with injected SEO meta tags
 pub async fn seo_article_page(State(state): State<AppState>, Path(id): Path<String>) -> Response {
     let article = match state.store.get_article(&id).await {
@@ -560,4 +577,40 @@ pub fn inject_spa_route_seo(template: &str, request_path_and_query: &str) -> Str
     html = replace_canonical_href(&html, &canonical);
     html = replace_meta_content(&html, "property", "og:url", &canonical);
     html
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::{
+        body::Body,
+        http::{header, Request, StatusCode},
+        routing::get,
+        Router,
+    };
+    use tower::Service;
+
+    #[tokio::test]
+    async fn legacy_article_route_redirects_to_canonical_route() {
+        let mut app = Router::new()
+            .route("/article/:id", get(super::legacy_article_redirect))
+            .into_service();
+        let response = app
+            .call(
+                Request::builder()
+                    .uri("/article/hello%20world?lang=en&source=legacy")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::PERMANENT_REDIRECT);
+        assert_eq!(
+            response
+                .headers()
+                .get(header::LOCATION)
+                .and_then(|value| value.to_str().ok()),
+            Some("/posts/hello%20world?lang=en&source=legacy")
+        );
+    }
 }

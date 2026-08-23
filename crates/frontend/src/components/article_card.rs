@@ -1,5 +1,5 @@
 use yew::prelude::*;
-use yew_router::prelude::{use_navigator, Link};
+use yew_router::prelude::{use_navigator, Link, Routable};
 
 use crate::{
     components::image_with_loading::ImageWithLoading,
@@ -22,6 +22,7 @@ pub fn article_card(props: &ArticleCardProps) -> Html {
     let detail_route = Route::ArticleDetail {
         id: article.id.clone(),
     };
+    let detail_href = detail_route.to_path();
 
     let navigator = use_navigator();
     let on_before_navigate = props.on_before_navigate.clone();
@@ -73,7 +74,7 @@ pub fn article_card(props: &ArticleCardProps) -> Html {
                     let title = article.title.clone();
                     html! {
                         <a
-                            href={format!("/article/{}", article.id)}
+                            href={detail_href.clone()}
                             class={classes!(
                                 "block",
                                 "aspect-video",
@@ -160,7 +161,7 @@ pub fn article_card(props: &ArticleCardProps) -> Html {
                 // Title with Fraunces font - 使用 Fraunces 字体的标题
                 <h3 class={classes!("m-0", "leading-tight")}>
                     <a
-                        href={format!("/article/{}", article.id)}
+                        href={detail_href.clone()}
                         class={classes!(
                             "text-xl",
                             "md:text-2xl",

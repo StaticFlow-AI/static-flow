@@ -577,10 +577,11 @@ pub fn create_router(state: AppState) -> Router {
 
     let api_router = api_router.with_state(state.clone());
 
-    // 2) SEO routes — /, /posts/:id, /sitemap.xml, /robots.txt
+    // 2) SEO routes — /, article detail/redirects, /sitemap.xml, /robots.txt
     let spa_state = state.clone();
     let seo_router = Router::new()
         .route("/", get(seo::seo_homepage))
+        .route("/article/:id", get(seo::legacy_article_redirect))
         .route("/posts/:id", get(seo::seo_article_page))
         .route("/sitemap.xml", get(seo::sitemap_xml))
         .route("/robots.txt", get(seo::robots_txt))
