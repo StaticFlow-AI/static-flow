@@ -1,0 +1,4 @@
+interface:
+  display_name: "Deep-Dive Blog Style"
+  short_description: "Source-verified long-form technical deep-dive voice for published articles"
+  default_prompt: "Use this skill to write or restructure a long-form technical deep-dive blog post in the house style: pinned code version, numbered sections with a navigable TOC and reading paths, a quantified problem hook, mechanism chapters ordered by data flow with position markers and path:line source pointers, trimmed and annotated code excerpts, a comparison table for every design alternative including the loss column, a verification/debugging chapter, and a code index plus annotated references."
