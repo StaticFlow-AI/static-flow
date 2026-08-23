@@ -6,38 +6,43 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use arrow::{compute::cast, util::pretty::pretty_format_batches};
 use arrow_array::{
     Array, ArrayRef, BinaryArray, FixedSizeListArray, LargeBinaryArray, RecordBatch,
-    RecordBatchIterator, RecordBatchReader, StringArray, TimestampMillisecondArray,
+    RecordBatchIterator, RecordBatchReader, StringArray, TimestampMillisecondArray, UInt64Array,
 };
-use arrow_schema::{DataType, Schema, TimeUnit};
+use arrow_schema::{DataType, Field, Schema, TimeUnit};
 use chrono::Duration as ChronoDuration;
-use futures::TryStreamExt;
-use lance::{dataset::ColumnAlteration, datatypes::BlobHandling, BlobArrayBuilder};
+use futures::{TryStreamExt, future::try_join_all};
+use lance::{
+    BlobArrayBuilder,
+    dataset::{ColumnAlteration, Dataset},
+    datatypes::BlobHandling,
+};
 use lancedb::{
+    Connection, Table,
     query::{ExecutableQuery, QueryBase, Select},
     table::{OptimizeAction, OptimizeOptions},
-    Connection, Table,
 };
-use static_flow_embedding::{embed_image_bytes, embed_text_with_language, TextEmbeddingLanguage};
+use static_flow_embedding::{TextEmbeddingLanguage, embed_image_bytes, embed_text_with_language};
 use static_flow_store::{
     article_request_store::request_ai_chunks_schema,
     comments_store::comment_ai_chunks_schema,
     image_vector_maintenance::{
-        reembed_image_vectors as reembed_image_vectors_in_table, ImageReembedOptions,
-        ImageReembedScope,
+        ImageReembedOptions, ImageReembedScope,
+        reembed_image_vectors as reembed_image_vectors_in_table,
     },
     lancedb_api::api_behavior_schema,
     llm_gateway_store::{
-        now_ms, query_usage_event_rebuild_rows_from_connection, LlmGatewayStore,
         DEFAULT_LLM_GATEWAY_USAGE_EVENT_DETAIL_RETENTION_DAYS, LLM_GATEWAY_USAGE_EVENTS_TABLE,
+        LlmGatewayStore, now_ms, query_usage_event_rebuild_rows_from_connection,
     },
     music_wish_store::wish_ai_chunks_schema,
     optimize::{
-        acquire_table_access_file_lock, compact_table_with_fallback, local_table_access_lock_path,
-        local_table_rewrite_lock_path, prune_table_versions, TableAccessFileGuard, TableAccessMode,
+        TableAccessFileGuard, TableAccessMode, acquire_table_access_file_lock,
+        compact_table_with_fallback, local_table_access_lock_path, local_table_rewrite_lock_path,
+        prune_table_versions,
     },
 };
 
@@ -47,7 +52,7 @@ use crate::{
         connect_db, ensure_fts_index, ensure_scalar_index, ensure_table, ensure_vector_index,
         upsert_articles, upsert_images,
     },
-    schema::{article_schema, image_schema, taxonomy_schema, ArticleRecord, ImageRecord},
+    schema::{ArticleRecord, ImageRecord, article_schema, image_schema, taxonomy_schema},
     utils::rasterize_svg_for_embedding,
 };
 
@@ -1656,7 +1661,6 @@ async fn rebuild_table_into_temp_db(
     let tmp_db = connect_db(tmp_db_path).await?;
     let mut tmp_table: Option<Table> = None;
     let effective_batch_size = batch_size.max(1);
-    let use_all_binary = schema_has_blob_like_field(schema.as_ref());
 
     if total == 0 {
         let empty = RecordBatch::new_empty(schema.clone());
@@ -1673,28 +1677,41 @@ async fn rebuild_table_into_temp_db(
         return Ok(());
     }
 
-    let mut offset = 0usize;
-    while offset < total {
-        let mut scanner = dataset.scan();
-        scanner.limit(Some(effective_batch_size as i64), Some(offset as i64))?;
-        if use_all_binary {
-            scanner.blob_handling(lance::datatypes::BlobHandling::AllBinary);
-        }
-        let stream = scanner.try_into_stream().await?;
-        let source_batches = stream
-            .try_collect::<Vec<_>>()
-            .await
-            .with_context(|| format!("failed to read `{table_name}` batch at offset={offset}"))?;
-        if source_batches.is_empty() {
-            break;
-        }
-
-        let aligned_batches = source_batches
-            .into_iter()
-            .map(|batch| align_batch_to_schema(schema.clone(), batch))
-            .collect::<Result<Vec<_>>>()?;
-        let written_rows: usize = aligned_batches.iter().map(RecordBatch::num_rows).sum();
-        let reader = RecordBatchIterator::new(aligned_batches.into_iter().map(Ok), schema.clone());
+    let has_blob_fields = schema
+        .fields()
+        .iter()
+        .any(|field| is_blob_v2_field(field.as_ref()));
+    let projected_columns = schema
+        .fields()
+        .iter()
+        .filter(|field| !has_blob_fields || !is_blob_v2_field(field.as_ref()))
+        .map(|field| field.name().as_str())
+        .collect::<Vec<_>>();
+    let mut scanner = dataset.scan();
+    scanner.project(&projected_columns)?;
+    scanner.batch_size(effective_batch_size);
+    if has_blob_fields {
+        scanner.with_row_address();
+    }
+    let mut source_stream = scanner.try_into_stream().await?;
+    let mut written_rows_total = 0usize;
+    while let Some(source_batch) = source_stream.try_next().await.with_context(|| {
+        format!("failed to read `{table_name}` batch after {written_rows_total} logical rows")
+    })? {
+        let source_batch = if has_blob_fields {
+            materialize_rebuild_blob_batch(
+                dataset.as_ref(),
+                schema,
+                source_batch,
+                written_rows_total,
+            )
+            .await?
+        } else {
+            source_batch
+        };
+        let aligned_batch = align_batch_to_schema(schema.clone(), source_batch)?;
+        let written_rows = aligned_batch.num_rows();
+        let reader = RecordBatchIterator::new(vec![Ok(aligned_batch)].into_iter(), schema.clone());
 
         match &tmp_table {
             Some(existing) => {
@@ -1703,7 +1720,10 @@ async fn rebuild_table_into_temp_db(
                     .execute()
                     .await
                     .with_context(|| {
-                        format!("failed to append rebuilt `{table_name}` batch at offset={offset}")
+                        format!(
+                            "failed to append rebuilt `{table_name}` batch after \
+                             {written_rows_total} logical rows"
+                        )
                     })?;
             },
             None => {
@@ -1724,10 +1744,72 @@ async fn rebuild_table_into_temp_db(
         if written_rows == 0 {
             break;
         }
-        offset += written_rows;
+        written_rows_total += written_rows;
     }
 
     Ok(())
+}
+
+async fn materialize_rebuild_blob_batch(
+    dataset: &Dataset,
+    schema: &Arc<Schema>,
+    regular_batch: RecordBatch,
+    logical_offset: usize,
+) -> Result<RecordBatch> {
+    // Use the same row-address blob read path as the production image API.
+    // BlobHandling::AllBinary can fail before materialization on current blob
+    // v2 tables, while take_blobs_by_addresses reads the sidecars directly.
+    let row_addresses = regular_batch
+        .column_by_name("_rowaddr")
+        .and_then(|column| column.as_any().downcast_ref::<UInt64Array>())
+        .ok_or_else(|| anyhow!("rebuild scan did not return `_rowaddr`"))?;
+    if row_addresses.null_count() > 0 {
+        bail!("rebuild scan returned null `_rowaddr` after {logical_offset} logical rows");
+    }
+    let row_addresses = row_addresses.values().to_vec();
+
+    let mut fields = Vec::with_capacity(schema.fields().len());
+    let mut arrays = Vec::with_capacity(schema.fields().len());
+    for field in schema.fields() {
+        if is_blob_v2_field(field.as_ref()) {
+            let blobs = Arc::new(dataset.clone())
+                .take_blobs_by_addresses(&row_addresses, field.name())
+                .await
+                .with_context(|| format!("failed to read blob column `{}`", field.name()))?;
+            if blobs.len() != regular_batch.num_rows() {
+                bail!(
+                    "blob row count mismatch for `{}` after {logical_offset} logical rows: \
+                     regular={} blob={}",
+                    field.name(),
+                    regular_batch.num_rows(),
+                    blobs.len()
+                );
+            }
+            let blob_bytes = try_join_all(blobs.iter().map(|blob| blob.read()))
+                .await
+                .with_context(|| format!("failed to materialize blob column `{}`", field.name()))?;
+            fields.push(Arc::new(Field::new(
+                field.name(),
+                DataType::LargeBinary,
+                field.is_nullable(),
+            )));
+            arrays.push(Arc::new(LargeBinaryArray::from_iter_values(
+                blob_bytes.iter().map(|bytes| bytes.as_ref()),
+            )) as ArrayRef);
+            continue;
+        }
+
+        let regular_schema = regular_batch.schema();
+        let (index, source_field) = regular_schema
+            .column_with_name(field.name())
+            .ok_or_else(|| anyhow!("missing rebuild projection column `{}`", field.name()))?;
+        fields.push(source_field.clone().into());
+        arrays.push(regular_batch.column(index).clone());
+    }
+
+    let combined_schema = Arc::new(Schema::new(fields));
+    RecordBatch::try_new(combined_schema, arrays)
+        .context("failed to combine regular columns and blob bytes")
 }
 
 fn align_batch_to_schema(schema: Arc<Schema>, batch: RecordBatch) -> Result<RecordBatch> {
@@ -1835,12 +1917,6 @@ async fn acquire_rebuild_guards(
         _ => {},
     }
     Ok(guards)
-}
-
-fn schema_has_blob_like_field(schema: &Schema) -> bool {
-    schema.fields().iter().any(|field| {
-        matches!(field.data_type(), DataType::LargeBinary) || is_blob_v2_field(field.as_ref())
-    })
 }
 
 fn schema_requires_blob_v2_storage(schema: &Schema) -> bool {
@@ -2760,6 +2836,135 @@ mod tests {
             kiro_cache_policy_override_json: None,
             kiro_billable_model_multipliers_override_json: None,
         }
+    }
+
+    #[tokio::test]
+    async fn rebuild_table_into_temp_db_reads_blob_v2_images() {
+        let source_dir = temp_db_path("rebuild-blob-v2-source");
+        let rebuilt_dir = temp_db_path("rebuild-blob-v2-target");
+        let source_db = connect_db(&source_dir).await.expect("connect source db");
+        let source_table = ensure_table(&source_db, "images", image_schema())
+            .await
+            .expect("create source images table");
+        upsert_images(&source_table, &[ImageRecord {
+            id: "image-1".to_string(),
+            filename: "image-1.png".to_string(),
+            data: vec![1, 2, 3, 4],
+            thumbnail: Some(vec![5, 6]),
+            vector: None,
+            metadata: "{}".to_string(),
+            created_at: 1_710_000_000_000,
+        }])
+        .await
+        .expect("insert source image");
+
+        let source_schema = source_table.schema().await.expect("read source schema");
+        rebuild_table_into_temp_db(&source_table, &source_schema, &rebuilt_dir, "images", 1)
+            .await
+            .expect("rebuild blob v2 images table");
+
+        let rebuilt_db = connect_db(&rebuilt_dir).await.expect("connect rebuilt db");
+        let rebuilt_table = open_table(&rebuilt_db, "images")
+            .await
+            .expect("open rebuilt images table");
+        assert_eq!(rebuilt_table.count_rows(None).await.expect("count images"), 1);
+        assert!(
+            table_uses_blob_v2_storage(&rebuilt_table)
+                .await
+                .expect("inspect rebuilt storage")
+        );
+
+        let rebuilt_dataset = rebuilt_table
+            .dataset()
+            .expect("rebuilt native dataset")
+            .get()
+            .await
+            .expect("load rebuilt dataset");
+        let mut scanner = rebuilt_dataset.scan();
+        scanner.project(&["id"]).expect("project rebuilt image");
+        scanner.with_row_address();
+        let batches = scanner
+            .try_into_stream()
+            .await
+            .expect("create rebuilt stream")
+            .try_collect::<Vec<_>>()
+            .await
+            .expect("read rebuilt image");
+        let row_address = batches[0]
+            .column_by_name("_rowaddr")
+            .and_then(|column| column.as_any().downcast_ref::<UInt64Array>())
+            .expect("read rebuilt row address")
+            .value(0);
+        let blobs = Arc::new(rebuilt_dataset)
+            .take_blobs_by_addresses(&[row_address], "data")
+            .await
+            .expect("read rebuilt blob");
+        let blob = blobs
+            .first()
+            .expect("rebuilt blob exists")
+            .read()
+            .await
+            .expect("materialize rebuilt blob");
+        assert_eq!(blob.as_ref(), &[1, 2, 3, 4]);
+
+        let _ = fs::remove_dir_all(&source_dir);
+        let _ = fs::remove_dir_all(&rebuilt_dir);
+    }
+
+    #[tokio::test]
+    async fn rebuild_table_into_temp_db_streams_past_deletions() {
+        let source_dir = temp_db_path("rebuild-deletions-source");
+        let rebuilt_dir = temp_db_path("rebuild-deletions-target");
+        let source_db = connect_db(&source_dir).await.expect("connect source db");
+        let schema = Arc::new(Schema::new(vec![Field::new("id", DataType::Utf8, false)]));
+        let batch = RecordBatch::try_new(schema.clone(), vec![Arc::new(
+            StringArray::from_iter_values((0..200).map(|row| format!("row-{row}"))),
+        )])
+        .expect("build source rows");
+        let reader = RecordBatchIterator::new(vec![Ok(batch)].into_iter(), schema.clone());
+        let mut builder = source_db
+            .create_table("rebuild_rows", Box::new(reader) as Box<dyn RecordBatchReader + Send>);
+        for &(key, value) in DEFAULT_STORAGE_OPTIONS {
+            builder = builder.storage_option(key, value);
+        }
+        let source_table = builder.execute().await.expect("create source table");
+        source_table
+            .delete("id = 'row-42'")
+            .await
+            .expect("delete source row");
+        assert_eq!(
+            source_table
+                .count_rows(None)
+                .await
+                .expect("count source rows"),
+            199
+        );
+
+        rebuild_table_into_temp_db(&source_table, &schema, &rebuilt_dir, "rebuild_rows", 64)
+            .await
+            .expect("rebuild rows with deletion vector");
+
+        let rebuilt_db = connect_db(&rebuilt_dir).await.expect("connect rebuilt db");
+        let rebuilt_table = open_table(&rebuilt_db, "rebuild_rows")
+            .await
+            .expect("open rebuilt table");
+        assert_eq!(
+            rebuilt_table
+                .count_rows(None)
+                .await
+                .expect("count rebuilt rows"),
+            199
+        );
+        assert_eq!(
+            rebuilt_table
+                .count_rows(Some("id = 'row-42'".to_string()))
+                .await
+                .expect("query deleted row"),
+            0
+        );
+
+        let _ = fs::remove_dir_all(&source_dir);
+        let _ = fs::remove_dir_all(&rebuilt_dir);
     }
 
     #[test]

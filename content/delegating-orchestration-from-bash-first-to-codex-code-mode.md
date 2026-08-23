@@ -1,5 +1,5 @@
 ---
-title: "【源码级拆解】最新 Codex Code Mode：顶层并行已关闭，工具却仍在并行——Agent Harness 的下一阶段也许已经到来"
+title: "【源码级拆解】Codex 0.149.0 默认开启特性：CodeMode——解锁工具调用的新篇章"
 summary: "Codex 和 Claude Code 各自独立地走到了同一个结论：控制流归模型写的程序，能力归 Harness 的结构化边界。Codex 用 JavaScript 编排工具，Claude Code 用 JavaScript 编排 Agent——层级不同，形状一样。本文从 Codex parallel_tool_calls=false 却仍并行的反常现象出发，逐层拆开 CodeModeOnly、V8 与 Rust Tool Runtime 的分工，再对照 Claude Code Dynamic Workflow 的 agent()/pipeline() 编排体系。"
 detailed_summary_zh: |
   两条独立演进的 Agent Harness 路线——OpenAI Codex 和 Anthropic Claude Code——在各自的最新版本中收敛到了同一个架构分工：控制流归模型写的程序，能力归 Harness 的结构化边界。
@@ -25,15 +25,17 @@ date: "2026-08-23"
 featured_image: "images/delegating-orchestration-from-bash-first-to-codex-code-mode-cover.png"
 ---
 
-# 【源码级拆解】Codex 0.149.0 默认开启的新 feature：CodeMode——解锁工具调用的新篇章
+# 【源码级拆解】Codex 0.149.0 默认开启特性：CodeMode——解锁工具调用的新篇章
 
-这篇文章源于一次个人探索。用最新 Codex 写代码时我注意到它经常一口气回来好几组命令的结果，看起来像是并行工具调用。但去源码里一翻，Responses Lite 分支明确把顶层 `parallel_tool_calls` 设成了 `false`——那并行到底是哪来的？顺着这个疑问一路读下去，就读到了 Code Mode 这套机制。
+这篇文章源于一次个人探索。用最新 Codex 写代码时我注意到它经常一口气回来好几组命令的结果，看起来像是并行工具调用。但去源码里一翻，Responses Lite 分支明确把顶层 `parallel_tool_calls` 设成了 `false`——那并行到底是哪来的？顺着这个疑问去看了 Codex 最新源码，就发现了 Code Mode 这套机制。
 
-> 其实在此之前先是朋友告诉我最新 Claude Code 的 Bash-first 的 prompt 以及对应的分支判断，这也是为什么第一章先写这个的原因。
+> 其实在此之前先是发现了最新 Claude Code 的 Bash-first 的 prompt 以及对应的源码判断（这也是为什么第一章先写这个的原因）。
 
-读完源码之后我的感受是：Codex 和 Claude Code 在各自的路径上走到了同一个架构分工——控制流交给模型写的程序，能力留在 Harness 的结构化边界里。Codex 目前用 JavaScript 编排工具，Claude Code 用 JavaScript 编排 Agent，层级不同但形状一样。而且我猜 Codex 不会停在工具层——Code Mode 搭的这套基础设施（独立 V8 进程、能力白名单、进程隔离）明显是在为下一步动态程序化编排 Agent 铺路，Claude Code 的 Dynamic Workflow 已经证明了这条路走得通。
+读完源码后我最大的感受是：Codex 和 Claude Code 都在把 Harness 的控制粒度往“代码”这一层推进。Codex 目前让模型写 JavaScript 动态编排工具，Claude Code 则进一步用 JavaScript 动态编排 subagent；层级不同，但形状已经很接近了（虽然严格说 subagent 也是工具）。Harness 负责能力和边界这件事没变，真正变化的是模型开始从“选择下一次 tool call”，走向“直接写程序组织一整段执行流程”。
 
-具体来说，本文的拆解路线：
+我不太相信 Codex 只会停在工具层。Code Mode 现在的独立 V8、能力白名单和进程隔离，本身就很像是在为更高层的动态 Agent 编排准备运行时；而 Claude Code 的 Dynamic Workflow 其实很早已经展示了这种模式会是什么样子。
+
+本文的内容如下：
 
 1. **Bash-first 策略** — Harness 为什么要把编排权交给模型？
 2. **Codex Code Mode 实现** — 逐层打开：
@@ -46,7 +48,7 @@ featured_image: "images/delegating-orchestration-from-bash-first-to-codex-code-m
 
 > **代码版本**：Claude Code `2.1.236` 本地发行包；OpenAI Codex commit [`343074d4207d`](https://github.com/openai/codex/tree/343074d4207d572809bd8cea15f4be1d09d98e0b)，源码日期 2026-08-22。
 
-## 一、Bash-first——当模型需要编排语言时的第一个回答
+## 一、Bash-first——当模型需要编排语言时最自然的解法
 
 最新的 Claude Code 在低打断路径中有一段措辞直接的提示词：
 
@@ -90,11 +92,13 @@ bashFirst 开关     -> Bash-first
 | 错误处理       | 返回模型后重新决策                | 可在脚本内处理已预见错误   |
 | 回滚能力       | 取决于 Harness 是否实现事务或快照 | 同样不天然具备回滚         |
 
-Bash-first 的本质：Harness 用一部分可观测性，换模型的编排自由。这个交换值不值得，取决于模型有多强。带着这个视角切到 Codex。
+Bash-first 的本质：Harness 用一部分可观测性，换模型的编排自由。这个交换值不值得，取决于模型有多强。带着这个视角我们再切到 Codex。
 
-## 二、Codex Code Mode——并行来自程序，不来自协议
+## 二、Codex Code Mode——解锁工具调用的新玩法
 
 ### 2.1 矛盾：parallel_tool_calls 关了，但行为像并行
+
+起初我还以为并行工具调用与默认开启了 `parallel_tool_calls` 有关，结果深入代码发现并非如此。
 
 Codex 构造 Responses 请求的地方明确写着，只要走 Responses Lite，顶层并行工具调用就被关掉：
 
@@ -106,7 +110,7 @@ parallel_tool_calls: prompt.parallel_tool_calls && !model_info.use_responses_lit
 
 ### 2.2 答案：CodeModeOnly 隐藏直接工具，模型只看到 `exec`
 
-Codex 协议定义了三种工具模式：
+Codex 在模型元数据上定义了三种工具模式：
 
 ```rust
 pub enum ToolMode {
@@ -129,11 +133,11 @@ CodeModeOnly
              -> tools.mcp__server__tool(...)
 ```
 
-顶层根本没有别的选项，不需要"请优先使用 exec"之类的劝说。模型会走 `exec`，因为它没别的可走。
+顶层根本没有别的选项，不需要“请优先使用 `exec`”之类的 prompt。模型会走 `exec`，因为它没别的可走。
 
 ### 2.3 执行链：模型 → JavaScript → V8 callback → Rust Tool Runtime
 
-模型返回的是一段原始 JavaScript——不是 JSON，不是带引号的字符串：
+模型返回的是一段原始 JavaScript——不是 JSON，也不是带引号的字符串：
 
 ```js
 const [client, protocol] = await Promise.all([
@@ -178,7 +182,7 @@ Codex Core 把嵌套调用交回普通 Rust Tool Runtime
 text()/image()/audio() 汇成一个 custom_tool_call_output
 ```
 
-V8 承担的是控制流：变量、循环、条件、`try/catch`、Promise、结果归并。它缺的是系统能力——没有 Node，没有文件系统，没有网络，没有 `console`，只有 Harness 允许的全局帮助函数和一个 `tools` 对象。
+V8 承担的是控制流：变量、循环、条件、`try/catch`、Promise、结果归并。它阉割了大部分系统能力——没有 Node，没有文件系统，没有网络，没有 `console`，只有 Harness 允许的全局帮助函数和一个 `tools` 对象。
 
 > JavaScript 是控制面，Rust 工具是能力面。
 
@@ -188,14 +192,19 @@ V8 承担的是控制流：变量、循环、条件、`try/catch`、Promise、�
 
 ```text
 模型响应
-`- custom_tool_call: exec
+- custom_tool_call: exec
 ```
 
 `exec` 内部调了几个工具，是本地 JavaScript 和 Rust Runtime 共同完成的。模型用 `Promise.all` 同时发出多个嵌套调用，Rust 侧按工具自身是否支持并行来决定准入——支持并行的调用共享读锁，不支持的取写锁串行执行。
 
-并行发生的位置变了：
+与 `parallel_tool_calls` 相比，并行发生的位置变了：
 
 ```text
+parallel_tool_calls
+服务端：多个顶层工具调用（Bash、Read、Search）
+客户端：执行多个工具调用
+
+Code Mode
 服务端：一个顶层 exec
 客户端：exec 内部产生多个嵌套工具调用
 ```
@@ -216,7 +225,7 @@ Code Mode 的安全模型由几个点共同构成：
 
 这是**能力安全**，不是对模型生成代码的信任。模型拿到了自由的控制流，却拿不到任何未注册的副作用能力。
 
-三种方案并排：
+三种方案对比：
 
 | 方案                   | 编排语言          | 产生副作用的执行器   | Harness 保留的结构           |
 | ---------------------- | ----------------- | -------------------- | ---------------------------- |
@@ -267,7 +276,7 @@ rusty_v8 由 Deno 维护，默认不从源码编译 V8 而是直接下载预编�
 v8_enable_sandbox = ["v8_enable_pointer_compression"]
 ```
 
-"收窄"不只是不注入 Node API，还包括 V8 自己的内存层防护。
+“收窄”不只是不注入 Node API，主要是加强 V8 自己的内存层防护。
 
 ## 三、演进线——从专用工具到程序化编排
 
@@ -308,6 +317,8 @@ v8_enable_sandbox = ["v8_enable_pointer_compression"]
 
 ## 四、Claude Code Dynamic Workflow——编排对象从工具抬到 Agent
 
+提到通过 JS 代码控制工具调用，我能想到的是 Claude Code 的 Dynamic Workflow，故再次进行畅想和对比。
+
 Claude Code 的 Dynamic Workflow 用一段 JavaScript 脚本编排子 Agent——和 Codex Code Mode 编排工具是同一个形状，抬高了一层：
 
 ```text
@@ -342,20 +353,22 @@ return audits.filter(Boolean)
 
 脚本可以存进 `.claude/workflows/` 变成斜杠命令、通过 `args` 传参、装进 plugin 带命名空间分发。运行中可以用 `/workflows` 看每个 phase 的 agent 数、token 量和耗时，钻进单个 agent 读它的 prompt 和结果。
 
-它给了一组硬边界，和 Codex Code Mode 的七条限制是同类东西：
+它给了一组硬边界，和 Codex Code Mode 的七条限制类似：
 
 - 脚本自己**不能碰文件系统和 shell**——干活的是 agent，脚本只做协调
 - 不能 `import()` 加载模块
 - 最多 16 个 agent 并发
 - 单次运行上限 1000 个 agent
 
-`import()` 限制的理由最能说明设计哲学的一致性：脚本 body 是纯 JavaScript，需要库的活儿放进 agent 的任务里。这跟 Codex 给 V8 的限定几乎是同一句话——控制流归程序，能力归受控执行器。
+`import()` 限制的理由最能说明设计哲学的一致性：脚本 body 是纯 JavaScript，需要库的活儿放进 agent 的任务里。这跟 Codex 给 V8 的限定几乎一致——控制流归程序，能力归受控执行器。
 
 ## 结语
 
 Harness 并不会因为模型拿到编排自由而变得不重要，反而更吃重。模型的编排自由越多，Harness 越需要把能力这一侧守稳：决定哪些工具可见、哪些副作用可执行、哪些调用可以并发，以及整个过程如何被审批、取消、记录和恢复。
 
-两家对"程序不能干什么"的规定几乎一样，而对"程序可以怎么组织工作"几乎不设限。控制流归模型，能力归 Harness——这不像某一家的实现偏好，更像两条独立演进的路线撞到了同一个结论上。Agent Harness 的下一阶段，大概不用再替模型安排每一步，只要把边界修得足够可靠，让模型在里面自由发挥。
+两家对“程序不能做什么”的限制几乎一致，但对“程序怎么组织工作”都给了模型很大的自由。Harness 负责定义能力和边界，控制流则越来越多地交给模型生成的程序。
+
+这不像某一家的实现偏好，更像是两条独立演进的路线最后自然收敛到了同一个方向。Agent Harness 的下一阶段，或许不会再有人类来替模型安排每一步，而是把边界做得足够可靠，然后让模型自己决定里面的路怎么走。
 
 ## 源码索引
 
