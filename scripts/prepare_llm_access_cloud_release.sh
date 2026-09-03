@@ -95,9 +95,9 @@ BUILD_JOBS="${BUILD_JOBS:-4}"
 ALLOW_DIRTY="${ALLOW_DIRTY:-0}"
 PREPARE_TARGET="${LLM_ACCESS_ACTIVATE_TARGET:-both}"
 case "$PREPARE_TARGET" in
-  api | worker | image | both) ;;
+  api | worker | image | cursor | both) ;;
   *)
-    fail "unsupported prepare target: $PREPARE_TARGET (expected api, worker, image, or both)"
+    fail "unsupported prepare target: $PREPARE_TARGET (expected api, worker, image, cursor, or both)"
     ;;
 esac
 require_var CARGO_TARGET_DIR
@@ -118,10 +118,12 @@ LOCAL_NEON_ENV_FILE="$(expand_path "$LOCAL_NEON_ENV_FILE")"
 [[ -x "$RENDER_SCRIPT" ]] || fail "render script is not executable: $RENDER_SCRIPT"
 [[ -r "$LLM_ACCESS_DIR/Cargo.toml" ]] || fail "llm-access submodule is not initialized: $LLM_ACCESS_DIR"
 [[ -r "$GCP_SSH_KEY" ]] || fail "SSH key is not readable: $GCP_SSH_KEY"
-[[ -r "$LOCAL_NEON_ENV_FILE" ]] || fail "local llm-access runtime env is not readable: $LOCAL_NEON_ENV_FILE"
-require_env_file_var "$LOCAL_NEON_ENV_FILE" LLM_ACCESS_CONTROL_DATABASE_URL "local llm-access runtime env"
-if [[ "$PREPARE_TARGET" == "image" || "$PREPARE_TARGET" == "both" ]]; then
-  require_env_file_var "$LOCAL_NEON_ENV_FILE" LLM_ACCESS_CODEX_IMAGE_CONTROL_DATABASE_URL "local llm-access runtime env"
+if [[ "$PREPARE_TARGET" != "cursor" ]]; then
+  [[ -r "$LOCAL_NEON_ENV_FILE" ]] || fail "local llm-access runtime env is not readable: $LOCAL_NEON_ENV_FILE"
+  require_env_file_var "$LOCAL_NEON_ENV_FILE" LLM_ACCESS_CONTROL_DATABASE_URL "local llm-access runtime env"
+  if [[ "$PREPARE_TARGET" == "image" || "$PREPARE_TARGET" == "both" ]]; then
+    require_env_file_var "$LOCAL_NEON_ENV_FILE" LLM_ACCESS_CODEX_IMAGE_CONTROL_DATABASE_URL "local llm-access runtime env"
+  fi
 fi
 if [[ "$ALLOW_DIRTY" != "1" ]] && [[ -n "$(git -C "$ROOT_DIR" status --porcelain --ignore-submodules=dirty)" ]]; then
   git -C "$ROOT_DIR" status --short --ignore-submodules=dirty >&2
@@ -136,9 +138,100 @@ mkdir -p "$CARGO_TARGET_DIR"
 df -h "$CARGO_TARGET_DIR" >/dev/null
 
 export CARGO_TARGET_DIR
+export LD_LIBRARY_PATH="$CARGO_TARGET_DIR/debug/deps${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export LLM_ACCESS_BUILD_REVISION="$(git -C "$LLM_ACCESS_DIR" rev-parse HEAD)"
 
 cd "$LLM_ACCESS_DIR"
+
+if [[ "$PREPARE_TARGET" == "cursor" ]]; then
+  log "running llm-access Cursor test suite"
+  cargo test -p llm-access-cursor-protocol -p llm-access-cursor --locked --jobs "$BUILD_JOBS"
+
+  log "running llm-access Cursor clippy"
+  cargo clippy -p llm-access-cursor-protocol -p llm-access-cursor --all-targets --locked --jobs "$BUILD_JOBS" -- -D warnings
+
+  log "building Cursor release binary"
+  cargo build -p llm-access-cursor --bin llm-access-cursor --release --locked --jobs "$BUILD_JOBS"
+
+  CURSOR_BIN="$CARGO_TARGET_DIR/release/llm-access-cursor"
+  [[ -x "$CURSOR_BIN" ]] || fail "built Cursor binary not found or not executable: $CURSOR_BIN"
+
+  GIT_COMMIT="$(git rev-parse HEAD)"
+  GIT_SHORT="$(git rev-parse --short=12 HEAD)"
+  STATICFLOW_GIT_COMMIT="$(git -C "$ROOT_DIR" rev-parse HEAD)"
+  RELEASE_ID="${RELEASE_ID:-$(date -u +%Y%m%dT%H%M%SZ)-$GIT_SHORT}"
+  OUT_DIR="${LLM_ACCESS_RELEASE_OUT:-$ROOT_DIR/tmp/llm-access-cloud-release/$RELEASE_ID}"
+  STAGED_CURSOR_BIN="$OUT_DIR/llm-access-cursor.$RELEASE_ID"
+  MANIFEST="$OUT_DIR/cursor-release.$RELEASE_ID.env"
+  SHA_FILE="$OUT_DIR/CURSOR_SHA256SUMS.$RELEASE_ID"
+  RENDER_DIR="$OUT_DIR/rendered"
+  STAGED_CURSOR_SERVICE_UNIT="$OUT_DIR/llm-access-cursor.service.release"
+
+  mkdir -p "$OUT_DIR"
+  "$RENDER_SCRIPT" "$RENDER_DIR"
+  cp "$CURSOR_BIN" "$STAGED_CURSOR_BIN"
+  cp "$RENDER_DIR/llm-access-cursor.service" "$STAGED_CURSOR_SERVICE_UNIT"
+  chmod 0755 "$STAGED_CURSOR_BIN"
+  CURSOR_BIN_SHA="$(sha256sum "$STAGED_CURSOR_BIN" | awk '{print $1}')"
+  printf '%s  %s\n' "$CURSOR_BIN_SHA" "llm-access-cursor.$RELEASE_ID" >"$SHA_FILE"
+
+  cat >"$MANIFEST" <<EOF
+release_id=$RELEASE_ID
+git_commit=$GIT_COMMIT
+git_short=$GIT_SHORT
+staticflow_git_commit=$STATICFLOW_GIT_COMMIT
+built_at_utc=$(date -u +%FT%TZ)
+cursor_sha256=$CURSOR_BIN_SHA
+cursor_binary=llm-access-cursor.$RELEASE_ID
+EOF
+
+  SSH_OPTS=(-i "$GCP_SSH_KEY" -o IdentitiesOnly=yes -o BatchMode=yes)
+  REMOTE_RELEASE_DIR_Q="$(shell_quote "$REMOTE_RELEASE_DIR")"
+  REMOTE_SCRIPT_NAME="$(basename "$REMOTE_SCRIPT")"
+
+  log "checking Cursor release target: $GCP_DEST"
+  ssh "${SSH_OPTS[@]}" "$GCP_DEST" "
+    set -e
+    mkdir -p $REMOTE_RELEASE_DIR_Q
+    systemctl is-active juicefs-llm-access.service >/dev/null
+    findmnt -T /mnt/llm-access >/dev/null
+  "
+
+  log "uploading Cursor release $RELEASE_ID to $GCP_DEST:$REMOTE_RELEASE_DIR"
+  scp "${SSH_OPTS[@]}" \
+    "$STAGED_CURSOR_BIN" \
+    "$MANIFEST" \
+    "$SHA_FILE" \
+    "$STAGED_CURSOR_SERVICE_UNIT" \
+    "$REMOTE_SCRIPT" \
+    "$GCP_DEST:$REMOTE_RELEASE_DIR/"
+
+  log "updating remote Cursor-only latest pointers"
+  ssh "${SSH_OPTS[@]}" "$GCP_DEST" "
+    set -e
+    cd $REMOTE_RELEASE_DIR_Q
+    chmod 0755 $REMOTE_SCRIPT_NAME llm-access-cursor.$RELEASE_ID
+    sha256sum -c CURSOR_SHA256SUMS.$RELEASE_ID
+    ln -sfn llm-access-cursor.$RELEASE_ID llm-access-cursor.latest
+    ln -sfn cursor-release.$RELEASE_ID.env cursor-release.latest.env
+  "
+
+  cat <<EOF
+
+Prepared llm-access Cursor-only cloud release:
+  release_id: $RELEASE_ID
+  git_commit: $GIT_COMMIT
+  cursor_sha256: $CURSOR_BIN_SHA
+  remote_dir: $REMOTE_RELEASE_DIR
+
+Run this on the cloud target to activate it:
+  LLM_ACCESS_ACTIVATE_TARGET=cursor \\
+  LLM_ACCESS_RELEASE_MANIFEST=$REMOTE_RELEASE_DIR/cursor-release.latest.env \\
+  LLM_ACCESS_STAGED_CURSOR_SERVICE_UNIT=$REMOTE_RELEASE_DIR/llm-access-cursor.service.release \\
+  $REMOTE_RELEASE_DIR/$REMOTE_SCRIPT_NAME
+EOF
+  exit 0
+fi
 
 log "running llm-access test suite"
 cargo test -p llm-usage-journal -p llm-access-core -p llm-access-store -p llm-access -p llm-access-codex-image --jobs "$BUILD_JOBS"

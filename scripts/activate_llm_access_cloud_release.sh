@@ -6,6 +6,7 @@ RELEASE_DIR="${LLM_ACCESS_RELEASE_DIR:-$SCRIPT_DIR}"
 SERVICE="${LLM_ACCESS_SERVICE:-llm-access.service}"
 WORKER_SERVICE="${LLM_ACCESS_USAGE_WORKER_SERVICE:-llm-access-usage-worker.service}"
 IMAGE_SERVICE="${LLM_ACCESS_CODEX_IMAGE_SERVICE:-llm-access-codex-image.service}"
+CURSOR_SERVICE="${LLM_ACCESS_CURSOR_SERVICE:-llm-access-cursor.service}"
 USAGE_MOUNT_SERVICE="${LLM_ACCESS_USAGE_MOUNT_SERVICE:-juicefs-llm-access-usage.service}"
 SERVICE_USER="${LLM_ACCESS_SERVICE_USER:-ts_user}"
 SERVICE_GROUP="${LLM_ACCESS_SERVICE_GROUP:-$SERVICE_USER}"
@@ -13,14 +14,17 @@ ACTIVATE_TARGET="${LLM_ACCESS_ACTIVATE_TARGET:-both}"
 INSTALL_PATH="${LLM_ACCESS_INSTALL_PATH:-/usr/local/bin/llm-access}"
 WORKER_INSTALL_PATH="${LLM_ACCESS_USAGE_WORKER_INSTALL_PATH:-/usr/local/bin/llm-access-usage-worker}"
 IMAGE_INSTALL_PATH="${LLM_ACCESS_CODEX_IMAGE_INSTALL_PATH:-/usr/local/bin/llm-access-codex-image}"
+CURSOR_INSTALL_PATH="${LLM_ACCESS_CURSOR_INSTALL_PATH:-/usr/local/bin/llm-access-cursor}"
 SERVICE_UNIT_INSTALL_PATH="${LLM_ACCESS_SERVICE_UNIT_INSTALL_PATH:-/etc/systemd/system/llm-access.service}"
 WORKER_SERVICE_UNIT_INSTALL_PATH="${LLM_ACCESS_USAGE_WORKER_SERVICE_UNIT_INSTALL_PATH:-/etc/systemd/system/llm-access-usage-worker.service}"
 IMAGE_SERVICE_UNIT_INSTALL_PATH="${LLM_ACCESS_CODEX_IMAGE_SERVICE_UNIT_INSTALL_PATH:-/etc/systemd/system/llm-access-codex-image.service}"
+CURSOR_SERVICE_UNIT_INSTALL_PATH="${LLM_ACCESS_CURSOR_SERVICE_UNIT_INSTALL_PATH:-/etc/systemd/system/llm-access-cursor.service}"
 USAGE_MOUNT_SERVICE_UNIT_INSTALL_PATH="${LLM_ACCESS_USAGE_MOUNT_SERVICE_UNIT_INSTALL_PATH:-/etc/systemd/system/juicefs-llm-access-usage.service}"
 BACKUP_DIR="${LLM_ACCESS_BACKUP_DIR:-/usr/local/bin/staticflow-backups}"
 HEALTH_URL="${LLM_ACCESS_HEALTH_URL:-http://127.0.0.1:19080/healthz}"
 WORKER_HEALTH_URL="${LLM_ACCESS_USAGE_WORKER_HEALTH_URL:-http://127.0.0.1:19081/admin/llm-access/usage-worker/status}"
 IMAGE_HEALTH_URL="${LLM_ACCESS_CODEX_IMAGE_HEALTH_URL:-http://127.0.0.1:19082/healthz}"
+CURSOR_HEALTH_URL="${LLM_ACCESS_CURSOR_HEALTH_URL:-http://127.0.0.1:19090/healthz}"
 VERSION_URL="${LLM_ACCESS_VERSION_URL:-http://127.0.0.1:19080/version}"
 JOURNAL_LINES="${JOURNAL_LINES:-80}"
 NEON_ENV_PATH="${LLM_ACCESS_CONTROL_DATABASE_URL_FILE:-/mnt/llm-access/config/neon.env}"
@@ -28,10 +32,12 @@ STAGED_NEON_ENV="${LLM_ACCESS_STAGED_NEON_ENV:-$RELEASE_DIR/llm-access-neon.env.
 STAGED_BIN="${1:-$RELEASE_DIR/llm-access.latest}"
 STAGED_WORKER_BIN="${2:-$RELEASE_DIR/llm-access-usage-worker.latest}"
 STAGED_IMAGE_BIN="${LLM_ACCESS_STAGED_CODEX_IMAGE_BIN:-$RELEASE_DIR/llm-access-codex-image.latest}"
+STAGED_CURSOR_BIN="${LLM_ACCESS_STAGED_CURSOR_BIN:-$RELEASE_DIR/llm-access-cursor.latest}"
 MANIFEST="${LLM_ACCESS_RELEASE_MANIFEST:-$RELEASE_DIR/release.latest.env}"
 STAGED_SERVICE_UNIT="${LLM_ACCESS_STAGED_SERVICE_UNIT:-$RELEASE_DIR/llm-access.service.release}"
 STAGED_WORKER_SERVICE_UNIT="${LLM_ACCESS_STAGED_WORKER_SERVICE_UNIT:-$RELEASE_DIR/llm-access-usage-worker.service.release}"
 STAGED_IMAGE_SERVICE_UNIT="${LLM_ACCESS_STAGED_IMAGE_SERVICE_UNIT:-$RELEASE_DIR/llm-access-codex-image.service.release}"
+STAGED_CURSOR_SERVICE_UNIT="${LLM_ACCESS_STAGED_CURSOR_SERVICE_UNIT:-$RELEASE_DIR/llm-access-cursor.service.release}"
 STAGED_USAGE_MOUNT_SERVICE_UNIT="${LLM_ACCESS_STAGED_USAGE_MOUNT_SERVICE_UNIT:-$RELEASE_DIR/juicefs-llm-access-usage.service.release}"
 
 log() {
@@ -190,10 +196,10 @@ for cmd in awk curl findmnt install sed seq sha256sum sudo systemctl; do
 done
 
 case "$ACTIVATE_TARGET" in
-  api|worker|image|both)
+  api|worker|image|cursor|both)
     ;;
   *)
-    fail "unsupported activation target: $ACTIVATE_TARGET (expected api, worker, image, or both)"
+    fail "unsupported activation target: $ACTIVATE_TARGET (expected api, worker, image, cursor, or both)"
     ;;
 esac
 
@@ -208,6 +214,10 @@ fi
 if [[ "$ACTIVATE_TARGET" == "image" ]]; then
   [[ -f "$STAGED_IMAGE_BIN" ]] || fail "staged codex image binary not found: $STAGED_IMAGE_BIN"
   [[ -r "$STAGED_IMAGE_BIN" ]] || fail "staged codex image binary is not readable: $STAGED_IMAGE_BIN"
+fi
+if [[ "$ACTIVATE_TARGET" == "cursor" ]]; then
+  [[ -f "$STAGED_CURSOR_BIN" ]] || fail "staged Cursor binary not found: $STAGED_CURSOR_BIN"
+  [[ -r "$STAGED_CURSOR_BIN" ]] || fail "staged Cursor binary is not readable: $STAGED_CURSOR_BIN"
 fi
 
 expected_sha="$(manifest_value api_sha256 || true)"
@@ -235,6 +245,15 @@ if [[ "$ACTIVATE_TARGET" == "image" ]]; then
     fail "staged codex image binary sha256 mismatch: expected $expected_image_sha, got $actual_image_sha"
   fi
 fi
+expected_cursor_sha="$(manifest_value cursor_sha256 || true)"
+actual_cursor_sha=""
+if [[ "$ACTIVATE_TARGET" == "cursor" ]]; then
+  actual_cursor_sha="$(sha256sum "$STAGED_CURSOR_BIN" | awk '{print $1}')"
+  [[ -n "$expected_cursor_sha" ]] || fail "Cursor release manifest does not define cursor_sha256: $MANIFEST"
+  if [[ "$actual_cursor_sha" != "$expected_cursor_sha" ]]; then
+    fail "staged Cursor binary sha256 mismatch: expected $expected_cursor_sha, got $actual_cursor_sha"
+  fi
+fi
 
 release_id="$(manifest_value release_id || true)"
 git_commit="$(manifest_value git_commit || true)"
@@ -254,12 +273,16 @@ if [[ "$ACTIVATE_TARGET" == "image" ]]; then
   log "staged_codex_image_binary=$STAGED_IMAGE_BIN"
   log "staged_codex_image_sha256=$actual_image_sha"
 fi
+if [[ "$ACTIVATE_TARGET" == "cursor" ]]; then
+  log "staged_cursor_binary=$STAGED_CURSOR_BIN"
+  log "staged_cursor_sha256=$actual_cursor_sha"
+fi
 
 systemctl is-active juicefs-llm-access.service >/dev/null || fail "juicefs-llm-access.service is not active"
 findmnt -T /mnt/llm-access >/dev/null || fail "/mnt/llm-access is not mounted"
 sudo install -d -m 0755 "$BACKUP_DIR"
-if [[ "$ACTIVATE_TARGET" == "image" && -e "$STAGED_NEON_ENV" ]]; then
-  log "skipping staged shared runtime env install for image-only activation"
+if [[ "$ACTIVATE_TARGET" == "image" || "$ACTIVATE_TARGET" == "cursor" ]]; then
+  log "preserving shared runtime env for $ACTIVATE_TARGET-only activation"
 elif [[ -e "$STAGED_NEON_ENV" ]]; then
   [[ -r "$STAGED_NEON_ENV" ]] || fail "staged llm-access runtime env is not readable: $STAGED_NEON_ENV"
   require_env_file_var "$STAGED_NEON_ENV" LLM_ACCESS_CONTROL_DATABASE_URL "staged llm-access runtime env"
@@ -278,6 +301,12 @@ sudo test -r "$NEON_ENV_PATH" || fail "missing shared llm-access runtime env: $N
 require_env_file_var_with_sudo "$NEON_ENV_PATH" LLM_ACCESS_CONTROL_DATABASE_URL "shared llm-access runtime env"
 if [[ "$ACTIVATE_TARGET" == "image" ]]; then
   require_env_file_var_with_sudo "$NEON_ENV_PATH" LLM_ACCESS_CODEX_IMAGE_CONTROL_DATABASE_URL "shared llm-access runtime env"
+fi
+if [[ "$ACTIVATE_TARGET" == "cursor" ]] && systemctl is-active "$CURSOR_SERVICE" >/dev/null; then
+  log "$CURSOR_SERVICE is active before activation"
+  curl -fsS "$CURSOR_HEALTH_URL" >/dev/null || log "pre-activation Cursor health check failed; continuing with restart"
+elif [[ "$ACTIVATE_TARGET" == "cursor" ]]; then
+  log "$CURSOR_SERVICE is not active before activation; continuing with install"
 fi
 if [[ "$ACTIVATE_TARGET" == "worker" || "$ACTIVATE_TARGET" == "both" ]]; then
   if findmnt -T /mnt/llm-access-usage >/dev/null; then
@@ -311,18 +340,21 @@ timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 backup_path="$BACKUP_DIR/llm-access.$timestamp"
 worker_backup_path="$BACKUP_DIR/llm-access-usage-worker.$timestamp"
 image_backup_path="$BACKUP_DIR/llm-access-codex-image.$timestamp"
+cursor_backup_path="$BACKUP_DIR/llm-access-cursor.$timestamp"
 neon_env_backup_path="$BACKUP_DIR/neon.env.$timestamp"
 service_unit_backup_path="$BACKUP_DIR/llm-access.service.$timestamp"
 worker_service_unit_backup_path="$BACKUP_DIR/llm-access-usage-worker.service.$timestamp"
 image_service_unit_backup_path="$BACKUP_DIR/llm-access-codex-image.service.$timestamp"
+cursor_service_unit_backup_path="$BACKUP_DIR/llm-access-cursor.service.$timestamp"
 usage_mount_service_unit_backup_path="$BACKUP_DIR/juicefs-llm-access-usage.service.$timestamp"
 
 reload_required=0
 installed_sha=""
 installed_worker_sha=""
 installed_image_sha=""
+installed_cursor_sha=""
 
-if [[ "$ACTIVATE_TARGET" != "image" && -e "$STAGED_NEON_ENV" && -e "$BACKUP_DIR/neon.env.preinstall" ]]; then
+if [[ "$ACTIVATE_TARGET" != "image" && "$ACTIVATE_TARGET" != "cursor" && -e "$STAGED_NEON_ENV" && -e "$BACKUP_DIR/neon.env.preinstall" ]]; then
   sudo mv "$BACKUP_DIR/neon.env.preinstall" "$neon_env_backup_path"
 fi
 
@@ -352,6 +384,14 @@ if [[ "$ACTIVATE_TARGET" == "image" ]]; then
   installed_image_sha="$(sudo sha256sum "$IMAGE_INSTALL_PATH" | awk '{print $1}')"
   if [[ -n "$STAGED_IMAGE_SERVICE_UNIT" ]]; then
     install_service_unit "$STAGED_IMAGE_SERVICE_UNIT" "$IMAGE_SERVICE_UNIT_INSTALL_PATH" "$image_service_unit_backup_path"
+    reload_required=1
+  fi
+fi
+if [[ "$ACTIVATE_TARGET" == "cursor" ]]; then
+  install_binary "$STAGED_CURSOR_BIN" "$CURSOR_INSTALL_PATH" "$cursor_backup_path" "$actual_cursor_sha"
+  installed_cursor_sha="$(sudo sha256sum "$CURSOR_INSTALL_PATH" | awk '{print $1}')"
+  if [[ -n "$STAGED_CURSOR_SERVICE_UNIT" ]]; then
+    install_service_unit "$STAGED_CURSOR_SERVICE_UNIT" "$CURSOR_SERVICE_UNIT_INSTALL_PATH" "$cursor_service_unit_backup_path"
     reload_required=1
   fi
 fi
@@ -404,6 +444,10 @@ fi
 if [[ "$ACTIVATE_TARGET" == "image" ]]; then
   restart_and_verify "$IMAGE_SERVICE" "$IMAGE_HEALTH_URL" "$image_backup_path"
 fi
+if [[ "$ACTIVATE_TARGET" == "cursor" ]]; then
+  sudo systemctl enable "$CURSOR_SERVICE"
+  restart_and_verify "$CURSOR_SERVICE" "$CURSOR_HEALTH_URL" "$cursor_backup_path"
+fi
 
 log "activation succeeded"
 if [[ "$ACTIVATE_TARGET" == "api" || "$ACTIVATE_TARGET" == "both" ]]; then
@@ -422,6 +466,11 @@ if [[ "$ACTIVATE_TARGET" == "image" ]]; then
   curl -fsS "$IMAGE_HEALTH_URL"
   printf '\n'
   systemctl show "$IMAGE_SERVICE" -p ActiveState -p SubState -p MainPID -p ExecMainStartTimestamp -p NRestarts --no-pager
+fi
+if [[ "$ACTIVATE_TARGET" == "cursor" ]]; then
+  curl -fsS "$CURSOR_HEALTH_URL"
+  printf '\n'
+  systemctl show "$CURSOR_SERVICE" -p ActiveState -p SubState -p MainPID -p ExecMainStartTimestamp -p NRestarts --no-pager
 fi
 
 rollback_cmd=""
@@ -462,6 +511,19 @@ elif [[ "$ACTIVATE_TARGET" == "image" ]]; then
     rollback_cmd+=" && sudo cp -a \"$image_service_unit_backup_path\" \"$IMAGE_SERVICE_UNIT_INSTALL_PATH\""
   fi
   rollback_cmd+=" && sudo systemctl daemon-reload && sudo systemctl restart \"$IMAGE_SERVICE\""
+elif [[ "$ACTIVATE_TARGET" == "cursor" ]]; then
+  if [[ -e "$cursor_backup_path" ]]; then
+    rollback_cmd="sudo cp -a \"$cursor_backup_path\" \"$CURSOR_INSTALL_PATH\""
+  else
+    rollback_cmd="sudo systemctl disable --now \"$CURSOR_SERVICE\" && sudo rm -f \"$CURSOR_INSTALL_PATH\" \"$CURSOR_SERVICE_UNIT_INSTALL_PATH\""
+  fi
+  if [[ -n "$STAGED_CURSOR_SERVICE_UNIT" && -e "$cursor_service_unit_backup_path" ]]; then
+    rollback_cmd+=" && sudo cp -a \"$cursor_service_unit_backup_path\" \"$CURSOR_SERVICE_UNIT_INSTALL_PATH\""
+  fi
+  rollback_cmd+=" && sudo systemctl daemon-reload"
+  if [[ -e "$cursor_backup_path" ]]; then
+    rollback_cmd+=" && sudo systemctl restart \"$CURSOR_SERVICE\""
+  fi
 else
   rollback_cmd="sudo cp -a \"$worker_backup_path\" \"$WORKER_INSTALL_PATH\""
   if [[ -e "$neon_env_backup_path" ]]; then
@@ -492,6 +554,8 @@ Installed llm-access release:
   usage_worker_backup: ${installed_worker_sha:+$worker_backup_path}
   codex_image_sha256: ${installed_image_sha:-skipped}
   codex_image_backup: ${installed_image_sha:+$image_backup_path}
+  cursor_sha256: ${installed_cursor_sha:-skipped}
+  cursor_backup: ${installed_cursor_sha:+$cursor_backup_path}
   neon_env: $NEON_ENV_PATH
 
 Rollback command if needed:

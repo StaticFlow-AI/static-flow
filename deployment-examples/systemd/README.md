@@ -17,6 +17,7 @@ Files:
 - `staticflow-backend-slot.env.example`
 - `llm-access.service.template`
 - `llm-access-usage-worker.service.template`
+- `llm-access-cursor.service.template`
 - `llm-access-juicefs.mount.template`
 - `juicefs-llm-access.resource-guard.conf`
 - `staticflow-wait-llm-access-state`
@@ -72,6 +73,7 @@ Storage model:
 - packed usage details: `/mnt/llm-access-usage/details/packs/...`
 - hot usage journal: `/var/lib/staticflow/llm-access/usage-journal`
 - usage query worker bind: `127.0.0.1:19081`
+- Cursor/Grok data-plane bind: `127.0.0.1:19090`
 - control JuiceFS cache dir: `/var/cache/juicefs/llm-access`
 - usage JuiceFS cache dir: `/var/cache/juicefs/llm-access-usage`
 
@@ -90,6 +92,17 @@ dedicated JuiceFS usage mount, while the archived-segment catalog stays in
 Neon Postgres.
 The GeoIP MMDB is a rebuildable local cache and should stay on the VM block
 disk, not under `/mnt/llm-access`.
+
+`llm-access-cursor.service` is a thin provider data plane. Public requests use
+`/api/cursor-gateway/v1/*`, which Caddy strips to `/v1/*` before forwarding to
+`:19090`. The process owns no local keys, account registry, policy, or usage
+database: it reads the shared Neon control plane and appends terminal usage to
+the same local hot journal consumed by `llm-access-usage-worker`.
+
+Deploy only this process with
+`scripts/release_llm_access_cloud_cursor_only.sh`. The Cursor-only release uses
+its own manifest and `latest` pointer, preserves the shared Neon environment,
+and installs, restarts, verifies, or rolls back only `llm-access-cursor.service`.
 
 Bundle rendering and template validation:
 

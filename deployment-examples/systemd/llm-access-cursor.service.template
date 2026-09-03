@@ -1,0 +1,37 @@
+[Unit]
+Description=StaticFlow Cursor and Grok Data Plane
+After=network-online.target mnt-llm\x2daccess.mount
+Wants=network-online.target
+RequiresMountsFor=/mnt/llm-access
+
+[Service]
+Type=simple
+User=ts_user
+Group=ts_user
+TimeoutStartSec=180
+# Keys, groups, accounts, moderation, proxy bindings, and runtime policy come
+# from the same Neon control plane as llm-access. No local auth file is used.
+EnvironmentFile=/etc/llm-access/llm-access.env
+Environment=STATICFLOW_LOG_DIR=/var/log/staticflow-runtime
+Environment=STATICFLOW_LOG_SERVICE=llm-access-cursor
+Environment=STATICFLOW_LOG_STDOUT=0
+Environment=LLM_ACCESS_CURSOR_STATE_DIR=/var/lib/staticflow/llm-access/cursor-runtime
+Environment=LLM_ACCESS_USAGE_JOURNAL_DIR=/var/lib/staticflow/llm-access/usage-journal
+WorkingDirectory=/mnt/llm-access
+ExecStartPre=/usr/bin/bash -lc 'set -a; . /mnt/llm-access/config/neon.env; exec /usr/local/bin/staticflow-wait-llm-access-state api'
+ExecStart=/usr/bin/bash -lc 'set -a; . /mnt/llm-access/config/neon.env; exec /usr/local/bin/llm-access-cursor serve --bind 127.0.0.1:19090 --state-root /var/lib/staticflow/llm-access --postgres-control-database-url-env LLM_ACCESS_CONTROL_DATABASE_URL --usage-journal-dir "$LLM_ACCESS_USAGE_JOURNAL_DIR"'
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+StateDirectory=staticflow/llm-access
+MemoryAccounting=yes
+MemoryHigh=1536M
+MemoryMax=2048M
+MemorySwapMax=512M
+TasksMax=192
+OOMPolicy=kill
+# Keep mount namespace hardening aligned with llm-access.service: the shared
+# Neon config lives on a JuiceFS FUSE mount using default_permissions.
+
+[Install]
+WantedBy=multi-user.target
