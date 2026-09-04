@@ -14,12 +14,13 @@ AI_REVIEW_BIN="${AI_REVIEW_BIN:-/mnt/wsl/data4tb/static-flow-data/cargo-target/s
 AI_REVIEW_START_SCRIPT="${AI_REVIEW_START_SCRIPT:-$ROOT_DIR/scripts/start_ai_review_local.sh}"
 LLM_ACCESS_FRONTEND_DIR="${LLM_ACCESS_FRONTEND_DIR:-$ROOT_DIR/deps/llm-access/apps/llm-access-frontend}"
 LLM_ACCESS_FRONTEND_SERVICE_KEY="${LLM_ACCESS_FRONTEND_SERVICE_KEY:-ai-review-ui}"
+LLM_ACCESS_CURSOR_PBMAPPER_ENV_FILE="${LLM_ACCESS_CURSOR_PBMAPPER_ENV_FILE:-$ROOT_DIR/.local/pbmapper/llm-access-cursor.env}"
 GPT2API_BIN="${GPT2API_BIN:-/mnt/wsl/data4tb/static-flow-data/cargo-target/gpt2api_rs/release/gpt2api-rs}"
 GPT2API_TARGET_DIR="${GPT2API_TARGET_DIR:-/mnt/wsl/data4tb/static-flow-data/cargo-target/gpt2api_rs/release}"
 ANTIGRAVITY_DIR="${ANTIGRAVITY_DIR:-$ROOT_DIR/deps/AntigravityManager}"
 ANTIGRAVITY_CONFIG_FILE="${ANTIGRAVITY_CONFIG_FILE:-$HOME/.antigravity-agent/gui_config.json}"
 MEDIA_ROOT="${MEDIA_ROOT:-/mnt/e/videos/static}"
-HOME_PBMAPPER_SERVER="${HOME_PBMAPPER_SERVER:-lb7666.top:7666}"
+HOME_PBMAPPER_SERVER="${HOME_PBMAPPER_SERVER:-ackingliu.top:7666}"
 
 DRY_RUN=0
 STRICT_READINESS=0
@@ -51,7 +52,8 @@ Restores the local tmux-supervised service set after a reboot:
 
 Optional services:
   --with-antigravity starts Antigravity Manager and verifies its authenticated API.
-  --with-llm-access-frontend starts sf-ai-review, sf-llm-access-frontend, and pbmapper-llm-access-frontend-aws.
+  --with-llm-access-frontend starts the Cursor admin subscription, sf-ai-review,
+  sf-llm-access-frontend, and pbmapper-llm-access-frontend-aws.
   --with-ai-review is retained as an alias for the same combined frontend stack.
   --full enables both optional service groups and verifies the local /llm-access route.
   --strict exits immediately when a service does not become ready.
@@ -208,7 +210,7 @@ print_status() {
   log "tmux sessions"
   tmux list-sessions 2>/dev/null | grep -E '^(sf-|pbmapper-|gpt2api-rs|antigravity-manager)' || true
   log "listening ports"
-  ss -ltnp 2>/dev/null | grep -E ':(8045|18787|19182|19190|19191|39080|39081|39085|39180)\b' || true
+  ss -ltnp 2>/dev/null | grep -E ':(8045|18787|19182|19183|19190|19191|39080|39081|39085|39180)\b' || true
 }
 
 active_slot() {
@@ -273,6 +275,15 @@ start_pbmapper_llm_access() {
   cmd="cd $(q "$ROOT_DIR") && set -a && . .local/pbmapper/llm-access.env && set +a && exec pb-mapper-client-cli tcp-server --key \"\$SERVICE_KEY\" --addr \"\$LOCAL_ADDR\""
   start_tmux "pbmapper-llm-access-aws" "$cmd"
   wait_tcp "pbmapper-llm-access-aws" "19182" 40
+}
+
+start_pbmapper_llm_access_cursor() {
+  local cmd
+  [[ -f "$LLM_ACCESS_CURSOR_PBMAPPER_ENV_FILE" ]] \
+    || fail "missing Cursor admin pb-mapper env file: $LLM_ACCESS_CURSOR_PBMAPPER_ENV_FILE"
+  cmd="cd $(q "$ROOT_DIR") && set -a && . $(q "$LLM_ACCESS_CURSOR_PBMAPPER_ENV_FILE") && set +a && exec pb-mapper-client-cli tcp-server --key \"\$SERVICE_KEY\" --addr \"\$LOCAL_ADDR\""
+  start_tmux "pbmapper-llm-access-cursor-aws" "$cmd"
+  wait_tcp "pbmapper-llm-access-cursor-aws" "19183" 40
 }
 
 start_pbmapper_home_ubuntu() {
@@ -372,8 +383,9 @@ start_llm_access_frontend_stack() {
   fi
   [[ -f "$AI_REVIEW_ENV_FILE" ]] || fail "missing ai review env file: $AI_REVIEW_ENV_FILE"
   [[ -f "$LLM_ACCESS_FRONTEND_DIR/package.json" ]] || fail "missing llm-access frontend: $LLM_ACCESS_FRONTEND_DIR"
+  start_pbmapper_llm_access_cursor
   api_cmd="cd $(q "$ROOT_DIR") && if [[ -f $(q "$ANTIGRAVITY_CONFIG_FILE") ]]; then export ANTIGRAVITY_MANAGER_API_KEY=\$(jq -r '.proxy.api_key // .api_key // empty' $(q "$ANTIGRAVITY_CONFIG_FILE")); fi && exec $(q "$AI_REVIEW_START_SCRIPT") $(q "$AI_REVIEW_ENV_FILE") $(q "$AI_REVIEW_BIN") serve --bind 127.0.0.1:19190"
-  ui_cmd="cd $(q "$LLM_ACCESS_FRONTEND_DIR") && export PATH=$(q "$PATH") && pnpm build && exec pnpm preview"
+  ui_cmd="cd $(q "$LLM_ACCESS_FRONTEND_DIR") && export PATH=$(q "$PATH") LLM_ACCESS_ADMIN_TARGET=http://127.0.0.1:19182 LLM_ACCESS_CURSOR_ADMIN_TARGET=http://127.0.0.1:19183 && pnpm build && exec pnpm preview"
   pbmapper_cmd="cd $(q "$ROOT_DIR") && set -a && . .local/pbmapper/sf-backend.env && set +a && SERVICE_KEY=$(q "$LLM_ACCESS_FRONTEND_SERVICE_KEY") && LOCAL_ADDR=127.0.0.1:19191 && exec pb-mapper-server-cli tcp-server --key \"\$SERVICE_KEY\" --addr \"\$LOCAL_ADDR\""
 
   start_tmux "sf-ai-review" "$api_cmd"

@@ -212,6 +212,8 @@ Traffic path:
   → local Pingora `127.0.0.1:39180` → active backend slot
 - Local `pbmapper-llm-access-aws` on `127.0.0.1:19182` subscribes cloud
   `llm-access` back for local dev/testing
+- Local `pbmapper-llm-access-cursor-aws` on `127.0.0.1:19183` subscribes the
+  independent cloud `llm-access-cursor` admin surface for the local console
 
 Additional external Dario proxy:
 - A separate Azure VM runs Dario at `http://20.115.164.89:3456`.
@@ -286,6 +288,7 @@ the active production path.
 | `gpt2api-rs` | GPT2API image gateway | `127.0.0.1:18787` |
 | `pbmapper-sf-backend-aws` | Registers gateway with active AWS cloud relay | configured in private env |
 | `pbmapper-llm-access-aws` | Subscribes active AWS cloud `llm-access` locally | `127.0.0.1:19182` |
+| `pbmapper-llm-access-cursor-aws` | Subscribes active AWS cloud `llm-access-cursor` locally | `127.0.0.1:19183` |
 | `sf-llm-access-frontend` | llm-access operations console (Vite preview) | `127.0.0.1:19191` |
 | `pbmapper-llm-access-frontend-aws` | Publishes the local console through the AWS relay | `127.0.0.1:19191` |
 | `pbmapper-home-ubuntu-aws` | Registers local SSH with active AWS cloud relay | configured in private env |

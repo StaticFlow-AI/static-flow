@@ -352,6 +352,32 @@ host; keep swap as an emergency buffer, not as normal working memory.
      `127.0.0.1:19182` pb-mapper subscription or through the public same-origin
      path; it must not mount/write the JuiceFS state directly.
 
+## llm-access Admin Ownership
+
+- Cloud `llm-access` on `127.0.0.1:19080` owns the shared and provider-neutral
+  admin surfaces, including `/admin/llm-gateway/*`, `/admin/kiro-gateway/*`,
+  usage, moderation, runtime configuration, and proxy configuration.
+- `/admin/llm-gateway/keys` without a provider filter is a shared inventory,
+  not a Codex-only list. Provider-specific consumers must send
+  `provider_type=codex|kiro|cursor`; filtering happens before pagination and
+  summary aggregation. The console applies this in its shared key API helper.
+- Cloud `llm-access-cursor` on `127.0.0.1:19090` owns both the Cursor data plane
+  and `/admin/cursor-gateway/*`. Its admin handlers reuse the shared Neon
+  repositories and policy helpers; the main API does not mount duplicate
+  Cursor handlers.
+- The local console keeps the admin plane local-only. The
+  `pbmapper-llm-access-aws` subscription exposes the main admin API at
+  `127.0.0.1:19182`, while `pbmapper-llm-access-cursor-aws` exposes the Cursor
+  admin API at `127.0.0.1:19183`. Vite routes `/admin/cursor-gateway/*` to
+  `19183` and all other `/admin/*` requests to `19182`.
+- `.local/pbmapper/llm-access-cursor.env` must contain the Cursor subscription's
+  `PB_MAPPER_SERVER`, dedicated `SERVICE_KEY`, `MSG_HEADER_KEY`, keepalive and
+  health-check settings, plus `LOCAL_ADDR=127.0.0.1:19183`. The matching AWS
+  server-side registration must target `127.0.0.1:19090`; do not reuse the
+  main API service key.
+- The AWS Caddy route exposes only `/api/cursor-gateway/v1/*` from the Cursor
+  binary. Do not add the Cursor admin path to the public Caddy matcher.
+
 ## llm-access Startup and Sandboxing Constraints
 
 - Startup must be gated on the JuiceFS mount and expected state files. If
