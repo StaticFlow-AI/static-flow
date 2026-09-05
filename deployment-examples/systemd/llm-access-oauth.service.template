@@ -7,7 +7,7 @@ Wants=network-online.target llm-access.service llm-access-cursor.service
 Type=simple
 User=ts_user
 Group=ts_user
-# Optional admin token and browser origin overrides; no database credentials.
+# Optional admin token; no database credentials.
 EnvironmentFile=-/etc/llm-access/oauth.env
 ExecStart=/usr/local/bin/llm-access-oauth --bind 127.0.0.1:19194 --codex-admin-url http://127.0.0.1:19080 --cursor-admin-url http://127.0.0.1:19090 --console-url http://127.0.0.1:19191
 Restart=on-failure

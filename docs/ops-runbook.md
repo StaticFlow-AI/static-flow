@@ -394,6 +394,10 @@ host; keep swap as an emergency buffer, not as normal working memory.
   `127.0.0.1:19194` over the operator SSH connection; account links use the
   existing local console on `19191`. Do not expose provider admin endpoints
   through public Caddy routes.
+- On this workstation, tmux `sf-llm-access-oauth-aws` maintains the SSH
+  forward using the private `.local/llm-access-oauth-aws-tunnel.sh` launcher.
+  The current browser entry URL is kept in the mode-0600 private file
+  `.local/llm-access-oauth-aws-launch.url`.
 - The process prints a browser launch URL containing a startup bootstrap
   key. Retrieve the current URL from its journal through the authenticated
   SSH connection. Store it only in private local files. Opening it exchanges
