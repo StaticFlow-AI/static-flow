@@ -378,6 +378,33 @@ host; keep swap as an emergency buffer, not as normal working memory.
 - The AWS Caddy route exposes only `/api/cursor-gateway/v1/*` from the Cursor
   binary. Do not add the Cursor admin path to the public Caddy matcher.
 
+## Standalone OAuth Manager
+
+- `llm-access-oauth.service` runs the independent OAuth binary on AWS at
+  `127.0.0.1:19194`. Its unit is rendered from
+  `deployment-examples/systemd/llm-access-oauth.service.template`.
+- Update the main API and Cursor/Grok service to the same OAuth-enabled
+  revision first. Main API startup applies migration 80, which registers
+  existing non-Kiro OAuth credentials without replacing account policy.
+- The manager calls the AWS-local admin origins `19080` and `19090`. It does
+  not need database credentials. If admin authentication is enabled, provide
+  `LLM_ACCESS_ADMIN_TOKEN` in a mode-0600 `/etc/llm-access/oauth.env` owned by
+  `ts_user`; do not put the token in the unit or command line.
+- Keep this management listener on loopback. Forward local `19194` to AWS
+  `127.0.0.1:19194` over the operator SSH connection; account links use the
+  existing local console on `19191`. Do not expose provider admin endpoints
+  through public Caddy routes.
+- The process prints a browser launch URL containing a startup bootstrap
+  key. Retrieve the current URL from its journal through the authenticated
+  SSH connection. Store it only in private local files. Opening it exchanges
+  the key for an HttpOnly session cookie; service restarts require a new URL.
+- Build `llm-access-oauth` from the same merged child revision as the APIs,
+  upload its release artifact, verify its SHA-256, then install it as
+  `/usr/local/bin/llm-access-oauth` and enable the rendered unit. API and
+  Cursor releases continue to use their separate release scripts. Record
+  service state, binary hashes and inventory/availability/quota checks after
+  deployment; preserve the usage-worker and image-gateway processes.
+
 ## llm-access Startup and Sandboxing Constraints
 
 - Startup must be gated on the JuiceFS mount and expected state files. If

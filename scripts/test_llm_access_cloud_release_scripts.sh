@@ -65,7 +65,8 @@ grep -F 'LLM_ACCESS_ACTIVATE_TARGET=image "$ROOT_DIR/scripts/prepare_llm_access_
 grep -F 'LLM_ACCESS_STAGED_IMAGE_SERVICE_UNIT=' "$IMAGE_ONLY_SCRIPT" >/dev/null
 grep -F 'render_llm_access_cloud_bundle.sh' "$IMAGE_ONLY_SCRIPT" >/dev/null
 grep -F 'llm-access-codex-image.latest' "$REMOTE_SCRIPT" >/dev/null
-grep -F 'skipping staged shared runtime env install for image-only activation' "$REMOTE_SCRIPT" >/dev/null
+grep -F 'if [[ "$ACTIVATE_TARGET" == "image" || "$ACTIVATE_TARGET" == "cursor" ]]; then' "$REMOTE_SCRIPT" >/dev/null
+grep -F 'preserving shared runtime env for $ACTIVATE_TARGET-only activation' "$REMOTE_SCRIPT" >/dev/null
 
 grep -F 'GCP_HOST=' "$CONFIG_EXAMPLE" >/dev/null
 grep -F 'GCP_SSH_KEY=' "$CONFIG_EXAMPLE" >/dev/null
