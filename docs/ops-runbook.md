@@ -383,8 +383,9 @@ host; keep swap as an emergency buffer, not as normal working memory.
 - `llm-access-oauth.service` runs the independent OAuth binary on AWS at
   `127.0.0.1:19194`. Its unit is rendered from
   `deployment-examples/systemd/llm-access-oauth.service.template`.
-- Update the main API and Cursor/Grok service to the same OAuth-enabled
-  revision first. Main API startup applies migration 80, which registers
+- Before the first manager deployment, update the main API and Cursor/Grok
+  service to the corresponding OAuth-enabled revision. Main API startup
+  applies migration 80, which registers
   existing non-Kiro OAuth credentials without replacing account policy.
 - The manager calls the AWS-local admin origins `19080` and `19090`. It does
   not need database credentials. If admin authentication is enabled, provide
@@ -402,10 +403,12 @@ host; keep swap as an emergency buffer, not as normal working memory.
   key. Retrieve the current URL from its journal through the authenticated
   SSH connection. Store it only in private local files. Opening it exchanges
   the key for an HttpOnly session cookie; service restarts require a new URL.
-- Build `llm-access-oauth` from the same merged child revision as the APIs,
+- Build `llm-access-oauth` from the intended merged child revision,
   upload its release artifact, verify its SHA-256, then install it as
   `/usr/local/bin/llm-access-oauth` and enable the rendered unit. API and
-  Cursor releases continue to use their separate release scripts. Record
+  Cursor releases continue to use their separate release scripts. Manager
+  frontend-only changes can be released independently when their API contract
+  is unchanged; restart only the OAuth manager. Record
   service state, binary hashes and inventory/availability/quota checks after
   deployment; preserve the usage-worker and image-gateway processes.
 
