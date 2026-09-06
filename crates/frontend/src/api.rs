@@ -2169,7 +2169,7 @@ pub struct AdminCommentAiStreamEvent {
     pub chunk: Option<AdminCommentAiRunChunk>,
 }
 
-#[cfg(any(not(feature = "mock"), test))]
+#[cfg(not(feature = "mock"))]
 fn admin_base() -> String {
     API_BASE
         .strip_suffix("/api")

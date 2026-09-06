@@ -164,6 +164,10 @@ pub struct LlmGatewayCreditsView {
 pub struct LlmGatewayRateLimitBucketView {
     pub limit_id: String,
     pub limit_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub normal_model_slug: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allowed: Option<bool>,
     pub display_name: String,
     pub is_primary: bool,
     pub plan_type: Option<String>,
@@ -405,8 +409,10 @@ pub struct AdminLlmGatewayKeysResponse {
     pub generated_at: i64,
 }
 
+#[cfg(not(feature = "mock"))]
 const ADMIN_GATEWAY_INVENTORY_PAGE_LIMIT: usize = 200;
 
+#[cfg(any(not(feature = "mock"), test))]
 pub(super) fn merge_admin_codex_account_pages(
     mut first: AccountListResponse,
     mut next: AccountListResponse,
@@ -421,6 +427,7 @@ pub(super) fn merge_admin_codex_account_pages(
     first
 }
 
+#[cfg(not(feature = "mock"))]
 fn merge_admin_kiro_account_pages(
     mut first: AdminKiroAccountsResponse,
     mut next: AdminKiroAccountsResponse,
@@ -469,6 +476,7 @@ pub struct AdminAccountGroupOptionView {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
 #[serde(default)]
+#[cfg(not(feature = "mock"))]
 struct AdminAccountGroupOptionsResponse {
     pub options: Vec<AdminAccountGroupOptionView>,
     pub generated_at: i64,
@@ -1653,6 +1661,8 @@ pub async fn fetch_public_llm_gateway_usage(
                 input_cached_tokens: 64,
                 output_tokens: 364,
                 billable_tokens: 1_094,
+                credit_total: 0.0,
+                credit_missing_events: 0,
             },
             events: vec![
                 PublicLlmGatewayUsageEventView {
@@ -1693,6 +1703,10 @@ pub async fn fetch_public_llm_gateway_usage(
                     client_ip: "203.0.113.8".to_string(),
                     ip_region: "US".to_string(),
                     created_at: 1_775_000_000_000,
+                    error_message: None,
+                    error_class: None,
+                    session_blocked: false,
+                    response_image_count: None,
                 },
                 PublicLlmGatewayUsageEventView {
                     id: "mock-usage-1".to_string(),
@@ -1732,6 +1746,10 @@ pub async fn fetch_public_llm_gateway_usage(
                     client_ip: "203.0.113.8".to_string(),
                     ip_region: "US".to_string(),
                     created_at: 1_774_996_400_000,
+                    error_message: None,
+                    error_class: None,
+                    session_blocked: false,
+                    response_image_count: None,
                 },
             ],
             generated_at: 1_775_000_000_000,
@@ -1795,6 +1813,8 @@ pub async fn fetch_llm_gateway_status() -> Result<LlmGatewayRateLimitStatusRespo
             buckets: vec![LlmGatewayRateLimitBucketView {
                 limit_id: "codex".to_string(),
                 limit_name: None,
+                normal_model_slug: None,
+                allowed: None,
                 display_name: "codex".to_string(),
                 is_primary: true,
                 plan_type: Some("Pro".to_string()),
@@ -2289,6 +2309,7 @@ pub async fn fetch_admin_usage_journal_preview(
 ) -> Result<AdminUsageJournalPreviewResponse, String> {
     #[cfg(feature = "mock")]
     {
+        let _ = (limit, offset);
         Ok(AdminUsageJournalPreviewResponse::default())
     }
 
@@ -2762,6 +2783,7 @@ pub async fn fetch_admin_llm_gateway_keys_page_with_query(
 ) -> Result<AdminLlmGatewayKeysResponse, String> {
     #[cfg(feature = "mock")]
     {
+        let _ = query;
         Ok(AdminLlmGatewayKeysResponse {
             keys: vec![],
             summary: AdminLlmGatewayKeysSummaryView::default(),
@@ -3901,6 +3923,7 @@ pub async fn fetch_admin_llm_gateway_usage_events(
     }
 }
 
+#[cfg(not(feature = "mock"))]
 fn admin_usage_query_params(query: &AdminLlmGatewayUsageEventsQuery) -> Vec<String> {
     let mut params = Vec::new();
     if let Some(key_id) = query
@@ -4002,6 +4025,7 @@ pub async fn fetch_admin_llm_gateway_usage_filter_options(
 ) -> Result<AdminLlmGatewayUsageFilterOptionsResponse, String> {
     #[cfg(feature = "mock")]
     {
+        let _ = query;
         Ok(AdminLlmGatewayUsageFilterOptionsResponse::default())
     }
 
@@ -4297,6 +4321,7 @@ pub struct CodexAccountImportJobDetailView {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
 #[serde(default)]
+#[cfg(not(feature = "mock"))]
 struct CodexAccountImportJobsResponse {
     pub jobs: Vec<CodexAccountImportJobSummaryView>,
     pub generated_at: i64,
@@ -4339,6 +4364,7 @@ pub async fn fetch_admin_llm_gateway_accounts() -> Result<AccountListResponse, S
     }
 }
 
+#[cfg(not(feature = "mock"))]
 pub async fn fetch_admin_llm_gateway_accounts_page(
     limit: usize,
     offset: usize,
@@ -4358,6 +4384,7 @@ pub async fn fetch_admin_llm_gateway_accounts_page_with_query(
 ) -> Result<AccountListResponse, String> {
     #[cfg(feature = "mock")]
     {
+        let _ = query;
         Ok(AccountListResponse {
             accounts: vec![],
             summary: AdminAccountsSummaryView::default(),
@@ -5034,6 +5061,7 @@ pub async fn consume_admin_llm_gateway_account_rate_limit_reset_credit(
 ) -> Result<ConsumeCodexRateLimitResetCreditResponse, String> {
     #[cfg(feature = "mock")]
     {
+        let _ = request;
         Ok(ConsumeCodexRateLimitResetCreditResponse {
             code: "reset".to_string(),
             windows_reset: 2,
@@ -5104,6 +5132,7 @@ pub async fn probe_admin_llm_gateway_account_models(
 ) -> Result<AdminLlmGatewayAccountModelsProbeView, String> {
     #[cfg(feature = "mock")]
     {
+        let _ = name;
         Ok(AdminLlmGatewayAccountModelsProbeView {
             ok: true,
             message: "Codex models probe succeeded".to_string(),
