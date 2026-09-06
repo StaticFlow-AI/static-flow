@@ -402,7 +402,12 @@ host; keep swap as an emergency buffer, not as normal working memory.
 - The process prints a browser launch URL containing a startup bootstrap
   key. Retrieve the current URL from its journal through the authenticated
   SSH connection. Store it only in private local files. Opening it exchanges
-  the key for an HttpOnly session cookie; service restarts require a new URL.
+  the key for an HttpOnly session cookie. The direct startup URL changes on
+  restart. The account console's OAuth button instead requests a 60-second,
+  single-use grant from the main API and exchanges it for the current cookie;
+  clicking the console entry works in a new browser or after a manager restart
+  without manually retrieving a startup URL. Deploy the main API, manager,
+  and console together when changing this handoff contract.
 - Build `llm-access-oauth` from the intended merged child revision,
   upload its release artifact, verify its SHA-256, then install it as
   `/usr/local/bin/llm-access-oauth` and enable the rendered unit. API and
