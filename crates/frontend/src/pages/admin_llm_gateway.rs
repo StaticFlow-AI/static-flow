@@ -1114,6 +1114,7 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
                     moderation_enabled: Some(moderation_enabled_value),
                     codex_fast_enabled: Some(codex_fast_enabled_value),
                     codex_responses_lite_enabled: Some(codex_responses_lite_enabled_value),
+                    codex_account_rpm_exempt: None,
                     codex_full_request_logging_enabled: Some(
                         codex_full_request_logging_enabled_value,
                     ),

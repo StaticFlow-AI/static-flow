@@ -102,6 +102,7 @@ fn admin_gateway_key_view_defaults_full_request_logging_off() {
     assert!(!key.codex_image_direct_generation_enabled);
     assert!(key.codex_responses_lite_enabled);
     assert!(!key.codex_full_request_logging_enabled);
+    assert!(!key.codex_account_rpm_exempt);
 }
 
 #[test]

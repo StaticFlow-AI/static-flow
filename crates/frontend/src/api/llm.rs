@@ -319,6 +319,9 @@ pub struct AdminLlmGatewayKeyView {
     pub codex_responses_lite_enabled: bool,
     #[serde(default)]
     pub codex_full_request_logging_enabled: bool,
+    /// Whether this Codex key bypasses local account RPM accounting.
+    #[serde(default)]
+    pub codex_account_rpm_exempt: bool,
     #[serde(default)]
     pub codex_strict_session_rejection_enabled: bool,
     #[serde(default = "default_true")]
@@ -3242,6 +3245,7 @@ pub async fn create_admin_llm_gateway_key(
             codex_fast_enabled: true,
             codex_responses_lite_enabled: true,
             codex_full_request_logging_enabled: false,
+            codex_account_rpm_exempt: false,
             codex_strict_session_rejection_enabled: false,
             codex_image_generation_enabled: true,
             codex_image_standalone_generation_enabled: true,
@@ -3298,6 +3302,7 @@ pub struct PatchAdminLlmGatewayKeyRequest<'a> {
     pub codex_fast_enabled: Option<bool>,
     pub codex_responses_lite_enabled: Option<bool>,
     pub codex_full_request_logging_enabled: Option<bool>,
+    pub codex_account_rpm_exempt: Option<bool>,
     pub codex_strict_session_rejection_enabled: Option<bool>,
     pub codex_image_generation_enabled: Option<bool>,
     pub codex_image_standalone_generation_enabled: Option<bool>,
@@ -3344,6 +3349,7 @@ pub async fn patch_admin_llm_gateway_key(
             request.codex_fast_enabled,
             request.codex_responses_lite_enabled,
             request.codex_full_request_logging_enabled,
+            request.codex_account_rpm_exempt,
             request.codex_strict_session_rejection_enabled,
             request.codex_image_generation_enabled,
             request.codex_image_standalone_generation_enabled,
@@ -3481,6 +3487,9 @@ pub async fn patch_admin_llm_gateway_key(
                 "codex_responses_lite_enabled".to_string(),
                 serde_json::Value::Bool(enabled),
             );
+        }
+        if let Some(enabled) = request.codex_account_rpm_exempt {
+            body.insert("codex_account_rpm_exempt".to_string(), serde_json::json!(enabled));
         }
         if let Some(enabled) = request.codex_full_request_logging_enabled {
             body.insert(
@@ -6223,6 +6232,7 @@ pub async fn create_admin_kiro_key(
             codex_fast_enabled: true,
             codex_responses_lite_enabled: true,
             codex_full_request_logging_enabled: false,
+            codex_account_rpm_exempt: false,
             codex_strict_session_rejection_enabled: false,
             codex_image_generation_enabled: false,
             codex_image_standalone_generation_enabled: false,
