@@ -57,6 +57,7 @@ fi
 GCP_SSH_KEY="$(expand_path "$GCP_SSH_KEY")"
 SSH_OPTS=(-i "$GCP_SSH_KEY" -o IdentitiesOnly=yes -o BatchMode=yes)
 
+"$ROOT_DIR/scripts/apply_grok_reset_migration.sh"
 LLM_ACCESS_ACTIVATE_TARGET=cursor "$ROOT_DIR/scripts/prepare_llm_access_cloud_release.sh"
 
 ssh "${SSH_OPTS[@]}" "$GCP_DEST" \

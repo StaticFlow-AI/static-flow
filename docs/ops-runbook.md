@@ -397,6 +397,13 @@ FlareSolverr 3.5.0 and its archive checksum. `grok-clearance.service` listens
 only on `127.0.0.1:8191`, runs as a dedicated user, and limits the browser to
 1 GB. Cursor uses `CCP_GROK_CLEARANCE_SOLVER_URL=http://127.0.0.1:8191/v1`.
 
+Cursor intentionally connects without running migrations. The Cursor release
+script therefore applies the additive Grok migration 86 through
+`scripts/apply_grok_reset_migration.sh` before preparing/activating the binary.
+It reads the child repository's canonical SQL and records the version in the
+same transaction. Re-running it verifies the existing schema without changing
+account settings. This does not require restarting the main API.
+
 The solver opens the public Grok origin without account credentials. Cursor
 caches its clearance and matching User-Agent per resolved account proxy,
 keeps it for up to 15 minutes (less near cookie expiry), and obtains a new
