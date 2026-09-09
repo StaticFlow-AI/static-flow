@@ -383,7 +383,9 @@ host; keep swap as an emergency buffer, not as normal working memory.
 The Cursor service queries `ConsumerUiSvc/GetRemainingResets` and redeems a
 specific card with `RedeemReset`. The console's Grok Build account editor has
 an automatic-reset switch and a remaining-percentage threshold (1–100,
-default off / 3%). After a fresh allowance read, remaining quota strictly
+default off / 3%). Enabled, active Grok accounts are checked every minute,
+independently of the general 30-minute account/catalog refresh. After a fresh
+allowance read, remaining quota strictly
 below the configured threshold selects the earliest-expiring available card.
 Neon claims serialize aliases of the same upstream user. An interrupted
 redemption stays uncertain and is never blindly retried.
@@ -397,7 +399,7 @@ only on `127.0.0.1:8191`, runs as a dedicated user, and limits the browser to
 
 The solver opens the public Grok origin without account credentials. Cursor
 caches its clearance and matching User-Agent per resolved account proxy,
-renews at most every 15 minutes (earlier for cookie expiry), and obtains a new
+keeps it for up to 15 minutes (less near cookie expiry), and obtains a new
 clearance after an explicit Cloudflare challenge. Browser sessions end after
 each acquisition. Failed verification backs off for 60 seconds and prevents
 redemption. Both components must use the same network egress; HTTP proxies
