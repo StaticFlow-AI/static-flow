@@ -378,6 +378,40 @@ host; keep swap as an emergency buffer, not as normal working memory.
 - The AWS Caddy route exposes only `/api/cursor-gateway/v1/*` from the Cursor
   binary. Do not add the Cursor admin path to the public Caddy matcher.
 
+## Grok Build reset credits
+
+The Cursor service queries `ConsumerUiSvc/GetRemainingResets` and redeems a
+specific card with `RedeemReset`. The console's Grok Build account editor has
+an automatic-reset switch and a remaining-percentage threshold (1–100,
+default off / 3%). After a fresh allowance read, remaining quota strictly
+below the configured threshold selects the earliest-expiring available card.
+Neon claims serialize aliases of the same upstream user. An interrupted
+redemption stays uncertain and is never blindly retried.
+
+Install automatic Cloudflare verification on the AWS Ubuntu 24.04 x86_64 host
+with `bash scripts/install_grok_clearance_cloud.sh`, then release only Cursor
+with `bash scripts/release_llm_access_cloud_cursor_only.sh`. The installer pins
+FlareSolverr 3.5.0 and its archive checksum. `grok-clearance.service` listens
+only on `127.0.0.1:8191`, runs as a dedicated user, and limits the browser to
+1 GB. Cursor uses `CCP_GROK_CLEARANCE_SOLVER_URL=http://127.0.0.1:8191/v1`.
+
+The solver opens the public Grok origin without account credentials. Cursor
+caches its clearance and matching User-Agent per resolved account proxy,
+renews at most every 15 minutes (earlier for cookie expiry), and obtains a new
+clearance after an explicit Cloudflare challenge. Browser sessions end after
+each acquisition. Failed verification backs off for 60 seconds and prevents
+redemption. Both components must use the same network egress; HTTP proxies
+with authentication and SOCKS proxies without authentication are supported.
+Challenge behavior can change upstream; inspect snapshot warnings and
+`journalctl -u grok-clearance.service` if automatic acquisition fails.
+
+Verify through the private admin subscription:
+`GET http://127.0.0.1:19183/admin/cursor-gateway/accounts/{name}/rate-limit-reset-credits`.
+This only reads cards. Production acceptance also checks the account's saved
+threshold, Cursor revision and restart count, and unchanged main API, usage
+worker, and image service identities. Do not redeem a card just to test a
+deployment when the account still has quota above the configured threshold.
+
 ## Standalone OAuth Manager
 
 - `llm-access-oauth.service` runs the independent OAuth binary on AWS at
