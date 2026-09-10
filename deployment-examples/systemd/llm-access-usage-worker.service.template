@@ -17,7 +17,7 @@ Environment=mimalloc_arena_eager_commit=0
 Environment=mimalloc_allow_thp=0
 Environment=mimalloc_disallow_arena_alloc=1
 Environment=mimalloc_purge_decommits=1
-Environment=mimalloc_purge_delay=0
+Environment=mimalloc_purge_delay=1
 Environment=mimalloc_purge_extend_delay=0
 Environment=mimalloc_arena_purge_mult=1
 Environment=mimalloc_generic_collect=1000

@@ -260,6 +260,33 @@ private env files, not in tracked docs.
   `LLM_ACCESS_BACKGROUND_STATUS_REFRESH_ENABLED=0` in the service unit unless
   you are intentionally pausing periodic Codex/Kiro account-status refresh for
   incident mitigation.
+- The account-status scheduler defaults to **4 concurrent tasks** (configurable
+  `LLM_ACCESS_BACKGROUND_REFRESH_WORKERS=1..512`), with a queue of four tasks
+  per worker. Its old minimum of 32 prevented small-host tuning. The release
+  unit also sets 4; inspect effective systemd environment/drop-ins before
+  assuming a new binary has adopted that budget. Providers and accounts rotate
+  when the queue fills so a large Kiro inventory cannot starve Codex refreshes.
+  Inventory discovery remains every 60 seconds, and account refresh intervals
+  remain configured by the existing runtime policy.
+- These are asynchronous background-task limits, not the Tokio worker threads
+  that also serve foreground requests. Kiro authentication refresh is shared
+  with foreground token renewal: keep its separate configured global limit
+  (default 8, per proxy 1). The four-task scheduler already bounds background
+  callers while leaving capacity for request-triggered renewals. Cursor/Grok
+  account maintenance is serial, and DuckDB import/compaction uses one query
+  thread; neither needs a further thread reduction.
+- The Cursor binary now selects the same low-RSS mimalloc policy as the API
+  before initializing Tokio. The process policy allows a 1 ms reuse window
+  before purging to avoid repeated page faults during short bursts. Account
+  refresh no longer forces an allocator
+  collection after every task; normal purging and the API's periodic collector
+  handle reclamation without holding the scheduler state lock.
+- After an API/Cursor release, compare cgroup `memory.current`, `memory.swap.current`,
+  `memory.events` deltas, process CPU, control-pool timeout counts, account-status
+  freshness, foreground latency, and Lightsail CPU burst balance against the
+  incident baseline. A memory-limit increase alone does not fix retained heap
+  pages, and software changes do not immediately replenish exhausted CPU burst
+  capacity. Keep the usage worker independently deployed.
 - Multi-node `llm-access` version one uses two deployment classes:
   - `core`: exactly one node, mounts `/mnt/llm-access` and
     `/mnt/llm-access-usage`, publishes itself as the primary through shared
