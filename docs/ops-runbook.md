@@ -338,6 +338,22 @@ These limits are meant to kill/restart the offending service before the whole
 VM becomes unreachable. Do not raise `MemoryMax` casually on the 4 GiB AWS
 host; keep swap as an emergency buffer, not as normal working memory.
 
+## Inference Admission
+
+Inference admission is configured by `global_request_rpm_limit` under the
+console's `/console/system/runtime` page. The default is 240 starts per rolling
+60 seconds across the main API and Cursor/Grok, all providers and keys combined.
+Both services must use the same `LLM_ACCESS_REQUEST_CACHE_URL` and request-cache
+prefix (`llma` in production). Valkey retains accepted starts across process
+restarts; saving the runtime setting updates the shared cache immediately.
+HTTP POST admission runs before authentication and request-body reads, including
+unauthenticated requests and internal inference calls. Rejected calls return
+429 with `Retry-After`; an unavailable configured limiter returns 503. WebSocket
+text frames are checked before JSON parsing; internal retries do not consume a
+second start. Health, management, and model-list reads stay outside the budget.
+This limits request rate; the existing body-size and concurrency controls still
+apply independently.
+
 ## llm-access Usage Analytics
 
 - Current llm-access usage analytics should run in tiered DuckDB mode: only the

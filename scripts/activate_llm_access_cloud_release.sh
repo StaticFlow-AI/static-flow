@@ -119,10 +119,14 @@ ensure_mount_service() {
   local service="$1"
   local mount_path="$2"
 
-  log "restarting mount service $service"
+  if sudo systemctl is-active --quiet "$service" && mountpoint -q "$mount_path"; then
+    log "preserving active mount service $service"
+    return 0
+  fi
+  log "starting mount service $service"
   sudo systemctl enable "$service"
   sudo systemctl restart "$service"
-  if ! findmnt -T "$mount_path" >/dev/null; then
+  if ! mountpoint -q "$mount_path"; then
     sudo systemctl status "$service" --no-pager -l || true
     sudo journalctl -u "$service" -n "$JOURNAL_LINES" --no-pager -l || true
     fail "$mount_path is not mounted after enabling $service"
