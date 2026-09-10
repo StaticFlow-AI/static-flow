@@ -272,7 +272,7 @@ start_pbmapper_sf_backend() {
 start_pbmapper_llm_access() {
   local cmd
   [[ -f "$ROOT_DIR/.local/pbmapper/llm-access.env" ]] || fail "missing .local/pbmapper/llm-access.env"
-  cmd="cd $(q "$ROOT_DIR") && set -a && . .local/pbmapper/llm-access.env && set +a && exec pb-mapper-client-cli tcp-server --key \"\$SERVICE_KEY\" --addr \"\$LOCAL_ADDR\""
+  cmd="cd $(q "$ROOT_DIR") && set -a && . .local/pbmapper/llm-access.env && set +a && exec pb-mapper connect tcp --key \"\$SERVICE_KEY\" --addr \"\$LOCAL_ADDR\""
   start_tmux "pbmapper-llm-access-aws" "$cmd"
   wait_tcp "pbmapper-llm-access-aws" "19182" 40
 }
@@ -281,7 +281,7 @@ start_pbmapper_llm_access_cursor() {
   local cmd
   [[ -f "$LLM_ACCESS_CURSOR_PBMAPPER_ENV_FILE" ]] \
     || fail "missing Cursor admin pb-mapper env file: $LLM_ACCESS_CURSOR_PBMAPPER_ENV_FILE"
-  cmd="cd $(q "$ROOT_DIR") && set -a && . $(q "$LLM_ACCESS_CURSOR_PBMAPPER_ENV_FILE") && set +a && exec pb-mapper-client-cli tcp-server --key \"\$SERVICE_KEY\" --addr \"\$LOCAL_ADDR\""
+  cmd="cd $(q "$ROOT_DIR") && set -a && . $(q "$LLM_ACCESS_CURSOR_PBMAPPER_ENV_FILE") && set +a && exec pb-mapper connect tcp --key \"\$SERVICE_KEY\" --addr \"\$LOCAL_ADDR\""
   start_tmux "pbmapper-llm-access-cursor-aws" "$cmd"
   wait_tcp "pbmapper-llm-access-cursor-aws" "19183" 40
 }
@@ -410,7 +410,7 @@ main() {
   require_command curl
   require_command jq
   require_command pb-mapper-server-cli
-  require_command pb-mapper-client-cli
+  require_command pb-mapper
 
   if [[ "$ONLY_STATUS" == "1" ]]; then
     print_status
