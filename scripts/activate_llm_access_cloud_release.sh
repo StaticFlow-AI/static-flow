@@ -107,7 +107,7 @@ wait_for_health() {
   local url="$1"
   local attempt
   for attempt in $(seq 1 30); do
-    if curl -fsS "$url" >/dev/null; then
+    if curl --connect-timeout 2 --max-time 5 -fsS "$url" >/dev/null; then
       return 0
     fi
     sleep 1
@@ -304,7 +304,7 @@ if [[ "$ACTIVATE_TARGET" == "image" ]]; then
 fi
 if [[ "$ACTIVATE_TARGET" == "cursor" ]] && systemctl is-active "$CURSOR_SERVICE" >/dev/null; then
   log "$CURSOR_SERVICE is active before activation"
-  curl -fsS "$CURSOR_HEALTH_URL" >/dev/null || log "pre-activation Cursor health check failed; continuing with restart"
+  curl --connect-timeout 2 --max-time 5 -fsS "$CURSOR_HEALTH_URL" >/dev/null || log "pre-activation Cursor health check failed; continuing with restart"
 elif [[ "$ACTIVATE_TARGET" == "cursor" ]]; then
   log "$CURSOR_SERVICE is not active before activation; continuing with install"
 fi
@@ -318,20 +318,20 @@ fi
 
 if [[ "$ACTIVATE_TARGET" == "api" || "$ACTIVATE_TARGET" == "both" ]] && systemctl is-active "$SERVICE" >/dev/null; then
   log "$SERVICE is active before activation"
-  curl -fsS "$HEALTH_URL" >/dev/null || log "pre-activation API health check failed; continuing with restart"
+  curl --connect-timeout 2 --max-time 5 -fsS "$HEALTH_URL" >/dev/null || log "pre-activation API health check failed; continuing with restart"
 elif [[ "$ACTIVATE_TARGET" == "api" || "$ACTIVATE_TARGET" == "both" ]]; then
   log "$SERVICE is not active before activation; continuing with install"
 fi
 
 if [[ "$ACTIVATE_TARGET" == "worker" || "$ACTIVATE_TARGET" == "both" ]] && systemctl is-active "$WORKER_SERVICE" >/dev/null; then
   log "$WORKER_SERVICE is active before activation"
-  curl -fsS "$WORKER_HEALTH_URL" >/dev/null || log "pre-activation usage worker health check failed; continuing with restart"
+  curl --connect-timeout 2 --max-time 5 -fsS "$WORKER_HEALTH_URL" >/dev/null || log "pre-activation usage worker health check failed; continuing with restart"
 elif [[ "$ACTIVATE_TARGET" == "worker" || "$ACTIVATE_TARGET" == "both" ]]; then
   log "$WORKER_SERVICE is not active before activation; continuing with install"
 fi
 if [[ "$ACTIVATE_TARGET" == "image" ]] && systemctl is-active "$IMAGE_SERVICE" >/dev/null; then
   log "$IMAGE_SERVICE is active before activation"
-  curl -fsS "$IMAGE_HEALTH_URL" >/dev/null || log "pre-activation codex image health check failed; continuing with restart"
+  curl --connect-timeout 2 --max-time 5 -fsS "$IMAGE_HEALTH_URL" >/dev/null || log "pre-activation codex image health check failed; continuing with restart"
 elif [[ "$ACTIVATE_TARGET" == "image" ]]; then
   log "$IMAGE_SERVICE is not active before activation; continuing with install"
 fi
@@ -451,24 +451,24 @@ fi
 
 log "activation succeeded"
 if [[ "$ACTIVATE_TARGET" == "api" || "$ACTIVATE_TARGET" == "both" ]]; then
-  curl -fsS "$HEALTH_URL"
+  curl --connect-timeout 2 --max-time 5 -fsS "$HEALTH_URL"
   printf '\n'
-  curl -fsS "$VERSION_URL"
+  curl --connect-timeout 2 --max-time 5 -fsS "$VERSION_URL"
   printf '\n'
   systemctl show "$SERVICE" -p ActiveState -p SubState -p MainPID -p ExecMainStartTimestamp -p NRestarts --no-pager
 fi
 if [[ "$ACTIVATE_TARGET" == "worker" || "$ACTIVATE_TARGET" == "both" ]]; then
-  curl -fsS "$WORKER_HEALTH_URL"
+  curl --connect-timeout 2 --max-time 5 -fsS "$WORKER_HEALTH_URL"
   printf '\n'
   systemctl show "$WORKER_SERVICE" -p ActiveState -p SubState -p MainPID -p ExecMainStartTimestamp -p NRestarts --no-pager
 fi
 if [[ "$ACTIVATE_TARGET" == "image" ]]; then
-  curl -fsS "$IMAGE_HEALTH_URL"
+  curl --connect-timeout 2 --max-time 5 -fsS "$IMAGE_HEALTH_URL"
   printf '\n'
   systemctl show "$IMAGE_SERVICE" -p ActiveState -p SubState -p MainPID -p ExecMainStartTimestamp -p NRestarts --no-pager
 fi
 if [[ "$ACTIVATE_TARGET" == "cursor" ]]; then
-  curl -fsS "$CURSOR_HEALTH_URL"
+  curl --connect-timeout 2 --max-time 5 -fsS "$CURSOR_HEALTH_URL"
   printf '\n'
   systemctl show "$CURSOR_SERVICE" -p ActiveState -p SubState -p MainPID -p ExecMainStartTimestamp -p NRestarts --no-pager
 fi
