@@ -1,6 +1,30 @@
 use super::*;
 
 #[test]
+fn disabled_codex_snapshot_contract_preserves_quota_seconds_and_subscription_milliseconds() {
+    let account: AccountSummaryView = serde_json::from_value(serde_json::json!({
+        "name":"disabled-fixture", "status":"disabled", "last_usage_success_at":1789084800000_i64,
+        "subscription":{"active_start":null,"active_until":1790812800000_i64,"last_checked_at":1789084800000_i64},
+        "rate_limit_buckets":[{
+            "limit_id":"codex", "limit_name":null, "display_name":"Codex", "is_primary":true,
+            "plan_type":"Pro", "account_name":"disabled-fixture", "credits":null,
+            "primary":{"used_percent":25.0,"remaining_percent":75.0,"window_duration_mins":300,"resets_at":1790812800},
+            "secondary":null
+        }]
+    })).expect("additive Codex account contract");
+    assert_eq!(account.status, "disabled");
+    assert_eq!(account.subscription.expect("subscription").active_until, Some(1790812800000));
+    assert_eq!(
+        account.rate_limit_buckets[0]
+            .primary
+            .as_ref()
+            .expect("window")
+            .resets_at,
+        Some(1790812800)
+    );
+}
+
+#[test]
 fn reset_credit_consume_request_keeps_caller_idempotency_and_optional_credit() {
     let selected = ConsumeCodexRateLimitResetCreditRequest {
         idempotency_key: "attempt-1".to_string(),

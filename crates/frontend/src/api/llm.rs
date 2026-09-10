@@ -148,6 +148,7 @@ pub struct LlmGatewayRateLimitWindowView {
     pub used_percent: f64,
     pub remaining_percent: f64,
     pub window_duration_mins: Option<i64>,
+    /// Unix seconds, matching the upstream quota window.
     pub resets_at: Option<i64>,
 }
 
@@ -4226,11 +4227,23 @@ pub struct AccountSummaryView {
     pub last_usage_checked_at: Option<i64>,
     pub last_usage_success_at: Option<i64>,
     pub usage_error_message: Option<String>,
+    pub rate_limit_buckets: Vec<LlmGatewayRateLimitBucketView>,
+    pub subscription: Option<CodexSubscriptionView>,
+}
+
+/// Upstream subscription validity snapshot; timestamps are Unix milliseconds.
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct CodexSubscriptionView {
+    pub active_start: Option<i64>,
+    pub active_until: Option<i64>,
+    pub last_checked_at: Option<i64>,
 }
 
 impl Default for AccountSummaryView {
     fn default() -> Self {
         Self {
+            rate_limit_buckets: Vec::new(),
+            subscription: None,
             name: String::new(),
             status: String::new(),
             account_id: None,
@@ -4608,6 +4621,8 @@ pub async fn import_admin_llm_gateway_account(
     {
         let _ = (id_token, access_token, refresh_token, auth_json);
         Ok(AccountSummaryView {
+            rate_limit_buckets: Vec::new(),
+            subscription: None,
             name: name.to_string(),
             status: "active".to_string(),
             account_id: account_id.map(str::to_string),
@@ -4744,6 +4759,8 @@ pub async fn patch_admin_llm_gateway_account(
     #[cfg(feature = "mock")]
     {
         Ok(AccountSummaryView {
+            rate_limit_buckets: Vec::new(),
+            subscription: None,
             name: name.to_string(),
             status: input.status.clone().unwrap_or_else(|| "active".to_string()),
             account_id: None,
@@ -4819,6 +4836,8 @@ pub async fn regenerate_admin_llm_gateway_account_installation_id(
     #[cfg(feature = "mock")]
     {
         Ok(AccountSummaryView {
+            rate_limit_buckets: Vec::new(),
+            subscription: None,
             name: name.to_string(),
             status: "active".to_string(),
             installation_id: Some("7ecf33a8-e333-4d79-99d5-c246ddbdf4af".to_string()),
@@ -4854,6 +4873,8 @@ pub async fn refresh_admin_llm_gateway_account(name: &str) -> Result<AccountSumm
     #[cfg(feature = "mock")]
     {
         Ok(AccountSummaryView {
+            rate_limit_buckets: Vec::new(),
+            subscription: None,
             name: name.to_string(),
             status: "active".to_string(),
             account_id: None,
@@ -4925,6 +4946,8 @@ pub async fn refresh_admin_llm_gateway_account_auth(
     #[cfg(feature = "mock")]
     {
         Ok(AccountSummaryView {
+            rate_limit_buckets: Vec::new(),
+            subscription: None,
             name: name.to_string(),
             status: "active".to_string(),
             account_id: None,
@@ -5076,6 +5099,8 @@ pub async fn consume_admin_llm_gateway_account_rate_limit_reset_credit(
             windows_reset: 2,
             replayed: false,
             account: AccountSummaryView {
+                rate_limit_buckets: Vec::new(),
+                subscription: None,
                 name: name.to_string(),
                 status: "active".to_string(),
                 account_id: None,
