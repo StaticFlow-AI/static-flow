@@ -1,0 +1,24 @@
+[Unit]
+Description=llm-access host and process monitor
+After=network.target
+
+[Service]
+Type=simple
+User=ts_user
+ExecStart=/opt/llm-access/bin/llm-access-monitor --listen 127.0.0.1:19092 --state /var/lib/llm-access-monitor/history.sqlite3
+Restart=always
+RestartSec=2
+Environment=RUST_LOG=llm_access_monitor=info
+StateDirectory=llm-access-monitor
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadOnlyPaths=/proc /sys
+ReadWritePaths=/var/lib/llm-access-monitor
+MemoryMax=256M
+CPUQuota=25%
+Nice=10
+
+[Install]
+WantedBy=multi-user.target
