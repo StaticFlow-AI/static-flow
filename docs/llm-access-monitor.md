@@ -11,7 +11,7 @@
 ```bash
 export CARGO_TARGET_DIR=/mnt/wsl/data4tb/static-flow-data/cargo-target/llm-access
 cargo build -p llm-access-monitor --release
-sudo install -Dm755 "$CARGO_TARGET_DIR/release/llm-access-monitor" /opt/llm-access/bin/llm-access-monitor
+sudo install -Dm755 "$CARGO_TARGET_DIR/release/llm-access-monitor" /usr/local/bin/llm-access-monitor
 sudo install -Dm644 deployment-examples/systemd/llm-access-monitor.service.template /etc/systemd/system/llm-access-monitor.service
 sudo systemctl daemon-reload && sudo systemctl enable --now llm-access-monitor
 ```
