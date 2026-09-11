@@ -14,6 +14,7 @@ AI_REVIEW_BIN="${AI_REVIEW_BIN:-/mnt/wsl/data4tb/static-flow-data/cargo-target/s
 AI_REVIEW_START_SCRIPT="${AI_REVIEW_START_SCRIPT:-$ROOT_DIR/scripts/start_ai_review_local.sh}"
 LLM_ACCESS_FRONTEND_DIR="${LLM_ACCESS_FRONTEND_DIR:-$ROOT_DIR/deps/llm-access/apps/llm-access-frontend}"
 LLM_ACCESS_FRONTEND_SERVICE_KEY="${LLM_ACCESS_FRONTEND_SERVICE_KEY:-ai-review-ui}"
+LLM_ACCESS_MONITOR_TUNNEL_SCRIPT="${LLM_ACCESS_MONITOR_TUNNEL_SCRIPT:-$ROOT_DIR/scripts/start_llm_access_monitor_tunnel.sh}"
 LLM_ACCESS_CURSOR_PBMAPPER_ENV_FILE="${LLM_ACCESS_CURSOR_PBMAPPER_ENV_FILE:-$ROOT_DIR/.local/pbmapper/llm-access-cursor.env}"
 GPT2API_BIN="${GPT2API_BIN:-/mnt/wsl/data4tb/static-flow-data/cargo-target/gpt2api_rs/release/gpt2api-rs}"
 GPT2API_TARGET_DIR="${GPT2API_TARGET_DIR:-/mnt/wsl/data4tb/static-flow-data/cargo-target/gpt2api_rs/release}"
@@ -49,6 +50,7 @@ Restores the local tmux-supervised service set after a reboot:
   - pbmapper-llm-access-aws
   - pbmapper-home-ubuntu-aws
   - gpt2api-rs
+  - llm-access-monitor-aws (when the frontend stack is enabled)
 
 Optional services:
   --with-antigravity starts Antigravity Manager and verifies its authenticated API.
@@ -210,7 +212,7 @@ print_status() {
   log "tmux sessions"
   tmux list-sessions 2>/dev/null | grep -E '^(sf-|pbmapper-|gpt2api-rs|antigravity-manager)' || true
   log "listening ports"
-  ss -ltnp 2>/dev/null | grep -E ':(8045|18787|19182|19183|19190|19191|39080|39081|39085|39180)\b' || true
+  ss -ltnp 2>/dev/null | grep -E ':(8045|18787|19092|19182|19183|19190|19191|39080|39081|39085|39180)\b' || true
 }
 
 active_slot() {
@@ -384,6 +386,7 @@ start_llm_access_frontend_stack() {
   [[ -f "$AI_REVIEW_ENV_FILE" ]] || fail "missing ai review env file: $AI_REVIEW_ENV_FILE"
   [[ -f "$LLM_ACCESS_FRONTEND_DIR/package.json" ]] || fail "missing llm-access frontend: $LLM_ACCESS_FRONTEND_DIR"
   start_pbmapper_llm_access_cursor
+  start_llm_access_monitor_tunnel
   api_cmd="cd $(q "$ROOT_DIR") && if [[ -f $(q "$ANTIGRAVITY_CONFIG_FILE") ]]; then export ANTIGRAVITY_MANAGER_API_KEY=\$(jq -r '.proxy.api_key // .api_key // empty' $(q "$ANTIGRAVITY_CONFIG_FILE")); fi && exec $(q "$AI_REVIEW_START_SCRIPT") $(q "$AI_REVIEW_ENV_FILE") $(q "$AI_REVIEW_BIN") serve --bind 127.0.0.1:19190"
   ui_cmd="cd $(q "$LLM_ACCESS_FRONTEND_DIR") && export PATH=$(q "$PATH") LLM_ACCESS_ADMIN_TARGET=http://127.0.0.1:19182 LLM_ACCESS_CURSOR_ADMIN_TARGET=http://127.0.0.1:19183 && pnpm build && exec pnpm preview"
   pbmapper_cmd="cd $(q "$ROOT_DIR") && set -a && . .local/pbmapper/sf-backend.env && set +a && SERVICE_KEY=$(q "$LLM_ACCESS_FRONTEND_SERVICE_KEY") && LOCAL_ADDR=127.0.0.1:19191 && exec pb-mapper-server-cli tcp-server --key \"\$SERVICE_KEY\" --addr \"\$LOCAL_ADDR\""
