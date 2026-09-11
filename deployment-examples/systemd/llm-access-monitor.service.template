@@ -6,18 +6,27 @@ After=network.target
 Type=simple
 User=ts_user
 ExecStart=/opt/llm-access/bin/llm-access-monitor --listen 127.0.0.1:19092 --state /var/lib/llm-access-monitor/history.sqlite3
-Restart=always
-RestartSec=2
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15
 Environment=RUST_LOG=llm_access_monitor=info
 StateDirectory=llm-access-monitor
+StateDirectoryMode=0700
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
 ReadOnlyPaths=/proc /sys
 ReadWritePaths=/var/lib/llm-access-monitor
-MemoryMax=256M
-CPUQuota=25%
+MemoryHigh=96M
+MemoryMax=128M
+MemorySwapMax=0
+CPUQuota=10%
+CPUWeight=10
+IOWeight=10
+IOSchedulingClass=idle
+TasksMax=16
+OOMScoreAdjust=500
 Nice=10
 
 [Install]
