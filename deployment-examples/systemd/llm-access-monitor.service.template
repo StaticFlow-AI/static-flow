@@ -5,7 +5,7 @@ After=network.target
 [Service]
 Type=simple
 User=ts_user
-ExecStart=/opt/llm-access/bin/llm-access-monitor --listen 127.0.0.1:19092 --state /var/lib/llm-access-monitor/history.sqlite3
+ExecStart=/usr/local/bin/llm-access-monitor --listen 127.0.0.1:19092 --state /var/lib/llm-access-monitor/history.sqlite3
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=15
