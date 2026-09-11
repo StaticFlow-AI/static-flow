@@ -374,6 +374,12 @@ start_antigravity() {
   wait_antigravity 120
 }
 
+start_llm_access_monitor_tunnel() {
+  [[ -x "$LLM_ACCESS_MONITOR_TUNNEL_SCRIPT" ]] || fail "missing monitor tunnel script: $LLM_ACCESS_MONITOR_TUNNEL_SCRIPT"
+  start_tmux "llm-access-monitor-aws" "exec $(q "$LLM_ACCESS_MONITOR_TUNNEL_SCRIPT")"
+  wait_http "llm-access-monitor-aws" "http://127.0.0.1:19092/healthz" 20
+}
+
 start_llm_access_frontend_stack() {
   local api_cmd
   local ui_cmd
