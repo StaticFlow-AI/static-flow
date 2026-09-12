@@ -52,7 +52,10 @@ cp "$ROOT_DIR/deployment-examples/systemd/llm-access-antigravity.service.templat
 cp "$ROOT_DIR/deployment-examples/systemd/llm-access-oauth.service.template" "$STAGE/llm-access-oauth.service"
 printf '%s  %s\n%s  %s\n' "$ANTI_SHA" "llm-access-antigravity.$RELEASE_ID" "$OAUTH_SHA" "llm-access-oauth.$RELEASE_ID" > "$STAGE/SHA256SUMS"
 
-SSH_OPTS=(-i "$GCP_SSH_KEY" -o IdentitiesOnly=yes -o BatchMode=yes)
+# Do not reuse the long-lived ControlMaster used by local tunnels.  Large
+# binary uploads can otherwise be closed when another forwarded channel is
+# active; a dedicated connection makes the release atomic and diagnosable.
+SSH_OPTS=(-i "$GCP_SSH_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o ControlMaster=no -o ControlPath=none -o ControlPersist=no)
 REMOTE_DIR_Q="$(q "$REMOTE_RELEASE_DIR")"
 scp "${SSH_OPTS[@]}" "$STAGE/llm-access-antigravity.$RELEASE_ID" "$STAGE/llm-access-oauth.$RELEASE_ID" "$STAGE/llm-access-antigravity.service" "$STAGE/llm-access-oauth.service" "$STAGE/SHA256SUMS" "$GCP_DEST:$REMOTE_RELEASE_DIR/"
 ssh "${SSH_OPTS[@]}" "$GCP_DEST" "set -e
