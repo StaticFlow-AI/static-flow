@@ -18,6 +18,7 @@ Files:
 - `llm-access.service.template`
 - `llm-access-usage-worker.service.template`
 - `llm-access-cursor.service.template`
+- `llm-access-antigravity.service.template`
 - `llm-access-juicefs.mount.template`
 - `juicefs-llm-access.resource-guard.conf`
 - `staticflow-wait-llm-access-state`

@@ -469,6 +469,10 @@ deployment when the account still has quota above the configured threshold.
 - `llm-access-oauth.service` runs the independent OAuth binary on AWS at
   `127.0.0.1:19194`. Its unit is rendered from
   `deployment-examples/systemd/llm-access-oauth.service.template`.
+- `llm-access-antigravity.service` runs the independent Antigravity data plane
+  on AWS at `127.0.0.1:19095`. Release it with
+  `scripts/release_llm_access_cloud_antigravity_only.sh`; this script restarts
+  only Antigravity and the private OAuth manager.
 - Before the first manager deployment, update the main API and Cursor/Grok
   service to the corresponding OAuth-enabled revision. Main API startup
   applies migration 80, which registers
