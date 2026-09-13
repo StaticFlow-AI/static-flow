@@ -575,8 +575,9 @@ Antigravity 服务仍根据请求模型选择有对应模型额度的账号。�
 运行配置缓存使用 v10，避免独立部署的旧服务覆盖新字段。普通配置序列化隐藏
 凭证列表，授权管理接口以 `Cache-Control: no-store` 返回可编辑值。
 
-各次尝试共享 Invocation ID，分别保留源请求与内部调用的 Usage ID；失败尝试
-也记录其实际观测到的 token，不能将已消耗的推理用量误记为零。诊断中的
+各次尝试共享 Invocation ID，分别预分配源请求与内部调用的 Usage ID；连接失败等
+尚未进入目标服务的尝试可能只有源记录。失败尝试也记录其实际观测到的 token，
+不能将已消耗的推理用量误记为零。诊断中的
 `moderation_fallback_chain` 保存步骤和此前错误及 Usage 链接，控制台可以跳转
 查看每次尝试。上游超时、上游失败与客户端断开分别记录。
 
@@ -588,3 +589,54 @@ Antigravity 服务仍根据请求模型选择有对应模型额度的账号。�
 前端类型检查、构建、7 项运行配置测试和 18 项 usage 测试通过。浏览器验证确认
 两个后续目标按顺序显示、密钥默认隐藏、可上下移动，390px 屏幕无横向溢出，
 无页面脚本错误。
+
+### 17.2 生产配置与真实回退验收
+
+已通过 API-only 脚本发布 `20260913T192519Z-9605844ecdf2`。API revision 为
+`9605844ecdf2c801ab4a46a395161d65802b9d4e`，二进制 SHA-256 为
+`ce4f834d2d0af9814e4aafebc870f1d6b46fbeb28c912739aa4f032a316aeeca`。
+API PID 为 `2426336`，`NRestarts=0`；usage worker、Cursor、Antigravity、OAuth
+的 PID 仍分别为 `2356934`、`2356946`、`2395529`、`2356948`。控制台随后发布的
+`024f040` 仅修正 Usage 说明及内部记录的步骤显示，不改变已发布的 Rust 二进制。
+
+生产配置保留原 Grok origin、模型和 Key，在其后配置 Antigravity 的 Gemini、Sonnet
+两个目标。两项共用新建的内部 Key `moderation-fallback-antigravity-20260914`，
+使用现有 Antigravity 账号池。控制台实际读回顺序正确，密钥默认隐藏，支持排序。
+
+使用与线上相同的正式二进制启动隔离 API 和 usage worker；审核状态、源 Key、
+账号路由和故障注入均在临时 Neon 数据库中，生成请求调用真实的生产 Antigravity
+账号。Responses / Messages 各验证四种情况，共 8 种：Grok HTTP 失败后由 Gemini
+完成；Grok 和 Gemini 都失败后由 Sonnet 完成；Grok 在流式开头返回额度错误后
+由 Gemini 完成；三个目标都失败时返回最后的 402。成功请求完成 `17 × 19` 任务，
+分别正常结束于 `response.completed` / `message_stop`，旧 Grok 响应 ID 未泄漏。
+
+第一次 Sonnet Responses 尝试真实返回 `MODEL_CAPACITY_EXHAUSTED` 503，客户端
+收到该最终错误；等待超过一分钟后重试成功。因此共执行 9 次客户端请求，并非
+每次都成功。隔离源日志共 23 条、9 个 Invocation ID，其中 6 条生成成功；错误
+记录包括 8 条 503、5 条 429、2 条流式上游错误 502、2 条最终 402。成功记录均
+`usage_missing=false`，每个步骤的前序记录和 Invocation ID 已核对，日志中的
+测试 Key 及内部 Antigravity Key 均已脱敏。
+
+源 Key 沿用原审核 fallback 计费公式：非缓存输入 + 缓存输入整除 10 + 输出 × 5；
+两个隔离源 Key 分别扣除 1,392 和 1,797 billable token，与源事件合计一致。
+Antigravity 内部 Key 按其原有规则记录原始 token：6 次成功回退共 745 token，
+另有两次发布准备阶段的模型直连共 207 token，合计 952。两侧的扣量规则不同，
+应核对原始输入、缓存、输出及关联 ID，不能要求两个 Key 的 billable 总量相等。
+
+### 17.3 内部日志关联校验补齐
+
+最后一次对账发现，Antigravity 共享 HTTP 边界仍只信任启动时读取的 Grok Key，
+因此首轮内部 9 条事件虽然扣量正确（8 次成功、1 次容量不足，共 952 token），
+却生成了自己的 Usage ID，无法使用源记录中的预分配 ID 跳转。没有修改这些历史
+事件；通过修正实际入口来保证后续请求写入正确关联。
+
+共享边界改为仅在 Key 认证通过且内部 trace 完整时读取当前运行配置：主 Key 仅
+适用于 Cursor，后续目标 Key 必须匹配当前服务的 provider。这样新增或轮换内部
+Key 可以通过现有运行配置缓存更新生效，不依赖重启时的旧摘要。普通请求不新增
+配置查询；配置读取失败时返回 503，不假装已接受可信关联。Key 的额度、路由准入
+和审核规则继续执行。专项测试覆盖错误 Key、跨 provider、密钥轮换及配置不可用。
+
+该补齐提交为 `9f38ecf99d3941fdc90f6e935731afa2e9ac3b2e`。21 项共享数据面专项
+测试通过；包含隔离 Postgres 的受影响服务测试共 850 项通过、1 项既有忽略，
+受影响服务全部 targets 的 Clippy `-D warnings` 通过。新隔离数据库首次并发
+初始化触发迁移版本重复，先串行完成 schema 初始化后完整重跑通过。
