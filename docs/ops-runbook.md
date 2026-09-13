@@ -402,17 +402,21 @@ apply independently.
   usage, moderation, runtime configuration, and proxy configuration.
 - `/admin/llm-gateway/keys` without a provider filter is a shared inventory,
   not a Codex-only list. Provider-specific consumers must send
-  `provider_type=codex|kiro|cursor`; filtering happens before pagination and
+  `provider_type=codex|kiro|cursor|antigravity`; filtering happens before pagination and
   summary aggregation. The console applies this in its shared key API helper.
 - Cloud `llm-access-cursor` on `127.0.0.1:19090` owns both the Cursor data plane
   and `/admin/cursor-gateway/*`. Its admin handlers reuse the shared Neon
   repositories and policy helpers; the main API does not mount duplicate
   Cursor handlers.
+- Cloud `llm-access-antigravity` on `127.0.0.1:19095` owns its independent data
+  plane and `/admin/antigravity-gateway/*`, including accounts, keys and groups.
 - The local console keeps the admin plane local-only. The
   `pbmapper-llm-access-aws` subscription exposes the main admin API at
   `127.0.0.1:19182`, while `pbmapper-llm-access-cursor-aws` exposes the Cursor
-  admin API at `127.0.0.1:19183`. Vite routes `/admin/cursor-gateway/*` to
-  `19183` and all other `/admin/*` requests to `19182`.
+  admin API at `127.0.0.1:19183`. The Antigravity subscription exposes its admin
+  API at `127.0.0.1:19195`. Vite routes `/admin/cursor-gateway/*` to `19183`,
+  `/admin/antigravity-gateway/*` to `19195`, and other `/admin/*` requests to
+  `19182`.
 - `.local/pbmapper/llm-access-cursor.env` must contain the Cursor subscription's
   `PB_MAPPER_SERVER`, dedicated `SERVICE_KEY`, `MSG_HEADER_KEY`, keepalive and
   health-check settings, plus `LOCAL_ADDR=127.0.0.1:19183`. The matching AWS
@@ -803,4 +807,26 @@ unification cannot bring Cursor providers into that executable.
 Caddy exposes `/api/antigravity-gateway/v1/*` through `127.0.0.1:19095`, with the
 same streaming timeouts as Cursor's separate `:19090` route. Validate and reload
 Caddy when adding this route; keep its process and the local Pingora gateway
-running. Local operator accounts remain on `/console/antigravity/accounts`.
+running. The local operator console provides `/console/antigravity/accounts`,
+`/console/antigravity/keys` and `/console/antigravity/groups`; keep all Antigravity
+admin routes off the public Caddy matcher.
+
+Migrations 92–93 subsequently introduced the independent `antigravity` key,
+group and usage provider, and seeded verified model reference prices. The
+one-time schema 91 → 93 release uses
+`scripts/release_llm_access_cloud_antigravity_admin.sh`. It verifies credential,
+quota and usage preservation and requires the Antigravity control-rollup backlog
+at `usage-journal/antigravity/control-rollups/{sealed,consuming}` to be empty.
+New API, usage worker, Cursor and OAuth readers start before the Antigravity
+producer. Once that producer starts, retain readers that understand the new
+provider and fix forward; do not restore old consumers over new usage events.
+Do not rerun either one-time migration coordinator on the current schema 93.
+
+For later changes confined to the Antigravity producer, build and replace only
+`llm-access-antigravity` and verify the running executable SHA plus unchanged
+API/worker/Cursor/OAuth process identities. The existing
+`release_llm_access_cloud_antigravity_only.sh` also publishes OAuth; use it only
+when OAuth is affected. Account rollups are written by the producer, while the
+usage worker owns analytics ingestion. Verify both account totals and Key
+deductions against raw events: correct Key usage alone does not prove that the
+account rollup was updated.

@@ -1,6 +1,6 @@
 # Antigravity 独立 crate 重构设计
 
-状态：2026-09-13 已完成代码拆分、生产迁移和真实 FX 任务验收。第 2、11 节保留重构前的设计依据，当前实现与验证结果见第 12、13 节。
+状态：2026-09-13 已完成代码拆分、生产迁移、独立 Key 管理、账号额度展示和模型定价补齐。第 2、11 节保留重构前的设计依据；核心拆分验收见第 12、13 节，后续补齐及真实 FX/计量复验见第 14 节。
 
 ## 1. 目标与边界
 
@@ -333,8 +333,107 @@ Usage 保留当时的 provider，新请求使用 Antigravity，账号累计计�
 Cursor 的 8 个 GPT Fast 标识尚无已核实的 Cursor 单价，也保留待定价。`default`
 为自动选模入口，应按实际模型计价。
 
+Kiro 缺价检查使用目录的 `target_model_id`，与实际计费模型一致；例如当前自定义的
+`claude-fable-5`、`kimi-2.7`、`kimi-k3` 均映射到已有价格的 `claude-opus-5`，不能
+根据公开别名另加价格。本次检查共显示 14 项待配置条目，点击“配置价格”会带入模型
+标识，价格输入保持空白。
+
 本次通过 `scripts/release_llm_access_cloud_antigravity_admin.sh` 完成一次性 schema
 91 → 93 切换。五个受影响服务顺序构建；先启动新 API、Usage worker、Cursor、OAuth，
 最后启动 Antigravity。启动 Antigravity 前可以还原原 provider 与二进制；此后必须保留
 能解码新 Usage provider 的消费者并向前修复。发布脚本核对二进制与迁移文件 SHA，
 迁移前后核对 Key 凭证、配额、累计用量及账号认证摘要。
+
+### 生产发布与管理界面验收
+
+功能版本 `320e0a21aad8a1db3a73f3c19cb7c5b480405935` 通过批次
+`20260913T134758Z-320e0a21aad8-ag-admin` 发布，生产 schema 已为 93。原验证 Key
+`antigravity-fx-refactor-20260913` 转为 Antigravity 归属后，secret、10,000,000 配额、
+234,167 已用量及 9,765,833 剩余额度均保持不变。Cursor 仍有原来的 3 个账号，混合
+Cursor 组和 Key 未被迁走。
+
+真实 API 验证完成 Key/Group 创建、编辑、删除，固定组约束、停用立即生效与重新启用，
+以及手动价格保存后读回。Cursor 管理接口修改 Antigravity Key 返回 404，Cursor
+公网入口使用该 Key 返回 401。临时测试 Key、Group 和价格已删除。
+
+真实浏览器验证 Key 编辑器可用、账号池及详情页均显示 27 个模型的上游额度；四个内部
+模型均显示“待定价”，手动配置表单不预填零价。账号池和价格页在 390px 视口无页面
+横向溢出，也无 JavaScript 异常。控制台沿用本地 `127.0.0.1:19191` 的生产构建。
+
+工作区测试为 **2,900 passed、0 failed、2 ignored**；后续受影响库及协议测试
+855 passed。最终账号计量修复另通过 1 项真实 Postgres 回归及 13 项相关计量测试。
+最终工作区和独立 Antigravity 的 `clippy --all-targets -- -D warnings`、React
+typecheck/build 均通过。Cargo 单独报告了依赖 `redis 1.6.0` 的 future-incompatibility
+提示。迁移、回滚、幂等计量与补账测试使用隔离 Neon 分支，测试结束后已删除，查询确认
+该分支不存在。
+
+### 真实任务发现的账号计量遗漏与修复
+
+使用新 Key `antigravity-fx-admin-20260913`，通过 FX 现有公网 origin 和 Antigravity
+入口运行 Python JSONL 用量报表任务。会话 `ChvL63TXeG7k` 返回 exit 0，8 步、8 次
+工具调用，完成代码修复和 5 项测试；独立复核通过报表结果及 6 项边界检查，输入不变。
+这轮 9 个 Responses 请求均返回 200、`usage_missing=false`，Key 正确扣除 129,276
+token，但账号累计量没有增加。
+
+原因是共享 Postgres 的 `account_model_usage_upsert_builder` 仍只接受旧 provider。
+最终版本 `9b38406454c36170404528e3e3fded8121ec50ca` 补齐 Antigravity 的账号归属
+条件，并限制 Cursor 分支只接受非 Antigravity 账号。回归测试同时验证账号计量与 Key
+扣量的幂等性。此修复只影响 producer 的控制面写入，usage worker 的职责是写 analytics。
+
+修复通过批次 `20260913T141212Z-9b38406454c3-ag-rollup` 单独更新 Antigravity，
+于 **14:12:56 UTC** 启动，运行二进制 SHA-256 为
+`1e989b0355dc7f9a60151019be7c28872316378b0414d97111cf33105484c836`。
+API、usage worker、Cursor、OAuth 的 PID 分别保持 2356945、2356934、2356946、
+2356948；Antigravity 新 PID 为 2362234。全部 active、`NRestarts=0`。Caddy PID
+保持 55768，本地 Pingora 未重启。
+
+针对这 9 条已有原始日志，以事务锁定和精确前置计数执行一次账号补账：账号累计量
+234,167 → 363,443，Key 已用量仍为 129,276。脚本核对 9 个已应用事件批次、Key
+累计量、账号输入/缓存/输出及最后使用时间，只补账号计量，不重新提交 Key 扣量。
+同一脚本在隔离数据库连续运行两次，第二次不重复增加统计；生产补账后 API 读回一致。
+
+上线后在同一目录继续完成 stdin JSONL 支持和两项 CLI 集成测试，会话
+`NFzqvSLiueWw` 生成并通过全部 **7 项测试**。账号原有 10 RPM 限制导致 FX 在最终
+回答前耗尽自动重试而暂停；等待限流窗口后，使用原会话的 `--continue-recovery`
+恢复，首个请求成功，最终 exit 0。独立复核确认 stdin/file 报表一致、6 项边界检查
+通过，原始 fixture 未改变。本次没有提高账号 RPM。
+
+新 Key 的隔离凭证保存在 `~/.config/llm-access/antigravity-fx/gateway-auth.json`
+（目录 0700、文件 0600），用户原 `~/.fx/gateway-auth.json` 未被修改。验收产物为
+`/tmp/ag-admin-fx-verification.json`、`/tmp/ag-admin-fx-postfix-verification.json`、
+`/tmp/ag-admin-browser-verification.json` 与 `/tmp/ag-account-repair-production.json`；
+含账号、Key 和完整请求的证据仅保留在本机。
+
+### 最终 usage 核对（14:20 UTC）
+
+以新 Key、`provider_type=antigravity`、明确起止时间查询，共 **40 条原始记录**：
+30 条成功响应、9 条本地账号 10 RPM 限流（429），以及 1 条 Google 上游
+`MODEL_CAPACITY_EXHAUSTED`（503）。所有成功请求 `usage_missing=false`；10 条
+失败记录均为 0 billable token。两轮任务最终均完成；这不代表上游从未限流或暂时缺少
+容量。
+
+| 核对项 | 新 Key 两轮任务 | 账号累计（含原有 234,167） |
+|---|---:|---:|
+| 未缓存输入 | 152,295 | 254,144 |
+| 缓存输入 | 283,187 | 404,574 |
+| 输出 | 17,412 | 28,343 |
+| billable token | 452,894 | 687,061 |
+
+新 Key 剩余配额为 **9,547,106 / 10,000,000**。原始记录三类 token 之和与 Key
+扣量逐项一致，账号对应增量也一致，按配置费率核算的账号参考成本为 **$0.2323297**。
+最终成功明细包含 client request、upstream request、完整请求和 response body；
+上游 Authorization 已脱敏，协议为 `antigravity-cloud-code`，流正常结束于
+`response.completed`。
+
+usage worker 已将本轮 31 条新记录导入活动 DuckDB（journal 文件序号 32117，
+consumer state 记录 event_count=31）；连同前轮 9 条，查询可读回全部 40 条。
+这些记录目前位于活动 DuckDB，尚未封存到冷归档，`source=archive` 此时为 0。
+journal 的写入失败、丢弃文件和未消费丢弃计数均为 0，无 sealed backlog，
+worker `last_error=null`。
+
+历史数据仍有局限：账号保留 52 条旧 `usage_missing` 计数，本轮没有用量的
+上游 503 增加 1 条，当前为 53；30 条成功请求没有新增缺失。两个旧 bad journal
+文件分别来自 2026-06-30 和 2026-09-10，名称和大小均未变化，本次未修复这些历史
+文件。最终证据为 `/tmp/ag-admin-usage-final.json` 和
+`/tmp/ag-consumer-proof-final.json`，五个服务与 Caddy 仍 active、`NRestarts=0`，
+运行二进制 SHA 与各自发布清单一致。
