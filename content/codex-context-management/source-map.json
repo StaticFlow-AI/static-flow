@@ -1,0 +1,400 @@
+{
+  "repository": "https://github.com/openai/codex",
+  "revision": "516f2780fd227a80cd9fe89488f5039245090b71",
+  "verified_on": "2026-09-14",
+  "commit_time": "2026-09-13T16:14:41+00:00",
+  "sources": {
+    "dispatch": {
+      "path": "codex-rs/core/src/session/turn.rs",
+      "start": 1408,
+      "end": 1452,
+      "title": "自动切换的策略分支",
+      "sha256": "031fe22c45e0c2ff3786acb744c11d7537a3a5968b38a94d7127dbe500c47b1c"
+    },
+    "priority": {
+      "path": "codex-rs/core/src/session/turn.rs",
+      "start": 1408,
+      "end": 1417,
+      "title": "TokenBudget 优先分支",
+      "sha256": "ee239b4dc2fb524c0b2da63cee7c6b59d95107007314591146efb9465509ba53"
+    },
+    "trigger": {
+      "path": "codex-rs/core/src/session/turn.rs",
+      "start": 600,
+      "end": 609,
+      "title": "循环边界上的切换判断",
+      "sha256": "38454b5c785d381f9640b44ba5d6579b989acef74711b0d28151d7d985038050"
+    },
+    "followup": {
+      "path": "codex-rs/core/src/session/turn.rs",
+      "start": 550,
+      "end": 640,
+      "title": "采样之后的完整控制流",
+      "sha256": "5de97f16e4e9b581940ec4a5a59ee1487d4123786cc2f5b640ee8b2b0657de99"
+    },
+    "precompact": {
+      "path": "codex-rs/core/src/session/turn.rs",
+      "start": 1231,
+      "end": 1275,
+      "title": "采样前的容量检查",
+      "sha256": "7bda5ac0d2e55de8c0e157f31b4d682a746c1832ee31a92e3f61948c6a84c528"
+    },
+    "manual": {
+      "path": "codex-rs/core/src/tasks/compact.rs",
+      "start": 35,
+      "end": 66,
+      "title": "手动压缩的策略分支",
+      "sha256": "9770d6ef309a4942d8895be52570ea31fc59670acee7dfd28e82a937676c5ec4"
+    },
+    "fresh_contract": {
+      "path": "codex-rs/core/src/compact_token_budget.rs",
+      "start": 19,
+      "end": 23,
+      "title": "fresh 路径的源码契约",
+      "sha256": "31e896a623aeb9abb593ef1139d45797f744c17b998891935f29270efc7d1eb2"
+    },
+    "fresh_hooks": {
+      "path": "codex-rs/core/src/compact_token_budget.rs",
+      "start": 63,
+      "end": 81,
+      "title": "fresh 路径的生命周期",
+      "sha256": "beff7bddb2136bb99b03cfe1fd21dfe16bcecda840314b88329d206792282dea"
+    },
+    "fresh_install": {
+      "path": "codex-rs/core/src/session/mod.rs",
+      "start": 4385,
+      "end": 4435,
+      "title": "新窗口的构建与安装",
+      "sha256": "66410f73f8e3937515a65b1986d2b6816ef5792b9badb6c9003414c79ba70e4e"
+    },
+    "checkpoint": {
+      "path": "codex-rs/core/src/session/mod.rs",
+      "start": 3929,
+      "end": 4005,
+      "title": "替换历史与持久化检查点",
+      "sha256": "c553574315acc5822f4efc95d638d52d91dc2a6c3b01b5da445819ec35831823"
+    },
+    "new_spec": {
+      "path": "codex-rs/core/src/tools/handlers/new_context_window_spec.rs",
+      "start": 6,
+      "end": 17,
+      "title": "new_context 工具定义",
+      "sha256": "e75b9d6ad4658c4e86c5e9933cd0aa879c980caf314f21bc8cc7ecf292a02a13"
+    },
+    "new_handler": {
+      "path": "codex-rs/core/src/tools/handlers/new_context_window.rs",
+      "start": 13,
+      "end": 43,
+      "title": "new_context 工具执行器",
+      "sha256": "39ebda399d98ec965a091c7a188f1f8db16d1f675d9c89577c1cbfc326e8aaac"
+    },
+    "new_flag": {
+      "path": "codex-rs/core/src/state/auto_compact_window.rs",
+      "start": 95,
+      "end": 103,
+      "title": "窗口请求标记的写入与消费",
+      "sha256": "3a91d8bf1cdfce2b6aaa8e5b8c6a2b2ab2f8e999b9456bbbb3f4149b99c30f60"
+    },
+    "advance": {
+      "path": "codex-rs/core/src/state/auto_compact_window.rs",
+      "start": 77,
+      "end": 94,
+      "title": "窗口 ID 和提醒状态推进",
+      "sha256": "8aaec1665a75e6b8365455dfddc9f5da6f3495f89153060adb82ac46b7405dd8"
+    },
+    "exposure": {
+      "path": "codex-rs/core/src/tools/spec_plan.rs",
+      "start": 1203,
+      "end": 1215,
+      "title": "上下文工具的注册条件",
+      "sha256": "69cba5d7d4824ec7b6638c268ce1bdeec8f74502d7f4bb469b26b32fde7821c9"
+    },
+    "remote_request": {
+      "path": "codex-rs/core/src/compact_remote_v2_attempt.rs",
+      "start": 69,
+      "end": 91,
+      "title": "CompactionTrigger 请求构建",
+      "sha256": "c4a53f2c7afa29e6278189388d8587392adee45cfc9f157ecaa55d2354c87845"
+    },
+    "remote_stream": {
+      "path": "codex-rs/core/src/compact_remote_v2.rs",
+      "start": 364,
+      "end": 417,
+      "title": "压缩复用 Responses 流式客户端",
+      "sha256": "73cdb829d3acce42de5d9179231457be09182f99b59d9cd8d12976915fdb3922"
+    },
+    "remote_validate": {
+      "path": "codex-rs/core/src/compact_remote_v2.rs",
+      "start": 419,
+      "end": 481,
+      "title": "响应收集和完整性校验",
+      "sha256": "7edd0ae261ea85eacdf9095ccd63d22f5eaf0fe7d9622f3fdd081d2829bc8e00"
+    },
+    "remote_count": {
+      "path": "codex-rs/core/src/compact_remote_v2.rs",
+      "start": 461,
+      "end": 472,
+      "title": "完成事件与 compaction 数量检查",
+      "sha256": "927ffe25dcb74170dc6a927efc2ee54c7f898d95edd76cce2ac33a9ad976f8cd"
+    },
+    "remote_install": {
+      "path": "codex-rs/core/src/compact_remote_v2.rs",
+      "start": 297,
+      "end": 355,
+      "title": "压缩结果安装顺序",
+      "sha256": "00182e654c2b921b3a2bf1d9d103535e02beb175d031ecadd66f42e6d04a04a0"
+    },
+    "remote_retain": {
+      "path": "codex-rs/core/src/compact_remote_v2.rs",
+      "start": 483,
+      "end": 509,
+      "title": "保留消息和压缩项的组合",
+      "sha256": "961d32aef30383330991aafe07c33e45c66e380d2803cf11e3e810f2ee315146"
+    },
+    "retention_rules": {
+      "path": "codex-rs/core/src/compact_remote_v2.rs",
+      "start": 534,
+      "end": 578,
+      "title": "哪些原始消息可以留下",
+      "sha256": "9ad5913539df24e005b4a534c0746b4f685aeb74118c95f0c1ddc20b3f3cdc93"
+    },
+    "responses_endpoint": {
+      "path": "codex-rs/codex-api/src/endpoint/responses.rs",
+      "start": 38,
+      "end": 47,
+      "title": "Responses 的 provider 相对路径",
+      "sha256": "eaf4c61c6a19c5fdef69f66208481161a0225b281ab7937b82f6a935e9cfab05"
+    },
+    "budget": {
+      "path": "codex-rs/core/src/session/context_window.rs",
+      "start": 60,
+      "end": 109,
+      "title": "两种计量范围与容量边界",
+      "sha256": "88626c0afc6fdab46ec9c68688cff6e519c923432380cafaa1966386b19d7fd5"
+    },
+    "remaining": {
+      "path": "codex-rs/core/src/session/context_window.rs",
+      "start": 82,
+      "end": 109,
+      "title": "剩余预算和缓冲区计算",
+      "sha256": "5557a2a95741615ad8a0456181d30c4a1e5de0b1cdd88911946814fce4251d96"
+    },
+    "limits": {
+      "path": "codex-rs/protocol/src/openai_models.rs",
+      "start": 509,
+      "end": 533,
+      "title": "模型容量与自动压缩阈值",
+      "sha256": "4dc3b06c3429e79fe0a4ef4766df588ff0b80bcb79101302ed02a123a39cdcfd"
+    },
+    "percent": {
+      "path": "codex-rs/protocol/src/openai_models.rs",
+      "start": 389,
+      "end": 391,
+      "title": "有效上下文默认比例",
+      "sha256": "0de4ec9f7e4f11e7925255db19b826e9540ae2426c27c05491e61ddc576d2e3f"
+    },
+    "models": {
+      "path": "codex-rs/models-manager/models.json",
+      "start": 1,
+      "end": 112,
+      "title": "内置 Astra 模型与 TokenBudget 提示配置",
+      "sha256": "236d3c78abce088905d8be465d498ae301406f92257596dafae51c47fc765079"
+    },
+    "activation": {
+      "path": "codex-rs/core/src/session/token_budget.rs",
+      "start": 13,
+      "end": 58,
+      "title": "实验模式的生效条件",
+      "sha256": "0a67fa0c7a4445d6de4e2f6b2f9aa0952c3da8c7c98d51d7f7216ff4a3fc6b25"
+    },
+    "model_defaults": {
+      "path": "codex-rs/core/src/session/token_budget.rs",
+      "start": 81,
+      "end": 159,
+      "title": "模型默认值与显式配置的关系",
+      "sha256": "2aec85b5e41d88f9eed25e0c12ad45a04552d42999d78d9d445df472ca70d717"
+    },
+    "reminders": {
+      "path": "codex-rs/core/src/session/token_budget.rs",
+      "start": 161,
+      "end": 224,
+      "title": "预算提醒与 fallback 提示的注入",
+      "sha256": "f55e2cda057e7c3830862c269cb6c88547fbd79aa3284cf6862f874e28b588e0"
+    },
+    "feature_defaults": {
+      "path": "codex-rs/features/src/lib.rs",
+      "start": 1622,
+      "end": 1634,
+      "title": "两个功能的注册默认值",
+      "sha256": "024504bb7ff7f202f1032bf907a603520d208de252b269591bcddbc6e8a2b8fa"
+    },
+    "history_extension": {
+      "path": "codex-rs/ext/history-notes/src/extension.rs",
+      "start": 45,
+      "end": 64,
+      "title": "原生 history 和 notes 的安装条件",
+      "sha256": "0d5ca1ed7e50ed25b774096bc471b6da7cbf1dd77d035f9db77260bb9b8ad9e2"
+    },
+    "hint": {
+      "path": "codex-rs/ext/history-notes/src/extension.rs",
+      "start": 97,
+      "end": 151,
+      "title": "窗口提示的后端读取与注入",
+      "sha256": "2ae994e119e7863f0b69957be41a1efce3dcb2fcb3cd6bcfba1bae655fab05ff"
+    },
+    "tool_routes": {
+      "path": "codex-rs/ext/history-notes/src/tools.rs",
+      "start": 70,
+      "end": 101,
+      "title": "history 和 notes 的工具到路由映射",
+      "sha256": "760f8cb95d4804d0b906b3fc4e4f5f7d732a67e9add6b3c98a13dac86de57c8b"
+    },
+    "history_schema": {
+      "path": "codex-rs/ext/history-notes/src/tools.rs",
+      "start": 141,
+      "end": 241,
+      "title": "历史和笔记工具的参数契约",
+      "sha256": "695be175ff42ad6b47c2bbb68aff6f89f9ccad843c5a479896cdf1a1f4d61309"
+    },
+    "tool_contract": {
+      "path": "codex-rs/ext/history-notes/src/tools.rs",
+      "start": 20,
+      "end": 27,
+      "title": "历史和笔记的命名空间契约",
+      "sha256": "959f0a5dc359c7c695bf85b73dcc51999bf58a1678f585bcebd70ebb567cb226"
+    },
+    "direct_exposure": {
+      "path": "codex-rs/ext/history-notes/src/tools.rs",
+      "start": 309,
+      "end": 315,
+      "title": "扩展工具仅对模型直接暴露",
+      "sha256": "b0f4124ea5f6ddae96d24eac36655c5a7eb1c9d290e11add3d0c07fc75e958da"
+    },
+    "backend": {
+      "path": "codex-rs/ext/history-notes/src/backend.rs",
+      "start": 14,
+      "end": 95,
+      "title": "后端请求、截断策略和超时",
+      "sha256": "39ff2274246f4c036ec2c929af8aef70028f6b91650fe6fa04c5a4e7ac579cb5"
+    },
+    "backend_context": {
+      "path": "codex-rs/ext/history-notes/src/backend.rs",
+      "start": 38,
+      "end": 55,
+      "title": "后端请求注入会话与 agent 身份",
+      "sha256": "25f8a225558d9cb9357293763c3e9474a69a6d2658362804246eaf43fc9c8438"
+    },
+    "encrypted_output": {
+      "path": "codex-rs/ext/history-notes/src/tools.rs",
+      "start": 332,
+      "end": 350,
+      "title": "加密工具结果的客户端封装",
+      "sha256": "3d103417c4b160c2cd13604927788e237bcd6c6a50204d19e560618e744e433f"
+    },
+    "ingestion": {
+      "path": "codex-rs/core/src/session/session.rs",
+      "start": 701,
+      "end": 723,
+      "title": "history_ingest_requested 与窗口元数据",
+      "sha256": "a59e2bba3cb15c0f3b6de40a92471d39ee7aa8deca6ec5623b316259efa605b3"
+    },
+    "step_metadata": {
+      "path": "codex-rs/core/src/session/session.rs",
+      "start": 647,
+      "end": 699,
+      "title": "普通采样与压缩请求的元数据快照",
+      "sha256": "626f7f4786f173367cf6cdf4747e3082658bd5ad011c95118e56de5e21d55128"
+    },
+    "memories": {
+      "path": "codex-rs/ext/memories/src/extension.rs",
+      "start": 136,
+      "end": 172,
+      "title": "独立的本地 memories 扩展",
+      "sha256": "98e0a1bd9279894dc576899d10c424047afb1a3ec9b174de003a062f3bbc4072"
+    },
+    "memory_start": {
+      "path": "codex-rs/memories/write/src/start.rs",
+      "start": 24,
+      "end": 94,
+      "title": "本地记忆写入的启动任务",
+      "sha256": "4be8bbf8006061f3ac8d781ba74ffa480628f6d0225ad75bda54d0078dacc967"
+    },
+    "rollout": {
+      "path": "codex-rs/rollout/src/recorder.rs",
+      "start": 1,
+      "end": 95,
+      "title": "本地 rollout 记录器",
+      "sha256": "84e5d274205fc3fc948eba1603ca174fe9520bc42783438e2eb4b9df5c223339"
+    },
+    "rollout_policy": {
+      "path": "codex-rs/rollout/src/policy.rs",
+      "start": 1,
+      "end": 67,
+      "title": "本地 rollout 持久化筛选",
+      "sha256": "82e66dc945ad8c16b877ae2531a976c1a343f7f9c2330e487b35b54f93c14b28"
+    },
+    "local_stream": {
+      "path": "codex-rs/core/src/compact.rs",
+      "start": 755,
+      "end": 780,
+      "title": "客户端摘要路径仍调用模型流",
+      "sha256": "f0cd0508abbc54c73d416dd87579da270853d707ef260499551970dae3bfff50"
+    },
+    "rebuild": {
+      "path": "codex-rs/rollout/src/model_context.rs",
+      "start": 1,
+      "end": 130,
+      "title": "从 rollout 重建活动模型上下文",
+      "sha256": "8f3eee04b7c8656a875a1fcb31010c59b36bd0897fe44d4228ce8cdaacbb0345"
+    },
+    "test_new": {
+      "path": "codex-rs/core/tests/suite/token_budget.rs",
+      "start": 1574,
+      "end": 1677,
+      "title": "new_context 跳过旧 fallback 的测试",
+      "sha256": "49a5404d888be9517217195429d8d91264cb2ce5b88a58b529b62a17ef1fda00"
+    },
+    "test_buffer": {
+      "path": "codex-rs/core/tests/suite/token_budget.rs",
+      "start": 1411,
+      "end": 1570,
+      "title": "缓冲区与强制换窗测试",
+      "sha256": "24ecac87326e8ac3ea79ccaed0068892b65dd107c31f36196ee2394aff8ddf46"
+    },
+    "test_lifecycle": {
+      "path": "codex-rs/core/tests/suite/token_budget.rs",
+      "start": 1233,
+      "end": 1282,
+      "title": "fresh 模式的 hooks 测试",
+      "sha256": "0b75bfe6402d10daa47da204463afe27cc18e58cf04c600d11c80e888b880495"
+    },
+    "test_gates": {
+      "path": "codex-rs/core/tests/suite/token_budget.rs",
+      "start": 315,
+      "end": 441,
+      "title": "实验能力与起始模型测试",
+      "sha256": "8fa13af14dcd53aed34f723840162ef18e0ccd100d3b646ebb8373223226386f"
+    },
+    "test_remote": {
+      "path": "codex-rs/core/tests/suite/compact_remote.rs",
+      "start": 750,
+      "end": 830,
+      "title": "远程压缩与后续请求测试",
+      "sha256": "107f6b8fb86d353347b51d390ff0578018db9c762fa4e06bdf19b489043c8dd9"
+    },
+    "test_retry": {
+      "path": "codex-rs/core/tests/suite/compact_remote.rs",
+      "start": 1100,
+      "end": 1180,
+      "title": "远程流式重试预算测试",
+      "sha256": "3d1b4134a8e6e85c356933e41bdbe7a5d236e3481f1126a96ac2999682afe973"
+    },
+    "test_usage": {
+      "path": "codex-rs/core/tests/suite/compact_remote.rs",
+      "start": 435,
+      "end": 492,
+      "title": "输出校验前记录 usage 的测试",
+      "sha256": "c7760dc27bd1ec6c746461aa191ad59db8f1d44348090d5402cbe4180ee56e3a"
+    }
+  }
+}
