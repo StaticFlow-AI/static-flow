@@ -13,7 +13,6 @@ EnvironmentFile=/etc/llm-access/llm-access.env
 Environment=STATICFLOW_LOG_DIR=/var/log/staticflow-runtime
 Environment=STATICFLOW_LOG_SERVICE=llm-access-antigravity
 Environment=STATICFLOW_LOG_STDOUT=0
-Environment=LLM_ACCESS_CURSOR_STATE_DIR=/var/lib/staticflow/llm-access/antigravity-runtime
 Environment=LLM_ACCESS_USAGE_JOURNAL_DIR=/var/lib/staticflow/llm-access/usage-journal
 WorkingDirectory=/mnt/llm-access
 ExecStartPre=/usr/bin/bash -lc 'set -a; . /mnt/llm-access/config/neon.env; exec /usr/local/bin/staticflow-wait-llm-access-state api'

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Cursor deliberately connects without migrations. Apply its additive Grok
 # schema before activating a binary that reads those columns.
+# Current binaries require the coordinated managed-account migration 91 too.
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LLM_ACCESS_DIR="${LLM_ACCESS_DIR:-$ROOT_DIR/deps/llm-access}"
@@ -35,7 +36,7 @@ INSERT INTO llm_access_schema_migrations(version, name, applied_at_ms)
 VALUES (86, 'grok_reset_credits', (EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::bigint);
 \endif
 -- Also verify a previously recorded migration has its required objects.
-SELECT auto_reset_rate_limit_enabled, auto_reset_rate_limit_threshold_percent FROM llm_cursor_accounts LIMIT 0;
+SELECT auto_reset_rate_limit_enabled, auto_reset_rate_limit_threshold_percent FROM llm_managed_accounts LIMIT 0;
 SELECT user_id FROM llm_grok_reset_credit_guards LIMIT 0;
 SELECT idempotency_key FROM llm_grok_reset_credit_attempts LIMIT 0;
 COMMIT;

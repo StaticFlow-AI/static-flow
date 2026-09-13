@@ -779,3 +779,28 @@ the now-valid key.
 
 If cloud-side restart does not restore service, continue debugging on the
 home/local machine side of the tunnel before changing Caddy config.
+
+
+### Managed accounts migration 91 and Antigravity releases
+
+The managed-account schema is now owned by `llm_managed_accounts`; OAuth uses
+`managed_account_name`. Old binaries referencing `llm_cursor_accounts` must not
+run against schema 91. The first cutover uses
+`scripts/release_llm_access_cloud_managed_accounts.sh`, after workspace tests on
+an isolated Postgres database and zero-warning workspace Clippy. It stages API,
+usage-worker, Cursor, Antigravity and OAuth binaries, checks every SHA, then
+stops those five services for the schema change. Account credential digests,
+provider counts, OAuth bindings and referencing foreign-key counts must match
+before services start. Its release directory retains the exact old binaries,
+OAuth SQL functions, pre-migration fingerprint and activation result.
+
+On activation failure the coordinator restores schema names/functions before
+starting old binaries; never roll back only a binary across migration 91.
+After this first cutover, use the normal independent release scripts.
+Antigravity is built in its own Cargo invocation so workspace feature
+unification cannot bring Cursor providers into that executable.
+
+Caddy exposes `/api/antigravity-gateway/v1/*` through `127.0.0.1:19095`, with the
+same streaming timeouts as Cursor's separate `:19090` route. Validate and reload
+Caddy when adding this route; keep its process and the local Pingora gateway
+running. Local operator accounts remain on `/console/antigravity/accounts`.

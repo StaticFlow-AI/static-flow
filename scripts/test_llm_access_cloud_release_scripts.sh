@@ -8,8 +8,9 @@ API_ONLY_SCRIPT="$ROOT_DIR/scripts/release_llm_access_cloud_api_only.sh"
 WORKER_ONLY_SCRIPT="$ROOT_DIR/scripts/release_llm_access_cloud_worker_only.sh"
 IMAGE_ONLY_SCRIPT="$ROOT_DIR/scripts/release_llm_access_cloud_codex_image_only.sh"
 CONFIG_EXAMPLE="$ROOT_DIR/conf/llm-access-cloud-release.env.example"
+MANAGED_SCRIPT="$ROOT_DIR/scripts/release_llm_access_cloud_managed_accounts.sh"
 
-for script in "$LOCAL_SCRIPT" "$REMOTE_SCRIPT" "$API_ONLY_SCRIPT" "$WORKER_ONLY_SCRIPT" "$IMAGE_ONLY_SCRIPT"; do
+for script in "$LOCAL_SCRIPT" "$REMOTE_SCRIPT" "$API_ONLY_SCRIPT" "$WORKER_ONLY_SCRIPT" "$IMAGE_ONLY_SCRIPT" "$MANAGED_SCRIPT"; do
   test -x "$script"
   bash -n "$script"
 done
@@ -17,7 +18,7 @@ done
 test -s "$CONFIG_EXAMPLE"
 
 if command -v shellcheck >/dev/null 2>&1; then
-  shellcheck "$LOCAL_SCRIPT" "$REMOTE_SCRIPT" "$API_ONLY_SCRIPT" "$WORKER_ONLY_SCRIPT" "$IMAGE_ONLY_SCRIPT"
+  shellcheck "$LOCAL_SCRIPT" "$REMOTE_SCRIPT" "$API_ONLY_SCRIPT" "$WORKER_ONLY_SCRIPT" "$IMAGE_ONLY_SCRIPT" "$MANAGED_SCRIPT"
 fi
 
 grep -F 'CARGO_TARGET_DIR' "$LOCAL_SCRIPT" >/dev/null
@@ -75,3 +76,5 @@ grep -F 'REMOTE_RELEASE_DIR=' "$CONFIG_EXAMPLE" >/dev/null
 grep -F 'PB_MAPPER_RELAY_ADDR=' "$CONFIG_EXAMPLE" >/dev/null
 grep -F 'PB_MAPPER_LOCAL_RELAY_ADDR=' "$CONFIG_EXAMPLE" >/dev/null
 grep -F 'VALKEY_SSH_TARGET=' "$CONFIG_EXAMPLE" >/dev/null
+
+python3 "$ROOT_DIR/scripts/test_managed_accounts_activation.py"

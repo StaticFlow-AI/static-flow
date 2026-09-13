@@ -32,11 +32,16 @@ fi
 [[ -z "$(git -C "$LLM_ACCESS_DIR" status --porcelain)" ]] || fail "llm-access checkout is dirty"
 [[ -z "$(git -C "$ROOT_DIR" status --porcelain --ignore-submodules=dirty)" ]] || fail "StaticFlow checkout is dirty"
 
+[[ "$(git -C "$ROOT_DIR" rev-parse HEAD:deps/llm-access)" = "$(git -C "$LLM_ACCESS_DIR" rev-parse HEAD)" ]] || fail "parent gitlink does not match llm-access"
+
 export CARGO_TARGET_DIR
+export LD_LIBRARY_PATH="$CARGO_TARGET_DIR/debug/deps${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 cd "$LLM_ACCESS_DIR"
-cargo test -p llm-access-cursor-protocol -p llm-access-cursor -p llm-access-antigravity -p llm-access-oauth --locked --jobs "$BUILD_JOBS"
-cargo clippy -p llm-access-cursor-protocol -p llm-access-cursor -p llm-access-antigravity -p llm-access-oauth --all-targets --locked --jobs "$BUILD_JOBS" -- -D warnings
-cargo build -p llm-access-antigravity -p llm-access-oauth --release --locked --jobs "$BUILD_JOBS"
+cargo test -p llm-access-managed-protocol -p llm-access-antigravity-protocol -p llm-access-antigravity -p llm-access-oauth --locked --jobs "$BUILD_JOBS"
+cargo clippy -p llm-access-managed-protocol -p llm-access-antigravity-protocol -p llm-access-antigravity -p llm-access-oauth --all-targets --locked --jobs "$BUILD_JOBS" -- -D warnings
+# Separate Cargo invocations keep the Antigravity binary free of Cursor features.
+cargo build -p llm-access-oauth --release --locked --jobs "$BUILD_JOBS"
+cargo build -p llm-access-antigravity --release --locked --jobs "$BUILD_JOBS"
 
 ANTI_BIN="$CARGO_TARGET_DIR/release/llm-access-antigravity"
 OAUTH_BIN="$CARGO_TARGET_DIR/release/llm-access-oauth"

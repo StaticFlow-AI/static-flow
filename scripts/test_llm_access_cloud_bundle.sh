@@ -148,3 +148,8 @@ grep -F '@llm_access path /v1/* /cc/v1/* /api/llm-gateway/* /api/kiro-gateway/* 
 grep -F 'handle @llm_access' "$OUT_DIR/Caddyfile"
 grep -F 'reverse_proxy 127.0.0.1:19080' "$OUT_DIR/Caddyfile"
 grep -F 'reverse_proxy 127.0.0.1:39080' "$OUT_DIR/Caddyfile"
+
+grep -F '@antigravity_gateway path /api/antigravity-gateway/v1/*' "$OUT_DIR/Caddyfile"
+grep -F 'uri strip_prefix /api/antigravity-gateway' "$OUT_DIR/Caddyfile"
+grep -F 'reverse_proxy 127.0.0.1:19095' "$OUT_DIR/Caddyfile"
+assert_absent 'LLM_ACCESS_CURSOR_STATE_DIR' "$OUT_DIR/llm-access-antigravity.service"
