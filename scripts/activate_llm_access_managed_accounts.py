@@ -18,7 +18,7 @@ from urllib.parse import urlsplit, unquote, parse_qsl
 SERVICES = ("llm-access", "llm-access-usage-worker", "llm-access-cursor",
             "llm-access-antigravity", "llm-access-oauth")
 HEALTH = {"llm-access": "http://127.0.0.1:19080/healthz",
-          "llm-access-usage-worker": "http://127.0.0.1:19081/healthz",
+          "llm-access-usage-worker": "http://127.0.0.1:19081/admin/llm-access/usage-worker/status",
           "llm-access-cursor": "http://127.0.0.1:19090/healthz",
           "llm-access-antigravity": "http://127.0.0.1:19095/healthz",
           "llm-access-oauth": "http://127.0.0.1:19194/"}
