@@ -99,7 +99,7 @@ def activate(stage):
         run("sudo", "systemctl", "stop", *SERVICES)
         # Old failed account-rollup batches still carry the Cursor namespace.
         # Drain them with the old service before changing historical ownership.
-        backlog = Path("/var/lib/staticflow/llm-access/usage-journal/llm-access-antigravity/control-rollups")
+        backlog = Path("/var/lib/staticflow/llm-access/usage-journal/antigravity/control-rollups")
         for directory in (backlog / "sealed", backlog / "consuming"):
             if directory.exists() and any(directory.iterdir()):
                 raise RuntimeError("Antigravity control rollups must drain before migration")
