@@ -491,14 +491,11 @@ Antigravity 绑定。
 
 独立测试实例已验证 Responses / Messages 的流式和非流式搜索，也完成了
 “搜索→客户端函数→函数结果重放”的真实请求。关键词型 query 曾让上游返回旧的
-索引摘要；改用包含日期和任务范围的完整问题后，实测找到 Rust 1.98.1，与
+索引摘要；包含日期和任务范围的完整问题在测试中找到 Rust 1.98.1，与
 [官方最新发布页](https://blog.rust-lang.org/releases/latest/) 一致。内部搜索函数的
-参数说明按这一完整问题契约编写，不对特定站点或模型回答做补丁。
-
-已通过 usage worker 的既有 journal relay import 接口导入独立实例的日志；7 条
-多 RPC 请求的原始 token 计数与 usage、billable 逐项一致。生产切换、最终 FX
-任务和最后一次用量对账记录待发布后补入。
-
+参数说明按这一完整问题契约编写，不对特定站点或模型回答做补丁。它不保证模型
+每次都保留问题范围：上线后一次查询仍被模型缩成关键词，上游返回旧发布索引，
+答案误报 1.80.0。真实 FX 任务通过打开官方发布列表和公告完成版本、日期核实。
 
 本次源代码提交为 `5ff06af12f4b90edf69e5bfc49121019142a2f7d`。全工作区
 2,909 项测试通过，最后的协议复验 1,128 项通过；全工作区、全部 targets 的
@@ -507,3 +504,49 @@ Clippy `-D warnings` 通过。前端 typecheck/build 通过，浏览器确认新
 `3388c534815cb72bd4135b05b355a2a834a8cef5c3a2db557fffad14672472df`。
 独立实例使用单独的 usage journal，通过 worker 的既有 relay import 接口归档，
 避免与正式 Antigravity 实例共用 control-rollup 文件。正式切换只重启 Antigravity。
+
+### 16.1 生产与真实 FX 验收
+
+已发布 `20260913T165256Z-5ff06af12f4b-ag-default-search`，线上 Antigravity
+PID 为 `2395529`，运行二进制 SHA-256 与上述清单一致，`NRestarts=0`。
+主 API、usage worker、Cursor、OAuth 的 PID 分别保持
+`2356945`、`2356934`、`2356946`、`2356948`。
+
+公开 endpoint 的 Responses / Messages × 流式 / 非流式四种组合均返回 200，
+每次执行一次真实搜索，返回来源和引用，耗时约 10 秒。验收使用已知公告的检索任务，
+核对 Rust 1.98.1、2026-09-03 和官方 URL，避免把“最新版本”回答的时效性与协议
+是否正确混为一谈。未指定模型的 count_tokens 返回 200，非法模型类型返回 400。
+
+实际 FX 二进制沿用 `~/.fx` 中保存的 endpoint 和 Key，自动使用
+`gemini-3.8-flash-tiered`，完成“托管搜索→读取官网→写文件→读回确认”，退出码 0。
+输出位于 `/tmp/antigravity-search-task-vr98q0ui/release.json`；9 次客户端工具调用
+全部成功。搜索轮 usage ID 为 `2681f71a-59eb-49ea-9d4a-f31f817cb6ad`：
+客户端请求同时包含 `web_search` 与 `web_fetch`，上游声明内部搜索函数，响应包含
+完成的 `web_search_call`。该轮三次服务端 RPC 合计 18,631 billable token，流正常
+结束于 `response.completed`，请求明细中的 Authorization 已脱敏。
+
+测试并行调用触发账号原有 10 RPM 限额；FX 最后一轮第 7 次尝试恢复成功。
+这项验收证明任务最终完成，不代表全程没有 429。搜索摘要仍可能过时，需要时可通过
+客户端 `web_fetch` 核实来源；这不要求额外配置搜索后端。
+
+独立测试实例的 20 条 journal 记录已通过既有 relay import 接口导入，最后两批分别
+为 5 条和 3 条。停机前 usage 与 control-rollup 的 active 文件均只有空头，实例已
+inactive、PID=0，SSH 转发已关闭。临时 Neon 分支 `br-plain-frost-aodi0vft` 已删除，
+再次查询返回 branch not found。
+
+最终对账时间为北京时间 2026-09-14 01:06。18 条多 RPC 搜索记录的原始输入、缓存、
+输出计数与 usage 及 billable 逐项一致；最新 Messages / Responses 流分别正常结束于
+`message_stop` / `response.completed`。生产验收共 22 条记录：15 条生成成功、
+6 条本地 RPM 429、1 条 count_tokens。生成成功记录均 `usage_missing=false`，
+429 和 count_tokens 的 billable 均为 0。
+
+此 Key 从创建起的全部 133 条记录已可查询，三类 token 合计 **1,914,886**，与
+Key 扣量一致，剩余 **8,085,114 / 10,000,000**。账号累计 **2,149,053**，等于
+原有 Key 的 234,167 加此 Key 的总量；三类 token 的账号增量也逐项一致。
+usage worker 的 PID 保持 `2356934`，`last_error=null`；journal 无 sealed backlog，
+写入失败及未消费丢弃计数均为 0。历史 53 条账号 usage_missing 计数和两个旧 bad
+journal 文件未变化，本次没有声称修复历史缺失。
+
+最终私有证据为 `/tmp/ag-search-production-final-verification.json`、
+`/tmp/ag-search-fx-final.json`、`/tmp/ag-search-fx-usage-proof.json`、
+`/tmp/ag-search-production-audit.json` 和 `/tmp/ag-search-final-meter.json`。
