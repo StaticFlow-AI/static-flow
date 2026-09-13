@@ -301,3 +301,40 @@ FX 最终 **exit_code=0，15 步，15 次工具调用**，实际读写文件、�
 
 
 最终归档明细共有 **20 条成功请求、8 条账号 RPM 限流记录**：成功请求包括 3 条 Messages、1 条非流式 Responses JSON mode 和 FX 的 16 轮 Responses。成功请求全部属于 Antigravity 账号，`usage_missing=false`；明细的输入、缓存、输出和计费总数与上面的 Key 累计计量逐项一致。最终状态和明细证据为 `/tmp/antigravity-final-state-metered.json`。截至 12:03 UTC 后的最终核对，五个受影响服务全部 active、`NRestarts=0`，运行 SHA 与各自发布清单一致；本次事项全部完成。
+
+
+## 14. Key、账号额度和模型价格补齐
+
+本次后续修复让 Antigravity 在共享策略表中使用独立的 `provider_type=antigravity`，
+补齐 `/console/antigravity/keys` 与 `/console/antigravity/groups`。Key 支持创建、编辑、
+停用、删除、配额、并发、账号绑定、审核和完整请求日志。账号及 Key 的读写与运行时认证
+均按 provider 隔离；管理变更成功后立即刷新本地路由，刷新失败则暂停接受旧策略。
+
+迁移 92 仅迁移明确绑定纯 Antigravity 账号集合的旧 Cursor Key/Group，保留原 secret、
+配额、计量和账号凭证。混合组及未指定账号集合的 Cursor Key 保持原归属；历史原始
+Usage 保留当时的 provider，新请求使用 Antigravity，账号累计计量迁到新归属。
+
+账号池展示每个账号模型额度的百分比范围，展开后逐模型显示剩余比例与重置时间；详情页
+同样显示，缺失值显示“未报告”，不会解释为 0%。快照包含更新时间，刷新失败保留上次
+成功快照并提示。额度不在模型间相加，也不据此虚构绝对请求数。
+
+迁移 93 补齐 22 项 Antigravity 与 7 项 Cursor Muse Spark 1.3 参考费率，已有自定义
+费率不被覆盖。依据为 [Google Gemini 定价](https://ai.google.dev/gemini-api/docs/pricing)、
+[Google 托管模型定价](https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing)
+及 [Cursor 定价](https://cursor.com/docs/models-and-pricing)。Antigravity 的旧 2.5 Flash
+标识按当前账号目录实际展示的 Gemini 3.5 Flash Lite 定价；Gemini Pro 超过 200K 输入
+时按整次请求应用长上下文费率。Gemini 3.6/3.7/3.8 的促销参考价截至 2026-12-31，
+届时需按公布政策更新。这里的美元金额是公开 Token 参考成本，不代表订阅实际扣款。
+
+价格页新增“检查缺价模型”，扫描 Antigravity、Cursor 账号快照及 Kiro 目录，并为
+缺价项提供手动配置入口。按用户要求，`chat_20706`、`chat_23310`、
+`tab_flash_lite_preview`、`tab_jump_flash_lite_preview` 标记为“待定价”，不写入零价。
+`gemini-3.1-flash-image` 的文本和图像输出费率不同，现有单输出费率表无法准确表达；
+Cursor 的 8 个 GPT Fast 标识尚无已核实的 Cursor 单价，也保留待定价。`default`
+为自动选模入口，应按实际模型计价。
+
+本次通过 `scripts/release_llm_access_cloud_antigravity_admin.sh` 完成一次性 schema
+91 → 93 切换。五个受影响服务顺序构建；先启动新 API、Usage worker、Cursor、OAuth，
+最后启动 Antigravity。启动 Antigravity 前可以还原原 provider 与二进制；此后必须保留
+能解码新 Usage provider 的消费者并向前修复。发布脚本核对二进制与迁移文件 SHA，
+迁移前后核对 Key 凭证、配额、累计用量及账号认证摘要。
