@@ -640,3 +640,33 @@ Key 可以通过现有运行配置缓存更新生效，不依赖重启时的旧�
 测试通过；包含隔离 Postgres 的受影响服务测试共 850 项通过、1 项既有忽略，
 受影响服务全部 targets 的 Clippy `-D warnings` 通过。新隔离数据库首次并发
 初始化触发迁移版本重复，先串行完成 schema 初始化后完整重跑通过。
+
+已单独发布 Antigravity `20260913T195013Z-9f38ecf99d39-ag-fallback-trace`，
+运行 SHA-256 为
+`66f700c05a0918b28b4efc504f60e8c188cc556332a3457a602b86a204a92f29`，
+PID `2431659`、`NRestarts=0`。主 API、usage worker、Cursor、OAuth 的 PID
+继续保持 `2426336`、`2356934`、`2356946`、`2356948`。
+
+修复后复跑两种协议的全部 8 种场景，8 次请求均符合预期：6 次真实生成成功，
+2 次注入全部目标失败并收到最终 402。源端 20 条事件包含 6 次成功、6 次 503、
+4 次 429、2 次流式错误 502、2 次最终 402，8 个 Invocation ID 的顺序与前序
+记录正确。两个隔离源 Key 分别扣除 1,902、1,687，与事件合计 3,589 一致；
+6 次成功生成的原始输入、缓存、输出合计 825。请求明细中的凭证均已脱敏。
+
+最终生产归档核对通过：6 对新请求的源 Usage ID、内部 Usage ID、Invocation ID、
+模型及原始输入/缓存/输出计数逐项一致，内部事件均 `usage_missing=false`，流正常
+结束。全部 15 条内部明细可读取，新 6 对关联请求的客户端请求、上游请求和响应
+明细均完整，内部 Key 已脱敏。专用内部 Key 的全部 15 条事件已可查询：14 次成功、首轮 1 次容量不足，
+总量 1,777 = 首轮 952 + 本轮 825，与实际扣量完全一致。容量不足记录扣量为零。
+五分钟归档期间没有人为移动 active journal，也没有为对账重启服务。
+
+最终主 API 与 Antigravity 的运行 SHA-256 符合发布清单，所有服务 `NRestarts=0`；
+usage worker PID 保持 `2356934`，`last_error=null`，journal 写入失败和未消费丢弃
+计数均为 0。两轮隔离 API、worker、故障代理和 SSH 转发均已停止；临时 Neon 分支
+`br-twilight-wind-aobvdt5q`、`br-calm-salad-aohoo3yi` 已删除，再次查询均返回
+branch not found。专用内部 Key 和正式回退配置保留供生产使用。
+
+本轮私有验收证据为 `/tmp/ag-trace-canary-results.json`、
+`/tmp/ag-trace-canary-audit.json`、`/tmp/ag-trace-production-final-audit.json`、
+`/tmp/ag-trace-final-correlation.json`、`/tmp/ag-trace-native-details.json`、
+`/tmp/ag-trace-activation.json`。
