@@ -550,3 +550,41 @@ journal 文件未变化，本次没有声称修复历史缺失。
 最终私有证据为 `/tmp/ag-search-production-final-verification.json`、
 `/tmp/ag-search-fx-final.json`、`/tmp/ag-search-fx-usage-proof.json`、
 `/tmp/ag-search-production-audit.json` 和 `/tmp/ag-search-final-meter.json`。
+
+## 17. 审核拒绝后的有序模型回退
+
+针对已获明确审核拒绝、且 Key 开启 `moderation_fallback_enabled` 的请求，
+在原有 Grok 4.6 后增加可配置的回退目标：
+
+1. Cursor/Grok：`grok-4.6`。
+2. Antigravity：`gemini-3.8-flash-tiered`。
+3. Antigravity：`claude-sonnet-4-6`。
+
+每个目标只尝试一次；HTTP 错误、额度不足、连接失败、HTTP 200 中的错误对象，
+以及尚未输出正文或工具调用时的流式错误都会进入下一步。三个目标全部失败时，
+返回最后的错误；非流式保留最后的 HTTP 状态和 `Retry-After`，已经打开 SSE 的
+请求通过对应协议的 `error` 事件报告。流式已经输出正文或工具调用后，后续错误
+直接交给客户端，避免拼接不同模型的回答或重复执行工具。审核器自身限流或失败
+仍按原规则终止，不会冒充“审核明确拒绝”进入回退链。
+
+本功能是主 API 的显式跨服务编排。Antigravity 与 Cursor 的账号候选池保持独立，
+Antigravity 服务仍根据请求模型选择有对应模型额度的账号。新增运行配置
+`moderation_fallback_additional_targets` 保存有序列表，每项包含服务类型、origin、
+模型和服务 Key；原有三个主目标配置字段继续生效。控制台运行配置页提供增删、
+排序和密钥编辑入口。Postgres migration 94 增加此列表，默认空列表保留旧行为；
+运行配置缓存使用 v10，避免独立部署的旧服务覆盖新字段。普通配置序列化隐藏
+凭证列表，授权管理接口以 `Cache-Control: no-store` 返回可编辑值。
+
+各次尝试共享 Invocation ID，分别保留源请求与内部调用的 Usage ID；失败尝试
+也记录其实际观测到的 token，不能将已消耗的推理用量误记为零。诊断中的
+`moderation_fallback_chain` 保存步骤和此前错误及 Usage 链接，控制台可以跳转
+查看每次尝试。上游超时、上游失败与客户端断开分别记录。
+
+### 17.1 发布前验证
+
+隔离 Neon 数据库中的工作区测试通过：2,919 项成功、0 项失败，2 项既有环境依赖
+测试忽略。最终流式边界修正另通过 22 项 fallback 测试和 11 项共享流式分发测试；
+工作区 `cargo clippy --workspace --all-targets --locked -- -D warnings` 通过。
+前端类型检查、构建、7 项运行配置测试和 18 项 usage 测试通过。浏览器验证确认
+两个后续目标按顺序显示、密钥默认隐藏、可上下移动，390px 屏幕无横向溢出，
+无页面脚本错误。
