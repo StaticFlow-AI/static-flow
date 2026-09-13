@@ -1,6 +1,6 @@
 # Antigravity 独立 crate 重构设计
 
-状态：2026-09-13 已完成代码拆分、生产迁移、独立 Key 管理、账号额度展示和模型定价补齐。第 2、11 节保留重构前的设计依据；核心拆分验收见第 12、13 节，后续补齐及真实 FX/计量复验见第 14 节。
+状态：2026-09-13 已完成代码拆分、生产迁移、独立 Key 管理、账号额度展示和模型定价补齐。第 2、11 节保留重构前的设计依据；核心拆分验收见第 12、13 节，后续补齐及真实 FX/计量复验见第 14 节，Gemini 3.8 Flash 默认模型策略见第 15 节。
 
 ## 1. 目标与边界
 
@@ -437,3 +437,73 @@ worker `last_error=null`。
 文件。最终证据为 `/tmp/ag-admin-usage-final.json` 和
 `/tmp/ag-consumer-proof-final.json`，五个服务与 Caddy 仍 active、`NRestarts=0`，
 运行二进制 SHA 与各自发布清单一致。
+
+## 15. Gemini 3.8 Flash 默认模型
+
+按用户要求，Antigravity 默认模型统一为 **Gemini 3.8 Flash**。当前账号目录中的
+准确 ID 为 `gemini-3.8-flash-tiered`，不是 `gemini-3-flash`。
+
+- Messages、count_tokens 和 Responses 请求未指定模型或使用 `default` 时，均走
+  `gemini-3.8-flash-tiered`；显式选择其他模型时保留原选择。非法模型类型与非对象
+  JSON 请求仍返回 400。
+- 模型目录将其放在首位，并返回顶层 `default_model` 与条目 `is_default=true`。
+  默认路由和账号模型匹配使用同一标准化规则，usage 记录实际使用的 3.8 模型。
+- 已更新用户 `~/.fx/settings.json` 与独立 Antigravity FX profile 的 Gateway 模型
+  偏好，并将 AI review 的 Antigravity 新建接入模板改为同一模型。其他 provider 的
+  模型偏好保持原值。
+- 只对 Antigravity 注册默认模型；Cursor 等未声明默认值的数据面继续要求显式模型。
+  第三方客户端若保存了其他模型偏好，需要选择上述默认项或发送 `model=default`。
+
+本机 FX 已读取保存的配置，通过实际 Responses 请求用 3.8 Flash 回答 Rust 所有权
+问题，退出码为 0。配置修改前已保存私有备份；Key 和 endpoint 沿用已验证的
+Antigravity 绑定。
+
+
+## 16. Responses / Messages 的托管搜索
+
+2026-09-14 追踪 FX 的真实 usage 请求后确认，客户端已声明 `web_search`，模型目录
+也已返回 `supports_backend_search=true`。缺口在 Antigravity 转换层：与文件、命令
+等函数工具混用时，旧实现丢掉了 Google Search。
+
+实际 Cloud Code 探测区分了两种情况：
+
+- `daily-cloudcode-pa` 的单独 Google Search 请求成功，返回查询、grounding sources
+  与答案。`cloudcode-pa` 对同一账号的普通生成也返回 429，不能把它归因于搜索参数。
+- 混合 Google Search 与函数声明时，daily 端点返回 400。camelCase、snake_case 及
+  两者同时传入的 context-circulation 参数均未解除限制。Google 公共 Gemini API 的
+  [工具组合文档](https://ai.google.dev/gemini-api/docs/generate-content/tool-combination)
+  不能直接当作该内部接口的运行证据。
+
+混合请求由 Antigravity 网关持有搜索执行权：给模型声明内部搜索函数，捕获其调用，
+使用同一模型、同一已选账号发起单独 Google grounding 请求，再将真实结果与原始
+调用 ID、thought signature 交回模型。普通函数仍交给客户端执行；客户端无需配置
+额外搜索后端。普通生成继续逐块流式回传，搜索期间发送 SSE 心跳。
+
+两个公开协议分别返回 `server_tool_use` / `web_search_tool_result` 与
+`web_search_call`，包含查询、来源和引用。缺少实际 grounding 搜索证据或上游失败
+时返回搜索错误，不生成成功结果。服务端每次请求的 token usage 相加，重复流式
+快照不会重复计费；`provider_usage` 保留各 RPC 的原始用量。内部 RPC 不重新选账号。
+
+后续轮次通过已有的 opaque reasoning 通道携带服务端搜索对话，保留原始模型内容、
+搜索结果、函数 ID 和签名，同时兼容搜索与客户端函数同时返回的情况。默认搜索上限
+为每个请求 5 次；Messages `max_uses` 可设为 0 到 20。当前不支持强制域名或地理位置
+过滤，明确返回 400；Responses 的相关约束传到同一校验，避免静默丢失。
+
+独立测试实例已验证 Responses / Messages 的流式和非流式搜索，也完成了
+“搜索→客户端函数→函数结果重放”的真实请求。关键词型 query 曾让上游返回旧的
+索引摘要；改用包含日期和任务范围的完整问题后，实测找到 Rust 1.98.1，与
+[官方最新发布页](https://blog.rust-lang.org/releases/latest/) 一致。内部搜索函数的
+参数说明按这一完整问题契约编写，不对特定站点或模型回答做补丁。
+
+已通过 usage worker 的既有 journal relay import 接口导入独立实例的日志；7 条
+多 RPC 请求的原始 token 计数与 usage、billable 逐项一致。生产切换、最终 FX
+任务和最后一次用量对账记录待发布后补入。
+
+
+本次源代码提交为 `5ff06af12f4b90edf69e5bfc49121019142a2f7d`。全工作区
+2,909 项测试通过，最后的协议复验 1,128 项通过；全工作区、全部 targets 的
+Clippy `-D warnings` 通过。前端 typecheck/build 通过，浏览器确认新建模型配置
+输入框为 `gemini-3.8-flash-tiered`。发布候选二进制 SHA-256 为
+`3388c534815cb72bd4135b05b355a2a834a8cef5c3a2db557fffad14672472df`。
+独立实例使用单独的 usage journal，通过 worker 的既有 relay import 接口归档，
+避免与正式 Antigravity 实例共用 control-rollup 文件。正式切换只重启 Antigravity。
