@@ -1,5 +1,7 @@
 # Antigravity 独立 crate 重构设计
 
+状态：2026-09-13 已完成代码拆分、生产迁移和真实 FX 任务验收。第 2、11 节保留重构前的设计依据，当前实现与验证结果见第 12、13 节。
+
 ## 1. 目标与边界
 
 目标是让 Antigravity 成为一个真正独立的 provider 实现和 binary：
@@ -222,6 +224,80 @@ Antigravity crate 对外提供同一套公共 HTTP 合约：
 
 工具调用通过共享 Responses 内核保留 opaque reasoning 数据，Antigravity 在其中保存 Google function-call 签名和上游 ID。工具结果使用原函数名及上游 ID；并行调用、UTF-8 分块、流中断、引用和 buffered Responses 均有测试覆盖。
 
-首次部署必须使用 `scripts/release_llm_access_cloud_managed_accounts.sh` 协调 API、usage worker、Cursor、Antigravity 和 OAuth，因为它们共享迁移后的账号表。脚本先构建并校验五个二进制，再停止受影响服务、迁移并校验、安装和启动；失败时先恢复旧 schema 和函数，再恢复旧程序。此后 Antigravity 的独立发布继续使用 `scripts/release_llm_access_cloud_antigravity_only.sh`。
+首次部署必须使用 `scripts/release_llm_access_cloud_managed_accounts.sh` 协调 API、usage worker、Cursor、Antigravity 和 OAuth，因为它们共享迁移后的账号表。脚本先构建并校验五个二进制，再停止受影响服务、迁移并校验、安装和启动；失败时先恢复旧 schema 和函数，再恢复旧程序。后续仅 provider 变更时，独立构建并替换 Antigravity 二进制即可；现有 `scripts/release_llm_access_cloud_antigravity_only.sh` 会同时发布 OAuth manager，只在 OAuth 也需更新时使用。
 
-公开 Antigravity 地址为 `/api/antigravity-gateway/v1`，Caddy 转发到独立的 `127.0.0.1:19095`。Cursor 保留自己的 `/api/cursor-gateway/v1`。发布后的实际验收数据会记录在此节。
+公开 Antigravity 地址为 `/api/antigravity-gateway/v1`，Caddy 转发到独立的 `127.0.0.1:19095`。Cursor 保留自己的 `/api/cursor-gateway/v1`。生产入口已启用；实际验收数据见下一节。
+
+
+## 13. 2026-09-13 发布与验收记录
+
+### 源码和部署
+
+核心拆分版本为子仓库 `2cbd9b14ff20cde8713e5a6232124148a174bcbd`；计量补齐后的最终版本为 `1f62513089b55de087c09016346953636257d191`，已推送到子仓库 `main`，父仓库记录最终版本的 gitlink。首次完整迁移的发布批次为 `20260913T114443Z-2cbd9b14ff20-managed`，五个服务于 **11:45:36 UTC** 启动。
+
+迁移 91 保留全部 4 个账号（Cursor、Grok、Grok Bot、Antigravity 各 1 个）；迁移前后的完整账号字段、凭证摘要、OAuth 绑定及入向/出向外键检查一致。旧账号表已删除，运行时只使用 managed account schema。
+
+首次切换曾因发布脚本误用 usage worker 的 `/healthz` 而自动回滚。旧 schema、函数和五个旧二进制恢复后，全部真实健康接口返回 200。修正为 `/admin/llm-access/usage-worker/status` 后重新发布成功，回滚路径也获得了生产实证。
+
+| 服务 | 首次协调部署的二进制 SHA-256 |
+|---|---|
+| API | `aeaff2a9d8161e79539c96cf4a61761c2b04935e8c7dd9aab6447f25d362f2c8` |
+| usage worker | `5bafd69a821ab6390e82080aa80e96d70be6f830794921fe9937f641c6cf05c1` |
+| Cursor | `1a183dff8b746a9f703db6f451a3b363a655321cd018f9e6a4556fdd8f026e84` |
+| Antigravity | `2445bd3a985b81685de3874983779f408bb0cb41a4763c41759d2ec92c952024` |
+| OAuth | `d3b9dd8ca5aa1d7846eaa87689395828f1fa0dafd07ac5af55caf59d861cbacc` |
+
+首轮真实任务结束后，这五个服务仍为 `active`、`NRestarts=0`，`/proc/<pid>/exe` 的 SHA 与清单逐项相同。Caddy 仅热重载，PID 保持 `55768`；本地 Pingora 未重启。
+
+### 边界、质量和性能
+
+- `cargo tree -p llm-access-antigravity --edges normal` 不含 Cursor crate；Cursor 源码不再包含 Antigravity provider 或 registry。
+- Cursor 管理接口仅有 3 个所属账号；Antigravity 仅有自己的 1 个账号。Antigravity `/v1/models` 返回 29 个条目，全部 `owned_by=antigravity`，移除了原有 Cursor 别名 `claude-fable-5-1[1m]`。账号探测快照的 27 个模型、身份、套餐和 warning 信息与迁移前逐项一致。
+- 工作区测试 **2,892 passed，0 failed，2 ignored**；最终变更还通过受影响库、scope 和真实 Postgres 迁移回归。工作区及独立 Antigravity 的 `clippy --all-targets -- -D warnings` 通过。Rustfmt 只作用于精确文件。
+- React typecheck/build、OAuth 页面重启后保存账号测试、发布脚本与回滚测试通过。真实浏览器账号详情显示 27 个模型和 Google AI Pro；390px 视口无横向溢出、无页面异常。
+- Postgres 测试使用临时 schema-only Neon 分支；测试结束后删除该分支，未对生产数据库运行测试。
+
+同一台 AWS 主机、release 构建、`gemini-3-flash`、相同三个短文本请求下，读取进程 `/proc/<pid>/status`：
+
+| 测量时刻 | 重构前 RSS（KiB） | 重构后 RSS（KiB） |
+|---|---:|---:|
+| 空闲 | 150444 | 135780 |
+| 单请求完成后 | 151636 | 136080 |
+| 两路并发完成后 | 153208 | 137780 |
+
+两路并发均正确返回各自结果。最终版本单请求耗时 3.770 秒，两路并发各耗时 2.280 / 3.082 秒。以上是对应时刻的 RSS，未测高负载峰值；空闲 RSS 约下降 9.7%。从 systemd 秒级启动时间到应用 `started_at` 的近似差值为重构前 3.0 秒、首次协调发布后 4.7 秒、最终独立更新后 2.9 秒；这些单次测量不代表启动性能的统计结论。
+
+### FX 真实任务
+
+使用 `~/rust_pro/fx/zig-out/bin/fx`（FX 源码 `ae263104`），沿用现有配置的公网 origin，将入口设为 `https://ackingliu.top/api/antigravity-gateway/v1`，模型 `gemini-3-flash`。新建验证 Key `antigravity-fx-refactor-20260913`，仅绑定 Antigravity 账号；凭证保存在本地权限为 0600 的隔离 profile，未写入仓库或覆盖用户的 FX 配置。
+
+在隔离可写目录 `/tmp/antigravity-fx-task` 中执行 `fx ask --yolo --json --no-color`，要求修复 CSV 订单报表：使用 Decimal、处理付款/退款/待付款、保留 Unicode 和带逗号客户名、拒绝非法金额与状态、编写并运行测试。
+
+FX 最终 **exit_code=0，15 步，15 次工具调用**，实际读写文件、运行 `python3 -m unittest test_summarize.py -v` 和 `python3 summarize.py orders.csv`。9 项测试通过，报表为：
+
+```json
+{"net_total":"1010.25","customers":{"张三":"10.00","李四":"0.20","王五,公司":"1000.05"}}
+```
+
+独立复核重新运行 9 项测试，并额外验证未知状态、NaN、Infinity、负金额、非法金额字符串、仅待付款客户排除及净退款结果。输入 CSV 未改变。现有账号保留 10 RPM 限制；任务中发生 429，FX 自动退避后在第 6 次尝试恢复，随后完成任务。
+
+本地验收证据为 `/tmp/antigravity-fx-result.json`、`/tmp/antigravity-fx-verification.json`、`/tmp/antigravity-live-baseline.json`、`/tmp/antigravity-live-after.json` 和 `/tmp/antigravity-final-state.json`；含账号/Key 的运行记录仅保留在本机。发布目录中的 `activation.json` 记录迁移摘要、服务状态和二进制 SHA。
+
+
+### 最终计量补齐
+
+首轮真实任务归档后发现，Antigravity 的响应虽然包含 token 数，但原有适配器未向共享 monitor 上报，导致用量明细标记 `usage_missing=true`。子仓库 `1f62513089b55de087c09016346953636257d191` 在 Antigravity 协议边界补齐上报：流式和非流式请求共用真实 `usageMetadata`，通过 `UsageProvenanceHandle` 传给 Responses 转换并写入 monitor。
+
+按 [Google UsageMetadata 定义](https://ai.google.dev/api/generate-content#UsageMetadata)，输入总数包含缓存，生成总数包含候选输出和 thinking；重复累计快照不重复计费，缺失完整用量时仍保留未知状态。补充测试覆盖缓存分桶、thinking、部分快照和真实流式完成通知。最终 Antigravity 协议 16 项测试通过，Antigravity/OAuth 相关回归与零警告 Clippy 通过。
+
+
+该修复通过独立 Antigravity 构建发布，批次 `20260913T115845Z-1f62513089b5-ag-usage`，运行 SHA-256 为 `30076532a0d0f0d3be659a8543b6dab725d5f34c4cb08fcfdbbd917b7a25835c`。API、usage worker、Cursor、OAuth 的 PID、状态和重启计数均保持不变。上面的 RSS 表使用此最终版本的复测值。
+
+公网非流式 Responses JSON mode 实测返回 `{"ok":true}`，记录输入 14、输出 230（其中 reasoning 221）、总计 244 token；未携带 Key 的同接口请求返回 401。
+
+最终版本又在 `/tmp/antigravity-fx-final-task` 从原始有缺陷的程序重新运行同一真实任务。FX 会话 `bhqMk4SJnmzA` 返回 `exit_code=0`，15 步、15 次工具调用，生成并通过 **11 项测试**，独立边界验证全部通过，报表仍为 `1010.25`。限流自动恢复最终记录为第 9 次尝试成功。最终任务与复核证据为 `/tmp/antigravity-fx-final-result.json` 和 `/tmp/antigravity-fx-final-verification.json`，隔离配置为 `/tmp/antigravity-fx-final-profile/gateway-auth.json`。
+
+最终复验 Key 的控制面累计计量为：未缓存输入 101,849、缓存输入 121,387、输出 10,931 token，合计 234,167；10,000,000 配额剩余 9,765,833，与累计用量相符。此数包含最终版本的短请求、JSON mode 和 FX 复验。
+
+
+最终归档明细共有 **20 条成功请求、8 条账号 RPM 限流记录**：成功请求包括 3 条 Messages、1 条非流式 Responses JSON mode 和 FX 的 16 轮 Responses。成功请求全部属于 Antigravity 账号，`usage_missing=false`；明细的输入、缓存、输出和计费总数与上面的 Key 累计计量逐项一致。最终状态和明细证据为 `/tmp/antigravity-final-state-metered.json`。截至 12:03 UTC 后的最终核对，五个受影响服务全部 active、`NRestarts=0`，运行 SHA 与各自发布清单一致；本次事项全部完成。
