@@ -670,3 +670,30 @@ branch not found。专用内部 Key 和正式回退配置保留供生产使用�
 `/tmp/ag-trace-canary-audit.json`、`/tmp/ag-trace-production-final-audit.json`、
 `/tmp/ag-trace-final-correlation.json`、`/tmp/ag-trace-native-details.json`、
 `/tmp/ag-trace-activation.json`。
+
+## 18. 当前模型的渠道和账号池先耗尽，再切换模型
+
+审核 fallback 的顺序仍是 Grok 4.6 → Gemini 3.8 Flash → Claude Sonnet 4.6。
+模型切换之前，由当前渠道完整执行既有同账号重试、OAuth 刷新和账号切换；Grok
+对应的 Cursor/Grok 两个可用渠道都处理完后，才返回外层模型回退链。对于可信的
+内部审核回退请求，账号尝试范围覆盖该 Key 授权且符合当前模型要求的候选池，
+不再被普通请求的“最多 3 个账号”限制截断。账号的 RPM、并发、模型授权和有效性
+限制仍然生效；未准入账号会被记录为已检查，避免在受限账号上循环。
+
+外层不再用 30 秒响应头超时取消仍在执行重试的渠道调用；连接建立仍有 10 秒
+超时，收到响应头后的数据读取仍有 300 秒空闲超时。前置 HTTP 错误和流式前奏中
+可重试的明确错误，先在同一渠道选择未尝试账号，再进入另一渠道；渠道都失败后
+才返回外层切换模型。当前账号产生正文或工具调用后即停止重放，后续错误直接
+交给客户端。普通非审核回退请求保持原有账号预算，不能用伪造 trace 扩大预算。
+
+针对两种协议的回归测试覆盖 4 个账号依次失败后再换渠道、单渠道耗尽后返回最后
+错误、前置流式错误与 HTTP 错误混合、输出后的错误不重放、账号 permit 释放和
+普通请求预算不变。另一个真实 HTTP 测试让首渠道等待 31 秒后成功，确认不会因
+原有 30 秒外层超时提前调用第二个模型。
+
+本次完整工作区测试包含隔离 Postgres：2,926 项通过、0 项失败、2 项既有 Valkey
+测试忽略。整个工作区全部 targets 的 Clippy `-D warnings` 通过；仅保留依赖
+Redis 的既有 future-incompatibility 提示。逐文件 rustfmt、diff 检查和独立的
+本地代码复查通过，未遗留有效问题。
+
+该修正的 llm-access 提交为 `5ffb69270232ed46fd9c088737e76da3ebd386f2`。
