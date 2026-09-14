@@ -56,10 +56,11 @@ Restores the local tmux-supervised service set after a reboot:
 
 Optional services:
   --with-antigravity starts Antigravity Manager and verifies its authenticated API.
+    This is no longer part of the default local stack.
   --with-llm-access-frontend starts the Cursor admin subscription, sf-ai-review,
   sf-llm-access-frontend, and pbmapper-llm-access-frontend-aws.
   --with-ai-review is retained as an alias for the same combined frontend stack.
-  --full enables both optional service groups and verifies the local /llm-access route.
+  --full enables the llm-access frontend stack and verifies the local /llm-access route.
   --strict exits immediately when a service does not become ready.
 
 AI review and the llm-access frontend are intentionally opt-in unless --full is used:
@@ -80,7 +81,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --full)
       FULL_RECOVERY=1
-      WITH_ANTIGRAVITY=1
       WITH_LLM_ACCESS_FRONTEND=1
       shift
       ;;
@@ -424,7 +424,9 @@ start_llm_access_frontend_stack() {
 verify_full_recovery() {
   wait_http "gateway-health" "http://127.0.0.1:39180/api/healthz" 20
   wait_http "llm-access-page" "http://127.0.0.1:39180/llm-access" 20
-  wait_antigravity 20
+  if [[ "$WITH_ANTIGRAVITY" == "1" ]]; then
+    wait_antigravity 20
+  fi
   wait_http "sf-ai-review" "http://127.0.0.1:19190/api/ai-review/health" 20
   wait_http "sf-llm-access-frontend" "http://127.0.0.1:19191/console" 20
   wait_http "llm-access-oauth" "http://127.0.0.1:19194/" 20
@@ -456,7 +458,7 @@ main() {
     ensure_node_toolchain
     start_antigravity
   else
-    log "skip Antigravity Manager: use --with-antigravity or --full to restore it"
+    log "skip Antigravity Manager: not part of the default stack; use --with-antigravity to restore it"
   fi
 
   if [[ "$WITH_LLM_ACCESS_FRONTEND" == "1" ]]; then

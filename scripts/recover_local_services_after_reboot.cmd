@@ -30,7 +30,7 @@ wsl.exe -d %DISTRO% -u %LINUX_USER% -- /usr/bin/mountpoint -q %DATA_MOUNT%
 if not "%ERRORLEVEL%"=="0" goto failed
 
 :restore
-echo [recover-local] Restoring StaticFlow, Antigravity Manager, and AI Reviewer ...
+echo [recover-local] Restoring StaticFlow, the llm-access frontend, and AI Reviewer ...
 wsl.exe -d %DISTRO% -u %LINUX_USER% --cd %LINUX_REPO% -- /usr/bin/env bash ./scripts/recover_local_services_after_reboot.sh
 if not "%ERRORLEVEL%"=="0" goto failed
 

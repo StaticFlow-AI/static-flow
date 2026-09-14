@@ -20,7 +20,7 @@ Usage:
   ./scripts/recover_local_services_after_reboot.sh status
 
 Validates the external ext4 data disk, then strictly restores the complete local stack,
-including Antigravity Manager and AI Reviewer.
+including the llm-access frontend and AI Reviewer.
 EOF
 }
 
