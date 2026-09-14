@@ -697,3 +697,46 @@ Redis 的既有 future-incompatibility 提示。逐文件 rustfmt、diff 检查�
 本地代码复查通过，未遗留有效问题。
 
 该修正的 llm-access 提交为 `5ffb69270232ed46fd9c088737e76da3ebd386f2`。
+
+发布脚本额外复检通过：主 API 1,225 项通过、2 项既有忽略，Cursor/Grok 1,003 项
+通过；各自 Clippy 通过。三个服务均已部署到上述提交，运行校验如下：
+
+| 服务 | PID | SHA-256 |
+| --- | --- | --- |
+| `llm-access` | `2522249` | `e490ba1b5ccc1021e9522fcd76e83bddc5788a97d31d0fefbe83001f7e2abe0c` |
+| `llm-access-cursor` | `2523360` | `3a7995bd2894131a85715cd9b1ae2c727627f1e669d1df397c19c747a3175110` |
+| `llm-access-antigravity` | `2524431` | `4f8f8f48000fea8f221e71e039358a7dc2bf5418240ff2c5f930ba490023e8e3` |
+
+三者均 `active`、`NRestarts=0`。usage worker PID `2356934`、OAuth PID `2356948`
+保持不变。Antigravity 使用独立构建和单服务激活，没有随之重启 OAuth。
+
+部署后的两种协议验收覆盖 12 个场景，全部通过。通过新 Cursor/Grok 二进制和
+4 个隔离测试账号发起真实 HTTP 请求，模拟上游对每个账号等待 9 秒后返回 503；
+两次请求分别在渠道内耗时 36.35 秒、37.13 秒，4 个不同账号都结束后才切到真实
+Gemini。普通非审核请求实测只尝试 3 个账号；上游 503 按原有 Grok 协议映射为
+对外 502。单独的 35 秒前置等待场景在两种协议下也均成功。
+
+10 次真实生成均得到乘法结果 323，覆盖 Gemini 与 Sonnet、Responses 与 Messages。
+Sonnet 首轮两次确实遇到上游容量不足，正确返回最后的 503；间隔后复验两次均成功。
+这些失败记录保留，未当作成功或删除。另两次注入全部目标失败，均返回最终 402。
+
+隔离源端共 34 条事件、14 个 Invocation ID，模型次序、前序事件关联、两次
+Grok 四账号内部记录及失败零扣量全部核对通过。源 Key 分别扣除 3,778 与 3,298，
+合计 7,076，与源事件一致；10 次成功的原始 token 合计 1580。源请求与
+响应明细完整，凭证脱敏检查通过。
+
+生产自然归档后，12 对新源/内部事件全部匹配：10 对成功、2 对容量不足失败。
+成功请求的模型、Invocation ID、输入/缓存/输出计数逐项一致；两次失败均为 503
+且零扣量。12 条新增内部请求明细完整、凭证已脱敏。内部 Key 的全部 27 条记录
+（24 次成功、3 次历史与本轮失败）总扣量 3,357 = 原有 1,777 + 本轮原始 token
+1,580，与实际额度变化一致；未人为移动 journal 或重启 worker 加速归档。
+
+最终三个运行二进制的 SHA-256 均与构建产物一致，全部相关服务 `NRestarts=0`，
+usage worker PID 仍为 `2356934`、`last_error=null`；journal 写入失败与未消费
+丢弃计数为 0。6 个临时进程均已停止，临时 Neon 分支 `br-little-mud-ao5gizew`
+已删除并再次查询确认不存在。
+
+本轮私有验收文件为 `/tmp/ag-pool-account-proof.json`、
+`/tmp/ag-pool-ordinary-grok.json`、`/tmp/ag-pool-canary-results.json`、
+`/tmp/ag-pool-canary-audit.json`、`/tmp/ag-pool-production-final-audit.json`、
+`/tmp/ag-pool-final-correlation.json`、`/tmp/ag-pool-native-detail-proof.json`。
