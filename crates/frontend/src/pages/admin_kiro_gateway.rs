@@ -2221,6 +2221,7 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                 saving.set(true);
                 feedback.set(None);
                 match patch_admin_kiro_key(&key_id, PatchAdminLlmGatewayKeyRequest {
+                    cursor_cache_hit_rate_bps: None,
                     name: Some(name_value.trim()),
                     status: Some(status_value.trim()),
                     public_visible: None,
@@ -2343,6 +2344,7 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                 saving.set(true);
                 feedback.set(None);
                 match patch_admin_kiro_key(&key_id, PatchAdminLlmGatewayKeyRequest {
+                    cursor_cache_hit_rate_bps: None,
                     name: Some(name_value.trim()),
                     status: Some("disabled"),
                     public_visible: None,

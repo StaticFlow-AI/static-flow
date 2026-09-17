@@ -274,6 +274,8 @@ fn default_kiro_thinking_guard_refusal_response_en() -> String {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
 #[serde(default)]
 pub struct AdminLlmGatewayKeyView {
+    #[serde(default)]
+    pub cursor_cache_hit_rate_bps: u16,
     pub id: String,
     pub name: String,
     pub secret: String,
@@ -3195,6 +3197,7 @@ pub async fn create_admin_llm_gateway_key(
     #[cfg(feature = "mock")]
     {
         Ok(AdminLlmGatewayKeyView {
+            cursor_cache_hit_rate_bps: 0,
             id: "mock".to_string(),
             name: name.to_string(),
             secret: "sfk_mock".to_string(),
@@ -3284,6 +3287,7 @@ pub async fn create_admin_llm_gateway_key(
 /// Patch editable fields on a gateway key from the admin UI.
 #[derive(Clone, Debug, Default)]
 pub struct PatchAdminLlmGatewayKeyRequest<'a> {
+    pub cursor_cache_hit_rate_bps: Option<u16>,
     pub name: Option<&'a str>,
     pub status: Option<&'a str>,
     pub public_visible: Option<bool>,
@@ -3380,6 +3384,9 @@ pub async fn patch_admin_llm_gateway_key(
             urlencoding::encode(key_id)
         );
         let mut body = serde_json::Map::new();
+        if let Some(rate) = request.cursor_cache_hit_rate_bps {
+            body.insert("cursor_cache_hit_rate_bps".into(), serde_json::json!(rate));
+        }
         if let Some(name) = request
             .name
             .map(str::trim)
@@ -6206,6 +6213,7 @@ pub async fn create_admin_kiro_key(
     #[cfg(feature = "mock")]
     {
         Ok(AdminLlmGatewayKeyView {
+            cursor_cache_hit_rate_bps: 0,
             id: "mock-kiro".to_string(),
             name: name.to_string(),
             secret: "sf-kiro-mock".to_string(),

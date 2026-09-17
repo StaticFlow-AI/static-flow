@@ -1096,6 +1096,7 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
                     };
                 saving.set(true);
                 match patch_admin_llm_gateway_key(&key_id, PatchAdminLlmGatewayKeyRequest {
+                    cursor_cache_hit_rate_bps: None,
                     name: Some(&name_value),
                     status: Some(&status_value),
                     public_visible: Some(public_visible_value),
