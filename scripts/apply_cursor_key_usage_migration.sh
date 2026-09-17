@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Managed gateways start without migrations; install the per-key usage policy first.
+# Managed gateways start without migrations; install key usage/effort policies first.
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LLM_ACCESS_DIR="${LLM_ACCESS_DIR:-$ROOT_DIR/deps/llm-access}"
@@ -32,7 +32,21 @@ cat >> "$SQL_FILE" <<'SQL'
 INSERT INTO llm_access_schema_migrations(version, name, applied_at_ms)
 VALUES (99, 'cursor_key_cache_rate', (EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::bigint);
 \endif
-SELECT cursor_cache_hit_rate_bps FROM llm_key_route_config LIMIT 0;
+SELECT EXISTS(SELECT 1 FROM llm_access_schema_migrations WHERE version = 100) AS effort_applied \gset
+\if :effort_applied
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM llm_access_schema_migrations WHERE version = 100 AND name = 'key_reasoning_effort') THEN
+    RAISE EXCEPTION 'Migration 100 has an unexpected name';
+  END IF;
+END $$;
+\else
+SQL
+cat "$LLM_ACCESS_DIR/crates/llm-access-migrations/migrations/postgres/0100_key_reasoning_effort.sql" >> "$SQL_FILE"
+cat >> "$SQL_FILE" <<'SQL'
+INSERT INTO llm_access_schema_migrations(version, name, applied_at_ms)
+VALUES (100, 'key_reasoning_effort', (EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::bigint);
+\endif
+SELECT cursor_cache_hit_rate_bps, reasoning_effort FROM llm_key_route_config LIMIT 0;
 COMMIT;
 SQL
 psql --dbname="$LLM_ACCESS_CONTROL_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f "$SQL_FILE"
