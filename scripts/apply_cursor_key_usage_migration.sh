@@ -46,6 +46,32 @@ cat >> "$SQL_FILE" <<'SQL'
 INSERT INTO llm_access_schema_migrations(version, name, applied_at_ms)
 VALUES (100, 'key_reasoning_effort', (EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::bigint);
 \endif
+SELECT EXISTS(SELECT 1 FROM llm_access_schema_migrations WHERE version = 101) AS fast_mode_applied \gset
+\if :fast_mode_applied
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM llm_access_schema_migrations WHERE version = 101 AND name = 'codex_fast_mode') THEN
+    RAISE EXCEPTION 'Migration 101 has an unexpected name';
+  END IF;
+END $$;
+\else
+DO $$ BEGIN
+  RAISE EXCEPTION 'Apply preceding llm-access migration 101 before managed cache default migration 102';
+END $$;
+\endif
+SELECT EXISTS(SELECT 1 FROM llm_access_schema_migrations WHERE version = 102) AS cache_default_applied \gset
+\if :cache_default_applied
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM llm_access_schema_migrations WHERE version = 102 AND name = 'managed_cache_default') THEN
+    RAISE EXCEPTION 'Migration 102 has an unexpected name';
+  END IF;
+END $$;
+\else
+SQL
+cat "$LLM_ACCESS_DIR/crates/llm-access-migrations/migrations/postgres/0102_managed_cache_default.sql" >> "$SQL_FILE"
+cat >> "$SQL_FILE" <<'SQL'
+INSERT INTO llm_access_schema_migrations(version, name, applied_at_ms)
+VALUES (102, 'managed_cache_default', (EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::bigint);
+\endif
 SELECT cursor_cache_hit_rate_bps, reasoning_effort FROM llm_key_route_config LIMIT 0;
 COMMIT;
 SQL
