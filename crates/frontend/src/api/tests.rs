@@ -126,6 +126,7 @@ fn admin_gateway_key_view_defaults_full_request_logging_off() {
     assert!(!key.codex_image_direct_generation_enabled);
     assert!(key.codex_responses_lite_enabled);
     assert!(!key.codex_full_request_logging_enabled);
+    assert!(!key.codex_strip_encrypted_content);
     assert!(!key.codex_account_rpm_exempt);
 }
 
@@ -485,4 +486,13 @@ fn usage_journal_status_contract_is_available_to_admin_pages() {
     assert_eq!(status.worker.processed_events, 0);
     assert_eq!(status.worker.process_memory.rss_bytes, None);
     assert!(status.sealed_files.is_empty());
+}
+
+#[test]
+fn admin_key_view_preserves_encrypted_history_policy() {
+    let key: AdminLlmGatewayKeyView = serde_json::from_str(
+        r#"{"id":"k","name":"K","provider_type":"codex","codex_strip_encrypted_content":true}"#,
+    )
+    .expect("key policy");
+    assert!(key.codex_strip_encrypted_content);
 }

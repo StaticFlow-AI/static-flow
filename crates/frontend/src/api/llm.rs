@@ -320,6 +320,9 @@ pub struct AdminLlmGatewayKeyView {
     pub codex_fast_enabled: bool,
     #[serde(default = "default_true")]
     pub codex_responses_lite_enabled: bool,
+    /// Explicit removal of encrypted replay history before upstream dispatch.
+    #[serde(default)]
+    pub codex_strip_encrypted_content: bool,
     #[serde(default)]
     pub codex_full_request_logging_enabled: bool,
     /// Whether this Codex key bypasses local account RPM accounting.
@@ -3248,6 +3251,7 @@ pub async fn create_admin_llm_gateway_key(
             uses_global_kiro_billable_model_multipliers: true,
             codex_fast_enabled: true,
             codex_responses_lite_enabled: true,
+            codex_strip_encrypted_content: false,
             codex_full_request_logging_enabled: false,
             codex_account_rpm_exempt: false,
             codex_strict_session_rejection_enabled: false,
@@ -6264,6 +6268,7 @@ pub async fn create_admin_kiro_key(
             uses_global_kiro_billable_model_multipliers: true,
             codex_fast_enabled: true,
             codex_responses_lite_enabled: true,
+            codex_strip_encrypted_content: false,
             codex_full_request_logging_enabled: false,
             codex_account_rpm_exempt: false,
             codex_strict_session_rejection_enabled: false,
