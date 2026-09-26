@@ -113,6 +113,11 @@ fi
 CARGO_TARGET_DIR="$(expand_path "$CARGO_TARGET_DIR")"
 GCP_SSH_KEY="$(expand_path "$GCP_SSH_KEY")"
 LOCAL_NEON_ENV_FILE="$(expand_path "$LOCAL_NEON_ENV_FILE")"
+# Release config paths are relative to StaticFlow, even after the build enters
+# the standalone llm-access checkout.
+if [[ "$LOCAL_NEON_ENV_FILE" != /* ]]; then
+  LOCAL_NEON_ENV_FILE="$ROOT_DIR/$LOCAL_NEON_ENV_FILE"
+fi
 
 [[ -x "$REMOTE_SCRIPT" ]] || fail "remote activation script is not executable: $REMOTE_SCRIPT"
 [[ -x "$RENDER_SCRIPT" ]] || fail "render script is not executable: $RENDER_SCRIPT"
