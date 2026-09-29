@@ -1138,6 +1138,7 @@ pub(crate) fn key_editor_card(props: &KeyEditorCardProps) -> Html {
                     kiro_remote_media_resolution_enabled: None,
                     kiro_latency_routing_enabled: None,
                     kiro_thinking_guard_enabled: None,
+                    kiro_context_compaction_enabled: None,
                     kiro_cache_policy_override_json: None,
                     kiro_billable_model_multipliers_override_json: None,
                     request_max_concurrency_unlimited: request_max_concurrency_value.is_none(),

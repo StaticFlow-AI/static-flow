@@ -2261,6 +2261,7 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                     ),
                     kiro_latency_routing_enabled: Some(kiro_latency_routing_enabled_value),
                     kiro_thinking_guard_enabled: Some(kiro_thinking_guard_enabled_value),
+                    kiro_context_compaction_enabled: None,
                     kiro_cache_policy_override_json: policy_override_json
                         .as_ref()
                         .map(|value| value.as_deref()),
@@ -2384,6 +2385,7 @@ pub(crate) fn kiro_key_editor_card(props: &KiroKeyEditorCardProps) -> Html {
                     ),
                     kiro_latency_routing_enabled: Some(kiro_latency_routing_enabled_value),
                     kiro_thinking_guard_enabled: None,
+                    kiro_context_compaction_enabled: None,
                     kiro_cache_policy_override_json: None,
                     kiro_billable_model_multipliers_override_json: None,
                     request_max_concurrency_unlimited: false,
