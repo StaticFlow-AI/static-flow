@@ -269,7 +269,7 @@ start_gateway() {
 start_pbmapper_sf_backend() {
   local cmd
   [[ -f "$ROOT_DIR/.local/pbmapper/sf-backend.env" ]] || fail "missing .local/pbmapper/sf-backend.env"
-  cmd="cd $(q "$ROOT_DIR") && set -a && . .local/pbmapper/sf-backend.env && set +a && exec pb-mapper-server-cli tcp-server --key \"\$SERVICE_KEY\" --addr \"\$LOCAL_ADDR\""
+  cmd="cd $(q "$ROOT_DIR") && set -a && . .local/pbmapper/sf-backend.env && set +a && exec pb-mapper register tcp --key \"\$SERVICE_KEY\" --addr \"\$LOCAL_ADDR\""
   start_tmux "pbmapper-sf-backend-aws" "$cmd"
 }
 
@@ -293,7 +293,7 @@ start_pbmapper_llm_access_cursor() {
 start_pbmapper_home_ubuntu() {
   local cmd
   [[ -f "$ROOT_DIR/.local/pbmapper/cloud-server.env" ]] || fail "missing .local/pbmapper/cloud-server.env"
-  cmd="cd $(q "$ROOT_DIR") && set -a && . .local/pbmapper/cloud-server.env && set +a && PB_MAPPER_SERVER=$(q "$HOME_PBMAPPER_SERVER") exec pb-mapper-server-cli -p $(q "$HOME_PBMAPPER_SERVER") tcp-server --key home-ubuntu --addr 127.0.0.1:22"
+  cmd="cd $(q "$ROOT_DIR") && set -a && . .local/pbmapper/cloud-server.env && set +a && PB_MAPPER_SERVER=$(q "$HOME_PBMAPPER_SERVER") exec pb-mapper register tcp --server $(q "$HOME_PBMAPPER_SERVER") --key home-ubuntu --addr 127.0.0.1:22"
   start_tmux "pbmapper-home-ubuntu-aws" "$cmd"
 }
 
@@ -411,7 +411,7 @@ start_llm_access_frontend_stack() {
   start_llm_access_antigravity_tunnel
   api_cmd="cd $(q "$ROOT_DIR") && if [[ -f $(q "$ANTIGRAVITY_CONFIG_FILE") ]]; then export ANTIGRAVITY_MANAGER_API_KEY=\$(jq -r '.proxy.api_key // .api_key // empty' $(q "$ANTIGRAVITY_CONFIG_FILE")); fi && exec $(q "$AI_REVIEW_START_SCRIPT") $(q "$AI_REVIEW_ENV_FILE") $(q "$AI_REVIEW_BIN") serve --bind 127.0.0.1:19190"
   ui_cmd="cd $(q "$LLM_ACCESS_FRONTEND_DIR") && export PATH=$(q "$PATH") LLM_ACCESS_ADMIN_TARGET=http://127.0.0.1:19182 LLM_ACCESS_CURSOR_ADMIN_TARGET=http://127.0.0.1:19183 LLM_ACCESS_ANTIGRAVITY_ADMIN_TARGET=http://127.0.0.1:19195 && pnpm build && exec pnpm preview"
-  pbmapper_cmd="cd $(q "$ROOT_DIR") && set -a && . .local/pbmapper/sf-backend.env && set +a && SERVICE_KEY=$(q "$LLM_ACCESS_FRONTEND_SERVICE_KEY") && LOCAL_ADDR=127.0.0.1:19191 && exec pb-mapper-server-cli tcp-server --key \"\$SERVICE_KEY\" --addr \"\$LOCAL_ADDR\""
+  pbmapper_cmd="cd $(q "$ROOT_DIR") && set -a && . .local/pbmapper/sf-backend.env && set +a && SERVICE_KEY=$(q "$LLM_ACCESS_FRONTEND_SERVICE_KEY") && LOCAL_ADDR=127.0.0.1:19191 && exec pb-mapper register tcp --key \"\$SERVICE_KEY\" --addr \"\$LOCAL_ADDR\""
 
   start_tmux "sf-ai-review" "$api_cmd"
   wait_http "sf-ai-review" "http://127.0.0.1:19190/api/ai-review/health" 60
@@ -437,7 +437,6 @@ main() {
   require_command ss
   require_command curl
   require_command jq
-  require_command pb-mapper-server-cli
   require_command pb-mapper
 
   if [[ "$ONLY_STATUS" == "1" ]]; then
