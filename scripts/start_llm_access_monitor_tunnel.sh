@@ -8,8 +8,11 @@ source "$CONFIG_FILE"
 : "${GCP_SSH_KEY:?missing GCP_SSH_KEY in $CONFIG_FILE}"
 : "${GCP_DEST:?missing GCP_DEST in $CONFIG_FILE}"
 while true; do
+  # Own this connection and its listener instead of sharing an interactive SSH
+  # master whose lifetime and forwarding state are outside this supervisor.
   ssh -i "$GCP_SSH_KEY" -o IdentitiesOnly=yes -o BatchMode=yes \
+    -o ControlMaster=no -o ControlPath=none -o ControlPersist=no -o ConnectTimeout=10 \
     -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
-    -N -L 127.0.0.1:19092:127.0.0.1:19092 "$GCP_DEST" || true
+    -nNT -L 127.0.0.1:19092:127.0.0.1:19092 "$GCP_DEST" || true
   sleep 3
 done

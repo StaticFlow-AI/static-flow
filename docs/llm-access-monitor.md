@@ -4,6 +4,8 @@
 
 默认监听 `127.0.0.1:19092`，默认每 10 秒采样并保留 24 小时。前端控制台的“可观测性 → 主机与进程”通过 Vite 同源代理访问它；`LLM_ACCESS_MONITOR_TARGET` 可将代理指向另一台主机的安全隧道。配置 `LLM_ACCESS_ADMIN_TOKEN` 后，API 要求 `x-admin-token`；未配置 token 时只允许 loopback 连接，非 loopback 监听会拒绝启动。
 
+本地 `llm-access-monitor-aws` tmux 会话通过 `scripts/start_llm_access_monitor_tunnel.sh` 维护到 AWS 的 SSH 隧道。脚本禁用 SSH 连接复用，独立持有本地监听端口，并限制连接建立时间；断连后每 3 秒重连。若实时快照和历史同时返回 500，且控制台日志出现 `ECONNREFUSED 127.0.0.1:19092`，先检查该会话及本地 `http://127.0.0.1:19092/healthz`。隧道不可用不代表云端采样停止，无需因此重启 API 或 usage worker。
+
 采集内容包括：整机 CPU 各状态、load、内存与 swap、上下文切换、fork、major fault、swap I/O、OOM、运行队列、CPU/内存/I/O PSI；llm-access 服务及其子进程的 CPU、RSS/HWM/PSS/USS、虚拟内存、线程、FD、I/O、fault、上下文切换、cgroup 限制和 throttling；`juicefs-llm-access.service` 与 `juicefs-llm-access-usage.service` 及其子进程的同类指标；物理块设备 I/O、网络接口收发包、白名单本地文件系统容量和进程出现/消失事件。快照还会分别提供 `llm_access_*`、`juicefs_*` 服务合计指标，以及排除 `lo`、docker、veth、bridge、CNI、Flannel 等机器内部接口后的 `network_external_rx_bytes_per_second` / `network_external_tx_bytes_per_second` 总入口/出口速率。前端通过可悬停的交互式图表展示这些历史采样，并可选择时间范围与分钟、小时、天级别的历史点粒度；整机资源利用率与服务自身 CPU/RSS/PSS 分开显示。计数器的首个采样点、回退或 PID 重用会返回 `null`，不会伪造速率。
 
 ## 构建与运行
