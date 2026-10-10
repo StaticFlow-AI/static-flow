@@ -11,12 +11,12 @@
 | --- | --- | --- | --- |
 | `dyta.sentya@binus.ac.id` | 已按用户最终指定的密码更新，AWS 页面确认成功 | 用户已绑定手机验证器；当前仅保留 `MFA 2`，旧 `MFA 1` 已删除 | 2026-10-10 |
 | `faith.seumahu@binus.ac.id` | 已按用户确认沿用的密码更新，AWS 页面确认成功 | 用户已绑定手机验证器；当前仅保留 `MFA 2`，旧 `MFA 1` 已删除 | 2026-10-11 |
-| `faiz.abdurahman@binus.ac.id` | 本轮按用户要求先登录并接入 Kiro，未修改密码 | 本轮未改绑；登录时核对到原有 `MFA 1` | 2026-10-11 |
+| `faiz.abdurahman@binus.ac.id` | 已按用户确认沿用的密码更新，AWS 页面确认成功，新密码已通过再次登录验证 | 用户已绑定手机验证器；当前仅保留 `MFA 2`，旧 `MFA 1` 已删除 | 2026-10-11 |
 
 ## 密码助记
 
-仅适用于本次已确认完成改密的 `dyta.sentya@binus.ac.id` 和
-`faith.seumahu@binus.ac.id`；不适用于本轮仅登录接入 Kiro 的账号：
+适用于本次已确认完成改密的 `dyta.sentya@binus.ac.id`、
+`faith.seumahu@binus.ac.id` 和 `faiz.abdurahman@binus.ac.id`：
 
 > 联想本次使用的服务名，首字母大写；接着先感叹、后疑问；末尾沿用本次约定的数字段。
 
@@ -103,7 +103,7 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faith-seumahu kir
 | 公网请求 | `https://ackingliu.top/v1/messages`，模型 `claude-sonnet-5.5`，HTTP 200，返回 `KIRO_OK`，以 `end_turn` 正常结束 |
 | 用量归属 | usage journal 确认请求属于上述账号，输入 10 tokens、输出 2 tokens，`usage_missing=false` |
 
-本次按用户要求先完成 Kiro 登录和上号，未修改密码或 MFA。复用已确认身份的
+上号阶段按用户要求先完成 Kiro 登录和接入，当时未修改密码或 MFA。复用已确认身份的
 AWS 浏览器会话后，直接进入 Kiro 设备码确认与授权页面，没有再次要求密码或验证码。
 导入使用已更新的技能脚本，完成分页查重、已核验邮箱传递和账号设置复核。
 首选代理 `tmp-us-for-kiro` 额度刷新返回 HTTP 502，随后通过 `do-us-10` 验证成功。
@@ -115,3 +115,17 @@ AWS 浏览器会话后，直接进入 Kiro 设备码确认与授权页面，没�
 ```bash
 XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faiz-abdurahman kiro-cli whoami
 ```
+
+## 2026-10-11 faiz 安全维护
+
+- 复用该账号上号后保留的 AWS 浏览器，核对原验证器为
+  `faiz.abdurahman@binus.ac.id's MFA 1`，注册日期为 2026-10-10。
+- 按用户要求沿用此前最终确认的密码；AWS 明确显示
+  “Your password has been successfully updated.”。
+- 登记新验证器前，使用更新后的密码和原验证器通过 AWS 再次登录验证。
+- 用户完成手机验证器绑定后，AWS 列表显示新设备
+  `faiz.abdurahman@binus.ac.id's MFA 2`，注册日期为 2026-10-11。
+- 按原设备名称和注册日期选中旧 `MFA 1`，确认删除；AWS 明确显示
+  “MFA 1 has been successfully deleted.”，随后列表仅剩新 `MFA 2`。
+- 密码助记沿用本文上方提示，不记录密码、验证码或验证器密钥。
+  已登录的 AWS 窗口继续保留，方便后续复用。
