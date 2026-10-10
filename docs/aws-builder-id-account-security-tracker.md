@@ -13,12 +13,13 @@
 | `faith.seumahu@binus.ac.id` | 已按用户确认沿用的密码更新，AWS 页面确认成功 | 用户已绑定手机验证器；当前仅保留 `MFA 2`，旧 `MFA 1` 已删除 | 2026-10-11 |
 | `faiz.abdurahman@binus.ac.id` | 已按用户确认沿用的密码更新，AWS 页面确认成功，新密码已通过再次登录验证 | 用户已绑定手机验证器；当前仅保留 `MFA 2`，旧 `MFA 1` 已删除 | 2026-10-11 |
 | `andre.hasibuan@binus.ac.id` | 已按用户确认沿用的密码更新，AWS 页面确认成功；新密码已通过 AWS 再次身份验证 | 用户已绑定手机验证器；当前仅保留 `MFA 2`，旧 `MFA 1` 已删除 | 2026-10-11 |
+| `faiz.fauzan@binus.ac.id` | 已按用户确认沿用的密码更新，AWS 页面确认成功 | 用户已绑定手机验证器；当前仅保留 `MFA 2`，旧 `MFA 1` 已删除 | 2026-10-11 |
 
 ## 密码助记
 
 适用于本次已确认完成改密的 `dyta.sentya@binus.ac.id`、
-`faith.seumahu@binus.ac.id`、`faiz.abdurahman@binus.ac.id` 和
-`andre.hasibuan@binus.ac.id`：
+`faith.seumahu@binus.ac.id`、`faiz.abdurahman@binus.ac.id`、
+`andre.hasibuan@binus.ac.id` 和 `faiz.fauzan@binus.ac.id`：
 
 > 联想本次使用的服务名，首字母大写；接着先感叹、后疑问；末尾沿用本次约定的数字段。
 
@@ -166,5 +167,42 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/andre-hasibuan ki
   返回安全页面。设备列表确认新 `andre.hasibuan@binus.ac.id's MFA 2`，注册日期为 2026-10-11。
 - 按原设备名称和注册日期选中旧 `MFA 1`，核对删除确认框后提交；AWS 明确显示
   “MFA 1 has been successfully deleted.”，随后列表仅剩新 `MFA 2`。
+- 密码助记沿用本文上方提示；本记录不保存密码、验证码、二维码或验证器密钥。
+  AWS 登录窗口继续保留，方便后续复用。
+
+## 2026-10-11 faiz.fauzan Kiro 接入与请求验证
+
+| 项目 | 已验证结果 |
+| --- | --- |
+| 登录身份 | `faiz.fauzan@binus.ac.id`，`kiro-cli whoami` 显示 `Logged in with Builder ID` |
+| llm-access 账号名 | `kiro-faiz-fauzan-builder-id`，已启用，`auth_method=idc`、`provider=aws` |
+| 订阅与额度 | `KIRO STUDENT`，额度上限 1000 credits；导入时剩余 999.96 credits |
+| 代理与调度 | 固定美国代理 `aws_us_east1`；并发 3，最小请求间隔 512 ms，最低剩余额度阈值 10 credits |
+| 公网请求 | `https://ackingliu.top/v1/messages`，模型 `claude-sonnet-5.5`，HTTP 200，返回 `KIRO_OK`，以 `end_turn` 正常结束 |
+| 用量归属 | usage journal 确认请求属于上述账号，输入 10 tokens、输出 2 tokens，`usage_missing=false` |
+
+使用独立 CLI 数据目录完成 Builder ID 登录、设备码核对和 Kiro CLI 授权，保留原有
+默认 Kiro 账号。导入脚本完成完整分页查重、邮箱传递和账号配置核验。
+首选代理 `tmp-us-for-kiro` 的额度刷新返回 HTTP 502，随后通过 `aws_us_east1` 验证成功。
+
+公网测试使用仅绑定此账号的临时 Key，关闭其他上游池和策略回退；请求耗时 6.01 秒。
+测试后已删除临时 Key，并按精确 ID 核对其不再出现在完整 Key 列表中。
+上表额度为导入时数值，不是测试后的刷新值。检查此账号身份：
+
+```bash
+XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faiz-fauzan kiro-cli whoami
+```
+
+## 2026-10-11 faiz.fauzan 安全维护
+
+- 核对原验证器为 `faiz.fauzan@binus.ac.id's MFA 1`，注册日期为 2026-10-10。
+- 本机时间仍比 AWS 服务器时间慢约 49 秒；按服务器时间生成验证码后通过验证，
+  未修改系统时间。
+- 按用户要求沿用此前最终确认的密码；AWS 明确显示
+  “Your password has been successfully updated.”。
+- 用户完成手机扫码和 **Assign MFA** 后，AWS 已返回安全页面。设备列表确认新
+  `faiz.fauzan@binus.ac.id's MFA 2`，注册日期为 2026-10-11。
+- 按原设备名称和注册日期选中旧 `MFA 1`，核对删除确认框后提交；AWS 明确显示
+  “MFA 1 has been successfully deleted.”，列表刷新后仅剩新 `MFA 2`。
 - 密码助记沿用本文上方提示；本记录不保存密码、验证码、二维码或验证器密钥。
   AWS 登录窗口继续保留，方便后续复用。
