@@ -1,0 +1,4 @@
+interface:
+  display_name: "Kiro AWS Builder ID Onboarder"
+  short_description: "Reuse or sign in to Builder ID, import Kiro, and verify."
+  default_prompt: "Use $kiro-aws-builder-id-onboarder to reuse my existing AWS Builder ID login or sign in again, import the Kiro account into llm-access, and verify a real request."
