@@ -10,6 +10,7 @@
 | AWS Builder ID 账号 | 密码状态 | 2FA 状态 | 更新日期 |
 | --- | --- | --- | --- |
 | `dyta.sentya@binus.ac.id` | 已按用户最终指定的密码更新，AWS 页面确认成功 | 用户已绑定手机验证器；当前仅保留 `MFA 2`，旧 `MFA 1` 已删除 | 2026-10-10 |
+| `faith.seumahu@binus.ac.id` | 已按用户确认沿用的密码更新，AWS 页面确认成功 | 用户已绑定手机验证器；当前仅保留 `MFA 2`，旧 `MFA 1` 已删除 | 2026-10-11 |
 
 ## 密码助记
 
@@ -51,3 +52,14 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/dyta-sentya kiro-
 ```
 
 本记录不保存登录密码、OAuth 凭据或临时测试 Key。
+
+## 2026-10-11 操作与核验
+
+- 用户为 `faith.seumahu@binus.ac.id` 完成手机验证器绑定，新设备名称为
+  `faith.seumahu@binus.ac.id's MFA 2`，注册日期为 2026-10-11。
+- 删除原设备 `faith.seumahu@binus.ac.id's MFA 1`，其注册日期为 2026-10-10。
+  AWS 明确显示删除成功，设备列表随后仅剩 `MFA 2`。
+- 使用新手机验证器的验证码通过修改密码前的再次身份验证。
+- 用户确认沿用前一账号最终设置的密码；修改后 AWS 明确显示
+  “Your password has been successfully updated.”，并确认 `MFA 2` 仍在设备列表中。
+- 密码助记沿用本文上方的提示，不记录完整密码、具体数字或验证码。
