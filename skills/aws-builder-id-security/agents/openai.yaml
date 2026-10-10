@@ -1,0 +1,4 @@
+interface:
+  display_name: "AWS Builder ID Security"
+  short_description: "Rotate Builder ID passwords and MFA with verified records."
+  default_prompt: "Use $aws-builder-id-security to update my AWS Builder ID password or authenticator, verify the changes, and record requested account details without storing credentials."
