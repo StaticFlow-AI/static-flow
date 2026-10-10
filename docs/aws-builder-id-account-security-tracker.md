@@ -11,10 +11,12 @@
 | --- | --- | --- | --- |
 | `dyta.sentya@binus.ac.id` | 已按用户最终指定的密码更新，AWS 页面确认成功 | 用户已绑定手机验证器；当前仅保留 `MFA 2`，旧 `MFA 1` 已删除 | 2026-10-10 |
 | `faith.seumahu@binus.ac.id` | 已按用户确认沿用的密码更新，AWS 页面确认成功 | 用户已绑定手机验证器；当前仅保留 `MFA 2`，旧 `MFA 1` 已删除 | 2026-10-11 |
+| `faiz.abdurahman@binus.ac.id` | 本轮按用户要求先登录并接入 Kiro，未修改密码 | 本轮未改绑；登录时核对到原有 `MFA 1` | 2026-10-11 |
 
 ## 密码助记
 
-适用于上述账号本次设置的密码：
+仅适用于本次已确认完成改密的 `dyta.sentya@binus.ac.id` 和
+`faith.seumahu@binus.ac.id`；不适用于本轮仅登录接入 Kiro 的账号：
 
 > 联想本次使用的服务名，首字母大写；接着先感叹、后疑问；末尾沿用本次约定的数字段。
 
@@ -89,3 +91,27 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faith-seumahu kir
 ```
 
 本记录不保存登录密码、验证码、OAuth 凭据或临时测试 Key。
+
+## 2026-10-11 faiz Kiro 接入与请求验证
+
+| 项目 | 已验证结果 |
+| --- | --- |
+| 登录身份 | `faiz.abdurahman@binus.ac.id`，`kiro-cli whoami` 显示 `Logged in with Builder ID` |
+| llm-access 账号名 | `kiro-faiz-abdurahman-builder-id`，已启用，`auth_method=idc`、`provider=aws`，无账号异常 |
+| 订阅与额度 | `KIRO STUDENT`，额度上限 1000 credits；导入时剩余 999.95 credits |
+| 代理与调度 | 固定美国代理 `do-us-10`；并发 3，最小请求间隔 801 ms，最低剩余额度阈值 10 credits |
+| 公网请求 | `https://ackingliu.top/v1/messages`，模型 `claude-sonnet-5.5`，HTTP 200，返回 `KIRO_OK`，以 `end_turn` 正常结束 |
+| 用量归属 | usage journal 确认请求属于上述账号，输入 10 tokens、输出 2 tokens，`usage_missing=false` |
+
+本次按用户要求先完成 Kiro 登录和上号，未修改密码或 MFA。复用已确认身份的
+AWS 浏览器会话后，直接进入 Kiro 设备码确认与授权页面，没有再次要求密码或验证码。
+导入使用已更新的技能脚本，完成分页查重、已核验邮箱传递和账号设置复核。
+首选代理 `tmp-us-for-kiro` 额度刷新返回 HTTP 502，随后通过 `do-us-10` 验证成功。
+
+验证使用仅绑定该账号的临时 Key，关闭其他上游池和策略回退；请求完成后已删除并
+按精确 ID 核对其不再出现在完整 Key 列表中。上表额度为导入时数值。
+登录窗口保留以便后续继续操作，原有默认 Kiro CLI 账号仍保留。检查此账号身份：
+
+```bash
+XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faiz-abdurahman kiro-cli whoami
+```

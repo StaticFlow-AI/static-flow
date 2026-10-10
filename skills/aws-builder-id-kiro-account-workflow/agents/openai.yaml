@@ -1,0 +1,4 @@
+interface:
+  display_name: "AWS Builder ID to Kiro Account Workflow"
+  short_description: "Continue Builder ID security and Kiro account onboarding."
+  default_prompt: "Use $aws-builder-id-kiro-account-workflow to continue my Builder ID account workflow, reuse its login where possible, complete the requested security steps, and import and verify Kiro when requested."
