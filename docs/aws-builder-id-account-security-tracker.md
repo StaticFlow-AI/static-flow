@@ -12,7 +12,7 @@
 | `dyta.sentya@binus.ac.id` | 已按用户最终指定的密码更新，AWS 页面确认成功 | 用户已绑定手机验证器；当前仅保留 `MFA 2`，旧 `MFA 1` 已删除 | 2026-10-10 |
 | `faith.seumahu@binus.ac.id` | 已按用户确认沿用的密码更新，AWS 页面确认成功 | 用户已绑定手机验证器；当前仅保留 `MFA 2`，旧 `MFA 1` 已删除 | 2026-10-11 |
 | `faiz.abdurahman@binus.ac.id` | 已按用户确认沿用的密码更新，AWS 页面确认成功，新密码已通过再次登录验证 | 用户已绑定手机验证器；当前仅保留 `MFA 2`，旧 `MFA 1` 已删除 | 2026-10-11 |
-| `andre.hasibuan@binus.ac.id` | 已按用户确认沿用的密码更新，AWS 页面确认成功 | 新验证器二维码已显示，等待用户手机绑定；旧 `MFA 1` 暂保留 | 2026-10-11 |
+| `andre.hasibuan@binus.ac.id` | 已按用户确认沿用的密码更新，AWS 页面确认成功；新密码已通过 AWS 再次身份验证 | 用户已绑定手机验证器；当前仅保留 `MFA 2`，旧 `MFA 1` 已删除 | 2026-10-11 |
 
 ## 密码助记
 
@@ -161,8 +161,10 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/andre-hasibuan ki
 - 登录时发现本机时间比 AWS 和验证码网站的服务器时间慢约 49 秒；使用服务器时间
   生成验证码后通过验证，未修改系统时间。
 - 按用户要求沿用此前最终确认的密码；AWS 明确显示
-  “Your password has been successfully updated.”。未另行执行新密码登录测试。
-- 新验证器二维码已加载并展示，等待用户手机扫码、输入验证码和完成 **Assign MFA**。
-  尚未确认新设备注册，旧验证器仍保留；绑定完成后再核对设备列表并删除指定旧设备。
+  “Your password has been successfully updated.”。
+- 用户完成手机扫码和 **Assign MFA** 后，AWS 要求重新输入密码；更新后的密码通过验证，
+  返回安全页面。设备列表确认新 `andre.hasibuan@binus.ac.id's MFA 2`，注册日期为 2026-10-11。
+- 按原设备名称和注册日期选中旧 `MFA 1`，核对删除确认框后提交；AWS 明确显示
+  “MFA 1 has been successfully deleted.”，随后列表仅剩新 `MFA 2`。
 - 密码助记沿用本文上方提示；本记录不保存密码、验证码、二维码或验证器密钥。
-  AWS 窗口保留以便继续完成绑定。
+  AWS 登录窗口继续保留，方便后续复用。
