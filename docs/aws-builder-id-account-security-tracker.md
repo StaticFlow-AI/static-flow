@@ -63,3 +63,29 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/dyta-sentya kiro-
 - 用户确认沿用前一账号最终设置的密码；修改后 AWS 明确显示
   “Your password has been successfully updated.”，并确认 `MFA 2` 仍在设备列表中。
 - 密码助记沿用本文上方的提示，不记录完整密码、具体数字或验证码。
+
+## 2026-10-11 Kiro 接入与请求验证
+
+| 项目 | 已验证结果 |
+| --- | --- |
+| 登录身份 | `faith.seumahu@binus.ac.id`，`kiro-cli whoami` 显示 `Logged in with Builder ID` |
+| llm-access 账号名 | `kiro-faith-seumahu-builder-id`，已启用，`auth_method=idc`、`provider=aws`，无账号异常 |
+| 订阅与额度 | `KIRO STUDENT`，额度上限 1000 credits；导入时剩余 999.95 credits |
+| 代理与调度 | 固定美国代理 `aws_us_east1`；并发 3，最小请求间隔 919 ms，最低剩余额度阈值 10 credits |
+| 公网请求 | `https://ackingliu.top/v1/messages`，模型 `claude-sonnet-5.5`，HTTP 200，返回 `KIRO_OK`，以 `end_turn` 正常结束 |
+| 用量归属 | usage journal 确认请求属于上述账号，输入 10 tokens、输出 2 tokens，`usage_missing=false` |
+
+本次复用用户确认的新密码，并通过新手机验证器完成 AWS 登录和 Kiro CLI 授权。
+导入前完整分页检查 345 个现有账号，导入后完成上游身份去重及账号配置核验。
+首选代理 `tmp-us-for-kiro` 额度刷新失败，随后通过 `aws_us_east1` 完成额度与真实请求验证。
+
+验证使用仅绑定该账号的临时 Key，关闭其他上游池和策略回退；请求完成后已删除该 Key，
+并按精确 ID 核对其不再出现在完整 Key 列表中。上表额度为导入时数值，不是测试后的刷新值。
+
+该账号使用独立的本地凭据目录，原有默认 Kiro CLI 账号仍保留。检查此账号身份：
+
+```bash
+XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faith-seumahu kiro-cli whoami
+```
+
+本记录不保存登录密码、验证码、OAuth 凭据或临时测试 Key。
