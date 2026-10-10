@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 import re
 import sqlite3
@@ -273,10 +274,32 @@ def required_proxy_region_for_auth(auth: ImportedAuth) -> str:
 
 
 def fetch_kiro_accounts(base_url: str, token: str | None) -> list[dict[str, Any]]:
-    payload = request_json(
-        "GET", base_url, "/admin/kiro-gateway/accounts?limit=10000&offset=0", token
-    )
-    return payload.get("accounts", []) if isinstance(payload, dict) else []
+    accounts: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    while True:
+        payload = request_json(
+            "GET",
+            base_url,
+            f"/admin/kiro-gateway/accounts?limit=200&offset={len(accounts)}",
+            token,
+        )
+        if (
+            not isinstance(payload, dict)
+            or not isinstance(payload.get("accounts"), list)
+            or not isinstance(payload.get("has_more"), bool)
+        ):
+            raise ValueError("invalid Kiro account inventory response")
+        rows = payload["accounts"]
+        if not rows and payload["has_more"]:
+            raise ValueError("Kiro account pagination did not advance")
+        for account in rows:
+            name = account_name(account) if isinstance(account, dict) else None
+            if not name or name in seen:
+                raise ValueError("Kiro account pagination returned missing or repeated names")
+            seen.add(name)
+        accounts.extend(rows)
+        if not payload["has_more"]:
+            return accounts
 
 
 def fetch_latency_snapshot(base_url: str, token: str | None) -> dict[str, Any] | None:
@@ -428,10 +451,24 @@ def existing_user_id_map(accounts: list[dict[str, Any]]) -> dict[str, str]:
     return result
 
 
+def require_new_account(auth: ImportedAuth, accounts: list[dict[str, Any]]) -> None:
+    email = str(auth.body.get("email") or "").strip().casefold()
+    for account in accounts:
+        same_email = email and email == str(account.get("email") or "").strip().casefold()
+        if account_name(account) == auth.name or same_email:
+            raise ValueError(
+                f"{auth.name}: existing name/email matches {account_name(account)}; "
+                "use the existing-account verification or refresh workflow"
+            )
+
+
 def delete_account(args: argparse.Namespace, name: str) -> bool:
     try:
         request_json("DELETE", args.admin_base_url, account_path(name), args.admin_token)
-        return True
+        return not any(
+            account_name(account) == name
+            for account in fetch_kiro_accounts(args.admin_base_url, args.admin_token)
+        )
     except Exception:
         return False
 
@@ -442,8 +479,15 @@ def import_account(
     proxies: list[dict[str, Any]],
     min_interval_ms: int,
     existing_user_ids: dict[str, str] | None = None,
+    *,
+    existing_accounts: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    existing_user_ids = existing_user_ids or {}
+    if existing_accounts is None:
+        existing_accounts = fetch_kiro_accounts(args.admin_base_url, args.admin_token)
+    require_new_account(auth, existing_accounts)
+    known_user_ids = existing_user_id_map(existing_accounts)
+    known_user_ids.update(existing_user_ids or {})
+    existing_user_ids = known_user_ids
     body = dict(auth.body)
     body["kiro_channel_max_concurrency"] = args.max_concurrency
     body["kiro_channel_min_start_interval_ms"] = min_interval_ms
@@ -521,10 +565,11 @@ def import_account(
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--admin-base-url", default="http://127.0.0.1:19182")
-    parser.add_argument("--admin-token", default=None)
+    parser.add_argument("--admin-token", default=os.environ.get("STATICFLOW_ADMIN_TOKEN"))
     parser.add_argument("--sqlite-file", action="append", default=[])
     parser.add_argument("--search-dir", action="append", default=[])
     parser.add_argument("--account-name")
+    parser.add_argument("--email", help="Verified login email; requires exactly one SQLite file")
     parser.add_argument("--name-prefix")
     parser.add_argument("--max-concurrency", type=int, default=3)
     parser.add_argument(
@@ -556,8 +601,12 @@ def main(argv: list[str]) -> int:
     paths = discover_sqlite_files(args.sqlite_file, args.search_dir)
     if not paths:
         raise SystemExit(f"no SQLite files found; default checked: {DEFAULT_SQLITE}")
+    if args.email is not None and (len(paths) != 1 or not args.email.strip()):
+        raise SystemExit("--email requires a nonempty verified email and exactly one SQLite file")
     names = build_account_names(paths, args.account_name, args.name_prefix)
     imports = [parse_sqlite(path, name) for path, name in zip(paths, names)]
+    if args.email is not None:
+        imports[0].body["email"] = args.email.strip()
 
     proxies: list[dict[str, Any]] = []
     counts: dict[str, int] = {}
@@ -581,9 +630,11 @@ def main(argv: list[str]) -> int:
         if not proxies:
             raise SystemExit(f"no active {required_proxy_region.upper()} proxy configs found")
         accounts = fetch_kiro_accounts(args.admin_base_url, args.admin_token)
+        for auth in imports:
+            require_new_account(auth, accounts)
         existing_user_ids = existing_user_id_map(accounts)
         for account in accounts:
-            if account.get("disabled"):
+            if account.get("disabled") or account.get("proxy_mode") != "fixed":
                 continue
             proxy_id = account.get("proxy_config_id")
             if proxy_id:
@@ -597,7 +648,12 @@ def main(argv: list[str]) -> int:
         candidate_proxies = rank_proxies(proxies, counts, latencies, args.balance_penalty_ms)
         min_interval_ms = rng.randint(args.min_interval_min_ms, args.min_interval_max_ms)
         result = import_account(
-            auth, args, candidate_proxies, min_interval_ms, existing_user_ids
+            auth,
+            args,
+            candidate_proxies,
+            min_interval_ms,
+            existing_user_ids,
+            existing_accounts=accounts,
         )
         selected_proxy_id = result.get("proxy_config_id")
         if selected_proxy_id and (not args.apply or result.get("validated")):
@@ -606,6 +662,8 @@ def main(argv: list[str]) -> int:
         user_id = field(balance, "user_id") if isinstance(balance, dict) else None
         if result.get("validated") and user_id is not None:
             existing_user_ids.setdefault(str(user_id), auth.name)
+        if result.get("validated"):
+            accounts.append({"name": auth.name, "email": auth.body.get("email")})
         results.append(result)
 
     print(

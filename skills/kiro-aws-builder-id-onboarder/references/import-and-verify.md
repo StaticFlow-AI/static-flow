@@ -2,9 +2,9 @@
 
 Use the sibling [importer skill](../../kiro-local-account-importer/SKILL.md) and
 [Python implementation](../../kiro-local-account-importer/scripts/import_kiro_accounts.py)
-as the credential parser and import-policy implementation. Read the installed
-version before using it; do not assume it supplies pagination, verified email, or
-existing-account safety automatically.
+as the credential parser and import-policy implementation. The bundled script
+paginates inventory, accepts a verified `--email` for one SQLite, and rejects
+existing name/email matches. Prefer this path over rebuilding a temporary importer.
 
 ## Read state and prepare the import
 
@@ -20,7 +20,8 @@ existing-account safety automatically.
 3. Parse the chosen local SQLite on this machine. Require IDC/OIDC credentials and
    the matching device registration. Map them to `auth_method=idc`, `provider=aws`,
    and retain the actual region/profile metadata. Set `email` from the verified
-   Builder ID identity; token JSON may not contain the email.
+   Builder ID identity; token JSON may not contain the email. Existing inventory
+   email fields may be null; compare with `(account.get("email") or "").casefold()`.
 4. Use the user's exact target name or a normalized `kiro-<localpart>-builder-id`.
    If the name already exists with a conflicting/unknown identity, stop before
    overwrite. If the same account is already healthy, verify it rather than import
@@ -28,16 +29,17 @@ existing-account safety automatically.
    its proxy/scheduling settings and use an update flow with no delete-on-failure
    cleanup. Check the current import API's replacement behavior before that write.
 
-For a new account, reuse the importer module's `parse_sqlite`,
-`required_proxy_region_for_auth`, `fetch_active_proxies`,
-`filter_required_region_proxies`, `rank_proxies`, `existing_user_id_map`, and
-`import_account` functions. Supply the fully paginated account list to duplicate
-checking and active-account proxy counts. Add the verified `email` to `auth.body`
-before calling `import_account`. These adaptations are necessary when the bundled
-CLI still uses a one-page `fetch_kiro_accounts` and omits email. Avoid changing the
-shared importer merely to onboard one account.
+For a new account, run the importer with `--sqlite-file <exact isolated database>`,
+`--account-name <intended name>`, and `--email <verified Builder ID email>`. Review
+its dry run, then use the same arguments with `--apply` when import is authorized.
+Do not rerun a completed import just to produce another dry-run plan.
 
-Review the plan with `apply=false`, then apply when the task includes import.
+If composing its Python functions, reuse `fetch_kiro_accounts` for complete
+inventory and pass that list as `existing_accounts=` to `import_account`, along
+with `existing_user_id_map(accounts)`. Set `auth.body['email']` from the verified
+CLI identity. Count only enabled accounts with `proxy_mode=fixed` for proxy load.
+The same inventory must support both duplicate checks and proxy ranking.
+
 Print only account name, auth type, chosen proxy name, scheduling, validation
 status, and selected balance fields. Keep token/client/proxy secrets in memory.
 
@@ -75,9 +77,10 @@ For “正常请求通”, exercise the intended public gateway, normally
 unrestricted shared key: a successful response from another account proves nothing
 about this one.
 
-1. Read `GET /admin/kiro-gateway/models` and choose a currently enabled upstream
-   model, or the user's requested model. Do not freeze a past model name into the
-   workflow. If it is unavailable, report that specifically.
+1. Read `GET /admin/kiro-gateway/models` (`models[]`) and choose an entry with
+   `enabled=true` and `upstream=true`, using its `model_id`, or the user's requested
+   model. Do not assume fields named `id` or `name`, or freeze a past model name
+   into the workflow. If it is unavailable, report that specifically.
 2. Reuse an authorized key only if already pinned to this exact account and suitable
    for the test. Otherwise create a uniquely named temporary Kiro key with
    `POST /admin/kiro-gateway/keys`; a small test budget such as
@@ -98,8 +101,9 @@ about this one.
 5. Verify usage attribution to the exact account and test key. Query
    `/admin/kiro-gateway/usage?key_id=...&start_ms=...&limit=...`.
    `since` is not the supported time-filter field. Analytics can lag; check
-   `/admin/llm-access/usage-journal/preview?limit=...&offset=...` and match the
-   `key_id`/account/event, following `has_more` if necessary. The journal can prove
+   `/admin/llm-access/usage-journal/preview?limit=...&offset=...`; events are under
+   `preview.events`, while `has_more` is top-level. Match the `key_id`/account/event,
+   following pagination if necessary. The journal can prove
    attribution before analytics catches up. Report any still-missing evidence
    separately; do not repeat a billable request merely to fill the usage list.
 6. Delete the exact temporary key in a `finally` cleanup path, including when the

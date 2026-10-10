@@ -25,7 +25,10 @@ An unrelated default CLI account, a browser title, a matching quota, or a creden
 that cannot refresh does not qualify for reuse. Ordinary access-token expiry alone
 does not require a fresh login. Keep another account's login intact. If a reused
 session reaches a login challenge, continue that pending flow with the missing
-authentication step instead of starting a second one.
+authentication step instead of starting a second one. After Builder ID security
+maintenance, inspect the retained same-account browser before launching Chrome.
+Reusing a password and reusing an authenticated browser session are different:
+if that browser was closed or cleared, say so briefly before fresh login.
 
 Read [login and browser details](references/login.md) for either mode. Read
 [import and request verification](references/import-and-verify.md) once the exact
@@ -99,7 +102,9 @@ Kiro identity is established.
   stay out of the tracker. Follow local commit rules; do not infer push authority.
 - Report the account, import status, actual model/result, and any unresolved step.
   Clear in-memory secrets and temporary helpers; preserve another account's CLI
-  state and any browser retained for the user's handoff.
+  state. For this continuing Builder ID/Kiro workflow, retain the authenticated
+  browser/profile unless the user requests cleanup. Detach the controller and
+  retain only non-secret reconnection metadata in task context.
 
 Creating or validating this skill is not an instruction to repeat live login,
 account import, password changes, or billable model requests.

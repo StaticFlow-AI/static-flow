@@ -38,7 +38,7 @@ scans a QR code, continue from that browser instead of restarting account login.
    historical localhost proxy port is available or mandatory for Builder ID.
 3. Complete the email/password form through the visible AWS controls. Observe
    the actual destination before filling secrets: current flows use the profile
-   host and regional `*.sso.signin.aws` / `*.credentials.signin.aws` hosts.
+   host and regional `*.signin.aws` hosts (including SSO/credentials subdomains).
 4. Handle the existing MFA challenge using the user's authenticator code, or the
    provided TOTP secret through `https://2fa.fun/` **only when the user authorized
    sending that secret there**. See [browser details](references/browser-details.md)
@@ -121,8 +121,20 @@ authorization from a request to record accounts.
 
 The final report identifies the processed account(s), confirmed changes, any
 remaining manual step, and the tracker path when written. Clear temporary secret
-variables and the 2fa.fun tab. Keep the isolated AWS window for an agreed handoff;
-otherwise close only the task's browser, and remove its temporary profile after
-it exits. Do not terminate unrelated Chrome sessions.
+variables and close the 2fa.fun tab separately from the AWS session.
+
+For accounts being maintained for Kiro, retain the same-account AWS window and
+profile after security changes so the next authorized step can reuse them. Do not
+require the user to announce Kiro onboarding before preserving this continuity.
+Keep the verified email, profile path, browser PID, and discovered debugger port
+in task context, without credentials or authentication URLs. Releasing a browser
+controller must not terminate that browser. Report that the window was retained.
+
+When Kiro onboarding is requested, continue with the
+[Builder ID onboarder](../kiro-aws-builder-id-onboarder/SKILL.md); preserving a
+window alone does not authorize login/import. If the user requests browser cleanup,
+or the task is an unrelated standalone security change with no retained handoff,
+close only the task's browser and remove its temporary profile after it exits.
+Do not terminate unrelated Chrome sessions or delete AWS's active-session list.
 
 Official reference: [Manage Builder ID MFA](https://docs.aws.amazon.com/signin/latest/userguide/mfa-builder-id.html).

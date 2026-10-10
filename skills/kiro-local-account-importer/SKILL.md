@@ -16,6 +16,13 @@ The workflow runs locally, reads SQLite files directly, and calls the mapped
 - Parse local SQLite locally, then call `llm-access` admin APIs.
 - Do not print raw `access_token`, `refresh_token`, or `client_secret`.
 - Dry-run first unless the user explicitly wants a real import.
+- This script creates new accounts. It rejects an existing exact name or verified
+  email before writing; use the appropriate onboarding skill's existing-account
+  verification/refresh flow to preserve that account's settings. Never route an
+  existing account through new-account rollback.
+- Verify CLI identity in the chosen data root before supplying `--email`. For
+  Builder ID, use the exact isolated SQLite path and require IDC credentials;
+  an unrelated default social login must remain untouched.
 
 ## API Flow
 
@@ -29,7 +36,9 @@ The script:
    - social: `kirocli:social:token`
    - IDC/OIDC: `kirocli:odic:token`, `kirocli:oidc:token`
    - device registration: matching `device-registration` keys
-3. Creates the Kiro account through:
+3. Reads all account pages using `has_more` and offsets based on returned row
+   counts. Rejects incomplete/repeated pagination and existing names/emails, then
+   creates the Kiro account through:
    `POST /admin/kiro-gateway/accounts/import-auth`
 4. Sets standard scheduling:
    - `kiro_channel_max_concurrency = 3`
@@ -44,7 +53,9 @@ The script:
    on an existing Kiro account. If refresh fails, try the next United States
    proxy. If all proxies fail, if the account's remaining credits are below
    `10`, or if the refreshed `user_id` is a duplicate, delete the newly imported
-   account and report it as invalid.
+   account and report it as invalid. `deleted: true` also requires rereading the
+   inventory and confirming that exact name is absent. An uncertain create result
+   must be reconciled by exact name before another attempt.
 
 ## Proxy Policy
 
@@ -54,8 +65,10 @@ Default proxy behavior:
 - Keep only active United States proxy nodes. With the current proxy schema,
   this is inferred from established proxy names such as `do-us-*`, `aws_us*`,
   `us-home*`, `my-homeus*`, and `dmit-us`.
-- Count active Kiro accounts currently fixed to each proxy via
-  `GET /admin/kiro-gateway/accounts?limit=10000&offset=0`.
+- Count active Kiro accounts currently fixed to each proxy via paginated
+  `GET /admin/kiro-gateway/accounts?limit=200&offset=...`. Requesting a large limit
+  does not bypass the server's page cap. Ignore direct/auto bindings and disabled
+  accounts when counting fixed proxy load.
 - Try to read hot Kiro latency ranking from
   `/internal/kiro-gateway/latency-ranking?source=hot&window=1h`.
 - Prefer the least-used active United States proxy first.
@@ -63,7 +76,8 @@ Default proxy behavior:
   count bucket, then break remaining ties by proxy name.
 - If latency data is unavailable, choose the least-used active proxy and break
   ties by proxy name.
-- Direct/no-proxy imports are not allowed for Kiro accounts.
+- Direct/no-proxy imports are not allowed for Kiro accounts. Do not hardcode the
+  previous run's successful proxy or permanently exclude a node after one failure.
 
 ## Commands
 
@@ -74,14 +88,19 @@ python3 skills/kiro-local-account-importer/scripts/import_kiro_accounts.py \
   --admin-base-url http://127.0.0.1:19182
 ```
 
-Dry run for one explicit SQLite:
+Dry run for one explicit SQLite and an email already verified with `kiro-cli whoami`:
 
 ```bash
 python3 skills/kiro-local-account-importer/scripts/import_kiro_accounts.py \
   --admin-base-url http://127.0.0.1:19182 \
   --sqlite-file /path/to/data.sqlite3 \
-  --account-name kiro-main
+  --account-name kiro-main \
+  --email user@example.com
 ```
+
+`--email` applies to exactly one SQLite file; omit it for a directory batch.
+The script handles nullable email fields when checking existing accounts. Email
+is supplied from verified login identity, not inferred from a matching balance.
 
 Dry run for a directory:
 
@@ -102,19 +121,18 @@ python3 skills/kiro-local-account-importer/scripts/import_kiro_accounts.py \
   --apply
 ```
 
-If the mapped admin API requires a token, add:
-
-```bash
---admin-token "$STATICFLOW_ADMIN_TOKEN"
-```
+If the mapped admin API requires a token, supply `STATICFLOW_ADMIN_TOKEN` through
+the process environment or a hidden prompt. The script reads it automatically;
+do not expand it into command-line arguments or print it.
 
 ## Verification
 
-After real import, verify:
+After real import, query the intended name and compare the returned name/email
+exactly. Inspect the full paginated inventory when checking upstream duplicates.
 
 ```bash
-curl -fsS http://127.0.0.1:19182/admin/kiro-gateway/accounts?limit=20 \
-  | jq '.accounts[] | {name, kiro_channel_max_concurrency, kiro_channel_min_start_interval_ms, proxy_mode, proxy_config_id}'
+curl -fsS 'http://127.0.0.1:19182/admin/kiro-gateway/accounts?q=kiro-main&limit=20&offset=0' \
+  | jq '.accounts[] | select(.name == "kiro-main") | {name, email, disabled, auth_method, provider, kiro_channel_max_concurrency, kiro_channel_min_start_interval_ms, minimum_remaining_credits_before_block, proxy_mode, proxy_config_id}'
 ```
 
 Expected:
@@ -128,3 +146,8 @@ Expected:
 - the real import output has `validated: true` and includes the refreshed
   balance response.
 - no imported account duplicates an existing refreshed Kiro `user_id`.
+
+Balance validation proves import/auth/proxy access. For a request to verify actual
+model use, follow the [Builder ID request verification](../kiro-aws-builder-id-onboarder/references/import-and-verify.md#real-gateway-request)
+after establishing the account identity. Report the actual subscription and dated
+balance, not an assumed student tier or an import-time balance as post-test state.

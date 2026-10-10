@@ -38,6 +38,13 @@ Let normal token refresh handle access-token expiry; do not restart browser logi
 merely because an access token expired. Use the fresh-login path if refresh or
 identity verification actually requires it.
 
+Use the browser metadata retained by the preceding security task before choosing
+a fresh profile. Probe that specific debugger and verify the same account. A
+missing `/tmp` controller script does not mean Chrome or its session is gone;
+reattach to the live browser with available tooling. If the old browser/profile
+was actually removed, explain that credentials can be reused but the browser
+session cannot. Ask only for a factor that the resulting live page requires.
+
 ## Mode 1: reuse the matching AWS browser
 
 Reuse an available visible browser session identified by the user or this task
@@ -55,6 +62,8 @@ If only AWS is logged in, obtain Kiro credentials as follows:
    below and retain that one process while browser authorization is pending.
 2. Open the CLI-generated authorization URL in the verified AWS browser. Transfer
    the URL in memory; redact its query/fragment and device code from progress logs.
+   For a fresh login, start here as well: logging into the profile page separately
+   can add another reauthentication before device authorization.
 3. Reinspect the page after redirects. A profile session may remember the email
    but still ask for the password or current MFA. Supply what is already authorized
    and available; request only the missing factor.
@@ -65,6 +74,19 @@ If only AWS is logged in, obtain Kiro credentials as follows:
 
 Do not treat the AWS security page, password success notification, device-code
 display, or an **Allow access** click alone as completed Kiro login.
+
+When driving `kiro-cli` from a controller, retain its one pending device-flow
+process across user replies. Capture PTY output privately, store the authorization
+URL and code separately in memory, and emit only state transitions; spinner output
+must not bury the URL in a truncated buffer. Disable echo on the secret-input PTY.
+Use a bounded manual wait consistent with the device flow's expiry. An expired
+flow requires stopping that poller before starting a replacement in the same root.
+
+AWS may show a blank intermediate page after MFA or a button click. Wait for the
+expected visible page, within a finite timeout, before comparing the device code
+or deciding that a click failed. Reacquire the DOM/context after redirects. Check
+both CLI authorization success and `whoami`, then retain the browser separately
+from clearing the controller's secrets.
 
 ## Mode 2: sign in again
 

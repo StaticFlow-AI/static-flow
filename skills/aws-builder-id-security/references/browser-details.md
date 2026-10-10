@@ -37,6 +37,11 @@ Do not echo commands containing secrets. Redact secrets before serializing resul
 avoid input values, cookies, browser storage, raw network bodies, and URL queries
 in diagnostic output. Preserve only the port/profile identifier needed to resume.
 
+Separate controller shutdown from browser shutdown: clear process-local secrets
+and detach the CDP socket while keeping Chrome and its profile for a retained
+handoff. Keep the verified account and browser ownership metadata in task context;
+do not put transient ports or profile paths into a permanent account tracker.
+
 ## Forms and authenticators
 
 | Observed page | Useful DOM evidence |
