@@ -12,11 +12,13 @@
 | `dyta.sentya@binus.ac.id` | 已按用户最终指定的密码更新，AWS 页面确认成功 | 用户已绑定手机验证器；当前仅保留 `MFA 2`，旧 `MFA 1` 已删除 | 2026-10-10 |
 | `faith.seumahu@binus.ac.id` | 已按用户确认沿用的密码更新，AWS 页面确认成功 | 用户已绑定手机验证器；当前仅保留 `MFA 2`，旧 `MFA 1` 已删除 | 2026-10-11 |
 | `faiz.abdurahman@binus.ac.id` | 已按用户确认沿用的密码更新，AWS 页面确认成功，新密码已通过再次登录验证 | 用户已绑定手机验证器；当前仅保留 `MFA 2`，旧 `MFA 1` 已删除 | 2026-10-11 |
+| `andre.hasibuan@binus.ac.id` | 已按用户确认沿用的密码更新，AWS 页面确认成功 | 新验证器二维码已显示，等待用户手机绑定；旧 `MFA 1` 暂保留 | 2026-10-11 |
 
 ## 密码助记
 
 适用于本次已确认完成改密的 `dyta.sentya@binus.ac.id`、
-`faith.seumahu@binus.ac.id` 和 `faiz.abdurahman@binus.ac.id`：
+`faith.seumahu@binus.ac.id`、`faiz.abdurahman@binus.ac.id` 和
+`andre.hasibuan@binus.ac.id`：
 
 > 联想本次使用的服务名，首字母大写；接着先感叹、后疑问；末尾沿用本次约定的数字段。
 
@@ -129,3 +131,38 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faiz-abdurahman k
   “MFA 1 has been successfully deleted.”，随后列表仅剩新 `MFA 2`。
 - 密码助记沿用本文上方提示，不记录密码、验证码或验证器密钥。
   已登录的 AWS 窗口继续保留，方便后续复用。
+
+## 2026-10-11 andre Kiro 接入与请求验证
+
+| 项目 | 已验证结果 |
+| --- | --- |
+| 登录身份 | `andre.hasibuan@binus.ac.id`，`kiro-cli whoami` 显示 `Logged in with Builder ID` |
+| llm-access 账号名 | `kiro-andre-hasibuan-builder-id`，已启用，`auth_method=idc`、`provider=aws` |
+| 订阅与额度 | `KIRO STUDENT`，额度上限 1000 credits；导入时剩余 999.96 credits |
+| 代理与调度 | 固定美国代理 `do-us-3`；并发 3，最小请求间隔 969 ms，最低剩余额度阈值 10 credits |
+| 公网请求 | `https://ackingliu.top/v1/messages`，模型 `claude-sonnet-5.5`，HTTP 200，返回 `KIRO_OK`，以 `end_turn` 正常结束 |
+| 用量归属 | usage journal 确认请求属于上述账号，输入 10 tokens、输出 2 tokens，`usage_missing=false` |
+
+导入前使用独立 CLI 数据目录完成 Builder ID 登录、设备码核对和 Kiro CLI 授权，
+保留原有默认 Kiro 账号。导入脚本完成完整分页查重、邮箱传递和账号配置核验。
+首选代理 `tmp-us-for-kiro` 的额度刷新返回 HTTP 502，随后通过 `do-us-3` 验证成功。
+
+公网测试使用仅绑定此账号的临时 Key，关闭其他上游池和策略回退；请求耗时 7.54 秒。
+测试后已删除临时 Key，并按精确 ID 核对其不再出现在完整 Key 列表中。
+上表额度为导入时数值，不是测试后的刷新值。检查此账号身份：
+
+```bash
+XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/andre-hasibuan kiro-cli whoami
+```
+
+## 2026-10-11 andre 安全维护
+
+- 核对原验证器为 `andre.hasibuan@binus.ac.id's MFA 1`，注册日期为 2026-10-05。
+- 登录时发现本机时间比 AWS 和验证码网站的服务器时间慢约 49 秒；使用服务器时间
+  生成验证码后通过验证，未修改系统时间。
+- 按用户要求沿用此前最终确认的密码；AWS 明确显示
+  “Your password has been successfully updated.”。未另行执行新密码登录测试。
+- 新验证器二维码已加载并展示，等待用户手机扫码、输入验证码和完成 **Assign MFA**。
+  尚未确认新设备注册，旧验证器仍保留；绑定完成后再核对设备列表并删除指定旧设备。
+- 密码助记沿用本文上方提示；本记录不保存密码、验证码、二维码或验证器密钥。
+  AWS 窗口保留以便继续完成绑定。
