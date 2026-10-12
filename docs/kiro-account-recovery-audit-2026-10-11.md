@@ -6,9 +6,11 @@
 
 ## 本轮恢复进度（重登前快照之后）
 
-2026-10-12 按优先重登清单开始恢复。目前 **35 个重登完成，37 个待完成，1 个按用户要求忽略**；
-用户已要求持续完成后续清单，本次续跑从第三项 `embrookew` 开始。
-每成功恢复 5 个账号后，浏览器登录使用 `http://127.0.0.1:11115`；前两项计入首批，首次切换在第 5 个成功账号之后。
+2026-10-12 按优先重登清单开始恢复。目前 **36 个重登完成，36 个待完成，1 个按用户要求忽略**；
+本次续跑从第三项 `embrookew` 开始，2026-10-13 按用户要求在第 36 项 `nderwood` 完成后暂停。
+下次从第 37 项 `afanchard`（GitHub 登录邮箱 `afanchard@utexas.edu`）继续，并沿用直连。
+前 35 项按原要求执行代理登录，首次切换到 `http://127.0.0.1:11115` 在第 5 个成功账号之后。
+2026-10-13 用户改为要求直连；从第 36 项 `nderwood` 开始，浏览器使用 `--no-proxy-server`，登录请求清除代理环境变量并直接访问。
 用户确认后续未记录邮箱的 GitHub 账号使用同名登录；`kiro-and163-google-social` 按要求跳过。
 “重登完成”指授权、身份、凭据写回和余额核验完成；额度耗尽账号单独注明模型请求状态。
 CSV 增加“本轮剩余积分”字段，记录每个账号本轮余额刷新时的剩余 credits。
@@ -52,6 +54,7 @@ CSV 的账号状态与检查时间仍对应上述重登前快照；“恢复进�
 | 33 | `orsythe` / `orsythe@utexas.edu` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `orsythe@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 853.60 credits；保留 `do-us-3`、并发 3、RPM 10、间隔 1013 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:11115`。 |
 | 34 | `ennysondgw` / `ennyson@utexas.edu` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `ennyson@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 370.87 credits；保留 `do-us-2`、并发 3、RPM 10、间隔 1003 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:11115`。 |
 | 35 | `rowtherfdh` / `rowther@utexas.edu` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `rowther@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 728.61 credits；保留 `do-us-9`、并发 3、RPM 10、间隔 1203 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:11115`。 |
+| 36 | `nderwood` / `nderwood@utexas.edu` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `nderwood@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 767.16 credits；保留 `do-us-8`、并发 3、RPM 10、间隔 1201 ms、最低剩余额度 3；浏览器登录代理 `直连（--no-proxy-server）`。 |
 
 此次使用独立 Kiro CLI 数据目录完成登录，没有改动默认 CLI 账号。
 核对发现技能原有刷新代码遗漏 `kiro_channel_rpm_limit`，使首个账号的 RPM 被重置为默认值 5；
@@ -182,7 +185,7 @@ G 的成功表只写 `Account name`，所以不能直接把那 9 个网关账号
 | 33 | `orsythe` | `orsythe@utexas.edu` | GitHub | 10-07 01:18:24 | 已重登，2026-10-13；公网独占请求验证通过 |
 | 34 | `ennysondgw` | `ennyson@utexas.edu` | GitHub | 10-07 01:16:21 | 已重登，2026-10-13；公网独占请求验证通过 |
 | 35 | `rowtherfdh` | `rowther@utexas.edu` | GitHub | 10-07 01:10:29 | 已重登，2026-10-13；公网独占请求验证通过 |
-| 36 | `nderwood` | `nderwood@utexas.edu` | GitHub | 10-07 00:53:44 | 待重新登录 |
+| 36 | `nderwood` | `nderwood@utexas.edu` | GitHub | 10-07 00:53:44 | 已重登，2026-10-13；公网独占请求验证通过 |
 | 46 | `sadvass` | `sadvass@utexas.edu` | GitHub | 10-03 23:39:54 | 待重新登录 |
 | 47 | `liupverg` | `liup44@utexas.edu` | GitHub | 10-03 23:37:36 | 待重新登录 |
 | 48 | `uincey` | `mshawpl@utexas.edu` | GitHub | 10-03 23:36:07 | 待重新登录 |
