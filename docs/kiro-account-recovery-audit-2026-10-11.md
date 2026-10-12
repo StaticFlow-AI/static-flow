@@ -6,8 +6,9 @@
 
 ## 本轮恢复进度（重登前快照之后）
 
-2026-10-12 按优先重登清单开始恢复。目前 **2 个恢复完成，71 个待完成**；
-按用户要求，在第二项 `unfieldgt` 完成后停止，第三项 `embrookew` 未启动。
+2026-10-12 按优先重登清单开始恢复。目前 **5 个恢复完成，68 个待完成**；
+用户已要求持续完成后续清单，目前从第三项 `embrookew` 继续。
+每成功恢复 5 个账号后，浏览器登录使用 `http://127.0.0.1:11115`；前两项计入首批，首次切换在第 5 个成功账号之后。
 CSV 的账号状态与检查时间仍对应上述重登前快照；“恢复进度”记录后续处理结果，
 筛选“待重新登录”可查看剩余任务。完成恢复的账号不应再按旧快照认定为当前异常。
 
@@ -15,6 +16,9 @@ CSV 的账号状态与检查时间仍对应上述重登前快照；“恢复进�
 | ---: | --- | --- | --- |
 | 1 | `elestineaw` / `elestineaw` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `elestineaw@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占此账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；usage journal 确认归属该账号，输入 10 / 输出 2 tokens，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 118.27 credits；保留 `do-us-2`、并发 3、RPM 10、间隔 1122 ms、最低剩余额度 3。 |
 | 2 | `unfieldgt` / `unfieldgt` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `unfield@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占此账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；usage journal 确认归属该账号，输入 10 / 输出 2 tokens，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 705 credits；保留 `aws_us2_east1`、并发 3、RPM 10、间隔 1121 ms、最低剩余额度 3。 |
+| 3 | `embrookew` / `embrookew` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `embrooke@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 1.88 credits；保留 `aws_us_east1`、并发 3、RPM 10、间隔 1109 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:21115`。 |
+| 4 | `verharta` / `verharta` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `verharta@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 553.31 credits；保留 `do-us-3`、并发 3、RPM 10、间隔 1108 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:21115`。 |
+| 5 | `bbottadq` / `bbottadq` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `bbottadq@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 388.20 credits；保留 `aws_us2_east1`、并发 3、RPM 10、间隔 1107 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:21115`。 |
 
 此次使用独立 Kiro CLI 数据目录完成登录，没有改动默认 CLI 账号。
 核对发现技能原有刷新代码遗漏 `kiro_channel_rpm_limit`，使首个账号的 RPM 被重置为默认值 5；
@@ -88,9 +92,9 @@ G 的成功表只写 `Account name`，所以不能直接把那 9 个网关账号
 | ---: | --- | --- | --- | --- | --- | --- |
 | 1 | `elestineaw` | `elestineaw@utexas.edu` | `elestineaw` | 10-11 01:05:10 | [R:50](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L50) | 已恢复，2026-10-12；公网独占请求验证通过 |
 | 2 | `unfieldgt` | `unfield@utexas.edu` | `unfieldgt` | 10-11 01:03:25 | [R:49](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L49) | 已恢复，2026-10-12；公网独占请求验证通过 |
-| 3 | `embrookew` | `embrooke@utexas.edu` | `embrookew` | 10-11 00:51:22 | [R:48](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L48) | 待重新登录 |
-| 4 | `verharta` | `verharta@utexas.edu` | `verharta` | 10-11 00:42:36 | [R:47](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L47) | 待重新登录 |
-| 5 | `bbottadq` | `bbottadq@utexas.edu` | `bbottadq` | 10-11 00:39:33 | [R:46](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L46) | 待重新登录 |
+| 3 | `embrookew` | `embrooke@utexas.edu` | `embrookew` | 10-11 00:51:22 | [R:48](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L48) | 已恢复，2026-10-12；公网独占请求验证通过 |
+| 4 | `verharta` | `verharta@utexas.edu` | `verharta` | 10-11 00:42:36 | [R:47](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L47) | 已恢复，2026-10-12；公网独占请求验证通过 |
+| 5 | `bbottadq` | `bbottadq@utexas.edu` | `bbottadq` | 10-11 00:39:33 | [R:46](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L46) | 已恢复，2026-10-12；公网独占请求验证通过 |
 | 6 | `haedradw` | `haedra@utexas.edu` | `haedradw` | 10-11 00:37:42 | [R:45](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L45) | 待重新登录 |
 | 7 | `agnoliaqwd` | `agnolia@utexas.edu` | `agnoliaqwd` | 10-11 00:27:55 | [R:44](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L44) | 待重新登录 |
 | 8 | `ddggte` | `reuiiisa@uchicago.edu` | `ddggte` | 10-10 23:55:51 | [R:43](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L43) | 待重新登录 |
