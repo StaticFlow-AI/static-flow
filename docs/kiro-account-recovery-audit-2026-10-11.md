@@ -6,7 +6,7 @@
 
 ## 本轮恢复进度（重登前快照之后）
 
-2026-10-12 按优先重登清单开始恢复。目前 **10 个重登完成，62 个待完成，1 个按用户要求忽略**；
+2026-10-12 按优先重登清单开始恢复。目前 **15 个重登完成，57 个待完成，1 个按用户要求忽略**；
 用户已要求持续完成后续清单，本次续跑从第三项 `embrookew` 开始。
 每成功恢复 5 个账号后，浏览器登录使用 `http://127.0.0.1:11115`；前两项计入首批，首次切换在第 5 个成功账号之后。
 用户确认后续未记录邮箱的 GitHub 账号使用同名登录；`kiro-and163-google-social` 按要求跳过。
@@ -27,6 +27,11 @@ CSV 的账号状态与检查时间仍对应上述重登前快照；“恢复进�
 | 8 | `ddggte` / `ddggte` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `reuiiisa@uchicago.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 180.34 credits；保留 `do-us-2`、并发 3、RPM 10、间隔 1200 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:11115`。 |
 | 9 | `shfordsdf` / `shfordsdf` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `shfordsdf@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。额度已耗尽；本轮未进行公网模型请求核验，待额度恢复后核验。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 0.00 credits；保留 `aws_us3_east1`、并发 3、RPM 10、间隔 1104 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:11115`。 |
 | 10 | `oorcrofta` / `oorcrofta` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `oorcrofta@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 105.16 credits；保留 `do-us-3`、并发 3、RPM 10、间隔 1103 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:11115`。 |
+| 11 | `wqalerian` / `wqalerian` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `wqalerian@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 722.43 credits；保留 `do-us-3`、并发 3、RPM 10、间隔 1102 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:11115`。 |
+| 12 | `tzpatric` / `tzpatric` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `tzpatrick@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 446.10 credits；保留 `do-us-3`、并发 3、RPM 10、间隔 1101 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:11115`。 |
+| 13 | `laohan18` / `linkueisz18` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `BiHankiro13@asu.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 273.74 credits；保留 `do-us-6`、并发 3、RPM 10、间隔 1011 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:11115`。 |
+| 14 | `laohan17` / `linkueisz17` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `BiHankiro10@asu.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 683.81 credits；保留 `do-us-6`、并发 3、RPM 10、间隔 1010 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:11115`。 |
+| 15 | `laohan16` / `linkueisz16` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `BiHankiro9@asu.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 344.42 credits；保留 `do-us-5`、并发 3、RPM 10、间隔 1009 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:11115`。 |
 
 此次使用独立 Kiro CLI 数据目录完成登录，没有改动默认 CLI 账号。
 核对发现技能原有刷新代码遗漏 `kiro_channel_rpm_limit`，使首个账号的 RPM 被重置为默认值 5；
@@ -108,11 +113,11 @@ G 的成功表只写 `Account name`，所以不能直接把那 9 个网关账号
 | 8 | `ddggte` | `reuiiisa@uchicago.edu` | `ddggte` | 10-10 23:55:51 | [R:43](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L43) | 已重登，2026-10-12；公网独占请求验证通过 |
 | 9 | `shfordsdf` | `shfordsdf@utexas.edu` | `shfordsdf` | 10-09 02:20:21 | [R:42](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L42) | 已重登，2026-10-12；额度用尽，模型请求待核验 |
 | 10 | `oorcrofta` | `oorcrofta@utexas.edu` | `oorcrofta` | 10-09 02:17:45 | [R:41](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L41) | 已重登，2026-10-12；公网独占请求验证通过 |
-| 11 | `wqalerian` | `wqalerian@utexas.edu` | `wqalerian` | 10-09 02:08:43 | [R:40](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L40) | 待重新登录 |
-| 12 | `tzpatric` | `tzpatrick@utexas.edu` | `tzpatric` | 10-09 02:02:57 | [R:39](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L39) | 待重新登录 |
-| 13 | `laohan18` | `BiHankiro13@asu.edu` | `linkueisz18` | 10-09 01:55:05 | [R:38](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L38) | 待重新登录 |
-| 14 | `laohan17` | `BiHankiro10@asu.edu` | `linkueisz17` | 10-09 01:43:18 | [R:37](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L37) | 待重新登录 |
-| 15 | `laohan16` | `BiHankiro9@asu.edu` | `linkueisz16` | 10-09 01:41:33 | [R:36](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L36) | 待重新登录 |
+| 11 | `wqalerian` | `wqalerian@utexas.edu` | `wqalerian` | 10-09 02:08:43 | [R:40](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L40) | 已重登，2026-10-12；公网独占请求验证通过 |
+| 12 | `tzpatric` | `tzpatrick@utexas.edu` | `tzpatric` | 10-09 02:02:57 | [R:39](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L39) | 已重登，2026-10-12；公网独占请求验证通过 |
+| 13 | `laohan18` | `BiHankiro13@asu.edu` | `linkueisz18` | 10-09 01:55:05 | [R:38](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L38) | 已重登，2026-10-12；公网独占请求验证通过 |
+| 14 | `laohan17` | `BiHankiro10@asu.edu` | `linkueisz17` | 10-09 01:43:18 | [R:37](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L37) | 已重登，2026-10-12；公网独占请求验证通过 |
+| 15 | `laohan16` | `BiHankiro9@asu.edu` | `linkueisz16` | 10-09 01:41:33 | [R:36](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L36) | 已重登，2026-10-12；公网独占请求验证通过 |
 | 16 | `laohan15` | `BiHankiro8@asu.edu` | `linkueisz15` | 10-09 01:34:48 | [R:35](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L35) | 待重新登录 |
 | 17 | `laohan14` | `BiHankiro7@asu.edu` | `linkueisz14` | 10-09 01:21:44 | [R:34](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L34) | 待重新登录 |
 | 18 | `laohan13` | `BiHankiro6@asu.edu` | `linkueisz13` | 10-09 01:19:58 | [R:33](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L33) | 待重新登录 |
