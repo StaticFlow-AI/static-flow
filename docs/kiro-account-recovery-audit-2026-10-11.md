@@ -6,7 +6,7 @@
 
 ## 本轮恢复进度（重登前快照之后）
 
-2026-10-12 按优先重登清单开始恢复。目前 **20 个重登完成，52 个待完成，1 个按用户要求忽略**；
+2026-10-12 按优先重登清单开始恢复。目前 **25 个重登完成，47 个待完成，1 个按用户要求忽略**；
 用户已要求持续完成后续清单，本次续跑从第三项 `embrookew` 开始。
 每成功恢复 5 个账号后，浏览器登录使用 `http://127.0.0.1:11115`；前两项计入首批，首次切换在第 5 个成功账号之后。
 用户确认后续未记录邮箱的 GitHub 账号使用同名登录；`kiro-and163-google-social` 按要求跳过。
@@ -37,6 +37,11 @@ CSV 的账号状态与检查时间仍对应上述重登前快照；“恢复进�
 | 18 | `laohan13` / `linkueisz13` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `BiHankiro6@asu.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 350.23 credits；保留 `do-us-4`、并发 3、RPM 10、间隔 1006 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:11115`。 |
 | 19 | `laohan12` / `linkueisz12` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `BiHankiro5@asu.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 627.55 credits；保留 `do-us-4`、并发 3、RPM 10、间隔 1012 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:11115`。 |
 | 20 | `laohan11` / `linkueisz11` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `BiHankiro4@asu.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。额度已耗尽；本轮未进行公网模型请求核验，待额度恢复后核验。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 0.00 credits；保留 `do-us-11`、并发 3、RPM 10、间隔 1004 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:11115`。 |
+| 21 | `laohan10` / `linkueisz10` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `BiHankiro3@asu.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 400.10 credits；保留 `aws_us2_east1`、并发 3、RPM 10、间隔 1003 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:11115`。 |
+| 22 | `linkuei_3_laohan7` / `linkueisz9` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `BiHankiro2@asu.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 774.08 credits；保留 `do-us-7`、并发 3、RPM 10、间隔 1101 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:11115`。 |
+| 23 | `laohan9` / `linkueisz8` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `Jinbo.Pan@asu.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 642.05 credits；保留 `do-us-7`、并发 3、RPM 10、间隔 1002 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:11115`。 |
+| 24 | `laohan5` / `linkueisz5` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `Calebkl2lis@asu.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 469.33 credits；保留 `do-us-7`、并发 3、RPM 10、间隔 1005 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:11115`。 |
+| 25 | `laohan6` / `linkueisz4` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `Calebkl1lis@asu.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 649.14 credits；保留 `do-us-1`、并发 3、RPM 10、间隔 1006 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:11115`。 |
 
 此次使用独立 Kiro CLI 数据目录完成登录，没有改动默认 CLI 账号。
 核对发现技能原有刷新代码遗漏 `kiro_channel_rpm_limit`，使首个账号的 RPM 被重置为默认值 5；
@@ -128,11 +133,11 @@ G 的成功表只写 `Account name`，所以不能直接把那 9 个网关账号
 | 18 | `laohan13` | `BiHankiro6@asu.edu` | `linkueisz13` | 10-09 01:19:58 | [R:33](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L33) | 已重登，2026-10-13；公网独占请求验证通过 |
 | 19 | `laohan12` | `BiHankiro5@asu.edu` | `linkueisz12` | 10-09 01:14:48 | [R:32](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L32) | 已重登，2026-10-13；公网独占请求验证通过 |
 | 20 | `laohan11` | `BiHankiro4@asu.edu` | `linkueisz11` | 10-09 01:12:18 | [R:31](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L31) | 已重登，2026-10-13；额度用尽，模型请求待核验 |
-| 21 | `laohan10` | `BiHankiro3@asu.edu` | `linkueisz10` | 10-09 01:11:37 | [R:30](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L30) | 待重新登录 |
-| 22 | `linkuei_3_laohan7` | `BiHankiro2@asu.edu` | `linkueisz9` | 10-09 01:02:33 | [R:29](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L29) | 待重新登录 |
-| 23 | `laohan9` | `Jinbo.Pan@asu.edu` | `linkueisz8` | 10-09 00:56:45 | [R:28](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L28) | 待重新登录 |
-| 24 | `laohan5` | `Calebkl2lis@asu.edu` | `linkueisz5` | 10-09 00:52:18 | [R:27](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L27) | 待重新登录 |
-| 25 | `laohan6` | `Calebkl1lis@asu.edu` | `linkueisz4` | 10-09 00:47:20 | [R:26](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L26) | 待重新登录 |
+| 21 | `laohan10` | `BiHankiro3@asu.edu` | `linkueisz10` | 10-09 01:11:37 | [R:30](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L30) | 已重登，2026-10-13；公网独占请求验证通过 |
+| 22 | `linkuei_3_laohan7` | `BiHankiro2@asu.edu` | `linkueisz9` | 10-09 01:02:33 | [R:29](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L29) | 已重登，2026-10-13；公网独占请求验证通过 |
+| 23 | `laohan9` | `Jinbo.Pan@asu.edu` | `linkueisz8` | 10-09 00:56:45 | [R:28](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L28) | 已重登，2026-10-13；公网独占请求验证通过 |
+| 24 | `laohan5` | `Calebkl2lis@asu.edu` | `linkueisz5` | 10-09 00:52:18 | [R:27](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L27) | 已重登，2026-10-13；公网独占请求验证通过 |
+| 25 | `laohan6` | `Calebkl1lis@asu.edu` | `linkueisz4` | 10-09 00:47:20 | [R:26](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L26) | 已重登，2026-10-13；公网独占请求验证通过 |
 | 26 | `laohan4` | `Nolan.arlisle@asu.edu` | `linkueisz2` | 10-09 00:45:09 | [R:25](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L25) | 待重新登录 |
 | 27 | `kiro-linkueisz3-github-social` | `Adrian.Carlisle@asu.edu` | `linkueisz3` | 10-09 00:35:49 | [R:24](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L24) | 待重新登录 |
 | 37 | `afanchard` | `afanchard@utexas.edu` | 未记录 | 10-05 23:48:23 | [G:71](github-kiro-account-onboarding-tracker.md#L71) | 待重新登录 |
