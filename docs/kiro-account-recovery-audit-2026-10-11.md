@@ -1,16 +1,33 @@
 # Kiro 异常账号与历史上号记录核对（更新至 2026-10-12）
 
-最新账号状态快照：**2026-10-12 22:38:57，UTC+08:00**。
+本轮重登前的账号状态快照：**2026-10-12 22:38:57，UTC+08:00**。
 初始快照与历史上号核对日期：2026-10-11。本文件与两个 CSV 保留初建日期的文件名，快照时间以内容为准。
 本文依据本项目已有文档确认“以前上过号”，不以聊天记录或账号存在于数据库作为成功上号的证据。
 
-## 核对结果
+## 本轮恢复进度（重登前快照之后）
+
+2026-10-12 按优先重登清单开始恢复。目前 **2 个恢复完成，71 个待完成**；
+按用户要求，在第二项 `unfieldgt` 完成后停止，第三项 `embrookew` 未启动。
+CSV 的账号状态与检查时间仍对应上述重登前快照；“恢复进度”记录后续处理结果，
+筛选“待重新登录”可查看剩余任务。完成恢复的账号不应再按旧快照认定为当前异常。
+
+| CSV 序号 | 网关账号 / GitHub 登录名 | 本轮验证结果 | 额度与原有设置 |
+| ---: | --- | --- | --- |
+| 1 | `elestineaw` / `elestineaw` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `elestineaw@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占此账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；usage journal 确认归属该账号，输入 10 / 输出 2 tokens，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 118.27 credits；保留 `do-us-2`、并发 3、RPM 10、间隔 1122 ms、最低剩余额度 3。 |
+| 2 | `unfieldgt` / `unfieldgt` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `unfield@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占此账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；usage journal 确认归属该账号，输入 10 / 输出 2 tokens，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 705 credits；保留 `aws_us2_east1`、并发 3、RPM 10、间隔 1121 ms、最低剩余额度 3。 |
+
+此次使用独立 Kiro CLI 数据目录完成登录，没有改动默认 CLI 账号。
+核对发现技能原有刷新代码遗漏 `kiro_channel_rpm_limit`，使首个账号的 RPM 被重置为默认值 5；
+已恢复该账号原值 10，并修正技能与设置保留测试，25 个 Python 测试通过。
+后续重登使用修正后的技能保留该字段。
+
+## 核对结果（重登前快照）
 
 | 范围 | 数量 | 说明 |
 | --- | ---: | --- |
 | Kiro 账号总数 | 354 | 本轮管理接口完整分页读取 200 + 154 条，账号名无重复，两页总数一致 |
-| 当前停用账号 | 163 | 103 个 `401 Bad credentials`、58 个仅有停用标记、2 个 IDC refresh `invalid_grant` |
-| 近期优先重登清单 | 73 | 2026-09-20 起仍有成功检查记录，当前均为 `401 Bad credentials`；72 个 GitHub、1 个 Google |
+| 快照中的停用账号 | 163 | 103 个 `401 Bad credentials`、58 个仅有停用标记、2 个 IDC refresh `invalid_grant` |
+| 近期优先重登清单 | 73 | 2026-09-20 起仍有成功检查记录，快照中均为 `401 Bad credentials`；72 个 GitHub、1 个 Google |
 | 其中：项目文档明确记录曾成功上号或恢复 | **37** | 恢复快照 27 个、上号追踪表 9 个、申诉追踪表已恢复项 1 个 |
 | 其中：项目文档未找到明确成功记录 | **36** | 不能据此判断“从未上过号” |
 | 较早异常或时间待确认清单 | 90 | 其中 `laohan185` 也有成功恢复记录；连同近期清单共确认 38 个曾上号成功 |
@@ -64,13 +81,13 @@ G 的成功表只写 `Account name`，所以不能直接把那 9 个网关账号
 
 ## 近期清单：37 个有成功上号记录
 
-均待本轮重新登录；当前问题均为 `401 Bad credentials`，且 `disabled=true`。
+重登前快照中的问题均为 `401 Bad credentials`，且 `disabled=true`；恢复后的结果见本次恢复进度及页首恢复记录。
 序号沿用完整 CSV，时间均为 2026 年 UTC+08:00。GitHub 登录名“未记录”表示原项目文档没有单独确认该字段。
 
 | CSV 序号 | 网关账号 | 邮箱 | 历史 GitHub 登录名 | 最后成功检查 | 历史证据 | 本次恢复进度 |
 | ---: | --- | --- | --- | --- | --- | --- |
-| 1 | `elestineaw` | `elestineaw@utexas.edu` | `elestineaw` | 10-11 01:05:10 | [R:50](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L50) | 待重新登录 |
-| 2 | `unfieldgt` | `unfield@utexas.edu` | `unfieldgt` | 10-11 01:03:25 | [R:49](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L49) | 待重新登录 |
+| 1 | `elestineaw` | `elestineaw@utexas.edu` | `elestineaw` | 10-11 01:05:10 | [R:50](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L50) | 已恢复，2026-10-12；公网独占请求验证通过 |
+| 2 | `unfieldgt` | `unfield@utexas.edu` | `unfieldgt` | 10-11 01:03:25 | [R:49](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L49) | 已恢复，2026-10-12；公网独占请求验证通过 |
 | 3 | `embrookew` | `embrooke@utexas.edu` | `embrookew` | 10-11 00:51:22 | [R:48](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L48) | 待重新登录 |
 | 4 | `verharta` | `verharta@utexas.edu` | `verharta` | 10-11 00:42:36 | [R:47](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L47) | 待重新登录 |
 | 5 | `bbottadq` | `bbottadq@utexas.edu` | `bbottadq` | 10-11 00:39:33 | [R:46](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L46) | 待重新登录 |
@@ -259,7 +276,7 @@ G 的成功表只写 `Account name`，所以不能直接把那 9 个网关账号
 
 两个 CSV 已增加“历史上号结论、历史 GitHub 用户名、历史记录邮箱、项目文档证据、历史备注”字段，
 保留账号顺序、状态、代理及历史证据，检查时间按最新快照更新，便于筛选及逐项回填。
-本次只整理与核对文档，未重新登录这些异常账号，也未修改它们的停用状态或凭据。
+前两次快照核查只整理文档，没有修改账号；之后本轮实际恢复结果见页首“本轮恢复进度”。
 2026-10-12 再次计算 73 个近期账号的导入至最后成功检查间隔，仍为 89.9701～89.9996 天；
 上面的 90 天分析保留初始快照的失败检查时间，后续检查时间以更新后的 CSV 为准。
 文档与 CSV 不保存密码、TOTP 密钥、一次性验证码或会话令牌。

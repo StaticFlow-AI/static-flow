@@ -469,6 +469,7 @@ User ID: d-123
             "auth_region": "us-east-1",
             "api_region": "us-east-1",
             "kiro_channel_max_concurrency": 4,
+            "kiro_channel_rpm_limit": 10,
             "kiro_channel_min_start_interval_ms": 250,
             "minimum_remaining_credits_before_block": 10.0,
             "manual_usage_limit": 900.0,
@@ -496,6 +497,7 @@ User ID: d-123
         self.assertEqual(body["profile_arn"], "new-profile")
         self.assertEqual(body["provider"], "github")
         self.assertEqual(body["kiro_channel_max_concurrency"], 4)
+        self.assertEqual(body["kiro_channel_rpm_limit"], 10)
         self.assertEqual(body["kiro_channel_min_start_interval_ms"], 250)
         self.assertEqual(body["minimum_remaining_credits_before_block"], 10.0)
         self.assertEqual(body["manual_usage_limit"], 900.0)

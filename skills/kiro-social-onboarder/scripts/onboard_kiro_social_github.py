@@ -259,6 +259,7 @@ def build_existing_account_import_body(
         "subscription_title",
         "machine_id",
         "kiro_channel_max_concurrency",
+        "kiro_channel_rpm_limit",
         "kiro_channel_min_start_interval_ms",
         "minimum_remaining_credits_before_block",
         "manual_usage_limit",
