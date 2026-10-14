@@ -1,4 +1,4 @@
-# Kiro 异常账号与历史上号记录核对（更新至 2026-10-14）
+# Kiro 异常账号与历史上号记录核对（更新至 2026-10-15）
 
 本轮重登前的账号状态快照：**2026-10-12 22:38:57，UTC+08:00**。
 初始快照与历史上号核对日期：2026-10-11。本文件与两个 CSV 保留初建日期的文件名，快照时间以内容为准。
@@ -6,7 +6,7 @@
 
 ## 本轮恢复进度（重登前快照之后）
 
-2026-10-12 按优先重登清单开始恢复。目前 **65 个重登完成，7 个待完成，1 个按用户要求忽略**；
+2026-10-12 按优先重登清单开始恢复。目前 **70 个重登完成，2 个待完成，1 个按用户要求忽略**；
 本次续跑从第三项 `embrookew` 开始，2026-10-13 按用户要求在第 36 项 `nderwood` 完成后暂停。
 2026-10-14 按用户要求，从第 37 项 `afanchard`（GitHub 登录邮箱 `afanchard@utexas.edu`）继续。
 前 35 项按原要求执行代理登录，首次切换到 `http://127.0.0.1:11115` 在第 5 个成功账号之后。
@@ -86,6 +86,11 @@ CSV 的账号状态与检查时间仍对应上述重登前快照；“恢复进�
 | 62 | `ockcharts` / `ockharts` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `ockhart@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 1000.00 credits；保留 `do-us-3`、并发 4、RPM 10、间隔 200 ms、最低剩余额度 3；浏览器登录方式 `http://127.0.0.1:11115`。 |
 | 64 | `dfadgfgg` / `dfadgfgg` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `reyuias@uchicago.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 1000.00 credits；保留 `do-us-10`、并发 3、RPM 10、间隔 1100 ms、最低剩余额度 3；浏览器登录方式 `http://127.0.0.1:11115`。 |
 | 65 | `fdaerwqrqr` / `fdaerwqrqr` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `reqwes@uchicago.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 1000.00 credits；保留 `do-us-3`、并发 3、RPM 10、间隔 1000 ms、最低剩余额度 3；浏览器登录方式 `http://127.0.0.1:11115`。 |
+| 66 | `gghytr` / `gghytr` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `reuiiisga@uchicago.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 1000.00 credits；保留 `do-us-10`、并发 3、RPM 10、间隔 920 ms、最低剩余额度 3；浏览器登录方式 `直连（--no-proxy-server）`。 |
+| 67 | `gdhsbvf` / `gdhsbvf` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `scured@uchicago.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 1000.00 credits；保留 `do-us-10`、并发 3、RPM 10、间隔 999 ms、最低剩余额度 3；浏览器登录方式 `直连（--no-proxy-server）`。 |
+| 68 | `gderghu` / `gderghu` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `emouiue@uchicago.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 1000.00 credits；保留 `do-us-10`、并发 3、RPM 10、间隔 905 ms、最低剩余额度 3；浏览器登录方式 `直连（--no-proxy-server）`。 |
+| 69 | `gdergh` / `gdergh` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `ttyeassd@uchicago.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 1000.00 credits；保留 `do-us-10`、并发 3、RPM 10、间隔 1050 ms、最低剩余额度 3；浏览器登录方式 `直连（--no-proxy-server）`。 |
+| 70 | `jfderth` / `jfderth` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `poojhsa@uchicago.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 1000.00 credits；保留 `aws_us2_east1`、并发 3、RPM 10、间隔 1250 ms、最低剩余额度 3；浏览器登录方式 `直连（--no-proxy-server）`。 |
 
 此次使用独立 Kiro CLI 数据目录完成登录，没有改动默认 CLI 账号。
 第 48 项 `uincey` 的首次公网核验在客户端等待 60 秒后读超时；持久用量记录显示服务端最终 HTTP 200、耗时约 74 秒。将响应等待延长至 180 秒后补做完整响应核验，HTTP 200、`KIRO_OK`、`end_turn` 和用量归属均通过，两次临时 Key 均已删除。
@@ -97,7 +102,7 @@ CSV 的账号状态与检查时间仍对应上述重登前快照；“恢复进�
 
 第 62 项首次使用网关名 `ockcharts` 登录时，页面提示用户名或密码错误，未完成授权或写回。用户纠正真实 GitHub 用户名为 `ockharts`；本轮密码及验证码验证通过，并从认证浏览器确认用户名 `ockharts`、Kiro 邮箱 `ockhart@utexas.edu`。每五个切换网络按实际重登完成数计算，未完成项不计入。
 
-## 本轮补充的真实 GitHub 用户名（2026-10-14）
+## 本轮补充的真实 GitHub 用户名（2026-10-14 起）
 
 按用户要求，后续恢复记录同时保留真实 GitHub 用户名、Kiro 身份邮箱和网关账号。登录邮箱不等同于 GitHub 用户名。完成认证后从本次独立浏览器核对用户名；已有明确映射时同时核对该映射。
 
@@ -115,6 +120,11 @@ CSV 的账号状态与检查时间仍对应上述重登前快照；“恢复进�
 | 63 | `hdsgvghh` | `hdsgvghh` | `retyusa@uchicago.edu` | 本轮密码及验证码登录、认证后浏览器用户名、Kiro 身份邮箱核对通过 |
 | 64 | `dfadgfgg` | `dfadgfgg` | `reyuias@uchicago.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
 | 65 | `fdaerwqrqr` | `fdaerwqrqr` | `reqwes@uchicago.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
+| 66 | `gghytr` | `gghytr` | `reuiiisga@uchicago.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
+| 67 | `gdhsbvf` | `gdhsbvf` | `scured@uchicago.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
+| 68 | `gderghu` | `gderghu` | `emouiue@uchicago.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
+| 69 | `gdergh` | `gdergh` | `ttyeassd@uchicago.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
+| 70 | `jfderth` | `jfderth` | `poojhsa@uchicago.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
 
 第 61 项公网请求已返回 HTTP 200、`KIRO_OK`、`end_turn`；初次用量查询未命中，随后已从持久用量确认唯一对应的临时 Key 和账号归属、`usage_missing=false`，未重复发起模型请求。
 
@@ -264,11 +274,11 @@ G 的成功表只写 `Account name`，所以不能直接把那 9 个网关账号
 | 63 | `hdsgvghh` | 未记录 | GitHub | 09-29 21:28:13 | 已重登，2026-10-14；公网独占请求验证通过 |
 | 64 | `dfadgfgg` | 未记录 | GitHub | 09-29 21:21:47 | 已重登，2026-10-14；公网独占请求验证通过 |
 | 65 | `fdaerwqrqr` | 未记录 | GitHub | 09-29 21:09:28 | 已重登，2026-10-14；公网独占请求验证通过 |
-| 66 | `gghytr` | 未记录 | GitHub | 09-29 12:00:36 | 待重新登录 |
-| 67 | `gdhsbvf` | 未记录 | GitHub | 09-29 11:55:23 | 待重新登录 |
-| 68 | `gderghu` | 未记录 | GitHub | 09-29 11:53:59 | 待重新登录 |
-| 69 | `gdergh` | 未记录 | GitHub | 09-29 11:50:00 | 待重新登录 |
-| 70 | `jfderth` | 未记录 | GitHub | 09-29 11:31:34 | 待重新登录 |
+| 66 | `gghytr` | 未记录 | GitHub | 09-29 12:00:36 | 已重登，2026-10-14；公网独占请求验证通过 |
+| 67 | `gdhsbvf` | 未记录 | GitHub | 09-29 11:55:23 | 已重登，2026-10-14；公网独占请求验证通过 |
+| 68 | `gderghu` | 未记录 | GitHub | 09-29 11:53:59 | 已重登，2026-10-15；公网独占请求验证通过 |
+| 69 | `gdergh` | 未记录 | GitHub | 09-29 11:50:00 | 已重登，2026-10-15；公网独占请求验证通过 |
+| 70 | `jfderth` | 未记录 | GitHub | 09-29 11:31:34 | 已重登，2026-10-15；公网独占请求验证通过 |
 | 71 | `ntagueik` | 未记录 | GitHub | 09-29 11:18:10 | 待重新登录 |
 | 72 | `kiro-and163-google-social` | 未记录 | Google | 09-24 00:45:24 | 按用户要求忽略，2026-10-12 |
 | 73 | `kiro-web-github` | 未记录 | GitHub | 09-20 15:53:34 | 待重新登录 |
