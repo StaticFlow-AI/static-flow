@@ -6,7 +6,9 @@
 
 ## 本轮恢复进度（重登前快照之后）
 
-2026-10-12 按优先重登清单开始恢复。目前 **70 个重登完成，2 个待完成，1 个按用户要求忽略**；
+2026-10-12 按优先重登清单开始恢复。目前 **71 个重登完成，0 个待完成，2 个按用户要求忽略**。
+2026-10-15 本轮处理结束：`kiro-and163-google-social` 按用户要求跳过；`kiro-web-github` 按用户要求标记为“失联”，停止身份追查及重登，真实 GitHub 用户名与邮箱仍未确认，本轮余额未核验。该账号原导入时间为 2026-06-22 16:19:42.026（UTC+08:00）；“失联”是本轮处理结论，不代表已确认 GitHub 封禁。
+71 个完成账号中，65 个已通过账号独占公网模型请求及用量归属核验；6 个本轮余额为 0（`haedradw`、`shfordsdf`、`laohan11`、`laohan4`、`atterfield`、`ennoxfs`），模型请求待额度恢复后核验。2026-10-15 再次完整分页检查 354 个账号，71 个完成账号均已启用、无账号异常、余额缓存为 `ready`。
 本次续跑从第三项 `embrookew` 开始，2026-10-13 按用户要求在第 36 项 `nderwood` 完成后暂停。
 2026-10-14 按用户要求，从第 37 项 `afanchard`（GitHub 登录邮箱 `afanchard@utexas.edu`）继续。
 前 35 项按原要求执行代理登录，首次切换到 `http://127.0.0.1:11115` 在第 5 个成功账号之后。
@@ -17,7 +19,7 @@
 “重登完成”指授权、身份、凭据写回和余额核验完成；额度耗尽账号单独注明模型请求状态。
 CSV 增加“本轮剩余积分”字段，记录每个账号本轮余额刷新时的剩余 credits。
 CSV 的账号状态与检查时间仍对应上述重登前快照；“恢复进度”记录后续处理结果，
-筛选“待重新登录”可查看剩余任务。完成恢复的账号不应再按旧快照认定为当前异常。
+本轮清单已无“待重新登录”项。完成恢复的账号不应再按旧快照认定为当前异常。
 
 | CSV 序号 | 网关账号 / GitHub 用户名或本次登录标识 | 本轮验证结果 | 额度与原有设置 |
 | ---: | --- | --- | --- |
@@ -91,6 +93,7 @@ CSV 的账号状态与检查时间仍对应上述重登前快照；“恢复进�
 | 68 | `gderghu` / `gderghu` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `emouiue@uchicago.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 1000.00 credits；保留 `do-us-10`、并发 3、RPM 10、间隔 905 ms、最低剩余额度 3；浏览器登录方式 `直连（--no-proxy-server）`。 |
 | 69 | `gdergh` / `gdergh` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `ttyeassd@uchicago.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 1000.00 credits；保留 `do-us-10`、并发 3、RPM 10、间隔 1050 ms、最低剩余额度 3；浏览器登录方式 `直连（--no-proxy-server）`。 |
 | 70 | `jfderth` / `jfderth` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `poojhsa@uchicago.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 1000.00 credits；保留 `aws_us2_east1`、并发 3、RPM 10、间隔 1250 ms、最低剩余额度 3；浏览器登录方式 `直连（--no-proxy-server）`。 |
+| 71 | `ntagueik` / `ntagueik` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `ntagueik@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 1000.00 credits；保留 `do-us-3`、并发 3、RPM 10、间隔 1111 ms、最低剩余额度 3；浏览器登录方式 `http://127.0.0.1:11115`。 |
 
 此次使用独立 Kiro CLI 数据目录完成登录，没有改动默认 CLI 账号。
 第 48 项 `uincey` 的首次公网核验在客户端等待 60 秒后读超时；持久用量记录显示服务端最终 HTTP 200、耗时约 74 秒。将响应等待延长至 180 秒后补做完整响应核验，HTTP 200、`KIRO_OK`、`end_turn` 和用量归属均通过，两次临时 Key 均已删除。
@@ -101,6 +104,8 @@ CSV 的账号状态与检查时间仍对应上述重登前快照；“恢复进�
 第 61 项首次把网关名 `usmore` 当作 GitHub 用户名登录，页面提示不支持密码登录，未完成授权或写回。核对历史会话后，仅能确认原网关名 `usmore` 和 Kiro 邮箱 `unsmore@utexas.edu`；当时是用户手动登录，未明确记录真实 GitHub 用户名。用户指出应为 `unsmore`；本轮改用该登录名后密码及验证码验证通过，并已从认证浏览器确认真实 GitHub 用户名 `unsmore`、Kiro 邮箱 `unsmore@utexas.edu`。原快照中的 `usmore` 登录名映射需结合本轮核对结果使用。
 
 第 62 项首次使用网关名 `ockcharts` 登录时，页面提示用户名或密码错误，未完成授权或写回。用户纠正真实 GitHub 用户名为 `ockharts`；本轮密码及验证码验证通过，并从认证浏览器确认用户名 `ockharts`、Kiro 邮箱 `ockhart@utexas.edu`。每五个切换网络按实际重登完成数计算，未完成项不计入。
+
+追查末项时发现，现有刷新流程经 `create_admin_kiro_account` / `upsert_kiro_account` 写回已有账号，会将 `created_at_ms` 更新为本次导入时间；因此当前数据库的创建时间排序不能直接视为最初注册顺序。本轮未修改该实现或回写历史时间。第 56–71 项已在下表记录实际核验的 GitHub 用户名；此前仅记录登录邮箱的项保留原证据，不据邮箱推断用户名。
 
 ## 本轮补充的真实 GitHub 用户名（2026-10-14 起）
 
@@ -125,6 +130,7 @@ CSV 的账号状态与检查时间仍对应上述重登前快照；“恢复进�
 | 68 | `gderghu` | `gderghu` | `emouiue@uchicago.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
 | 69 | `gdergh` | `gdergh` | `ttyeassd@uchicago.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
 | 70 | `jfderth` | `jfderth` | `poojhsa@uchicago.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
+| 71 | `ntagueik` | `ntagueik` | `ntagueik@utexas.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
 
 第 61 项公网请求已返回 HTTP 200、`KIRO_OK`、`end_turn`；初次用量查询未命中，随后已从持久用量确认唯一对应的临时 Key 和账号归属、`usage_missing=false`，未重复发起模型请求。
 
@@ -279,9 +285,9 @@ G 的成功表只写 `Account name`，所以不能直接把那 9 个网关账号
 | 68 | `gderghu` | 未记录 | GitHub | 09-29 11:53:59 | 已重登，2026-10-15；公网独占请求验证通过 |
 | 69 | `gdergh` | 未记录 | GitHub | 09-29 11:50:00 | 已重登，2026-10-15；公网独占请求验证通过 |
 | 70 | `jfderth` | 未记录 | GitHub | 09-29 11:31:34 | 已重登，2026-10-15；公网独占请求验证通过 |
-| 71 | `ntagueik` | 未记录 | GitHub | 09-29 11:18:10 | 待重新登录 |
+| 71 | `ntagueik` | 未记录 | GitHub | 09-29 11:18:10 | 已重登，2026-10-15；公网独占请求验证通过 |
 | 72 | `kiro-and163-google-social` | 未记录 | Google | 09-24 00:45:24 | 按用户要求忽略，2026-10-12 |
-| 73 | `kiro-web-github` | 未记录 | GitHub | 09-20 15:53:34 | 待重新登录 |
+| 73 | `kiro-web-github` | 未记录 | GitHub | 09-20 15:53:34 | 失联，2026-10-15 按用户要求停止追查及重登；本轮余额未核验 |
 
 ## 较早异常或时间待确认的 90 个账号
 
