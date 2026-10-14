@@ -1,13 +1,14 @@
 # Kiro 异常账号与历史上号记录核对（更新至 2026-10-15）
 
 本轮重登前的账号状态快照：**2026-10-12 22:38:57，UTC+08:00**。
+后续候选核查快照：**2026-10-15 01:49:16，UTC+08:00**；本次补入的账号使用此快照，既有恢复记录保留原快照。
 初始快照与历史上号核对日期：2026-10-11。本文件与两个 CSV 保留初建日期的文件名，快照时间以内容为准。
 本文依据本项目已有文档确认“以前上过号”，不以聊天记录或账号存在于数据库作为成功上号的证据。
 
 ## 本轮恢复进度（重登前快照之后）
 
-2026-10-12 按优先重登清单开始恢复。目前 **71 个重登完成，0 个待完成，2 个按用户要求忽略**。
-2026-10-15 本轮处理结束：`kiro-and163-google-social` 按用户要求跳过；`kiro-web-github` 按用户要求标记为“失联”，停止身份追查及重登，真实 GitHub 用户名与邮箱仍未确认，本轮余额未核验。该账号原导入时间为 2026-06-22 16:19:42.026（UTC+08:00）；“失联”是本轮处理结论，不代表已确认 GitHub 封禁。
+2026-10-12 按优先重登清单开始恢复。目前 **71 个重登完成，31 个待完成，2 个按用户要求忽略**，清单共 104 项；31 项为本次补入的后续候选，尚未重登，其中 28 项已有明确历史用户名映射，3 项待确认实际 GitHub 用户名及登录入口。
+2026-10-15 首批 73 项处理结束：`kiro-and163-google-social` 按用户要求跳过；`kiro-web-github` 按用户要求标记为“失联”，停止身份追查及重登，真实 GitHub 用户名与邮箱仍未确认，本轮余额未核验。该账号原导入时间为 2026-06-22 16:19:42.026（UTC+08:00）；“失联”是本轮处理结论，不代表已确认 GitHub 封禁。
 71 个完成账号中，65 个已通过账号独占公网模型请求及用量归属核验；6 个本轮余额为 0（`haedradw`、`shfordsdf`、`laohan11`、`laohan4`、`atterfield`、`ennoxfs`），模型请求待额度恢复后核验。2026-10-15 再次完整分页检查 354 个账号，71 个完成账号均已启用、无账号异常、余额缓存为 `ready`。
 本次续跑从第三项 `embrookew` 开始，2026-10-13 按用户要求在第 36 项 `nderwood` 完成后暂停。
 2026-10-14 按用户要求，从第 37 项 `afanchard`（GitHub 登录邮箱 `afanchard@utexas.edu`）继续。
@@ -18,8 +19,7 @@
 用户确认后续未记录邮箱的 GitHub 账号使用同名登录；`kiro-and163-google-social` 按要求跳过。
 “重登完成”指授权、身份、凭据写回和余额核验完成；额度耗尽账号单独注明模型请求状态。
 CSV 增加“本轮剩余积分”字段，记录每个账号本轮余额刷新时的剩余 credits。
-CSV 的账号状态与检查时间仍对应上述重登前快照；“恢复进度”记录后续处理结果，
-本轮清单已无“待重新登录”项。完成恢复的账号不应再按旧快照认定为当前异常。
+CSV 第 1–73 项的账号状态与检查时间仍对应上述重登前快照；第 74–104 项使用后续候选核查快照。“恢复进度”记录后续处理结果，筛选“待重新登录”或“待确认登录方式及GitHub用户名”可查看新增任务。完成恢复的账号不应再按旧快照认定为当前异常。
 
 | CSV 序号 | 网关账号 / GitHub 用户名或本次登录标识 | 本轮验证结果 | 额度与原有设置 |
 | ---: | --- | --- | --- |
@@ -135,6 +135,53 @@ CSV 的账号状态与检查时间仍对应上述重登前快照；“恢复进�
 第 61 项公网请求已返回 HTTP 200、`KIRO_OK`、`end_turn`；初次用量查询未命中，随后已从持久用量确认唯一对应的临时 Key 和账号归属、`usage_missing=false`，未重复发起模型请求。
 
 第 57 项首次等待用户验证码时，Kiro 设备授权等待超时，未写回网关账号；重新发起直连登录。此前提供的验证码没有提交。
+
+## 2026-10-15 后续 401 核查与候选补入
+
+本次按**上次登录/凭据导入或刷新时间自 2026-07-01 起（UTC+08:00）**筛选尚未列入优先队列的当前 `auth_401` 账号。当前创建时间会随刷新写回变化，故不直接用 `created_at_ms` 判定“7 月以后上过号”；28 个补入账号在保留回滚快照中的创建时间为 4 月，7–8 月属于后续登录/刷新，另 3 个在此前数据库核查快照中创建于 7 月 15 日。
+
+- 管理接口完整读取 200 + 154 条，共 354 个唯一账号；当前停用 122 个，其中 62 个 `auth_401`、58 个仅停用、2 个其他错误。
+- 对比 2026-10-12 22:38:57 的 103 个 401：71 个首批重登账号已清除异常，32 个仍为 401；此外出现 30 个此前未列为 401 的账号。71 个已完成账号本次均已启用、无账号异常、余额缓存为 `ready`。
+- 30 个新增 401 的上次导入/刷新时间均为 7 月 14–15 日，最后成功检查为 10 月 12–13 日。两者相隔 **89.995138–89.999516 天**，延续此前约 90 天到期的时间特征；这是时间分布推断，不是已确认的供应商有效期规则或封禁结论。
+- 另将旧异常清单中的 `laohan185`（历史 GitHub 用户名 `Padbergsss`）补入队列：8 月 3 日曾刷新，最后成功检查为 8 月 4 日；这是已有异常，并非本次新增或本轮约 90 天到期的证据。原较早异常 CSV 保留该记录，并注明移交优先清单第 104 项，恢复工作只在优先清单回填。
+- 新增队列第 74–104 项共 31 个：28 个已有项目文档明确记录的历史 GitHub 用户名及成功恢复证据，3 个 Gmail 关联的 GitHub 账号待确认实际用户名与登录入口。31 个均未在本次核查中重登或刷新余额，“本轮剩余积分”保持空白。
+- `kiro-and163-google-social` 与失联的 `kiro-web-github` 继续按用户要求忽略；其余 29 个现有 401 不满足本次 7 月起导入/刷新的范围，仍留在较早异常清单。仅有停用标记的 58 个账号不作为新增 401。
+
+下表时间为 2026 年、UTC+08:00。最近检查时间不代表首次 401 时间；完整邮箱、检查时间、代理和证据见 CSV。用户名来自历史明确映射，后续重登仍需核对浏览器实际用户名与 Kiro 身份邮箱。
+
+| CSV 序号 | 网关账号 | 历史 GitHub 用户名 | 上次导入/刷新 | 最后成功检查 | 项目文档证据 / 待确认事项 |
+| ---: | --- | --- | --- | --- | --- |
+| 74 | `allowayw` | `allowayw` | 07-14 23:06:18 | 10-12 23:01:52 | [R:51](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L51) |
+| 75 | `ghtingaleaw` | `ghtingaleaw` | 07-14 23:09:58 | 10-12 23:05:53 | [R:52](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L52) |
+| 76 | `orvalede` | `orvalede` | 07-14 23:15:08 | 10-12 23:12:50 | [R:53](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L53) |
+| 77 | `arlowew` | `arlowew` | 07-14 23:21:05 | 10-12 23:18:23 | [R:54](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L54) |
+| 78 | `deoqew` | `deoqew` | 07-14 23:27:11 | 10-12 23:23:13 | [R:55](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L55) |
+| 79 | `tellanfs` | `tellanfs` | 07-14 23:31:16 | 10-12 23:26:15 | [R:56](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L56) |
+| 80 | `ghtingalew` | `ghtingalew` | 07-14 23:37:57 | 10-12 23:34:06 | [R:57](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L57) |
+| 81 | `laohan19` | `Christiansenx` | 07-14 23:45:35 | 10-12 23:40:58 | [R:58](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L58) |
+| 82 | `laohan20` | `Thompsonx` | 07-14 23:50:52 | 10-12 23:47:15 | [R:59](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L59) |
+| 83 | `laohan21` | `Julianazzzx` | 07-14 23:54:30 | 10-12 23:52:11 | [R:60](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L60) |
+| 84 | `laohan22` | `Leslieex` | 07-14 23:58:55 | 10-12 23:57:04 | [R:61](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L61) |
+| 85 | `laohan23` | `Yazminz` | 07-15 00:03:51 | 10-13 00:00:33 | [R:62](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L62) |
+| 86 | `laohan24` | `Hartmannxz` | 07-15 00:07:11 | 10-13 00:05:01 | [R:63](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L63) |
+| 87 | `laohan25` | `Carmellaz` | 07-15 00:11:47 | 10-13 00:08:04 | [R:64](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L64) |
+| 88 | `laohan26` | `Jacklynzz` | 07-15 00:16:10 | 10-13 00:12:07 | [R:65](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L65) |
+| 89 | `laohan27` | `Bradtkez` | 07-15 00:20:45 | 10-13 00:19:24 | [R:66](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L66) |
+| 90 | `laohan28` | `Naderxxz` | 07-15 00:23:32 | 10-13 00:18:57 | [R:67](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L67) |
+| 91 | `laohan29` | `deckoww` | 07-15 00:26:09 | 10-13 00:23:03 | [R:68](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L68) |
+| 92 | `laohan30` | `kertzmann1` | 07-15 00:29:49 | 10-13 00:25:03 | [R:69](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L69) |
+| 93 | `laohan31` | `sschiller1` | 07-15 00:32:46 | 10-13 00:31:16 | [R:70](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L70) |
+| 94 | `laohan32` | `ddenesikk` | 07-15 00:36:53 | 10-13 00:34:46 | [R:71](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L71) |
+| 95 | `laohan33` | `Dooleyyy` | 07-15 00:41:08 | 10-13 00:38:54 | [R:72](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L72) |
+| 96 | `laohan34` | `Bergstromx` | 07-15 00:43:22 | 10-13 00:38:56 | [R:73](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L73) |
+| 97 | `laohan35` | `Martinexxxz` | 07-15 00:45:45 | 10-13 00:43:16 | [R:74](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L74) |
+| 98 | `laohan36` | `Kassulkee` | 07-15 00:48:38 | 10-13 00:46:39 | [R:75](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L75) |
+| 99 | `laohan37` | `Scottieeex` | 07-15 00:50:57 | 10-13 00:47:21 | [R:76](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L76) |
+| 100 | `laohan38` | `Francescoxz` | 07-15 00:54:40 | 10-13 00:51:34 | [R:77](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L77) |
+| 101 | `kiro-leisingriester-github-social` | 未记录（待确认） | 07-15 01:57:01 | 10-13 01:50:01 | 邮箱 `leisingriester@gmail.com`；实际用户名及登录入口待确认 |
+| 102 | `kiro-smithdanielpavmb8172-github-social` | 未记录（待确认） | 07-15 02:04:51 | 10-13 02:04:09 | 邮箱 `smithdanielpavmb8172@gmail.com`；实际用户名及登录入口待确认 |
+| 103 | `kiro-francescagiuseppecominetti-github-social` | 未记录（待确认） | 07-15 02:12:03 | 10-13 02:10:58 | 邮箱 `francescagiuseppecominetti@gmail.com`；实际用户名及登录入口待确认 |
+| 104 | `laohan185` | `Padbergsss` | 08-03 01:35:37 | 08-04 11:49:29 | [R:217](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L217) |
 
 ## 核对结果（重登前快照）
 
@@ -386,7 +433,7 @@ G 的成功表只写 `Account name`，所以不能直接把那 9 个网关账号
 每次完成后更新 CSV 的“恢复进度”，并在本文追加操作日期、真实登录结果、最终网关账号名和请求验证结果。
 如果被登录平台拦住，记录实际页面结果，不把所有失败统一写为封禁。
 
-- [近期优先重登 CSV：73 个](kiro-relogin-priority-2026-10-11.csv)
+- [优先重登 CSV：104 项，31 项待处理](kiro-relogin-priority-2026-10-11.csv)
 - [较早异常或时间待确认 CSV：90 个](kiro-disabled-older-or-undated-2026-10-11.csv)
 
 两个 CSV 已增加“历史上号结论、历史 GitHub 用户名、历史记录邮箱、项目文档证据、历史备注”字段，
