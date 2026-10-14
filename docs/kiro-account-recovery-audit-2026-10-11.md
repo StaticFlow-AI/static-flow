@@ -6,7 +6,7 @@
 
 ## 本轮恢复进度（重登前快照之后）
 
-2026-10-12 按优先重登清单开始恢复。目前 **60 个重登完成，12 个待完成，1 个按用户要求忽略**；
+2026-10-12 按优先重登清单开始恢复。目前 **65 个重登完成，7 个待完成，1 个按用户要求忽略**；
 本次续跑从第三项 `embrookew` 开始，2026-10-13 按用户要求在第 36 项 `nderwood` 完成后暂停。
 2026-10-14 按用户要求，从第 37 项 `afanchard`（GitHub 登录邮箱 `afanchard@utexas.edu`）继续。
 前 35 项按原要求执行代理登录，首次切换到 `http://127.0.0.1:11115` 在第 5 个成功账号之后。
@@ -81,12 +81,21 @@ CSV 的账号状态与检查时间仍对应上述重登前快照；“恢复进�
 | 58 | `fhhfdss` / `fhhfdss` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `derrtf@uchicago.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 1000.00 credits；保留 `do-us-3`、并发 4、RPM 10、间隔 200 ms、最低剩余额度 3；浏览器登录方式 `直连（--no-proxy-server）`。 |
 | 59 | `default` / `hgdshf` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `gerjjhs22@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 1000.00 credits；保留 `do-us-7`、并发 3、RPM 10、间隔 425 ms、最低剩余额度 3；浏览器登录方式 `直连（--no-proxy-server）`。 |
 | 60 | `avenshades` / `avenshades` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `avenshade@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 1000.00 credits；保留 `do-us-2`、并发 3、RPM 10、间隔 425 ms、最低剩余额度 3；浏览器登录方式 `直连（--no-proxy-server）`。 |
+| 61 | `usmore` / `unsmore` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `unsmore@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 999.99 credits；保留 `aws_us2_east1`、并发 3、RPM 10、间隔 425 ms、最低剩余额度 3；浏览器登录方式 `http://127.0.0.1:11115`。 |
+| 63 | `hdsgvghh` / `hdsgvghh` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `retyusa@uchicago.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 1000.00 credits；保留 `do-us-1`、并发 3、RPM 10、间隔 1150 ms、最低剩余额度 3；浏览器登录方式 `http://127.0.0.1:11115`。 |
+| 62 | `ockcharts` / `ockharts` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `ockhart@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 1000.00 credits；保留 `do-us-3`、并发 4、RPM 10、间隔 200 ms、最低剩余额度 3；浏览器登录方式 `http://127.0.0.1:11115`。 |
+| 64 | `dfadgfgg` / `dfadgfgg` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `reyuias@uchicago.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 1000.00 credits；保留 `do-us-10`、并发 3、RPM 10、间隔 1100 ms、最低剩余额度 3；浏览器登录方式 `http://127.0.0.1:11115`。 |
+| 65 | `fdaerwqrqr` / `fdaerwqrqr` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `reqwes@uchicago.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 1000.00 credits；保留 `do-us-3`、并发 3、RPM 10、间隔 1000 ms、最低剩余额度 3；浏览器登录方式 `http://127.0.0.1:11115`。 |
 
 此次使用独立 Kiro CLI 数据目录完成登录，没有改动默认 CLI 账号。
 第 48 项 `uincey` 的首次公网核验在客户端等待 60 秒后读超时；持久用量记录显示服务端最终 HTTP 200、耗时约 74 秒。将响应等待延长至 180 秒后补做完整响应核验，HTTP 200、`KIRO_OK`、`end_turn` 和用量归属均通过，两次临时 Key 均已删除。
 核对发现技能原有刷新代码遗漏 `kiro_channel_rpm_limit`，使首个账号的 RPM 被重置为默认值 5；
 已恢复该账号原值 10，并修正技能与设置保留测试，25 个 Python 测试通过。
 后续重登使用修正后的技能保留该字段。
+
+第 61 项首次把网关名 `usmore` 当作 GitHub 用户名登录，页面提示不支持密码登录，未完成授权或写回。核对历史会话后，仅能确认原网关名 `usmore` 和 Kiro 邮箱 `unsmore@utexas.edu`；当时是用户手动登录，未明确记录真实 GitHub 用户名。用户指出应为 `unsmore`；本轮改用该登录名后密码及验证码验证通过，并已从认证浏览器确认真实 GitHub 用户名 `unsmore`、Kiro 邮箱 `unsmore@utexas.edu`。原快照中的 `usmore` 登录名映射需结合本轮核对结果使用。
+
+第 62 项首次使用网关名 `ockcharts` 登录时，页面提示用户名或密码错误，未完成授权或写回。用户纠正真实 GitHub 用户名为 `ockharts`；本轮密码及验证码验证通过，并从认证浏览器确认用户名 `ockharts`、Kiro 邮箱 `ockhart@utexas.edu`。每五个切换网络按实际重登完成数计算，未完成项不计入。
 
 ## 本轮补充的真实 GitHub 用户名（2026-10-14）
 
@@ -101,6 +110,13 @@ CSV 的账号状态与检查时间仍对应上述重登前快照；“恢复进�
 | 58 | `fhhfdss` | `fhhfdss` | `derrtf@uchicago.edu` | 2026-07-02 23:04 的登录参数、23:06 的身份与导入结果 |
 | 59 | `default` | `hgdshf` | `gerjjhs22@utexas.edu` | 2026-07-02 22:57 的登录参数、23:01 的身份与导入结果 |
 | 60 | `avenshades` | `avenshades` | `avenshade@utexas.edu` | 2026-07-02 04:21 的登录参数；本轮浏览器用户名与 `whoami` 邮箱已核对 |
+| 61 | `usmore` | `unsmore` | `unsmore@utexas.edu` | 用户纠正；本轮密码登录、认证后浏览器用户名及 Kiro 身份邮箱均核对通过 |
+| 62 | `ockcharts` | `ockharts` | `ockhart@utexas.edu` | 用户纠正；本轮认证后浏览器用户名、Kiro 身份邮箱均核对通过 |
+| 63 | `hdsgvghh` | `hdsgvghh` | `retyusa@uchicago.edu` | 本轮密码及验证码登录、认证后浏览器用户名、Kiro 身份邮箱核对通过 |
+| 64 | `dfadgfgg` | `dfadgfgg` | `reyuias@uchicago.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
+| 65 | `fdaerwqrqr` | `fdaerwqrqr` | `reqwes@uchicago.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
+
+第 61 项公网请求已返回 HTTP 200、`KIRO_OK`、`end_turn`；初次用量查询未命中，随后已从持久用量确认唯一对应的临时 Key 和账号归属、`usage_missing=false`，未重复发起模型请求。
 
 第 57 项首次等待用户验证码时，Kiro 设备授权等待超时，未写回网关账号；重新发起直连登录。此前提供的验证码没有提交。
 
@@ -205,7 +221,7 @@ G 的成功表只写 `Account name`，所以不能直接把那 9 个网关账号
 | 43 | `adenrtheds` | `adenrtheds@utexas.edu` | 未记录 | 10-05 23:10:02 | [G:65](github-kiro-account-onboarding-tracker.md#L65) | 已重登，2026-10-14；公网独占请求验证通过 |
 | 44 | `endrickgd` | `endrick@utexas.edu` | 未记录 | 10-05 23:07:53 | [G:64](github-kiro-account-onboarding-tracker.md#L64) | 已重登，2026-10-14；公网独占请求验证通过 |
 | 45 | `onovansdf` | `onovansdf@utexas.edu` | 未记录 | 10-05 23:02:23 | [G:63](github-kiro-account-onboarding-tracker.md#L63) | 已重登，2026-10-14；公网独占请求验证通过 |
-| 61 | `usmore` | `unsmore@utexas.edu` | `usmore` | 09-30 04:02:12 | [S:35](github-account-suspension-appeal-tracker.md#L35) | 待重新登录 |
+| 61 | `usmore` | `unsmore@utexas.edu` | `usmore` | 09-30 04:02:12 | [S:35](github-account-suspension-appeal-tracker.md#L35) | 已重登，2026-10-14；公网独占请求验证通过 |
 
 其中 15 个账号的网关名称与已记录的 GitHub 登录名不同，表中已列出准确映射：
 `kiro-linkueisz3-github-social`、`laohan4`、`laohan6`、`laohan5`、`laohan9`、
@@ -244,10 +260,10 @@ G 的成功表只写 `Account name`，所以不能直接把那 9 个网关账号
 | 58 | `fhhfdss` | `derrtf@uchicago.edu` | GitHub | 09-30 23:02:40 | 已重登，2026-10-14；公网独占请求验证通过 |
 | 59 | `default` | `gerjjhs22@utexas.edu` | GitHub | 09-30 22:59:00 | 已重登，2026-10-14；公网独占请求验证通过 |
 | 60 | `avenshades` | `avenshade@utexas.edu` | GitHub | 09-30 04:26:50 | 已重登，2026-10-14；公网独占请求验证通过 |
-| 62 | `ockcharts` | 未记录 | GitHub | 09-29 21:45:33 | 待重新登录 |
-| 63 | `hdsgvghh` | 未记录 | GitHub | 09-29 21:28:13 | 待重新登录 |
-| 64 | `dfadgfgg` | 未记录 | GitHub | 09-29 21:21:47 | 待重新登录 |
-| 65 | `fdaerwqrqr` | 未记录 | GitHub | 09-29 21:09:28 | 待重新登录 |
+| 62 | `ockcharts` | 未记录 | GitHub | 09-29 21:45:33 | 已重登，2026-10-14；公网独占请求验证通过 |
+| 63 | `hdsgvghh` | 未记录 | GitHub | 09-29 21:28:13 | 已重登，2026-10-14；公网独占请求验证通过 |
+| 64 | `dfadgfgg` | 未记录 | GitHub | 09-29 21:21:47 | 已重登，2026-10-14；公网独占请求验证通过 |
+| 65 | `fdaerwqrqr` | 未记录 | GitHub | 09-29 21:09:28 | 已重登，2026-10-14；公网独占请求验证通过 |
 | 66 | `gghytr` | 未记录 | GitHub | 09-29 12:00:36 | 待重新登录 |
 | 67 | `gdhsbvf` | 未记录 | GitHub | 09-29 11:55:23 | 待重新登录 |
 | 68 | `gderghu` | 未记录 | GitHub | 09-29 11:53:59 | 待重新登录 |
