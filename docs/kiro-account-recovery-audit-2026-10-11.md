@@ -1,4 +1,4 @@
-# Kiro 异常账号与历史上号记录核对（更新至 2026-10-13）
+# Kiro 异常账号与历史上号记录核对（更新至 2026-10-14）
 
 本轮重登前的账号状态快照：**2026-10-12 22:38:57，UTC+08:00**。
 初始快照与历史上号核对日期：2026-10-11。本文件与两个 CSV 保留初建日期的文件名，快照时间以内容为准。
@@ -6,11 +6,13 @@
 
 ## 本轮恢复进度（重登前快照之后）
 
-2026-10-12 按优先重登清单开始恢复。目前 **36 个重登完成，36 个待完成，1 个按用户要求忽略**；
+2026-10-12 按优先重登清单开始恢复。目前 **40 个重登完成，32 个待完成，1 个按用户要求忽略**；
 本次续跑从第三项 `embrookew` 开始，2026-10-13 按用户要求在第 36 项 `nderwood` 完成后暂停。
-下次从第 37 项 `afanchard`（GitHub 登录邮箱 `afanchard@utexas.edu`）继续，并沿用直连。
+2026-10-14 按用户要求，从第 37 项 `afanchard`（GitHub 登录邮箱 `afanchard@utexas.edu`）继续。
 前 35 项按原要求执行代理登录，首次切换到 `http://127.0.0.1:11115` 在第 5 个成功账号之后。
 2026-10-13 用户改为要求直连；从第 36 项 `nderwood` 开始，浏览器使用 `--no-proxy-server`，登录请求清除代理环境变量并直接访问。
+2026-10-14 用户要求按累计每 5 个重登完成账号交替切换：第 36–40 个直连，第 41–45 个使用 `http://127.0.0.1:11115`，第 46–50 个再直连，之后循环。额度为 0 的已重登账号计入完成数，按要求跳过的 Google 账号不计入。
+本轮按用户要求恢复 zellij `proxy` 会话，并启动其中 `Tab #6` 保存的 11115 代理命令；已验证监听和 GitHub 登录页 HTTP 200。可用 `zellij attach proxy` 接入该会话。
 用户确认后续未记录邮箱的 GitHub 账号使用同名登录；`kiro-and163-google-social` 按要求跳过。
 “重登完成”指授权、身份、凭据写回和余额核验完成；额度耗尽账号单独注明模型请求状态。
 CSV 增加“本轮剩余积分”字段，记录每个账号本轮余额刷新时的剩余 credits。
@@ -55,6 +57,10 @@ CSV 的账号状态与检查时间仍对应上述重登前快照；“恢复进�
 | 34 | `ennysondgw` / `ennyson@utexas.edu` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `ennyson@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 370.87 credits；保留 `do-us-2`、并发 3、RPM 10、间隔 1003 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:11115`。 |
 | 35 | `rowtherfdh` / `rowther@utexas.edu` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `rowther@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 728.61 credits；保留 `do-us-9`、并发 3、RPM 10、间隔 1203 ms、最低剩余额度 3；浏览器登录代理 `http://127.0.0.1:11115`。 |
 | 36 | `nderwood` / `nderwood@utexas.edu` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `nderwood@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 767.16 credits；保留 `do-us-8`、并发 3、RPM 10、间隔 1201 ms、最低剩余额度 3；浏览器登录代理 `直连（--no-proxy-server）`。 |
+| 37 | `afanchard` / `afanchard@utexas.edu` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `afanchard@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 291.20 credits；保留 `do-us-2`、并发 3、RPM 10、间隔 425 ms、最低剩余额度 3；浏览器登录为直连。 |
+| 38 | `allahaneas` / `allahaneas@utexas.edu` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `allahaneas@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 647.13 credits；保留 `aws_us_east1`、并发 3、RPM 10、间隔 425 ms、最低剩余额度 3；浏览器登录为直连。 |
+| 39 | `ennoxfs` / `ennoxfs@utexas.edu` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `ennoxfs@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。额度已耗尽；本轮未进行公网模型请求核验，待额度恢复后核验。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 0.00 credits；保留 `aws_us3_east1`、并发 3、RPM 10、间隔 425 ms、最低剩余额度 3；浏览器登录为直连。 |
+| 40 | `bbonsrfds` / `bbonsrfds@utexas.edu` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `bbonsrfds@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 378.05 credits；保留 `do-us-2`、并发 3、RPM 10、间隔 425 ms、最低剩余额度 3；浏览器登录方式 `直连（--no-proxy-server）`。 |
 
 此次使用独立 Kiro CLI 数据目录完成登录，没有改动默认 CLI 账号。
 核对发现技能原有刷新代码遗漏 `kiro_channel_rpm_limit`，使首个账号的 RPM 被重置为默认值 5；
@@ -153,10 +159,10 @@ G 的成功表只写 `Account name`，所以不能直接把那 9 个网关账号
 | 25 | `laohan6` | `Calebkl1lis@asu.edu` | `linkueisz4` | 10-09 00:47:20 | [R:26](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L26) | 已重登，2026-10-13；公网独占请求验证通过 |
 | 26 | `laohan4` | `Nolan.arlisle@asu.edu` | `linkueisz2` | 10-09 00:45:09 | [R:25](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L25) | 已重登，2026-10-13；额度用尽，模型请求待核验 |
 | 27 | `kiro-linkueisz3-github-social` | `Adrian.Carlisle@asu.edu` | `linkueisz3` | 10-09 00:35:49 | [R:24](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md#L24) | 已重登，2026-10-13；公网独占请求验证通过 |
-| 37 | `afanchard` | `afanchard@utexas.edu` | 未记录 | 10-05 23:48:23 | [G:71](github-kiro-account-onboarding-tracker.md#L71) | 待重新登录 |
-| 38 | `allahaneas` | `allahaneas@utexas.edu` | 未记录 | 10-05 23:33:30 | [G:70](github-kiro-account-onboarding-tracker.md#L70) | 待重新登录 |
-| 39 | `ennoxfs` | `ennoxfs@utexas.edu` | 未记录 | 10-05 23:30:51 | [G:69](github-kiro-account-onboarding-tracker.md#L69) | 待重新登录 |
-| 40 | `bbonsrfds` | `bbonsrfds@utexas.edu` | 未记录 | 10-05 23:25:24 | [G:68](github-kiro-account-onboarding-tracker.md#L68) | 待重新登录 |
+| 37 | `afanchard` | `afanchard@utexas.edu` | 未记录 | 10-05 23:48:23 | [G:71](github-kiro-account-onboarding-tracker.md#L71) | 已重登，2026-10-14；公网独占请求验证通过 |
+| 38 | `allahaneas` | `allahaneas@utexas.edu` | 未记录 | 10-05 23:33:30 | [G:70](github-kiro-account-onboarding-tracker.md#L70) | 已重登，2026-10-14；公网独占请求验证通过 |
+| 39 | `ennoxfs` | `ennoxfs@utexas.edu` | 未记录 | 10-05 23:30:51 | [G:69](github-kiro-account-onboarding-tracker.md#L69) | 已重登，2026-10-14；额度用尽，模型请求待核验 |
+| 40 | `bbonsrfds` | `bbonsrfds@utexas.edu` | 未记录 | 10-05 23:25:24 | [G:68](github-kiro-account-onboarding-tracker.md#L68) | 已重登，2026-10-14；公网独占请求验证通过 |
 | 41 | `ulligandw` | `ulligandw@utexas.edu` | 未记录 | 10-05 23:20:11 | [G:66](github-kiro-account-onboarding-tracker.md#L66) | 待重新登录 |
 | 42 | `terhilder` | `terhilder@utexas.edu` | 未记录 | 10-05 23:19:24 | [G:67](github-kiro-account-onboarding-tracker.md#L67) | 待重新登录 |
 | 43 | `adenrtheds` | `adenrtheds@utexas.edu` | 未记录 | 10-05 23:10:02 | [G:65](github-kiro-account-onboarding-tracker.md#L65) | 待重新登录 |
