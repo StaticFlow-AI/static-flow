@@ -6,7 +6,7 @@
 
 ## 本轮恢复进度（重登前快照之后）
 
-2026-10-12 按优先重登清单开始恢复。目前 **50 个重登完成，22 个待完成，1 个按用户要求忽略**；
+2026-10-12 按优先重登清单开始恢复。目前 **55 个重登完成，17 个待完成，1 个按用户要求忽略**；
 本次续跑从第三项 `embrookew` 开始，2026-10-13 按用户要求在第 36 项 `nderwood` 完成后暂停。
 2026-10-14 按用户要求，从第 37 项 `afanchard`（GitHub 登录邮箱 `afanchard@utexas.edu`）继续。
 前 35 项按原要求执行代理登录，首次切换到 `http://127.0.0.1:11115` 在第 5 个成功账号之后。
@@ -71,6 +71,11 @@ CSV 的账号状态与检查时间仍对应上述重登前快照；“恢复进�
 | 48 | `uincey` / `mshawpl@utexas.edu` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `mshawpl@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 686.47 credits；保留 `do-us-3`、并发 3、RPM 10、间隔 1037 ms、最低剩余额度 3；浏览器登录方式 `直连（--no-proxy-server）`。 |
 | 49 | `finslow` / `inslow@utexas.edu` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `inslow@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 839.95 credits；保留 `do-us-4`、并发 3、RPM 10、间隔 1033 ms、最低剩余额度 3；浏览器登录方式 `直连（--no-proxy-server）`。 |
 | 50 | `enroseop` / `enrose@utexas.edu` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `enrose@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 881.43 credits；保留 `do-us-2`、并发 3、RPM 10、间隔 1031 ms、最低剩余额度 3；浏览器登录方式 `直连（--no-proxy-server）`。 |
+| 51 | `aveleyol` / `aveley@utexas.edu` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `aveley@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 833.34 credits；保留 `do-us-1`、并发 3、RPM 10、间隔 1029 ms、最低剩余额度 3；浏览器登录方式 `http://127.0.0.1:11115`。 |
+| 52 | `vanderto` / `vander@utexas.edu` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `vander@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 734.47 credits；保留 `do-us-3`、并发 3、RPM 10、间隔 1027 ms、最低剩余额度 3；浏览器登录方式 `http://127.0.0.1:11115`。 |
+| 53 | `phyrurwe` / `phyrurwe@utexas.edu` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `phyrurwe@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 785.20 credits；保留 `do-us-3`、并发 3、RPM 10、间隔 1023 ms、最低剩余额度 3；浏览器登录方式 `http://127.0.0.1:11115`。 |
+| 54 | `anthamt` / `anthamt@utexas.edu` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `anthamt@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 409.61 credits；保留 `do-us-2`、并发 3、RPM 10、间隔 1021 ms、最低剩余额度 3；浏览器登录方式 `http://127.0.0.1:11115`。 |
+| 55 | `reshnderam` / `reshnderam@utexas.edu` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `reshnderam@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 988.89 credits；保留 `do-us-3`、并发 3、RPM 10、间隔 233 ms、最低剩余额度 3；浏览器登录方式 `http://127.0.0.1:11115`。 |
 
 此次使用独立 Kiro CLI 数据目录完成登录，没有改动默认 CLI 账号。
 第 48 项 `uincey` 的首次公网核验在客户端等待 60 秒后读超时；持久用量记录显示服务端最终 HTTP 200、耗时约 74 秒。将响应等待延长至 180 秒后补做完整响应核验，HTTP 200、`KIRO_OK`、`end_turn` 和用量归属均通过，两次临时 Key 均已删除。
@@ -208,11 +213,11 @@ G 的成功表只写 `Account name`，所以不能直接把那 9 个网关账号
 | 48 | `uincey` | `mshawpl@utexas.edu` | GitHub | 10-03 23:36:07 | 已重登，2026-10-14；公网独占请求验证通过 |
 | 49 | `finslow` | `inslow@utexas.edu` | GitHub | 10-03 23:18:33 | 已重登，2026-10-14；公网独占请求验证通过 |
 | 50 | `enroseop` | `enrose@utexas.edu` | GitHub | 10-03 23:17:50 | 已重登，2026-10-14；公网独占请求验证通过 |
-| 51 | `aveleyol` | `aveley@utexas.edu` | GitHub | 10-03 23:12:44 | 待重新登录 |
-| 52 | `vanderto` | `vander@utexas.edu` | GitHub | 10-03 23:08:00 | 待重新登录 |
-| 53 | `phyrurwe` | `phyrurwe@utexas.edu` | GitHub | 10-03 23:04:18 | 待重新登录 |
-| 54 | `anthamt` | `anthamt@utexas.edu` | GitHub | 10-03 23:01:10 | 待重新登录 |
-| 55 | `reshnderam` | `reshnderam@utexas.edu` | GitHub | 10-02 01:03:07 | 待重新登录 |
+| 51 | `aveleyol` | `aveley@utexas.edu` | GitHub | 10-03 23:12:44 | 已重登，2026-10-14；公网独占请求验证通过 |
+| 52 | `vanderto` | `vander@utexas.edu` | GitHub | 10-03 23:08:00 | 已重登，2026-10-14；公网独占请求验证通过 |
+| 53 | `phyrurwe` | `phyrurwe@utexas.edu` | GitHub | 10-03 23:04:18 | 已重登，2026-10-14；公网独占请求验证通过 |
+| 54 | `anthamt` | `anthamt@utexas.edu` | GitHub | 10-03 23:01:10 | 已重登，2026-10-14；公网独占请求验证通过 |
+| 55 | `reshnderam` | `reshnderam@utexas.edu` | GitHub | 10-02 01:03:07 | 已重登，2026-10-14；公网独占请求验证通过 |
 | 56 | `enwicks` | `enwick@utexas.edu` | GitHub | 09-30 23:15:27 | 待重新登录 |
 | 57 | `kiro-spare-1` | `ttdevb@uchicago.edu` | GitHub | 09-30 23:11:24 | 待重新登录 |
 | 58 | `fhhfdss` | `derrtf@uchicago.edu` | GitHub | 09-30 23:02:40 | 待重新登录 |
