@@ -7,10 +7,10 @@
 
 ## 本轮恢复进度（重登前快照之后）
 
-2026-10-12 按优先重登清单开始恢复。目前 **98 个重登完成，4 个待完成，2 个按用户要求忽略**，清单共 104 项。后续补入的 31 项已完成 27 项，尚待处理 4 项。
-2026-10-15 用户要求先不处理第 101–103 项 GitHub 经 Google 登录的账号，三项已标记“按用户要求暂缓”。页首待完成数包含这三项；其余账号继续依次恢复。
-2026-10-15 第 104 项 `laohan185` 的历史 GitHub 用户名 `Padbergsss` 及邮箱 `Padbergsss@asu.edu` 使用本批统一密码均提示“用户名或密码错误”；尚未进入 2FA，未完成 Kiro 授权或写回凭据，本轮余额未核验，待确认当前有效登录凭据。用户随后提供的验证码未提交。
-2026-10-15 18:53:53（UTC+08:00）阶段复核：完整读取 200 + 154 条、共 354 个唯一账号；95 个停用，其中 35 个 `auth_401`、58 个仅停用、2 个其他错误。相比本次补单前快照，已清除 27 个账号的 401，未发现新增 401。已完成的 98 个账号均为预期 GitHub social 身份、邮箱一致、已启用、无账号异常、余额缓存为 `ready`，原代理及调度设置保持一致；其中 86 个通过账号独占公网模型请求与用量归属核验，12 个本轮余额为 0、模型请求待额度恢复后核验。
+2026-10-12 按优先重登清单开始恢复。目前 **99 个重登完成，3 个待完成，2 个按用户要求忽略**，清单共 104 项。后续补入的 31 项已完成 28 项，尚待处理 3 项。
+2026-10-15 用户要求先不处理第 101–103 项 GitHub 经 Google 登录的账号，三项已标记“按用户要求暂缓”。这三项是当前仅剩的待完成项，其余可执行账号已全部完成；本轮另有两项按此前要求忽略。
+2026-10-15 第 104 项 `laohan185` 的用户名 `Padbergsss` 及邮箱 `Padbergsss@asu.edu` 最初使用本批统一密码均提示“用户名或密码错误”。核对 2026-08-03 的实际改密过程，确认当时成功设置的新密码与本批统一密码不同；沿用该账号历史密码后，本轮 GitHub 密码登录已通过。密码仅在进程内使用，未写入文档，本轮未修改 GitHub 密码。
+2026-10-15 19:02:44（UTC+08:00）最终复核：完整读取 200 + 154 条、共 354 个唯一账号；94 个停用，其中 34 个 `auth_401`、58 个仅停用、2 个其他错误。相比本次补单前快照，401 从 62 个降至 34 个，已清除 28 个账号的 401，未发现新增 401。已完成的 99 个账号均为预期 GitHub social 身份、邮箱一致、已启用、无账号异常、余额缓存为 `ready`，原代理及调度设置保持一致；其中 87 个通过账号独占公网模型请求与用量归属核验，12 个本轮余额为 0、模型请求待额度恢复后核验。验证用临时 Key 均已删除；本轮浏览器已关闭，11115 代理保持运行。
 2026-10-15 首批 73 项处理结束：`kiro-and163-google-social` 按用户要求跳过；`kiro-web-github` 按用户要求标记为“失联”，停止身份追查及重登，真实 GitHub 用户名与邮箱仍未确认，本轮余额未核验。该账号原导入时间为 2026-06-22 16:19:42.026（UTC+08:00）；“失联”是本轮处理结论，不代表已确认 GitHub 封禁。
 首批 71 个完成账号中，65 个已通过账号独占公网模型请求及用量归属核验；6 个本轮余额为 0（`haedradw`、`shfordsdf`、`laohan11`、`laohan4`、`atterfield`、`ennoxfs`），模型请求待额度恢复后核验。2026-10-15 再次完整分页检查 354 个账号，71 个完成账号均已启用、无账号异常、余额缓存为 `ready`。
 本次续跑从第三项 `embrookew` 开始，2026-10-13 按用户要求在第 36 项 `nderwood` 完成后暂停。
@@ -124,6 +124,7 @@ CSV 第 1–73 项的账号状态与检查时间仍对应上述重登前快照�
 | 98 | `laohan36` / `Kassulkee` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `Kassulke@asu.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 393.96 credits；保留 `do-us-8`、并发 3、RPM 10、间隔 1003 ms、最低剩余额度 3；浏览器登录方式 `直连（--no-proxy-server）`。 |
 | 99 | `laohan37` / `Scottieeex` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `Scottieee@asu.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 413.79 credits；保留 `do-us-2`、并发 3、RPM 10、间隔 1004 ms、最低剩余额度 3；浏览器登录方式 `直连（--no-proxy-server）`。 |
 | 100 | `laohan38` / `Francescoxz` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `Francesco@asu.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 163.12 credits；保留 `do-us-2`、并发 3、RPM 10、间隔 1005 ms、最低剩余额度 3；浏览器登录方式 `直连（--no-proxy-server）`。 |
+| 104 | `laohan185` / `Padbergsss` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `Padbergsss@asu.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 1000.00 credits；保留 `do-us-11`、并发 3、RPM 10、间隔 1000 ms、最低剩余额度 3；浏览器登录方式 `直连（--no-proxy-server）`。 |
 
 此次使用独立 Kiro CLI 数据目录完成登录，没有改动默认 CLI 账号。
 第 48 项 `uincey` 的首次公网核验在客户端等待 60 秒后读超时；持久用量记录显示服务端最终 HTTP 200、耗时约 74 秒。将响应等待延长至 180 秒后补做完整响应核验，HTTP 200、`KIRO_OK`、`end_turn` 和用量归属均通过，两次临时 Key 均已删除。
@@ -191,6 +192,7 @@ CSV 第 1–73 项的账号状态与检查时间仍对应上述重登前快照�
 | 98 | `laohan36` | `Kassulkee` | `Kassulke@asu.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
 | 99 | `laohan37` | `Scottieeex` | `Scottieee@asu.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
 | 100 | `laohan38` | `Francescoxz` | `Francesco@asu.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
+| 104 | `laohan185` | `Padbergsss` | `Padbergsss@asu.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
 
 第 61 项公网请求已返回 HTTP 200、`KIRO_OK`、`end_turn`；初次用量查询未命中，随后已从持久用量确认唯一对应的临时 Key 和账号归属、`usage_missing=false`，未重复发起模型请求。
 
