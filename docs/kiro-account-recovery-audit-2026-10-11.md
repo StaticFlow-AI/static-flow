@@ -7,7 +7,7 @@
 
 ## 本轮恢复进度（重登前快照之后）
 
-2026-10-12 按优先重登清单开始恢复。目前 **80 个重登完成，22 个待完成，2 个按用户要求忽略**，清单共 104 项。后续补入的 31 项已完成 9 项，尚待处理 22 项。
+2026-10-12 按优先重登清单开始恢复。目前 **85 个重登完成，17 个待完成，2 个按用户要求忽略**，清单共 104 项。后续补入的 31 项已完成 14 项，尚待处理 17 项。
 2026-10-15 用户要求先不处理第 101–103 项 GitHub 经 Google 登录的账号，三项已标记“按用户要求暂缓”。页首待完成数包含这三项；其余账号继续依次恢复。
 2026-10-15 首批 73 项处理结束：`kiro-and163-google-social` 按用户要求跳过；`kiro-web-github` 按用户要求标记为“失联”，停止身份追查及重登，真实 GitHub 用户名与邮箱仍未确认，本轮余额未核验。该账号原导入时间为 2026-06-22 16:19:42.026（UTC+08:00）；“失联”是本轮处理结论，不代表已确认 GitHub 封禁。
 首批 71 个完成账号中，65 个已通过账号独占公网模型请求及用量归属核验；6 个本轮余额为 0（`haedradw`、`shfordsdf`、`laohan11`、`laohan4`、`atterfield`、`ennoxfs`），模型请求待额度恢复后核验。2026-10-15 再次完整分页检查 354 个账号，71 个完成账号均已启用、无账号异常、余额缓存为 `ready`。
@@ -104,6 +104,11 @@ CSV 第 1–73 项的账号状态与检查时间仍对应上述重登前快照�
 | 80 | `ghtingalew` / `ghtingalew` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `ghtingalew@utexas.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。额度已耗尽；本轮未进行公网模型请求核验，待额度恢复后核验。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 0.00 credits；保留 `do-us-7`、并发 3、RPM 10、间隔 1129 ms、最低剩余额度 3；浏览器登录方式 `直连（--no-proxy-server）`。 |
 | 81 | `laohan19` / `Christiansenx` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `Christiansen@asu.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。额度已耗尽；本轮未进行公网模型请求核验，待额度恢复后核验。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 0.00 credits；保留 `do-us-7`、并发 3、RPM 10、间隔 1101 ms、最低剩余额度 3；浏览器登录方式 `直连（--no-proxy-server）`。 |
 | 82 | `laohan20` / `Thompsonx` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `Thompsonx@asu.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 0.60 credits；保留 `do-us-7`、并发 3、RPM 10、间隔 1102 ms、最低剩余额度 3；浏览器登录方式 `直连（--no-proxy-server）`。 |
+| 83 | `laohan21` / `Julianazzzx` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `Julianaz@asu.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 454.16 credits；保留 `do-us-7`、并发 3、RPM 10、间隔 1003 ms、最低剩余额度 3；浏览器登录方式 `http://127.0.0.1:11115`。 |
+| 84 | `laohan22` / `Leslieex` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `Leslieex@asu.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。额度已耗尽；本轮未进行公网模型请求核验，待额度恢复后核验。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 0.00 credits；保留 `do-us-8`、并发 3、RPM 10、间隔 1004 ms、最低剩余额度 3；浏览器登录方式 `http://127.0.0.1:11115`。 |
+| 85 | `laohan23` / `Yazminz` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `Yazmin@asu.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 364.31 credits；保留 `do-us-8`、并发 3、RPM 10、间隔 1005 ms、最低剩余额度 3；浏览器登录方式 `http://127.0.0.1:11115`。 |
+| 86 | `laohan24` / `Hartmannxz` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `Hartmannx@asu.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 632.97 credits；保留 `do-us-8`、并发 3、RPM 10、间隔 1006 ms、最低剩余额度 3；浏览器登录方式 `http://127.0.0.1:11115`。 |
+| 87 | `laohan25` / `Carmellaz` | GitHub/Kiro 重新授权完成；`whoami` 邮箱为 `Carmellaz@asu.edu`；原账号已启用，`issue_kind` 已清除，余额缓存为 `ready`。独占账号的临时 Key 公网请求 `claude-sonnet-5.5` 返回 HTTP 200、`KIRO_OK`、`end_turn`；用量归属已确认，`usage_missing=false`；临时 Key 已删除并验证不存在。 | `KIRO STUDENT`，上限 1000，余额刷新时剩余 60.76 credits；保留 `do-us-8`、并发 3、RPM 10、间隔 1007 ms、最低剩余额度 3；浏览器登录方式 `http://127.0.0.1:11115`。 |
 
 此次使用独立 Kiro CLI 数据目录完成登录，没有改动默认 CLI 账号。
 第 48 项 `uincey` 的首次公网核验在客户端等待 60 秒后读超时；持久用量记录显示服务端最终 HTTP 200、耗时约 74 秒。将响应等待延长至 180 秒后补做完整响应核验，HTTP 200、`KIRO_OK`、`end_turn` 和用量归属均通过，两次临时 Key 均已删除。
@@ -116,6 +121,9 @@ CSV 第 1–73 项的账号状态与检查时间仍对应上述重登前快照�
 第 62 项首次使用网关名 `ockcharts` 登录时，页面提示用户名或密码错误，未完成授权或写回。用户纠正真实 GitHub 用户名为 `ockharts`；本轮密码及验证码验证通过，并从认证浏览器确认用户名 `ockharts`、Kiro 邮箱 `ockhart@utexas.edu`。每五个切换网络按实际重登完成数计算，未完成项不计入。
 
 追查末项时发现，现有刷新流程经 `create_admin_kiro_account` / `upsert_kiro_account` 写回已有账号，会将 `created_at_ms` 更新为本次导入时间；因此当前数据库的创建时间排序不能直接视为最初注册顺序。本轮未修改该实现或回写历史时间。第 56–71 项已在下表记录实际核验的 GitHub 用户名；此前仅记录登录邮箱的项保留原证据，不据邮箱推断用户名。
+
+
+第 83 项 `laohan21` / `Julianazzzx` 首次通过 GitHub 验证后，Kiro 回调页面返回 `invalid_request`，当次未写回网关凭据。保留并核对已登录的独立 GitHub 浏览器会话后，使用新的 Kiro 设备授权复用该会话，完成身份、余额与账号独占公网请求核验；全程沿用 11115 代理。
 
 ## 本轮补充的真实 GitHub 用户名（2026-10-14 起）
 
@@ -150,6 +158,11 @@ CSV 第 1–73 项的账号状态与检查时间仍对应上述重登前快照�
 | 80 | `ghtingalew` | `ghtingalew` | `ghtingalew@utexas.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
 | 81 | `laohan19` | `Christiansenx` | `Christiansen@asu.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
 | 82 | `laohan20` | `Thompsonx` | `Thompsonx@asu.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
+| 83 | `laohan21` | `Julianazzzx` | `Julianaz@asu.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
+| 84 | `laohan22` | `Leslieex` | `Leslieex@asu.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
+| 85 | `laohan23` | `Yazminz` | `Yazmin@asu.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
+| 86 | `laohan24` | `Hartmannxz` | `Hartmannx@asu.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
+| 87 | `laohan25` | `Carmellaz` | `Carmellaz@asu.edu` | 本轮认证后 GitHub 用户名与 Kiro 身份邮箱核对通过 |
 
 第 61 项公网请求已返回 HTTP 200、`KIRO_OK`、`end_turn`；初次用量查询未命中，随后已从持久用量确认唯一对应的临时 Key 和账号归属、`usage_missing=false`，未重复发起模型请求。
 
