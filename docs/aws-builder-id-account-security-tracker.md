@@ -427,7 +427,7 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faiz-amanullah001
 | `muhammad.rifat@binus.ac.id` | `kiro-muhammad-rifat-builder-id` | AWS 已确认成功 | KIRO STUDENT / 999.96 | `do-us-10` | HTTP 200，KIRO_OK，归属已确认 |
 | `muhammad.rifai003@binus.ac.id` | `kiro-muhammad-rifai003-builder-id` | AWS 已确认成功 | KIRO STUDENT / 999.96 | `aws_us3_east1` | HTTP 200，KIRO_OK，归属已确认 |
 | `muhammad.revano@binus.ac.id` | `kiro-muhammad-revano-builder-id` | AWS 已确认成功 | KIRO STUDENT / 999.96 | `aws_us_east1` | HTTP 200，KIRO_OK，归属已确认 |
-| `muhammad.retmawan@binus.ac.id` | 未导入 | 待手动 Security check | 待核验 | 待配置 | 待核验 |
+| `muhammad.retmawan@binus.ac.id` | 未导入 | AWS ERR-837，未改密 | 待核验 | 待配置 | 待核验 |
 | `muhammad.ridho12004@binus.ac.id` | 未导入 | AWS ERR-837，未改密 | 待核验 | 待配置 | 待核验 |
 | `muhammad.reifan@binus.ac.id` | 未导入 | AWS ERR-837，未改密 | 待核验 | 待配置 | 待核验 |
 | `muhammad.razzaq002@binus.ac.id` | 未导入 | AWS ERR-837，未改密 | 待核验 | 待配置 | 待核验 |
@@ -455,12 +455,15 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faiz-amanullah001
 读取持久化事件并确认归属，没有为填充列表重复发起模型请求。
 导入时 `tmp-us-for-kiro` 不通的账号按导入器排序选择下一个合格美国代理，未修改全局代理配置。
 
-待人工验证：`muhammad.retmawan@binus.ac.id`。
-AWS 页面要求完成 Security check / Verify；保留独立 AWS 浏览器，当前尚未改密或导入。
-该账号的 CLI 设备流已停止，手动验证后应在同一浏览器继续并重新启动一个设备流。
+`muhammad.retmawan@binus.ac.id` 最初停在 Security check。用户随后明确要求代为完成。
+在保留的独立 Chrome 中提交字符图片验证后，AWS 页面返回 `Something went wrong` 并要求重新加载。
+旧 CLI 设备流已停止；在同一 Chrome 配置中启动一个新的设备流后，提交该账号邮箱即返回
+`ERR-837 - Account issue`，尚未进入密码与 MFA 步骤。AWS 错误时间为
+2026-10-20 13:34:40 UTC，请求号 `538ddea7-a380-4359-839b-fcf40fbf1362`。
+账号尚未改密、替换 MFA 或导入；新的 CLI 设备流已停止，错误证据另存私有持久目录。
 
-AWS 账号错误：`muhammad.ridho12004@binus.ac.id`、`muhammad.reifan@binus.ac.id`、`muhammad.razzaq002@binus.ac.id`、`muhammad.rathana@binus.ac.id`。
-输入邮箱后即返回 `ERR-837 - Account issue`，AWS 要求联系 Support；本轮尚未输入其密码、改密或导入。
+AWS 账号错误：`muhammad.retmawan@binus.ac.id`、`muhammad.ridho12004@binus.ac.id`、`muhammad.reifan@binus.ac.id`、`muhammad.razzaq002@binus.ac.id`、`muhammad.rathana@binus.ac.id`。
+上述账号最新登录尝试均在邮箱步骤返回 `ERR-837 - Account issue`，AWS 要求联系 Support；尚未改密或导入。
 浏览器保留在 AWS 错误页面，等待账号问题解决。
 
 <!-- builder-id-batch-20261020:end -->
