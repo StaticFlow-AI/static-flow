@@ -103,15 +103,21 @@ Kiro identity is established.
 - If device authorization expires, stop its pending poller and start one new flow
   in the same isolated environment. If the outcome of a gateway write is unclear,
   read the exact account before any retry.
+- Pace individual browser actions by 1–2 seconds and require the next page/control
+  to be ready. For recoverable browser errors and rejected TOTP codes, follow the
+  shared [bounded retry and fresh-window procedure](../aws-builder-id-security/references/browser-details.md#action-pacing-and-bounded-retries).
+  Default to three attempts total per failed step; keep successful stages intact.
+  `ERR-837` alone does not prove a permanent restriction or a speed-related cause.
 - Stop on an unresolved identity mismatch, missing manual MFA, unsupported region,
   explicit account restriction, or exhausted eligible proxies. State the specific
   remaining step and retain completed results; do not keep trying login methods
   or proxies against an explicit restriction.
-- If the user requests intervention on errors, pause after the first failed login
-  or validation, retain completed steps, and wait before another proxy, login
-  method, or account. Honor an authorized request to provide that account's current
-  password and authenticator information through the private conversation; keep
-  those secrets out of trackers and diagnostic output.
+- If the latest user instruction selects intervention on the first error, pause
+  after that failed login or validation; otherwise exhaust only the applicable
+  bounded recovery before handoff. Retain completed steps and wait before changing
+  proxy, login method, or account. Honor an authorized request to provide that
+  account's current password and authenticator information through the private
+  conversation; keep those secrets out of trackers and diagnostic output.
 - For a requested account tracker, record email, gateway name, auth type,
   subscription/dated balance, proxy, and actual test result. StaticFlow's existing
   Builder ID tracker is `docs/aws-builder-id-account-security-tracker.md`. Credentials

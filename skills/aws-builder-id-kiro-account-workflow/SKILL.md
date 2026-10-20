@@ -57,6 +57,14 @@ input when actually needed.
 
 ## Run the selected stages
 
+Use the shared [action pacing, retry, and TOTP procedure](../aws-builder-id-security/references/browser-details.md#action-pacing-and-bounded-retries)
+for both security forms and Kiro browser authorization. Default to 1–2 second
+spacing plus readiness checks and at most three attempts per recoverable step.
+Keep the selected retry mode and attempts in the checkpoint. Apply the user's
+latest retry instruction: a later request for bounded recovery supersedes an
+earlier stop-on-first-error preference. Preserve successful stages and the same
+browser/callback when resuming; do not reset attempts by restarting the workflow.
+
 ### Password or MFA maintenance, when requested
 
 Read and follow [AWS Builder ID Security](../aws-builder-id-security/SKILL.md).

@@ -40,9 +40,11 @@ scans a QR code, continue from that browser instead of restarting account login.
    the actual destination before filling secrets: current flows use the profile
    host and regional `*.signin.aws` hosts (including SSO/credentials subdomains).
 4. Handle the existing MFA challenge using the user's authenticator code, or the
-   provided TOTP secret through `https://2fa.fun/` **only when the user authorized
-   sending that secret there**. See [browser details](references/browser-details.md)
-   for the observed selectors, fresh-code handling, and a DevTools fallback.
+   authorized current TOTP seed locally. Use `https://2fa.fun/` **only when the user
+   authorized sending that secret there**. Follow
+   [browser details](references/browser-details.md#action-pacing-and-bounded-retries)
+   for 1–2 second action spacing, page readiness, bounded retries, TOTP time checks,
+   and a DevTools fallback. A recoverable first error need not require a handoff.
 5. For CAPTCHA, recovery, passkey/device prompts, or other verification requiring
    the user's device, leave the browser visible and request that specific action.
    An invalid code is not a reason to replay the same code or repeat login blindly.
@@ -98,8 +100,9 @@ until new enrollment is confirmed. Never report replacement complete at QR displ
 
 Only mark a step complete after its corresponding evidence. On ambiguous
 submission outcomes, inspect the current state before another mutation; on an
-explicit validation failure, fix the stated input with the user first. Keep an
-already-completed MFA change complete if password rotation is blocked.
+explicit password validation failure, fix the stated input with the user first.
+For a rejected MFA code, use the bounded fresh-window recovery before handoff.
+Keep an already-completed MFA change complete if password rotation is blocked.
 
 ## Account records and handoff
 

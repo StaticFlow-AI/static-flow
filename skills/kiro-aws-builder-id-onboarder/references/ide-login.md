@@ -29,6 +29,12 @@ When using a protocol helper, report that mode accurately instead of claiming
 an IDE application was opened. Keep authorization URLs, codes, state, PKCE
 verifiers, and registration/token responses in process memory.
 
+Apply the shared [browser pacing and bounded recovery procedure](../../aws-builder-id-security/references/browser-details.md#action-pacing-and-bounded-retries):
+wait 1–2 seconds between actions, verify page readiness, and allow limited retries
+of a failed recoverable browser stage in the same flow. For MFA, check time and wait
+for a fresh code window. Keep the callback listener alive during these waits;
+do not put client registration or one-use token exchange into a browser retry loop.
+
 ## Portal and Builder ID flow
 
 1. Start one loopback callback server before opening the portal. In the audited

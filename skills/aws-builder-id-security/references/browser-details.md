@@ -74,6 +74,77 @@ When deleting a device, scope the first **Delete** to the visible inventory acti
 and the second to the visible **Delete MFA device?** dialog. Hidden dialogs can
 contain additional Delete buttons. Recheck the selected old row before confirmation.
 
+## Action pacing and bounded retries
+
+Allow 1–2 seconds between individual browser actions, including consecutive fills,
+clicks, and navigation. Await each action; do not dispatch a form's entire sequence
+at once. Then require the next expected control to be visible, enabled, and stable
+before acting. A fixed delay alone does not establish readiness. After redirects,
+reacquire the page/context; poll loading state about once a second with a finite
+deadline, normally 30 seconds. Generate an OTP only after its input is ready.
+
+For a recoverable browser step, default to three attempts total, counting the
+initial submission, across the controller and its caller. Wait about 5 seconds
+before the first retry and 10 before the second; MFA instead follows the fresh
+time-window procedure below. Honor an explicitly selected stop-on-first-error mode
+and server cooldowns. Exhausting a step's budget requires a handoff, not a fresh
+budget from restarting the helper or changing accounts, proxies, or login methods.
+
+Before each retry, inspect the current page, verified account, callback/helper
+state, and any success evidence. If the step already succeeded, advance from there.
+If submission is still pending or its outcome is unknown, reconcile it before
+resubmitting. Keep passwords, MFA enrollment/deletion, account import, and token
+exchange out of a generic retry loop; each needs its own result check. In particular,
+never replay a one-use authorization code after an uncertain token exchange.
+
+| Observation | Recovery within the step budget |
+| --- | --- |
+| Loading page, temporarily missing control, stale DOM/CDP context | Wait and rediscover the target; do not treat this as an authentication failure or click again while a request is pending. |
+| Generic temporary error or failed navigation before any confirmed mutation | Use the page's retry/reload path after the delay, recheck identity, and resume the failed step in the same browser and auth flow. |
+| `ERR-837 - Account issue` without an explicit lock, suspension, or cooldown | Preserve the error/request ID; it does not establish the cause or prove suspension. Permit the bounded delayed retry of the failed sign-in stage when its retry/reload path is available. Preserve the pending callback listener. |
+| Rejected TOTP code | Recheck the current authenticator and time, then wait for a fresh window as below. |
+| Explicit wrong password, invalid new-password policy, locked/disabled account, rate limit, or required user-held factor | Stop automated submissions and report the required correction or cooldown; unchanged input is not a transient retry. |
+
+Store only the stage, attempt count, timing, error category/request ID, and verified
+outcome in the checkpoint. Resume a user-completed MFA/consent from the actual page,
+even when the next password form omits the email; retain the prior verified identity
+chain instead of unnecessarily navigating back and challenging the user again.
+
+## TOTP timing and recovery
+
+Use an authorized current authenticator; a supplied seed may be processed locally
+without disclosing it to an external OTP service. Keep the seed and codes in memory.
+Use its configured algorithm, digit count, and period; do not infer custom parameters
+from a seed alone. TOTP's default period is 30 seconds, not a millisecond-precision
+race. Clock offset, arrival near a boundary, and reuse of an already accepted code
+are distinct possibilities to check. See [RFC 6238 sections 4–6](https://www.rfc-editor.org/rfc/rfc6238).
+
+1. Compare the generator's clock with a reliable current time source. When using
+   AWS HTTPS `Date` headers diagnostically, use the selected proxy, measure request
+   start/end, and estimate offset from the local midpoint. Sample again if latency
+   or caching makes the value uncertain; headers have finite precision and are not
+   an exact view of the MFA verifier's clock. Apply a fresh offset only inside the
+   helper; do not change the machine clock or hardcode a previous run's offset.
+2. Fill/submit a fresh code with enough remaining lifetime for UI waits and network
+   transit, normally at least 15 seconds. Otherwise wait for the next boundary plus
+   1–2 seconds and generate then. If a code was already accepted for login and the
+   next security step asks again in that window, wait for the next window as well.
+   Track the account and attempted/accepted time-step counter, not the secret code.
+3. After the first rejection, verify the account/current device, refresh the time
+   estimate, and wait for the next untried window. Retry only a newly generated code,
+   with at most two fresh-window retries under the same three-attempt step budget.
+   Do not sweep codes from adjacent past/future windows or replay the rejected code.
+   A new step cannot reuse an already attempted window for that account.
+4. On success, continue from the resulting page. On budget exhaustion or an explicit
+   lock/cooldown, retain the challenge and hand off. Waiting can resolve a near-expiry
+   or reused-code problem; it does not repair a wrong seed or a persistent clock offset.
+
+[AWS's Builder ID troubleshooting guidance](https://docs.aws.amazon.com/signin/latest/userguide/troubleshooting-builder-id-issues.html)
+also identifies clock synchronization as relevant to authenticator failures. During
+the October 2026 batch a measured clock offset was corrected and one challenge then
+passed; another required user intervention. Those observations do not establish
+that every MFA failure or ERR-837 was caused by timing or automation speed.
+
 ## Authorized 2fa.fun use
 
 Send a TOTP secret to this site only when that disclosure is authorized. In the
@@ -88,7 +159,8 @@ The observed form uses `#SECRET2FA` (a textarea) and **Get Codes**.
   or regenerate. Keep individual waits short and bounded.
 - Transfer the code in memory to the verified AWS MFA input and submit promptly.
   Never print the code or save it to a tracker.
-- If AWS rejects it, do not keep replaying that code. Determine whether it expired
-  or whether the selected authenticator is wrong; request user help if unclear.
+- If AWS rejects it, follow the same bounded fresh-window recovery above; never
+  replay that code. Recheck time and the current authenticator before asking for
+  user intervention when the retry budget is exhausted or a user-held factor is needed.
 - Close the 2fa.fun tab after use. Do not send a newly enrolled phone secret there
   just because the user authorized the old secret for initial login.
