@@ -418,7 +418,7 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faiz-amanullah001
 新密码沿用上方助记规则，数字段由用户在本次会话中指定。改密结果以 AWS 显示的
 `Your password has been successfully updated.` 为核验依据。
 
-截至记录更新，已确认改密 9/10，Kiro 身份核验 9/10，公网请求归属核验 9/10。
+截至记录更新，已确认改密 9/10，Kiro 身份核验 10/10，公网请求归属核验 9/10。
 已完成 IDE 来源接入的账号为 `muhammad.ridho12004@binus.ac.id`、`muhammad.reifan@binus.ac.id`、`muhammad.razzaq002@binus.ac.id`、`muhammad.rathana@binus.ac.id`；其余 5 个已接入账号为 CLI 来源。
 
 | AWS Builder ID 账号 | llm-access 账号 | 密码 | 导入时订阅 / 剩余 credits | 固定美国代理 | 公网请求 |
@@ -428,7 +428,7 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faiz-amanullah001
 | `muhammad.rifat@binus.ac.id` | `kiro-muhammad-rifat-builder-id` | AWS 已确认成功 | KIRO STUDENT / 999.96 | `do-us-10` | HTTP 200，KIRO_OK，归属已确认 |
 | `muhammad.rifai003@binus.ac.id` | `kiro-muhammad-rifai003-builder-id` | AWS 已确认成功 | KIRO STUDENT / 999.96 | `aws_us3_east1` | HTTP 200，KIRO_OK，归属已确认 |
 | `muhammad.revano@binus.ac.id` | `kiro-muhammad-revano-builder-id` | AWS 已确认成功 | KIRO STUDENT / 999.96 | `aws_us_east1` | HTTP 200，KIRO_OK，归属已确认 |
-| `muhammad.retmawan@binus.ac.id` | 未导入 | AWS ERR-837，未改密 | 待核验 | 待配置 | 待核验 |
+| `muhammad.retmawan@binus.ac.id` | IDE 授权已通过，未导入 | 改密 MFA 验证失败，未改密 | 待核验 | 待配置 | 待核验 |
 | `muhammad.ridho12004@binus.ac.id` | `kiro-muhammad-ridho12004-builder-id`（IDE 来源） | AWS 已确认成功 | KIRO STUDENT / 999.95 | `do-us-10` | HTTP 200，KIRO_OK，归属已确认 |
 | `muhammad.reifan@binus.ac.id` | `kiro-muhammad-reifan-builder-id`（IDE 来源） | AWS 已确认成功 | KIRO STUDENT / 999.97 | `aws_us3_east1` | HTTP 200，KIRO_OK，归属已确认 |
 | `muhammad.razzaq002@binus.ac.id` | `kiro-muhammad-razzaq002-builder-id`（IDE 来源） | AWS 已确认成功 | KIRO STUDENT / 999.96 | `aws_us_east1` | HTTP 200，KIRO_OK，归属已确认 |
@@ -524,8 +524,14 @@ Usage 归属及临时测试 Key 删除均已核验，详见上表。
 `1703e1cd-2af8-47f2-ad9d-7aa428fa3494`。尚未进入密码/MFA，未改密、替换验证器或导入。
 已按用户要求暂停并将窗口置前，IDE 回调监听保留，等待用户接管；私有持久目录中已保存本次证据。
 
-尚未解决的 AWS 账号错误：`muhammad.retmawan@binus.ac.id`。
-上述账号最近已记录的登录尝试在邮箱步骤返回 `ERR-837 - Account issue`，尚未完成改密或导入。
-后续按用户指示逐个处理。Ridho 的独立浏览器保留在已登录的安全设置页。
+用户随后在原浏览器中完成 Retmawan 登录与 IDE 授权。保留的回调监听收到授权码后已成功兑换，
+回调 state 与本地 `11115` 代理连接记录均已核验，IDE 凭据保存在该账号独立缓存目录。
+继续改密时，AWS 拒绝了动态验证码，提示 `Looks like this code isn't right. Please try again.`。
+AWS 时间为 2026-10-20 15:50:00 UTC，请求号 `a5158af5-69b4-4aba-ac59-72ff221414bf`。
+尚未提交新密码，也未执行账号导入或公网请求；原 MFA 1（2026-10-18 注册）保留。
+已按用户要求暂停，没有重试，验证页面已置前。成功的 IDE 授权与当前 MFA 错误证据均已持久保存。
+
+当前待处理：Retmawan 改密流程中的 MFA 验证，等待用户接管；其余 9 个账号已完成改密、导入和请求归属核验。
+此前 Retmawan 的 ERR-837 已在用户手动登录后通过，不再作为当前阻塞原因。
 
 <!-- builder-id-batch-20261020:end -->
