@@ -418,7 +418,7 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faiz-amanullah001
 新密码沿用上方助记规则，数字段由用户在本次会话中指定。改密结果以 AWS 显示的
 `Your password has been successfully updated.` 为核验依据。
 
-截至记录更新，已确认改密 5/10，Kiro CLI 身份核验 5/10，公网请求归属核验 5/10。
+截至记录更新，已确认改密 6/10，Kiro CLI 身份核验 6/10，公网请求归属核验 5/10。
 
 | AWS Builder ID 账号 | llm-access 账号 | 密码 | 导入时订阅 / 剩余 credits | 固定美国代理 | 公网请求 |
 | --- | --- | --- | --- | --- | --- |
@@ -428,7 +428,7 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faiz-amanullah001
 | `muhammad.rifai003@binus.ac.id` | `kiro-muhammad-rifai003-builder-id` | AWS 已确认成功 | KIRO STUDENT / 999.96 | `aws_us3_east1` | HTTP 200，KIRO_OK，归属已确认 |
 | `muhammad.revano@binus.ac.id` | `kiro-muhammad-revano-builder-id` | AWS 已确认成功 | KIRO STUDENT / 999.96 | `aws_us_east1` | HTTP 200，KIRO_OK，归属已确认 |
 | `muhammad.retmawan@binus.ac.id` | 未导入 | AWS ERR-837，未改密 | 待核验 | 待配置 | 待核验 |
-| `muhammad.ridho12004@binus.ac.id` | 未导入 | AWS ERR-837，未改密 | 待核验 | 待配置 | 待核验 |
+| `muhammad.ridho12004@binus.ac.id` | 新导入校验失败后已撤回 | AWS 已确认成功 | 额度校验 HTTP 502 | `tmp-us-for-kiro`（校验失败） | 未发起，等待用户介入 |
 | `muhammad.reifan@binus.ac.id` | 未导入 | AWS ERR-837，未改密 | 待核验 | 待配置 | 待核验 |
 | `muhammad.razzaq002@binus.ac.id` | 未导入 | AWS ERR-837，未改密 | 待核验 | 待配置 | 待核验 |
 | `muhammad.rathana@binus.ac.id` | 未导入 | AWS ERR-837，未改密 | 待核验 | 待配置 | 待核验 |
@@ -462,8 +462,21 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faiz-amanullah001
 2026-10-20 13:34:40 UTC，请求号 `538ddea7-a380-4359-839b-fcf40fbf1362`。
 账号尚未改密、替换 MFA 或导入；新的 CLI 设备流已停止，错误证据另存私有持久目录。
 
-AWS 账号错误：`muhammad.retmawan@binus.ac.id`、`muhammad.ridho12004@binus.ac.id`、`muhammad.reifan@binus.ac.id`、`muhammad.razzaq002@binus.ac.id`、`muhammad.rathana@binus.ac.id`。
+用户要求改用本地端口代理后，已恢复并核验 `http://127.0.0.1:11115`：
+Chrome 启动参数包含该代理，CLI 连接记录只包含回环地址，浏览器实测出口为 `20.115.164.89`。
+Retmawan 在该代理上的重试仍返回 ERR-837（AWS 时间 2026-10-20 14:45:39 UTC，
+请求号 `e5c27194-7ffa-4210-9fed-4f24ed59ce0c`），密码与 MFA 未修改。
+
+`muhammad.ridho12004@binus.ac.id` 随后由用户手动完成同一浏览器中的登录。
+复用该窗口衔接 Kiro 授权后，CLI 已核验 Builder ID 和准确邮箱；AWS 也已明确确认改密成功。
+原 MFA 1（2026-10-18 注册）仍保留，未替换或删除。登录浏览器和 CLI 均使用本地端口代理。
+2026-10-20 14:57 UTC，按当前美国代理排序选择 `tmp-us-for-kiro` 导入后，额度校验返回 HTTP 502。
+该次创建的新账号记录已撤回并分页核对不存在；未发起公网模型请求，也未创建测试 Key。
+按用户“出现错误让我介入”的要求，已暂停当前账号，未继续切换代理或下一个账号。
+登录、改密及失败导入证据已另存用户私有持久目录；不能据该 502 判断 AWS 账号受限。
+
+尚未解决的 AWS 账号错误：`muhammad.retmawan@binus.ac.id`、`muhammad.reifan@binus.ac.id`、`muhammad.razzaq002@binus.ac.id`、`muhammad.rathana@binus.ac.id`。
 上述账号最新登录尝试均在邮箱步骤返回 `ERR-837 - Account issue`，AWS 要求联系 Support；尚未改密或导入。
-浏览器保留在 AWS 错误页面，等待账号问题解决。
+后续按用户指示逐个处理。Ridho 的独立浏览器保留在已登录的安全设置页。
 
 <!-- builder-id-batch-20261020:end -->
