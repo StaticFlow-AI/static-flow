@@ -406,3 +406,61 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faiz-amanullah001
   刷新后的设备列表仅剩新 `MFA 2`。
 - 密码助记沿用本文上方提示；本记录不保存密码、验证码、二维码或验证器密钥。
   AWS 浏览器登录态保留以便后续复用。
+
+<!-- builder-id-batch-20261020:start -->
+
+## 2026-10-20 Builder ID 批次（10 个账号）
+
+用户要求重复 Builder ID 改密、Kiro 登录接入和请求验证流程。用户随后确认暂时无法扫码，
+因此本批新手机验证器绑定与旧设备删除均暂缓，原有 MFA 保留。原始 2FA 与邮箱对应关系
+已按用户要求另存于用户私有持久目录，文件权限 `0600`；本仓库不保存验证器密钥或完整密码。
+
+新密码沿用上方助记规则，数字段由用户在本次会话中指定。改密结果以 AWS 显示的
+`Your password has been successfully updated.` 为核验依据。
+
+截至记录更新，已确认改密 5/10，Kiro CLI 身份核验 5/10，公网请求归属核验 5/10。
+
+| AWS Builder ID 账号 | llm-access 账号 | 密码 | 导入时订阅 / 剩余 credits | 固定美国代理 | 公网请求 |
+| --- | --- | --- | --- | --- | --- |
+| `muhammad.rifaansyah@binus.ac.id` | `kiro-muhammad-rifaansyah-builder-id` | AWS 已确认成功 | KIRO STUDENT / 999.96 | `do-us-10` | HTTP 200，KIRO_OK，归属已确认 |
+| `muhammad.rifaldo@binus.ac.id` | `kiro-muhammad-rifaldo-builder-id` | AWS 已确认成功 | KIRO STUDENT / 999.96 | `aws_us_east1` | HTTP 200，KIRO_OK，归属已确认 |
+| `muhammad.rifat@binus.ac.id` | `kiro-muhammad-rifat-builder-id` | AWS 已确认成功 | KIRO STUDENT / 999.96 | `do-us-10` | HTTP 200，KIRO_OK，归属已确认 |
+| `muhammad.rifai003@binus.ac.id` | `kiro-muhammad-rifai003-builder-id` | AWS 已确认成功 | KIRO STUDENT / 999.96 | `aws_us3_east1` | HTTP 200，KIRO_OK，归属已确认 |
+| `muhammad.revano@binus.ac.id` | `kiro-muhammad-revano-builder-id` | AWS 已确认成功 | KIRO STUDENT / 999.96 | `aws_us_east1` | HTTP 200，KIRO_OK，归属已确认 |
+| `muhammad.retmawan@binus.ac.id` | 未导入 | 待手动 Security check | 待核验 | 待配置 | 待核验 |
+| `muhammad.ridho12004@binus.ac.id` | 未导入 | AWS ERR-837，未改密 | 待核验 | 待配置 | 待核验 |
+| `muhammad.reifan@binus.ac.id` | 未导入 | AWS ERR-837，未改密 | 待核验 | 待配置 | 待核验 |
+| `muhammad.razzaq002@binus.ac.id` | 未导入 | AWS ERR-837，未改密 | 待核验 | 待配置 | 待核验 |
+| `muhammad.rathana@binus.ac.id` | 未导入 | AWS ERR-837，未改密 | 待核验 | 待配置 | 待核验 |
+
+所有已验证导入账号均为 `auth_method=idc`、`provider=aws`，并保持标准调度：并发 3、
+最小请求间隔 200–1000 ms、最低剩余额度阈值 10 credits。账号源身份已执行完整分页查重；
+每个账号使用独立的 CLI 数据目录保存凭据。表中额度为导入时刷新值。
+
+公网验证通过 `https://ackingliu.top/v1/messages`，模型 `claude-sonnet-5.5`，返回 `KIRO_OK`、
+`stop_reason=end_turn`。测试 Key 固定绑定对应账号，关闭直接 Anthropic 池和 Kiro 策略回退，
+路由图仅包含 Kiro 原生节点；已核验 Usage 归属，测试后删除临时 Key 并核对不存在。
+
+| 账号 | 最小请求间隔（ms） | 已核验 Usage ID |
+| --- | ---: | --- |
+| `muhammad.rifaansyah@binus.ac.id` | 365 | `llm-usage-d3d8aa3b-2572-4192-9c3d-cc2c2f733da6` |
+| `muhammad.rifaldo@binus.ac.id` | 927 | `llm-usage-a733fe39-2a9c-4325-a160-3ea12eb58a93` |
+| `muhammad.rifat@binus.ac.id` | 942 | `llm-usage-4ed586b3-7178-4042-bba3-7fdb0fa784b8` |
+| `muhammad.rifai003@binus.ac.id` | 670 | `llm-usage-b111d346-3c61-4a34-ae71-7f8460a25497` |
+| `muhammad.revano@binus.ac.id` | 316 | `llm-usage-e261afd4-1f28-47ca-8335-4b1f3cb6e8b2` |
+
+本轮操作观察：第三个账号首次 MFA 验证失败后，对比 AWS 两个服务的实时 `Date` 响应头，
+确认本机时间比服务器慢约 49 秒；按 AWS 时间生成新验证码后验证通过，后续使用相同时间校正，
+未修改系统时间。第二个账号的 Usage 列表短暂未显示记录，随后通过该请求的 Usage ID
+读取持久化事件并确认归属，没有为填充列表重复发起模型请求。
+导入时 `tmp-us-for-kiro` 不通的账号按导入器排序选择下一个合格美国代理，未修改全局代理配置。
+
+待人工验证：`muhammad.retmawan@binus.ac.id`。
+AWS 页面要求完成 Security check / Verify；保留独立 AWS 浏览器，当前尚未改密或导入。
+该账号的 CLI 设备流已停止，手动验证后应在同一浏览器继续并重新启动一个设备流。
+
+AWS 账号错误：`muhammad.ridho12004@binus.ac.id`、`muhammad.reifan@binus.ac.id`、`muhammad.razzaq002@binus.ac.id`、`muhammad.rathana@binus.ac.id`。
+输入邮箱后即返回 `ERR-837 - Account issue`，AWS 要求联系 Support；本轮尚未输入其密码、改密或导入。
+浏览器保留在 AWS 错误页面，等待账号问题解决。
+
+<!-- builder-id-batch-20261020:end -->
