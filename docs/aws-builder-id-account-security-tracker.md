@@ -623,3 +623,63 @@ Ramdhani007 随后使用修正后的交互自动完成邮箱、密码、MFA 与 
 本批 8 个账号均已完成，最终线上配置核验通过，批次临时测试 Key 剩余 0；原 MFA 全部保留。
 
 <!-- builder-id-batch-20261021:end -->
+
+<!-- builder-id-batch-20261021b:start -->
+
+## 2026-10-21 Builder ID 第二批（12 个账号）
+
+沿用已确认的统一改密、Kiro IDE Builder ID PKCE 授权、导入和公网请求验证流程，逐个完成，原 MFA 保留。
+本批登录连接按用户的新要求切换：第 1–5 个不用本地端口代理，第 6–10 个使用 `127.0.0.1:11115`，
+第 11–12 个再不用端口代理。Chrome 参数与授权请求连接记录分别核验；导入后的推理请求仍固定到活跃美国代理。
+原始 2FA 与邮箱对应表保存在私有持久目录的 `2026-10-21b-original-2fa.json`，权限 `0600`。
+账号进度、请求证据及无凭据辅助脚本单独保存，仓库不保存密码和验证器密钥。
+
+预检完整分页读取 373 个线上账号，本批目标邮箱和账号名均未重复。
+
+| 序号 | 账号 | 登录连接 | IDE 授权 | 密码 | 导入 / 公网请求 |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `muhammad.rahman028@binus.ac.id` | 不用端口代理 | 已核验 | AWS 已确认更新 | HTTP 200 / KIRO_OK / 归属已核验 |
+| 2 | `muhammad.radifan@binus.ac.id` | 不用端口代理 | 已核验 | AWS 已确认更新 | HTTP 200 / KIRO_OK / 归属已核验 |
+| 3 | `muhammad.rafandi@binus.ac.id` | 不用端口代理 | 已核验 | AWS 已确认更新 | HTTP 200 / KIRO_OK / 归属已核验 |
+| 4 | `muhammad.pratama082@binus.ac.id` | 不用端口代理 | 已核验 | AWS 已确认更新 | HTTP 200 / KIRO_OK / 归属已核验 |
+| 5 | `muhammad.putra129@binus.ac.id` | 不用端口代理 | 已核验 | AWS 已确认更新 | HTTP 200 / KIRO_OK / 归属已核验 |
+| 6 | `muhammad.putra121@binus.ac.id` | 本地端口代理 | 已核验 | AWS 已确认更新 | HTTP 200 / KIRO_OK / 归属已核验 |
+| 7 | `muhammad.qurani@binus.ac.id` | 本地端口代理 | 已核验 | AWS 已确认更新 | HTTP 200 / KIRO_OK / 归属已核验 |
+| 8 | `muhammad.putra124@binus.ac.id` | 本地端口代理 | 已核验 | AWS 已确认更新 | HTTP 200 / KIRO_OK / 归属已核验 |
+| 9 | `muhammad.pratama086@binus.ac.id` | 本地端口代理 | 已核验 | AWS 已确认更新 | HTTP 200 / KIRO_OK / 归属已核验 |
+| 10 | `muhammad.prayoga004@binus.ac.id` | 本地端口代理 | 已核验 | AWS 已确认更新 | HTTP 200 / KIRO_OK / 归属已核验 |
+| 11 | `muhammad.priabadi@binus.ac.id` | 不用端口代理 | 已核验 | AWS 已确认更新 | HTTP 200 / KIRO_OK / 归属已核验 |
+| 12 | `muhammad.pradana017@binus.ac.id` | 不用端口代理 | 已核验 | AWS 已确认更新 | HTTP 200 / KIRO_OK / 归属已核验 |
+
+本批导入过程中保留了 1 次失败尝试记录；失败的新建账号均已撤回并核验不存在，再按有限重试选择其他合格美国代理。没有调整登录连接分组或全局代理配置。
+
+已确认改密 12/12，IDE 授权 12/12，公网请求归属核验 12/12。
+
+| 账号 | 固定推理代理 | 导入时订阅 / 剩余 credits | 最小间隔（ms） | Usage ID |
+| --- | --- | --- | ---: | --- |
+| `muhammad.rahman028@binus.ac.id` | `aws_us3_east1` | KIRO STUDENT / 999.96 | 371 | `llm-usage-3e32c810-c445-430b-86ff-85347214fce5` |
+| `muhammad.radifan@binus.ac.id` | `aws_us_east1` | KIRO STUDENT / 999.95 | 562 | `llm-usage-c858cddd-2b2b-4f87-8c31-f0035a8f3400` |
+| `muhammad.rafandi@binus.ac.id` | `do-us-10` | KIRO STUDENT / 999.96 | 568 | `llm-usage-4120164d-b258-4ab6-bbcd-fdbcb0a4e0f8` |
+| `muhammad.pratama082@binus.ac.id` | `do-us-2` | KIRO STUDENT / 999.96 | 649 | `llm-usage-1ead195f-a8f6-445d-9a02-81c822f09db0` |
+| `muhammad.putra129@binus.ac.id` | `do-us-5` | KIRO STUDENT / 999.96 | 289 | `llm-usage-b531311d-8932-4278-a12b-364504d1f8e3` |
+| `muhammad.putra121@binus.ac.id` | `aws_us3_east1` | KIRO STUDENT / 999.97 | 600 | `llm-usage-d1906734-6fdf-4947-be91-fa9c7924f80f` |
+| `muhammad.qurani@binus.ac.id` | `aws_us_east1` | KIRO STUDENT / 999.96 | 887 | `llm-usage-f8d051aa-f846-439a-a58e-3dddf8dbdfed` |
+| `muhammad.putra124@binus.ac.id` | `do-us-1` | KIRO STUDENT / 999.98 | 778 | `llm-usage-7a5113bb-d640-442d-ba84-4df3b0dbbe93` |
+| `muhammad.pratama086@binus.ac.id` | `do-us-10` | KIRO STUDENT / 999.96 | 244 | `llm-usage-f30a6927-cdf5-47f2-af5b-b635cfd374af` |
+| `muhammad.prayoga004@binus.ac.id` | `do-us-2` | KIRO STUDENT / 999.96 | 816 | `llm-usage-f28054ff-521e-495d-baf0-6530e15663ec` |
+| `muhammad.priabadi@binus.ac.id` | `do-us-5` | KIRO STUDENT / 999.97 | 214 | `llm-usage-cf7919df-d327-4908-9f6c-4c4c62c7b46c` |
+| `muhammad.pradana017@binus.ac.id` | `aws_us2_east1` | KIRO STUDENT / 999.96 | 264 | `llm-usage-77c483cd-b205-40ce-92ea-061b8f935353` |
+
+已完成账号均使用 IDE 来源的 `auth_method=idc` / `provider=BuilderId`，并发 3、最小间隔 200–1000 ms、最低剩余额度 10 credits。
+每个测试固定对应账号，关闭直接 Anthropic 池及策略回退，核验响应、正常结束和 Usage 归属；临时测试 Key 已删除并核对不存在。
+密码更新以 AWS 明确成功提示为依据，未另做新密码完整登录测试；原 MFA 保留。
+
+Pratama086 的公网请求已成功，但初次核验时 Usage 记录尚未同步；随后按原 Usage ID 查到正确账号、HTTP 200 与 `usage_missing=false`，补齐证据后才标记完成，没有再发模型请求。
+
+过程中的页面状态恢复：Putra129 沿用原监听取得稍后到达的回调，没有重启登录；Putra124、Prayoga004 的密码填入校验未通过时未继续提交，观察到文字验证后重新填入并核验；授权页标题晚于按钮加载时增加等待，同时保留对不同应用的拒绝，6 个模拟场景通过。
+
+文字 Security check 已截图识别并填写，以 AWS 明确挑战成功提示核验：`muhammad.putra121@binus.ac.id`、`muhammad.qurani@binus.ac.id`、`muhammad.putra124@binus.ac.id`、`muhammad.pratama086@binus.ac.id`、`muhammad.prayoga004@binus.ac.id`、`muhammad.priabadi@binus.ac.id`、`muhammad.pradana017@binus.ac.id`。答案和图片未写入账户持久记录，临时图片已清理。
+
+最终完整分页读取 385 个线上账号，本批 12 个均核验通过，批次临时测试 Key 剩余 0。
+
+<!-- builder-id-batch-20261021b:end -->
