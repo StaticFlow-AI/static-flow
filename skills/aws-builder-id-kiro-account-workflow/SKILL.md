@@ -44,11 +44,14 @@ input when actually needed.
 1. Inspect only the target account's known CLI/browser state and gateway identity.
    Preserve another account's default Kiro login and browser. Use a separate
    account data root for fresh CLI login, never `kiro-cli logout` to switch users.
-2. If `whoami` already confirms the exact Builder ID identity, reuse those CLI
-   credentials. Otherwise reuse a verified same-account AWS browser for device
-   authorization. Start a fresh visible browser only when no usable matching
+2. Prefer IDE Builder ID browser authorization for fresh logins. Reuse verified
+   IDE credentials or a healthy gateway account when renewal is unnecessary.
+   Reuse existing CLI credentials when no IDE conversion was requested; use CLI
+   device login only when selected. Reuse the verified same-account AWS browser
+   for IDE authorization. Start a fresh visible browser only when no usable matching
    browser remains; reusing a password alone is not browser-session reuse.
-3. Resume pending MFA/consent in the existing browser and device-flow process.
+3. Resume pending MFA/consent in the existing browser and IDE callback listener
+   or selected CLI device-flow process.
    After a user reply, inspect state before replaying a mutation. If a flow
    expired, stop its poller before starting its replacement.
 
@@ -70,12 +73,13 @@ Do not delete active AWS sessions, change recovery email, or alter unrelated MFA
 ### Kiro login, import, and real request
 
 Read and follow [Kiro AWS Builder ID Onboarder](../kiro-aws-builder-id-onboarder/SKILL.md),
-which delegates SQLite parsing and new-account policy to
+which delegates CLI SQLite parsing and new-account policy to
 [Kiro Local Account Importer](../kiro-local-account-importer/SKILL.md).
 
-Complete its chain of evidence: device authorization when needed, exact Builder ID
-`whoami`, correct isolated SQLite, verified-email import or existing-account
-verification, balance through the selected US proxy, and a real public request
+Complete its chain of evidence: IDE Builder ID PKCE authorization and matching
+token/client registration, or exact CLI `whoami` with its isolated SQLite when
+that mode is selected; verified-email import or existing-account verification;
+balance through the selected US proxy; and a real public request
 pinned to that exact gateway account with matching usage attribution. Report the
 actual subscription and dated balance. Remove only this run's temporary test key.
 

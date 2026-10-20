@@ -2,7 +2,8 @@
 
 Use the sibling [importer skill](../../kiro-local-account-importer/SKILL.md) and
 [Python implementation](../../kiro-local-account-importer/scripts/import_kiro_accounts.py)
-as the credential parser and import-policy implementation. The bundled script
+as the CLI SQLite parser and shared import-policy implementation. For IDE cache
+parsing, use [IDE login](ide-login.md#import-the-ide-credential). The bundled script
 paginates inventory, accepts a verified `--email` for one SQLite, and rejects
 existing name/email matches. Prefer this path over rebuilding a temporary importer.
 
@@ -17,9 +18,10 @@ existing name/email matches. Prefer this path over rebuilding a temporary import
    upstream IDs and proxy load. Advance by the number of returned rows; an empty
    page with `has_more=true` is an error. A single `limit=10000` request is not a
    complete inventory. Do not assume every resource supports `q` filtering.
-3. Parse the chosen local SQLite on this machine. Require IDC/OIDC credentials and
-   the matching device registration. Map them to `auth_method=idc`, `provider=aws`,
-   and retain the actual region/profile metadata. Set `email` from the verified
+3. Parse the selected IDE JSON cache or CLI SQLite on this machine. Require
+   IDC/OIDC credentials and the matching client registration. Map IDE records to
+   `auth_method=idc`, `provider=BuilderId`; CLI records may use `provider=aws`.
+   Retain the actual region/profile metadata. Set `email` from the verified
    Builder ID identity; token JSON may not contain the email. Existing inventory
    email fields may be null; compare with `(account.get("email") or "").casefold()`.
 4. Use the user's exact target name or a normalized `kiro-<localpart>-builder-id`.
@@ -29,7 +31,7 @@ existing name/email matches. Prefer this path over rebuilding a temporary import
    its proxy/scheduling settings and use an update flow with no delete-on-failure
    cleanup. Check the current import API's replacement behavior before that write.
 
-For a new account, run the importer with `--sqlite-file <exact isolated database>`,
+For a new CLI account, run the importer with `--sqlite-file <exact isolated database>`,
 `--account-name <intended name>`, and `--email <verified Builder ID email>`. Review
 its dry run, then use the same arguments with `--apply` when import is authorized.
 Do not rerun a completed import just to produce another dry-run plan.

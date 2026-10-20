@@ -418,7 +418,8 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faiz-amanullah001
 新密码沿用上方助记规则，数字段由用户在本次会话中指定。改密结果以 AWS 显示的
 `Your password has been successfully updated.` 为核验依据。
 
-截至记录更新，已确认改密 6/10，Kiro CLI 身份核验 6/10，公网请求归属核验 5/10。
+截至记录更新，已确认改密 6/10，Kiro CLI 身份核验 6/10，公网请求归属核验 6/10。
+Ridho 已另外完成 IDE Builder ID 授权和该凭据的导入/请求验证；其余五个已接入账号目前仍为 CLI 来源。
 
 | AWS Builder ID 账号 | llm-access 账号 | 密码 | 导入时订阅 / 剩余 credits | 固定美国代理 | 公网请求 |
 | --- | --- | --- | --- | --- | --- |
@@ -428,12 +429,13 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faiz-amanullah001
 | `muhammad.rifai003@binus.ac.id` | `kiro-muhammad-rifai003-builder-id` | AWS 已确认成功 | KIRO STUDENT / 999.96 | `aws_us3_east1` | HTTP 200，KIRO_OK，归属已确认 |
 | `muhammad.revano@binus.ac.id` | `kiro-muhammad-revano-builder-id` | AWS 已确认成功 | KIRO STUDENT / 999.96 | `aws_us_east1` | HTTP 200，KIRO_OK，归属已确认 |
 | `muhammad.retmawan@binus.ac.id` | 未导入 | AWS ERR-837，未改密 | 待核验 | 待配置 | 待核验 |
-| `muhammad.ridho12004@binus.ac.id` | 新导入校验失败后已撤回 | AWS 已确认成功 | 额度校验 HTTP 502 | `tmp-us-for-kiro`（校验失败） | 未发起，等待用户介入 |
+| `muhammad.ridho12004@binus.ac.id` | `kiro-muhammad-ridho12004-builder-id`（IDE 来源） | AWS 已确认成功 | KIRO STUDENT / 999.95 | `do-us-10` | HTTP 200，KIRO_OK，归属已确认 |
 | `muhammad.reifan@binus.ac.id` | 未导入 | AWS ERR-837，未改密 | 待核验 | 待配置 | 待核验 |
 | `muhammad.razzaq002@binus.ac.id` | 未导入 | AWS ERR-837，未改密 | 待核验 | 待配置 | 待核验 |
 | `muhammad.rathana@binus.ac.id` | 未导入 | AWS ERR-837，未改密 | 待核验 | 待配置 | 待核验 |
 
-所有已验证导入账号均为 `auth_method=idc`、`provider=aws`，并保持标准调度：并发 3、
+所有已验证导入账号均为 `auth_method=idc`；CLI 来源使用 `provider=aws`，IDE 来源保留
+`provider=BuilderId`，两者在当前服务中均映射到 Builder ID。账号保持标准调度：并发 3、
 最小请求间隔 200–1000 ms、最低剩余额度阈值 10 credits。账号源身份已执行完整分页查重；
 每个账号使用独立的 CLI 数据目录保存凭据。表中额度为导入时刷新值。
 
@@ -448,6 +450,7 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faiz-amanullah001
 | `muhammad.rifat@binus.ac.id` | 942 | `llm-usage-4ed586b3-7178-4042-bba3-7fdb0fa784b8` |
 | `muhammad.rifai003@binus.ac.id` | 670 | `llm-usage-b111d346-3c61-4a34-ae71-7f8460a25497` |
 | `muhammad.revano@binus.ac.id` | 316 | `llm-usage-e261afd4-1f28-47ca-8335-4b1f3cb6e8b2` |
+| `muhammad.ridho12004@binus.ac.id` | 421 | `llm-usage-edcb21e6-7498-4c7b-bae7-8b5a3c125f54` |
 
 本轮操作观察：第三个账号首次 MFA 验证失败后，对比 AWS 两个服务的实时 `Date` 响应头，
 确认本机时间比服务器慢约 49 秒；按 AWS 时间生成新验证码后验证通过，后续使用相同时间校正，
@@ -471,9 +474,22 @@ Retmawan 在该代理上的重试仍返回 ERR-837（AWS 时间 2026-10-20 14:45
 复用该窗口衔接 Kiro 授权后，CLI 已核验 Builder ID 和准确邮箱；AWS 也已明确确认改密成功。
 原 MFA 1（2026-10-18 注册）仍保留，未替换或删除。登录浏览器和 CLI 均使用本地端口代理。
 2026-10-20 14:57 UTC，按当前美国代理排序选择 `tmp-us-for-kiro` 导入后，额度校验返回 HTTP 502。
-该次创建的新账号记录已撤回并分页核对不存在；未发起公网模型请求，也未创建测试 Key。
+该次创建的新账号记录已撤回并分页核对不存在；该次失败尝试未发起公网模型请求，也未创建测试 Key。
 按用户“出现错误让我介入”的要求，已暂停当前账号，未继续切换代理或下一个账号。
 登录、改密及失败导入证据已另存用户私有持久目录；不能据该 502 判断 AWS 账号受限。
+
+用户随后指定按 Kiro IDE 登录模式导入。已核对本机官方 IDE 1.2.4 包中的授权代码，
+复用同一 AWS 浏览器，通过 IDE portal 选择 Builder ID，注册 `clientName=Kiro IDE`、
+`authorization_code` / `refresh_token` 授权，校验回调 state 并通过 PKCE 兑换新凭据。
+这里运行的是已核对的 IDE 授权协议，没有启动 IDE 应用或将 CLI 凭据改名冒充 IDE 来源。
+新 token 和匹配的客户端注册保存在该账号独立的 IDE 缓存目录，权限为目录 `0700`、文件 `0600`；
+原 CLI 凭据保留。浏览器和注册/兑换请求均已核验经过本地 `11115` 代理。
+
+2026-10-20 15:08 UTC，使用这份 IDE 凭据经 `do-us-10` 完成新账号导入及额度校验：
+KIRO STUDENT，额度上限 1000，导入时剩余 999.95 credits；完整分页核对源身份未重复。
+随后固定该账号的公网 `claude-sonnet-5.5` 请求返回 HTTP 200、`KIRO_OK`、`end_turn`，
+Usage 为上表 Ridho 记录，`usage_missing=false`，临时测试 Key 已删除并核验不存在。
+用户确认后续新登录优先使用 IDE 模式，仍逐个处理，遇错暂停并等待其介入；相关上号技能已更新。
 
 尚未解决的 AWS 账号错误：`muhammad.retmawan@binus.ac.id`、`muhammad.reifan@binus.ac.id`、`muhammad.razzaq002@binus.ac.id`、`muhammad.rathana@binus.ac.id`。
 上述账号最新登录尝试均在邮箱步骤返回 `ERR-837 - Account issue`，AWS 要求联系 Support；尚未改密或导入。

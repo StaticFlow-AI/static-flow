@@ -1,6 +1,8 @@
-# Builder ID login: reuse or sign in again
+# Builder ID CLI login: reuse or sign in again
 
-Use this reference for the browser/CLI portion. Confirm commands with the installed
+Fresh logins prefer [IDE authorization](ide-login.md). Use this reference when
+reusing existing CLI credentials or when CLI login was explicitly selected.
+Confirm commands with the installed
 `kiro-cli login --help`; the observed CLI supports
 `login --license free --use-device-flow`. Builder ID is the personal `free` login
 method even when the upstream account has a paid or student subscription.
