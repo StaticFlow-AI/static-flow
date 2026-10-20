@@ -418,8 +418,8 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faiz-amanullah001
 新密码沿用上方助记规则，数字段由用户在本次会话中指定。改密结果以 AWS 显示的
 `Your password has been successfully updated.` 为核验依据。
 
-截至记录更新，已确认改密 9/10，Kiro 身份核验 10/10，公网请求归属核验 9/10。
-已完成 IDE 来源接入的账号为 `muhammad.ridho12004@binus.ac.id`、`muhammad.reifan@binus.ac.id`、`muhammad.razzaq002@binus.ac.id`、`muhammad.rathana@binus.ac.id`；其余 5 个已接入账号为 CLI 来源。
+截至记录更新，已确认改密 10/10，Kiro 身份核验 10/10，公网请求归属核验 10/10。
+已完成 IDE 来源接入的账号为 `muhammad.retmawan@binus.ac.id`、`muhammad.ridho12004@binus.ac.id`、`muhammad.reifan@binus.ac.id`、`muhammad.razzaq002@binus.ac.id`、`muhammad.rathana@binus.ac.id`；其余 5 个已接入账号为 CLI 来源。
 
 | AWS Builder ID 账号 | llm-access 账号 | 密码 | 导入时订阅 / 剩余 credits | 固定美国代理 | 公网请求 |
 | --- | --- | --- | --- | --- | --- |
@@ -428,7 +428,7 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faiz-amanullah001
 | `muhammad.rifat@binus.ac.id` | `kiro-muhammad-rifat-builder-id` | AWS 已确认成功 | KIRO STUDENT / 999.96 | `do-us-10` | HTTP 200，KIRO_OK，归属已确认 |
 | `muhammad.rifai003@binus.ac.id` | `kiro-muhammad-rifai003-builder-id` | AWS 已确认成功 | KIRO STUDENT / 999.96 | `aws_us3_east1` | HTTP 200，KIRO_OK，归属已确认 |
 | `muhammad.revano@binus.ac.id` | `kiro-muhammad-revano-builder-id` | AWS 已确认成功 | KIRO STUDENT / 999.96 | `aws_us_east1` | HTTP 200，KIRO_OK，归属已确认 |
-| `muhammad.retmawan@binus.ac.id` | IDE 授权已通过，未导入 | 改密 MFA 验证失败，未改密 | 待核验 | 待配置 | 待核验 |
+| `muhammad.retmawan@binus.ac.id` | `kiro-muhammad-retmawan-builder-id`（IDE 来源） | AWS 已确认成功 | KIRO STUDENT / 999.95 | `aws_us3_east1` | HTTP 200，KIRO_OK，归属已确认 |
 | `muhammad.ridho12004@binus.ac.id` | `kiro-muhammad-ridho12004-builder-id`（IDE 来源） | AWS 已确认成功 | KIRO STUDENT / 999.95 | `do-us-10` | HTTP 200，KIRO_OK，归属已确认 |
 | `muhammad.reifan@binus.ac.id` | `kiro-muhammad-reifan-builder-id`（IDE 来源） | AWS 已确认成功 | KIRO STUDENT / 999.97 | `aws_us3_east1` | HTTP 200，KIRO_OK，归属已确认 |
 | `muhammad.razzaq002@binus.ac.id` | `kiro-muhammad-razzaq002-builder-id`（IDE 来源） | AWS 已确认成功 | KIRO STUDENT / 999.96 | `aws_us_east1` | HTTP 200，KIRO_OK，归属已确认 |
@@ -437,7 +437,7 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faiz-amanullah001
 所有已验证导入账号均为 `auth_method=idc`；CLI 来源使用 `provider=aws`，IDE 来源保留
 `provider=BuilderId`，两者在当前服务中均映射到 Builder ID。账号保持标准调度：并发 3、
 最小请求间隔 200–1000 ms、最低剩余额度阈值 10 credits。账号源身份已执行完整分页查重；
-每个账号使用独立的 CLI 数据目录保存凭据。表中额度为导入时刷新值。
+每个账号使用独立的数据目录保存凭据，IDE 凭据存放于各自的 `ide-auth` 子目录。表中额度为导入时刷新值。
 
 公网验证通过 `https://ackingliu.top/v1/messages`，模型 `claude-sonnet-5.5`，返回 `KIRO_OK`、
 `stop_reason=end_turn`。测试 Key 固定绑定对应账号，关闭直接 Anthropic 池和 Kiro 策略回退，
@@ -450,6 +450,7 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faiz-amanullah001
 | `muhammad.rifat@binus.ac.id` | 942 | `llm-usage-4ed586b3-7178-4042-bba3-7fdb0fa784b8` |
 | `muhammad.rifai003@binus.ac.id` | 670 | `llm-usage-b111d346-3c61-4a34-ae71-7f8460a25497` |
 | `muhammad.revano@binus.ac.id` | 316 | `llm-usage-e261afd4-1f28-47ca-8335-4b1f3cb6e8b2` |
+| `muhammad.retmawan@binus.ac.id` | 998 | `llm-usage-2c6f25a9-0905-4f57-b996-45ddd83df571` |
 | `muhammad.ridho12004@binus.ac.id` | 421 | `llm-usage-edcb21e6-7498-4c7b-bae7-8b5a3c125f54` |
 | `muhammad.reifan@binus.ac.id` | 589 | `llm-usage-f19216a1-39e9-41ee-bdc4-0424d60e4fce` |
 | `muhammad.razzaq002@binus.ac.id` | 892 | `llm-usage-9beb00f0-a141-48b4-939d-4812067b3cf2` |
@@ -531,7 +532,16 @@ AWS 时间为 2026-10-20 15:50:00 UTC，请求号 `a5158af5-69b4-4aba-ac59-72ff2
 尚未提交新密码，也未执行账号导入或公网请求；原 MFA 1（2026-10-18 注册）保留。
 已按用户要求暂停，没有重试，验证页面已置前。成功的 IDE 授权与当前 MFA 错误证据均已持久保存。
 
-当前待处理：Retmawan 改密流程中的 MFA 验证，等待用户接管；其余 9 个账号已完成改密、导入和请求归属核验。
-此前 Retmawan 的 ERR-837 已在用户手动登录后通过，不再作为当前阻塞原因。
+用户手动通过改密 MFA 后，已在原表单提交本批指定密码并核验 AWS 改密成功提示，未重新发起登录。
+2026-10-20 15:52 UTC，Retmawan 的 IDE 凭据经 `aws_us3_east1` 完成导入与额度校验，
+为 KIRO STUDENT / 999.95 credits（导入时），最小请求间隔 998 ms。
+固定账号的公网 `claude-sonnet-5.5` 请求返回 HTTP 200、`KIRO_OK`、`end_turn`，
+已核验上表 Usage 的账号归属及 `usage_missing=false`；临时测试 Key 已删除并核对不存在。
+原 MFA 1 保留，未另做新密码完整登录测试。
+
+本批 10 个账号均已完成改密、Kiro 接入与公网请求归属核验。最终完整分页读取 365 个线上账号，
+本批 10 个账号的邮箱、启用状态、认证类型、固定代理及调度配置检查均通过，批次临时测试 Key 剩余 0。
+原 2FA 均保留；原始密钥与所属邮箱的私有持久映射文件仍为 `0600` 权限，原浏览器保留。
+此前 Retmawan 的 ERR-837 与改密 MFA 错误均已在用户介入后通过，当前无待处理阻塞。
 
 <!-- builder-id-batch-20261020:end -->
