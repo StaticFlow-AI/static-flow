@@ -86,6 +86,16 @@ Close only owned callback servers after completion. Drain/destroy their owned
 connections during shutdown: a browser preconnect can otherwise leave server
 closure waiting indefinitely. Retain the authenticated Chrome window separately.
 
+After an extended manual wait, the observed AWS portal once returned HTTP 400 from
+`/authentication_result` despite progressing past password/MFA. Waiting and using
+its **Try again** did not recover that flow; one renewed IDE PKCE authorization
+using the same browser and still-valid client registration reached consent without
+another email/password challenge. Treat expiry as a possibility, not a diagnosis
+for every 400. Honor the page's retry delay, check the callback/token state first,
+and, when renewal is needed, close the old listener before starting one fresh
+state/verifier/listener. Count renewals within a bounded authorization retry budget;
+do not repeatedly restart sign-in or replay an old authorization code.
+
 ## Import the IDE credential
 
 The IDE token file is `kiro-auth-token.json`: `accessToken`, `refreshToken`,

@@ -45,8 +45,12 @@ scans a QR code, continue from that browser instead of restarting account login.
    [browser details](references/browser-details.md#action-pacing-and-bounded-retries)
    for 1–2 second action spacing, page readiness, bounded retries, TOTP time checks,
    and a DevTools fallback. A recoverable first error need not require a handoff.
-5. For CAPTCHA, recovery, passkey/device prompts, or other verification requiring
-   the user's device, leave the browser visible and request that specific action.
+5. When the user authorizes assistance with a visible text CAPTCHA, screenshot
+   the owned challenge, read its characters, fill and submit through the visible
+   controls, and require an explicit challenge-success result. Follow the
+   [text CAPTCHA procedure](references/browser-details.md#authorized-text-captcha).
+   For an unsupported challenge, recovery, passkey/device prompt, or a factor
+   requiring the user's device, retain the page and request that specific action.
    An invalid code is not a reason to replay the same code or repeat login blindly.
 
 ## Replace the authenticator

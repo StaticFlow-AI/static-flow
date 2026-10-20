@@ -58,9 +58,13 @@ For QR handoff, check the image is visible, complete, and has nonzero natural
 dimensions without reading its payload. Read the inventory again after enrollment;
 returning to the security page without the new device is not sufficient.
 
-Prefer browser-tool fill and click actions. With CDP, controlled inputs may require
-the native input value setter followed by bubbling `input` and `change` events.
-Check the resulting form state without printing field values.
+Prefer browser-tool fill and click actions. With CDP, focus the actual visible
+field, select its existing content using keyboard input, and use `Input.insertText`.
+For pointer clicks, move to the visible target and send a complete press/release
+sequence (`buttons=1` while pressed, `buttons=0` after release). Verify the resulting
+field and form state without printing values. A DOM value setter plus synthetic
+`input`/`change` events is a fallback to validate against the real flow, not proof
+that AWS processed the input normally.
 
 A programmatic `element.click()` returned successfully during the observed password
 flow while leaving the form unchanged. A real pointer click subsequently exposed
@@ -92,10 +96,21 @@ budget from restarting the helper or changing accounts, proxies, or login method
 
 Before each retry, inspect the current page, verified account, callback/helper
 state, and any success evidence. If the step already succeeded, advance from there.
+Inspect again after the backoff, immediately before retry/reload; the earlier error
+snapshot may be stale because the request completed during the wait. While a new
+submission is pending, an unchanged prior error/request ID is not a new failure.
+Wait for the current request's result or the next page instead of spending another
+attempt on that old message. Retain handled error IDs across a page reload.
 If submission is still pending or its outcome is unknown, reconcile it before
 resubmitting. Keep passwords, MFA enrollment/deletion, account import, and token
 exchange out of a generic retry loop; each needs its own result check. In particular,
 never replay a one-use authorization code after an uncertain token exchange.
+
+Account labels and MFA rows can load after their form or success banner. An absent
+email during rendering calls for a bounded readiness wait; a different explicit
+email is an identity mismatch. Record an explicit password-update confirmation
+before waiting for the MFA inventory. A loading inventory must not turn a confirmed
+password change into a report that the password is unchanged or trigger resubmission.
 
 | Observation | Recovery within the step budget |
 | --- | --- |
@@ -144,6 +159,30 @@ also identifies clock synchronization as relevant to authenticator failures. Dur
 the October 2026 batch a measured clock offset was corrected and one challenge then
 passed; another required user intervention. Those observations do not establish
 that every MFA failure or ERR-837 was caused by timing or automation speed.
+
+## Authorized text CAPTCHA
+
+When the user asks the assistant to complete AWS Security check by reading the
+displayed characters, follow that authorization rather than automatically handing
+off every CAPTCHA. Open **Verify** once, capture the current owned challenge, read
+the visible characters, and fill its **Verification answer** field. Submit once,
+wait for the result, and require explicit success such as **You have successfully
+solved the challenge** before continuing the pending password/MFA flow.
+
+The observed text challenge uses a cross-origin iframe from
+`cdn.us-east-1.threat-mitigation.aws.amazon.com`; top-page selectors do not reach
+its input. Use frame-aware browser controls or native pointer/keyboard input after
+checking that the target coordinates belong to that iframe. Do not type into the
+underlying password field. Reacquire the current screenshot/geometry if layout
+changes. Capture only the challenge where possible, excluding unmasked passwords,
+MFA enrollment QR codes, and unrelated account details.
+
+Keep the answer transient, without recording it or the challenge image in Git or
+durable account records. Remove owned temporary screenshots after completion.
+On an explicit incorrect/expired-answer response, read the new current challenge
+and use the same bounded attempt budget; do not replay the old answer or submit
+repeatedly while a request is pending. Hand off an unreadable/unsupported challenge,
+an exhausted budget, or a verification that actually requires the user's device.
 
 ## Authorized 2fa.fun use
 
