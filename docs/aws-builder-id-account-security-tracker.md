@@ -418,8 +418,8 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faiz-amanullah001
 新密码沿用上方助记规则，数字段由用户在本次会话中指定。改密结果以 AWS 显示的
 `Your password has been successfully updated.` 为核验依据。
 
-截至记录更新，已确认改密 7/10，Kiro 身份核验 7/10，公网请求归属核验 7/10。
-已完成 IDE 来源接入的账号为 `muhammad.ridho12004@binus.ac.id`、`muhammad.reifan@binus.ac.id`；其余 5 个已接入账号为 CLI 来源。
+截至记录更新，已确认改密 8/10，Kiro 身份核验 8/10，公网请求归属核验 8/10。
+已完成 IDE 来源接入的账号为 `muhammad.ridho12004@binus.ac.id`、`muhammad.reifan@binus.ac.id`、`muhammad.razzaq002@binus.ac.id`；其余 5 个已接入账号为 CLI 来源。
 
 | AWS Builder ID 账号 | llm-access 账号 | 密码 | 导入时订阅 / 剩余 credits | 固定美国代理 | 公网请求 |
 | --- | --- | --- | --- | --- | --- |
@@ -431,7 +431,7 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faiz-amanullah001
 | `muhammad.retmawan@binus.ac.id` | 未导入 | AWS ERR-837，未改密 | 待核验 | 待配置 | 待核验 |
 | `muhammad.ridho12004@binus.ac.id` | `kiro-muhammad-ridho12004-builder-id`（IDE 来源） | AWS 已确认成功 | KIRO STUDENT / 999.95 | `do-us-10` | HTTP 200，KIRO_OK，归属已确认 |
 | `muhammad.reifan@binus.ac.id` | `kiro-muhammad-reifan-builder-id`（IDE 来源） | AWS 已确认成功 | KIRO STUDENT / 999.97 | `aws_us3_east1` | HTTP 200，KIRO_OK，归属已确认 |
-| `muhammad.razzaq002@binus.ac.id` | 未导入 | AWS ERR-837，未改密 | 待核验 | 待配置 | 待核验 |
+| `muhammad.razzaq002@binus.ac.id` | `kiro-muhammad-razzaq002-builder-id`（IDE 来源） | AWS 已确认成功 | KIRO STUDENT / 999.96 | `aws_us_east1` | HTTP 200，KIRO_OK，归属已确认 |
 | `muhammad.rathana@binus.ac.id` | 未导入 | AWS ERR-837，未改密 | 待核验 | 待配置 | 待核验 |
 
 所有已验证导入账号均为 `auth_method=idc`；CLI 来源使用 `provider=aws`，IDE 来源保留
@@ -452,6 +452,7 @@ XDG_DATA_HOME=/home/ts_user/.local/share/kiro-builder-accounts/faiz-amanullah001
 | `muhammad.revano@binus.ac.id` | 316 | `llm-usage-e261afd4-1f28-47ca-8335-4b1f3cb6e8b2` |
 | `muhammad.ridho12004@binus.ac.id` | 421 | `llm-usage-edcb21e6-7498-4c7b-bae7-8b5a3c125f54` |
 | `muhammad.reifan@binus.ac.id` | 589 | `llm-usage-f19216a1-39e9-41ee-bdc4-0424d60e4fce` |
+| `muhammad.razzaq002@binus.ac.id` | 892 | `llm-usage-9beb00f0-a141-48b4-939d-4812067b3cf2` |
 
 本轮操作观察：第三个账号首次 MFA 验证失败后，对比 AWS 两个服务的实时 `Date` 响应头，
 确认本机时间比服务器慢约 49 秒；按 AWS 时间生成新验证码后验证通过，后续使用相同时间校正，
@@ -502,7 +503,17 @@ KIRO STUDENT / 999.97 credits；固定账号的公网请求、Usage 归属和临
 或导入。已按用户要求停止，保留当前 Chrome 错误页面与 IDE 回调监听，等待用户接管；
 没有继续其他账号。错误和代理核验证据已保存到用户私有持久目录。
 
-尚未解决的 AWS 账号错误：`muhammad.retmawan@binus.ac.id`、`muhammad.razzaq002@binus.ac.id`、`muhammad.rathana@binus.ac.id`。
+用户随后在保留的浏览器中完成 Razzaq002 登录与 IDE 授权；原回调监听已收到授权码并成功兑换，
+没有重启登录流程。2026-10-20 15:30 UTC，该账号完成 AWS 改密确认和 IDE 凭据导入，原 MFA 1
+（2026-10-18 注册）保留。经 `aws_us_east1` 刷新为 KIRO STUDENT / 999.96 credits（导入时），
+公网 `claude-sonnet-5.5` 请求返回 HTTP 200、`KIRO_OK`、`end_turn`，Usage 归属和测试 Key 删除均已核验。
+
+接着处理 Rathana：本地 `11115` 代理上的 IDE portal 与客户端注册已完成，但邮箱步骤仍返回
+ERR-837。AWS 时间 2026-10-20 15:34:34 UTC，请求号 `ee44d018-4f54-499b-bd87-bea53ad7d4aa`。
+尚未进入密码/MFA 步骤，密码和原验证器均未修改，也未导入。已停止并将该 Chrome 窗口置前，
+保留 IDE 回调监听等待用户手动接管；未继续 Retmawan。凭据之外的错误与代理证据已持久保存。
+
+尚未解决的 AWS 账号错误：`muhammad.retmawan@binus.ac.id`、`muhammad.rathana@binus.ac.id`。
 上述账号最近已记录的登录尝试在邮箱步骤返回 `ERR-837 - Account issue`，尚未完成改密或导入。
 后续按用户指示逐个处理。Ridho 的独立浏览器保留在已登录的安全设置页。
 
