@@ -718,9 +718,9 @@ Pratama086 的公网请求已成功，但初次核验时 Usage 记录尚未同�
 | 17 | `taufik.hadiwijaya@binus.ac.id` | 本地端口代理 | 已核验 | AWS 已确认更新 | HTTP 200 / KIRO_OK / 归属已核验 |
 | 18 | `theresia.evangeline@binus.ac.id` | 本地端口代理 | 已核验 | AWS 已确认更新 | HTTP 200 / KIRO_OK / 归属已核验 |
 | 19 | `theresia.halim@binus.ac.id` | 本地端口代理 | 已核验 | AWS 已确认更新 | HTTP 200 / KIRO_OK / 归属已核验 |
-| 20 | `theresia.sigalingging@binus.ac.id` | 本地端口代理 | 待处理：AWS ERR-837 account issue; contact AWS Support | 未修改 | 待导入 |
+| 20 | `theresia.sigalingging@binus.ac.id` | 本地端口代理 | 已核验 | AWS 已确认更新 | HTTP 200 / KIRO_OK / 归属已核验 |
 
-已确认改密 19/20，IDE 授权 19/20，公网请求归属核验 19/20。
+已确认改密 20/20，IDE 授权 20/20，公网请求归属核验 20/20。
 
 | 账号 | 固定推理代理 | 导入时订阅 / 剩余 credits | 最小间隔（ms） | Usage ID |
 | --- | --- | --- | ---: | --- |
@@ -743,6 +743,7 @@ Pratama086 的公网请求已成功，但初次核验时 Usage 记录尚未同�
 | `taufik.hadiwijaya@binus.ac.id` | `aws_us3_east1` | KIRO STUDENT / 999.99 | 765 | `llm-usage-7f3ea074-f74f-4603-94ab-dfdd938ee8cc` |
 | `theresia.evangeline@binus.ac.id` | `aws_us_east1` | KIRO STUDENT / 999.99 | 554 | `llm-usage-a5c0dd31-c93d-447b-9486-fb6adf465059` |
 | `theresia.halim@binus.ac.id` | `do-us-1` | KIRO STUDENT / 999.99 | 924 | `llm-usage-e1040daf-7e36-41e8-a92a-3163ebb078d0` |
+| `theresia.sigalingging@binus.ac.id` | `do-us-10` | KIRO STUDENT / 999.98 | 736 | `llm-usage-b319efb4-d427-4fa5-8522-874c72f4e14e` |
 
 已完成账号均使用 IDE 来源的 `auth_method=idc` / `provider=BuilderId`，并发 3、最小间隔 200–1000 ms、最低剩余额度 10 credits。
 每个公网测试均固定对应账号，关闭直接 Anthropic 池及策略回退，核验正常响应与 Usage 归属；临时测试 Key 已删除并核对不存在。
@@ -752,10 +753,10 @@ atira.bahari@binus.ac.id：推理代理 tmp-us-for-kiro 的额度校验返回 Ru
 
 Yaumil：现有 MFA 使用自定义名称，已修正设备名必须包含邮箱的错误假设；通过已验证邮箱和同一授权浏览器确认身份，保存改密前设备清单并核验原设备保留。自定义设备名保留与错误浏览器拒绝两个模拟场景通过。
 
+Theresia.sigalingging：邮箱页此前返回 ERR-837，用户继续操作后已进入密码环节；随后复用同一浏览器完成密码和 MFA，并用当前登录态续发 IDE 授权。统一改密、导入和公网请求归属核验均已完成。该错误的具体原因尚未确定，本次未将其判定为永久封禁。
+
 文字 Security check 已识别填写并以 AWS 明确成功提示核验：`yoko.monden@binus.ac.id`、`terris.alvin@binus.ac.id`、`teo.alldanis@binus.ac.id`、`tansa.handoko@binus.ac.id`、`tasya.choiria@binus.ac.id`、`tasya.elvira@binus.ac.id`、`taufik.hadiwijaya@binus.ac.id`、`theresia.evangeline@binus.ac.id`、`theresia.halim@binus.ac.id`。答案和图片未写入账户持久记录，临时图片已清理。
 
-最终完整分页读取 404 个线上账号，本批已完成 19/20 个的配置及证据复核，批次临时测试 Key 剩余 0。
-
-`theresia.sigalingging@binus.ac.id` 在邮箱提交阶段连续三次返回 AWS `ERR-837 — Account issue`，页面要求联系 AWS Support；未进入密码步骤，密码和 MFA 均未修改，未导入。保留独立浏览器供后续处理；该错误本身不证明永久封禁。最近请求 ID：`698fc9c3-f1fb-43c5-b198-920246d644fb`，AWS 时间：Thu, 22 Oct 2026 14:10:50 GMT。
+最终完整分页读取 405 个线上账号，本批 20 个均核验通过，批次临时测试 Key 剩余 0。
 
 <!-- builder-id-batch-20261022:end -->
