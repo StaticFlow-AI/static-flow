@@ -44,3 +44,13 @@ For each queued account:
 4. Mention the student/inactivity context only when it is true for that account.
 5. Do not claim hacking, exact dates, or policy compliance history unless there is evidence.
 6. Update `Appeal status` after submission, including any GitHub ticket ID if shown.
+
+<!-- github-suspension-batch-20261026:start -->
+
+## 2026-10-26 上号批次中明确暂停的账号
+
+| 登录邮箱 | 观察结果 | 已完成操作 | 申诉状态 |
+| --- | --- | --- | --- |
+| `muhammad.pratama079@binus.ac.id` | GitHub `/suspended` 页面明确显示 Account suspended，并要求联系支持；未确认 GitHub 用户名 | 仅提交登录信息；未改密、未改 2FA、未授权或导入 Kiro | 未提交，待账号所有者处理 |
+
+<!-- github-suspension-batch-20261026:end -->
