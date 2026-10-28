@@ -39,6 +39,23 @@ AWS 改密、清理全部会话、独立复登、条件式 MFA 更换、CLI 设�
 
 ## 配置与运行
 
+本项目当前登录连接规则为每三个账号交替：第 1–3 个直连、第 4–6 个使用
+`http://127.0.0.1:11115`，第 7–9 个直连，之后循环。按本批输入序号计算，
+失败或续跑不会重排账号或重置序号。可用
+[login-network-policy.cjs](scripts/login-network-policy.cjs) 生成并核对配置。
+这是登录连接切换；导入后的推理请求仍遵循目标网关的独立代理策略。
+
+Linux / llm-access 批次可用 [outlook-cdp.cjs](scripts/outlook-cdp.cjs) 复用随包 Outlook
+单项功能，在当前账号的独立 Chrome 上连接 CDP，逐次操作后等待至少 2 秒，
+并在新上下文中实际输入新密码验证。凭据仅经关闭回显的私密 stdin 传入；
+先完成邮箱改密，再复用同一 Chrome 衔接 Builder ID IDE 授权与 llm-access 验证。
+Microsoft 所需的额外验证单独处理，不使用 AWS TOTP 代答。
+邮箱等待用户设备验证时可保留其标签页，在同一账号的新标签页先完成已授权的 AWS/Kiro 步骤；
+恢复时选择保留的 Microsoft 页，全部完成状态仍须包含 Outlook 改密与独立复登。
+若“Stay signed in”页三次点击后仍未推进，适配器等待页面稳定后返回失败。
+仅在身份匹配、尚无改密提交回执时，在同一窗口重新进入 My Account 续跑；
+保存累计次数，最多三次，不重建账号窗口或切换连接。已有 submitted 回执时只验证新密码。
+
 运行环境须有 macOS、Node.js、Python 3、curl、Google Chrome、kiro-cli，
 以及兼容的 Prism 管理端和恢复邮箱 API。后端固定使用 macOS Keychain 和
 `~/Library/Application Support/kiro-cli/data.sqlite3`；使用已获授权的独占 CLI 环境，
@@ -52,9 +69,10 @@ AWS 改密、清理全部会话、独立复登、条件式 MFA 更换、CLI 设�
    `MAILBOX_PASSWORD_FILE` 提供完整入口同时用于 Outlook 和 AWS 的目标密码；不同目标需要调整流程。
    按 README 配置自己的 Prism、恢复邮箱 API 和凭据，检查示例占位值已替换，避免打印配置。
    台账会保存明文密码和 seed，台账、日志、回执、备份都只能留在私密目录，不能写入本项目文档。
-3. 源码内置每成功两个账号切一次 Clash 节点，计数在进程重启时归零。
+3. 原始整包源码仍内置每成功两个账号切一次 Clash 节点，计数在进程重启时归零。
    用户未选择该策略、没有匹配的 Clash Party socket，或已有固定/每五个切换规则时，
    在私密配置设置 `KIRO_CLASH_ROTATE=0`，按用户实际规则管理已授权的代理。
+   本项目当前三账号交替规则也应关闭该内置轮换，使用上述独立的登录连接策略。
 4. 在本 skill 的 `scripts/batch/` 目录安装声明的依赖：`npm install --ignore-scripts`。
    原包固定 Playwright 1.60.0，使用系统 Chrome；本次保存不代表依赖或平台已安装。
 5. 仅在完整流程已获授权、配置与独占环境检查完成后执行：
@@ -104,4 +122,5 @@ llm-access 公网 Key 路由与 Usage 归属证明。汇报时引用脱敏状态
 
 保存或检查本包时，仅做 metadata、JSON、JavaScript 语法和 Python AST 检查，
 以及明确隔离的本地台账样例验证。不要用 `run.cjs`、`preflight.py` 或后端命令作为语法检查。
-本包未在当前 Linux/WSL 上执行真实账号维护，跨平台适配属于另一项工作。
+原始整包的 Keychain / Prism 后端仍只适用于其 macOS 环境；Linux CDP 单项适配与
+llm-access / IDE 衔接分别验证，不将其中一个入口的结果当作整包已通过验证。

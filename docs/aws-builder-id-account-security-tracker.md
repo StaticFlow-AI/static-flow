@@ -806,3 +806,64 @@ syafa.suriana@binus.ac.id：安全入口空白经官方账号入口重入恢复�
 最终完整分页读取 425 个线上账号，本批 3 个均核验通过，批次临时测试 Key 剩余 0。
 
 <!-- builder-id-batch-20261027:end -->
+
+<!-- builder-outlook-ide-batch-20261028:start -->
+
+## 2026-10-28 Outlook / Builder ID / Kiro IDE 批次（20 个账号）
+
+用户确认 Outlook 与 AWS 均更新为此前选定的统一密码，保留原 AWS MFA。
+通过 kiro-outlook-prism-onboarder 的 Outlook 单项适配，在账号独立可见 Chrome 中改密，并在新上下文中实际输入新密码验证；随后复用同一 Chrome 完成 Builder ID IDE PKCE、llm-access 导入和公网请求归属验证。
+使用官方 Kiro IDE 1.2.4 包中的协议助手，未运行 IDE 应用，也未使用 CLI device login。
+每个浏览器操作后至少等待 2 秒并检查页面就绪；账号逐个处理，恢复时保留已成功阶段和累计次数。
+登录连接按输入序号每三个交替：1–3 直连、4–6 代理、7–9 直连、10–12 代理、13–15 直连、16–18 代理、19–20 直连。本地代理为 127.0.0.1:11115；浏览器和 IDE 授权请求使用同一连接，导入后的推理请求固定到活跃美国代理。
+原始 2FA 与邮箱映射保存在私有持久文件 `2026-10-28-outlook-ide-original-2fa.json`，权限 0600；仓库不保存密码、验证器密钥或真实凭据台账。
+
+预检完整分页读取 425 个线上账号，目标邮箱和账号名均未重复。
+
+| 序号 | 邮箱 | 登录连接 | Outlook 改密 / 新会话验证 | AWS 改密 | IDE 授权 | 公网请求 / Usage 归属 |
+| ---: | --- | --- | --- | --- | --- | --- |
+| 1 | `aliya.ramadhani@binus.ac.id` | 直连 | 已核验 | AWS 已确认更新 | 已核验 | HTTP 200 / KIRO_OK / 归属已核验 |
+| 2 | `eliott.rivet@binus.ac.id` | 直连 | 已核验 | AWS 已确认更新 | 已核验 | HTTP 200 / KIRO_OK / 归属已核验 |
+| 3 | `egi.purwana@binus.ac.id` | 直连 | 已核验 | AWS 已确认更新 | 已核验 | HTTP 200 / KIRO_OK / 归属已核验 |
+| 4 | `ahdan.permana@binus.ac.id` | 本地端口代理 | 已核验 | AWS 已确认更新 | 已核验 | HTTP 200 / KIRO_OK / 归属已核验 |
+| 5 | `agung.sukmawan@binus.ac.id` | 本地端口代理 | 已核验 | AWS 已确认更新 | 已核验 | HTTP 200 / KIRO_OK / 归属已核验 |
+| 6 | `alexandra.sanell@binus.ac.id` | 本地端口代理 | 已核验 | AWS 已确认更新 | 已核验 | HTTP 200 / KIRO_OK / 归属已核验 |
+| 7 | `ilyas.suryana@binus.ac.id` | 直连 | 已核验 | AWS 已确认更新 | 已核验 | HTTP 200 / KIRO_OK / 归属已核验 |
+| 8 | `imanuel.wattimena@binus.ac.id` | 直连 | 待微软设备验证 | AWS 已确认更新 | 已核验 | HTTP 200 / KIRO_OK / 归属已核验 |
+| 9 | `imelda.rizkiyanti@binus.ac.id` | 直连 | 待完成 | 待完成 | 待完成 | 待完成 |
+| 10 | `immanuel.kindangen@binus.ac.id` | 本地端口代理 | 待完成 | 待完成 | 待完成 | 待完成 |
+| 11 | `immanuel.siboro@binus.ac.id` | 本地端口代理 | 待完成 | 待完成 | 待完成 | 待完成 |
+| 12 | `inayah.safitri@binus.ac.id` | 本地端口代理 | 待完成 | 待完成 | 待完成 | 待完成 |
+| 13 | `indah.setyawan@binus.ac.id` | 直连 | 待完成 | 待完成 | 待完成 | 待完成 |
+| 14 | `ignatius.giawa@binus.ac.id` | 直连 | 待完成 | 待完成 | 待完成 | 待完成 |
+| 15 | `ilham.darmawan@binus.ac.id` | 直连 | 待完成 | 待完成 | 待完成 | 待完成 |
+| 16 | `friska.desrianti@binus.ac.id` | 本地端口代理 | 待完成 | 待完成 | 待完成 | 待完成 |
+| 17 | `gerald.sutanto@binus.ac.id` | 本地端口代理 | 待完成 | 待完成 | 待完成 | 待完成 |
+| 18 | `ghina.waltz@binus.ac.id` | 本地端口代理 | 待完成 | 待完成 | 待完成 | 待完成 |
+| 19 | `gigih.rahmadi@binus.ac.id` | 直连 | 待完成 | 待完成 | 待完成 | 待完成 |
+| 20 | `graciela001@binus.ac.id` | 直连 | 待完成 | 待完成 | 待完成 | 待完成 |
+
+Outlook 改密与独立复登 7/20，AWS 已确认改密 8/20，实际请求归属核验 8/20，全部阶段完成 7/20。
+
+| 邮箱 | 固定推理代理 | 导入时订阅 / 剩余额度 | 最小间隔（ms） | Usage ID |
+| --- | --- | --- | ---: | --- |
+| `aliya.ramadhani@binus.ac.id` | `do-us-5` | KIRO STUDENT / 1000 | 924 | `llm-usage-3cda44a7-88fc-4280-b67a-45a70934a725` |
+| `eliott.rivet@binus.ac.id` | `do-us-5` | KIRO STUDENT / 1000 | 376 | `llm-usage-5caedefb-d06e-4e3a-9e7a-450c35218ecd` |
+| `egi.purwana@binus.ac.id` | `do-us-5` | KIRO STUDENT / 1000 | 584 | `llm-usage-18adfdb0-9ebb-4963-b38c-f623b5490962` |
+| `ahdan.permana@binus.ac.id` | `do-us-5` | KIRO STUDENT / 1000 | 701 | `llm-usage-ee3c2f8e-f1e4-4d71-bd09-f3a34a31d3be` |
+| `agung.sukmawan@binus.ac.id` | `do-us-5` | KIRO STUDENT / 1000 | 988 | `llm-usage-fec228f4-6f2f-4732-a21b-c0af9779c9a0` |
+| `alexandra.sanell@binus.ac.id` | `do-us-9` | KIRO STUDENT / 1000 | 491 | `llm-usage-bdd20deb-1270-4d8f-a25e-2b0c0c8351f2` |
+| `ilyas.suryana@binus.ac.id` | `do-us-1` | KIRO STUDENT / 1000 | 874 | `llm-usage-adce382d-c030-48dd-a78d-365b2fd93ef9` |
+| `imanuel.wattimena@binus.ac.id` | `do-us-11` | KIRO STUDENT / 1000 | 425 | `llm-usage-09618b2c-00da-4361-9d4c-45061e3d5f44` |
+
+已核验请求的账号使用 IDE 来源的 auth_method=idc / provider=BuilderId，并发 3、最小间隔 200–1000 ms、最低剩余额度 10。每次测试 Key 只固定当前账号，关闭直接 Anthropic 池及策略回退；临时 Key 删除后核验不存在。AWS 改密以明确成功提示为依据，未另做 AWS 新密码完整复登；原 MFA 保留。
+
+aliya.ramadhani@binus.ac.id：推理代理 tmp-us-for-kiro 的额度校验返回 RuntimeError: HTTP 502；本次新建记录已撤回并核验不存在，保留已完成的认证与改密，再按有限重试选择其他合格代理。
+
+本批已完成 7/20 个全部阶段，8/20 个 AWS 改密、IDE 导入与公网请求核验。第 8 个账号的 Outlook Security info 要求 Microsoft Authenticator 设备确认，邮箱改密尚未提交；微软验证页保留在独立标签页，其 AWS/Kiro 已在同一浏览器的新标签页完成。第 9–20 个尚未开始，等待当前账号所需验证。第 2 个账号适配微软官方 Outlook 新域名后仅重做新密码验证；第 4、5 个账号从保持登录状态停滞页在同一连接、同一窗口续跑恢复，未重复改密。
+
+`imanuel.wattimena@binus.ac.id` 待处理：Microsoft Authenticator request denied; Outlook password change not submitted。
+
+本次阶段核验完整分页读取 433 个线上账号，已完成 7/20，临时测试 Key 剩余 0。
+
+<!-- builder-outlook-ide-batch-20261028:end -->
