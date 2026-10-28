@@ -164,6 +164,13 @@ async function main() {
       const message = JSON.parse(line);
       if (message.op === 'start') emit({ op: message.op, result: await start(message) });
       else if (message.op === 'status') emit({ op: message.op, result: state });
+      else if (message.op === 'skip-microsoft-verification') {
+        if (!state.humanRequired || !state.receipt || fs.existsSync(state.receipt))
+          throw new Error('Only an unsubmitted password change blocked on Microsoft verification can be skipped');
+        secrets = []; observeAction = () => {};
+        emit({ op: message.op, result: { account: state.account, passwordChangeSubmitted: false, originalPasswordRetained: true, browserRetained: true } });
+        process.exit(0);
+      }
       else if (message.op === 'stop') {
         if (!['verified', 'failed', 'ready'].includes(state.stage)) throw new Error('Inspect the pending operation before stopping');
         secrets = [];

@@ -50,8 +50,11 @@ Linux / llm-access 批次可用 [outlook-cdp.cjs](scripts/outlook-cdp.cjs) 复�
 并在新上下文中实际输入新密码验证。凭据仅经关闭回显的私密 stdin 传入；
 先完成邮箱改密，再复用同一 Chrome 衔接 Builder ID IDE 授权与 llm-access 验证。
 Microsoft 所需的额外验证单独处理，不使用 AWS TOTP 代答。
-邮箱等待用户设备验证时可保留其标签页，在同一账号的新标签页先完成已授权的 AWS/Kiro 步骤；
-恢复时选择保留的 Microsoft 页，全部完成状态仍须包含 Outlook 改密与独立复登。
+本批用户已明确：若 Outlook 需要额外设备验证且改密尚未提交，保留原邮箱密码、记录跳过原因，
+继续 AWS/Kiro 其他步骤，无需逐个询问。适配器的 `skip-microsoft-verification` 仅在该状态下退出，
+已有提交回执时拒绝跳过；台账分别统计实际改密与经授权保留原密码。
+用户要求处理微软设备验证时可保留其标签页，在同一账号的新标签页先完成已授权的 AWS/Kiro 步骤；
+恢复时选择保留的 Microsoft 页，台账区分邮箱已改密、经授权跳过和待验证。
 若“Stay signed in”页三次点击后仍未推进，适配器等待页面稳定后返回失败。
 仅在身份匹配、尚无改密提交回执时，在同一窗口重新进入 My Account 续跑；
 保存累计次数，最多三次，不重建账号窗口或切换连接。已有 submitted 回执时只验证新密码。

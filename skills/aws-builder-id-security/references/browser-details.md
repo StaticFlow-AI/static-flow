@@ -160,6 +160,16 @@ the October 2026 batch a measured clock offset was corrected and one challenge t
 passed; another required user intervention. Those observations do not establish
 that every MFA failure or ERR-837 was caused by timing or automation speed.
 
+When the user selects MFA recovery, inspect **Troubleshoot MFA** in the current
+Builder ID page. The observed page offers a resync form for two consecutive codes
+and **Verify via email** for the primary and registered recovery inboxes. Keep
+resync attempts separate from ordinary OTP retries and require an explicit result.
+Possession of the primary inbox alone does not complete both email factors;
+even a password-reset link can still require MFA. Recheck the masked recipient
+after filling a code and before continuing, since the same verification form can
+advance to the recovery address. Never reuse the primary inbox's code for that step.
+See [AWS account recovery](https://docs.aws.amazon.com/signin/latest/userguide/recover-builder-id.html).
+
 ## Authorized text CAPTCHA
 
 When the user asks the assistant to complete AWS Security check by reading the
