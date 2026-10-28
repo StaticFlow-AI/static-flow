@@ -1,0 +1,9 @@
+{
+  "name": "kiro-onboarding-share",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Sanitized macOS source snapshot; configure private inputs separately",
+  "dependencies": {
+    "playwright": "1.60.0"
+  }
+}

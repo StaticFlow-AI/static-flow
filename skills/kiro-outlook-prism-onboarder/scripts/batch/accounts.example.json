@@ -1,0 +1,9 @@
+[
+  {
+    "email": "user@example.invalid",
+    "mailPassword": "REPLACE_WITH_OUTLOOK_PASSWORD",
+    "awsPassword": "REPLACE_WITH_AWS_PASSWORD",
+    "vendorNumber": 1,
+    "provider": "aws"
+  }
+]

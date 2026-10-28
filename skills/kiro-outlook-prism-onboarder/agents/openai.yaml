@@ -1,0 +1,3 @@
+interface:
+  display_name: "Kiro Outlook / AWS / Prism Batch"
+  short_description: "Configure and resume macOS Kiro/Outlook/Prism batches."

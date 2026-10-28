@@ -1,0 +1,13 @@
+/scripts/batch/*.json
+!/scripts/batch/*.example.json
+!/scripts/batch/package.json
+!/scripts/batch/package-lock.json
+/scripts/batch/*.txt
+/scripts/batch/*.log
+/scripts/batch/env.sh
+/scripts/batch/ledger.md
+/scripts/batch/private/
+/scripts/batch/import-run/
+/scripts/batch/node_modules/
+__pycache__/
+*.pyc

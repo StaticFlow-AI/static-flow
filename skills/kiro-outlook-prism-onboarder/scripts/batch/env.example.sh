@@ -1,0 +1,11 @@
+# Source a PRIVATE edited copy of this file. This template contains no credentials.
+export BATCH_RUN_DIR="/absolute/private/batch"
+export ACCOUNT_LEDGER_FILE="/absolute/private/ledger.md"
+export MAILBOX_PASSWORD_FILE="/absolute/private/new-password.txt"
+export KIRO_IMPORT_BASE="https://prism.example.invalid"
+export KIRO_ADMIN_KEY="REPLACE_WITH_YOUR_OWN_PRISM_ADMIN_KEY"
+export MAIL_API_BASE="https://mail-api.example.invalid"
+export MAIL_ADMIN_TOKEN_FILE="/absolute/private/mail-api-token.txt"
+export KIRO_PROXY="http://127.0.0.1:7890"
+export KIRO_CLASH_ROTATE="1"
+export KIRO_CLASH_GROUP="auto"
