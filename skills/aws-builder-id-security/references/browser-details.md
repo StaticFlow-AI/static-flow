@@ -112,6 +112,14 @@ email is an identity mismatch. Record an explicit password-update confirmation
 before waiting for the MFA inventory. A loading inventory must not turn a confirmed
 password change into a report that the password is unchanged or trigger resubmission.
 
+Resolve named actions to a visible button, link, or tab. Do not use the first exact
+text match: Kiro consent also contains **Allow access** in explanatory text, which
+can receive a click without submitting consent. Prefer the exact accessible role;
+if an icon adds text to the accessible name, require a unique real control ancestor
+of the matching label. Verify the resulting page, request, or callback before
+counting a click as a submitted authentication attempt. Preserve interaction
+diagnostics separately from actual provider submissions.
+
 | Observation | Recovery within the step budget |
 | --- | --- |
 | Loading page, temporarily missing control, stale DOM/CDP context | Wait and rediscover the target; do not treat this as an authentication failure or click again while a request is pending. |
