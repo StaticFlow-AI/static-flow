@@ -886,3 +886,15 @@ graciela001@binus.ac.id：自动邮箱步骤有限重试后，用户在原窗口
 本次阶段核验完整分页读取 444 个线上账号，已完成 19/20，临时测试 Key 剩余 0。
 
 <!-- builder-outlook-ide-batch-20261028:end -->
+
+## 2026-10-29 补充账号：ilma.nurin
+
+沿用 Outlook / AWS 统一改密、保留原 AWS MFA、IDE Builder ID 登录与导入验证流程。
+新账号独立记录，原 `ignatius.giawa@binus.ac.id` 的暂缓状态保持不变。
+登录连接按前批续序第 21 位使用直连；预检完整分页读取 444 个账号，目标邮箱及名称均无重复。
+
+| 邮箱 | Outlook 改密 / 新会话验证 | AWS 改密 | Kiro IDE / 导入 | 当前步骤 |
+| --- | --- | --- | --- | --- |
+| `ilma.nurin@binus.ac.id` | 已确认改密，并在新上下文实际输入新密码验证 | 未修改 | 未取得授权令牌，未导入 | AWS 邮箱步骤 ERR-837，待人工介入 |
+
+AWS 邮箱步骤累计三次有限尝试后，页面仍显示 `ERR-837 - Account issue`，要求联系 AWS Support；尚未进入 AWS 密码或 MFA 步骤，不能据此确认永久封禁。错误时间为 `2026-10-29T02:54:28Z`，Request ID 为 `fec02dd2-5b4e-4a18-ac40-43ac5d54af1b`。保留独立 Chrome 及待完成 IDE 回调，未继续自动重试。原始 2FA 映射和阶段证据已写入用户私有持久目录，未写入仓库。
