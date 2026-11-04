@@ -74,3 +74,31 @@ Google 设备授权在用户自己的 Mac 浏览器中完成，本次流程未�
 | `for-huye` | `active` |
 | `for-external-cache` | `disabled` |
 | `admin` | `active` |
+
+## 真实流量未命中新账号的排查与修正（2026-11-04）
+
+用户反馈仍没有请求进入本账号，并确认检查当前请求最多的 Key。近期用量确认该 Key 为 **`for-external-cache-new`**（`kiro-key-aafeab48def04996a55c166046e7dc65`）。变更前分页采集的 291 条实际请求中，本账号命中数为 0；路由诊断分别为 215 次 `warm_prefix_selected`、73 次 `affinity_reused`、3 次 `new_binding`。
+
+此前余额优先配置已正确保存，但前缀缓存和会话亲和性选择先于冷请求的账号池、余额排序，关闭低负载优先并不会关闭这些缓存规则。此外，冷选择中的会话绑定数量比较也先于账号池排序。此前新建临时 Key 的成功测试只证明冷请求可以选中新账号，没有覆盖这个真实 Key 的缓存流量，因此不足以证明实际流量会转移。
+
+使用现有配置完成修正，未修改调度源码或重启服务。新建账号组 `priority-ssmerommagdalena558`，ID 为 `kiro-group-33c4c9cddedf4355a70391fb49faae66`，成员仅为 `kiro-ssmerommagdalena558-google-social`。仅在 `for-external-cache-new` 的 `kiro_model_group_preferences` 中，将当前实际使用的下列 5 个模型映射到该组：
+
+| 模型 | 首选账号组 |
+| --- | --- |
+| `claude-opus-4-7` | `priority-ssmerommagdalena558` |
+| `claude-opus-4-8` | `priority-ssmerommagdalena558` |
+| `claude-opus-5.5` | `priority-ssmerommagdalena558` |
+| `claude-sonnet-5` | `priority-ssmerommagdalena558` |
+| `claude-sonnet-5.5` | `priority-ssmerommagdalena558` |
+
+模型账号组偏好会先约束缓存和会话亲和性的首选账号，再参与冷请求排序，使其他账号的旧缓存不再抢先选中。该 Key 仍为全账号范围的 `auto` 路由；首选账号不可用时仍可选择其他账号，原有策略回退和外部上游回退配置保留。完整比较 API 配置，除该 Key 的模型账号组偏好外，其余配置及另外 43 个 Kiro Key 均未变更。模型映射按精确名称生效，未来新增模型需另行配置，不能视为所有模型的通配偏好。
+
+服务端 Key 更新时间为 **2026-11-04 18:43:03.347，UTC+08:00**。验证时发现云端时钟比本机快约 55 秒，因此以服务端 `updated_at` 为变更边界，并用事件完成时间减去请求耗时筛除变更前已启动的请求。合并实时 journal 与已持久化 Usage、按事件 ID 去重后，已核实变更后 **29 条真实请求**进入本账号：19 条 `claude-sonnet-5.5`、7 条 `claude-sonnet-5`、3 条 `claude-opus-5.5`，全部 HTTP 200，`usage_missing=false`。这是可核实样本数，journal 会轮转、持久化存在延迟，不作为整个时间段的完整请求总数。
+
+| 模型 | 真实 Key 的成功请求示例 |
+| --- | --- |
+| `claude-opus-5.5` | `llm-usage-ae8d9d67-e1b7-4a34-82f6-fc66a96cd994` |
+| `claude-sonnet-5.5` | `llm-usage-0d000c4b-6b35-460f-ae7b-3ef341993355` |
+| `claude-sonnet-5` | `llm-usage-7b7551e4-029d-4f3c-ac59-ddc4e844a31d` |
+
+其中 5 条已持久化事件的路由诊断包含 2 次 `warm_prefix_selected`、1 次 `affinity_reused`、2 次 `new_binding`，所选账号均为本账号。其余样本来自实时 journal，未使用新的临时 Key 代替真实流量验证。复核账号仍固定使用新加坡 `aws_sg5`，并发 100、RPM 6000、最小启动间隔 0、最低余额门槛 0、手动额度上限 20,000 均保留；余额缓存当时报告已用 50、剩余 19,950，此数仍受上游报告准确性限制。
