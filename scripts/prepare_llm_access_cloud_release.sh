@@ -94,12 +94,19 @@ load_config
 BUILD_JOBS="${BUILD_JOBS:-4}"
 ALLOW_DIRTY="${ALLOW_DIRTY:-0}"
 PREPARE_TARGET="${LLM_ACCESS_ACTIVATE_TARGET:-both}"
+PRESERVE_RUNTIME_ENV="${LLM_ACCESS_PRESERVE_RUNTIME_ENV:-0}"
 case "$PREPARE_TARGET" in
   api | worker | image | cursor | both) ;;
   *)
     fail "unsupported prepare target: $PREPARE_TARGET (expected api, worker, image, cursor, or both)"
     ;;
 esac
+if [[ "$PRESERVE_RUNTIME_ENV" != "0" && "$PRESERVE_RUNTIME_ENV" != "1" ]]; then
+  fail "LLM_ACCESS_PRESERVE_RUNTIME_ENV must be 0 or 1"
+fi
+if [[ "$PRESERVE_RUNTIME_ENV" == "1" && "$PREPARE_TARGET" != "api" ]]; then
+  fail "preserving the remote runtime env is supported for API-only releases"
+fi
 require_var CARGO_TARGET_DIR
 require_var GCP_SSH_KEY
 require_var REMOTE_RELEASE_DIR
@@ -245,14 +252,20 @@ log "running llm-access clippy"
 cargo clippy -p llm-usage-journal -p llm-access-core -p llm-access-store -p llm-access -p llm-access-codex-image --jobs "$BUILD_JOBS" -- -D warnings
 
 log "building release binaries"
-cargo build -p llm-access -p llm-access-codex-image --release --jobs "$BUILD_JOBS"
+if [[ "$PRESERVE_RUNTIME_ENV" == "1" ]]; then
+  cargo build -p llm-access --bin llm-access --release --jobs "$BUILD_JOBS"
+else
+  cargo build -p llm-access -p llm-access-codex-image --release --jobs "$BUILD_JOBS"
+fi
 
 API_BIN="$CARGO_TARGET_DIR/release/llm-access"
 WORKER_BIN="$CARGO_TARGET_DIR/release/llm-access-usage-worker"
 IMAGE_BIN="$CARGO_TARGET_DIR/release/llm-access-codex-image"
 [[ -x "$API_BIN" ]] || fail "built API binary not found or not executable: $API_BIN"
-[[ -x "$WORKER_BIN" ]] || fail "built usage worker binary not found or not executable: $WORKER_BIN"
-[[ -x "$IMAGE_BIN" ]] || fail "built codex image binary not found or not executable: $IMAGE_BIN"
+if [[ "$PRESERVE_RUNTIME_ENV" != "1" ]]; then
+  [[ -x "$WORKER_BIN" ]] || fail "built usage worker binary not found or not executable: $WORKER_BIN"
+  [[ -x "$IMAGE_BIN" ]] || fail "built codex image binary not found or not executable: $IMAGE_BIN"
+fi
 
 GIT_COMMIT="$(git rev-parse HEAD)"
 GIT_SHORT="$(git rev-parse --short=12 HEAD)"
@@ -274,23 +287,26 @@ STAGED_USAGE_MOUNT_SERVICE_UNIT="$OUT_DIR/juicefs-llm-access-usage.service.relea
 mkdir -p "$OUT_DIR"
 "$RENDER_SCRIPT" "$RENDER_DIR"
 cp "$API_BIN" "$STAGED_BIN"
-cp "$WORKER_BIN" "$STAGED_WORKER_BIN"
-cp "$IMAGE_BIN" "$STAGED_IMAGE_BIN"
-cp "$LOCAL_NEON_ENV_FILE" "$STAGED_NEON_ENV"
 cp "$RENDER_DIR/llm-access.service" "$STAGED_SERVICE_UNIT"
-cp "$RENDER_DIR/llm-access-usage-worker.service" "$STAGED_WORKER_SERVICE_UNIT"
-cp "$RENDER_DIR/llm-access-codex-image.service" "$STAGED_IMAGE_SERVICE_UNIT"
-cp "$RENDER_DIR/juicefs-llm-access-usage.service" "$STAGED_USAGE_MOUNT_SERVICE_UNIT"
-chmod 0755 "$STAGED_BIN" "$STAGED_WORKER_BIN" "$STAGED_IMAGE_BIN"
-chmod 0600 "$STAGED_NEON_ENV"
+chmod 0755 "$STAGED_BIN"
 API_BIN_SHA="$(sha256sum "$STAGED_BIN" | awk '{print $1}')"
-WORKER_BIN_SHA="$(sha256sum "$STAGED_WORKER_BIN" | awk '{print $1}')"
-IMAGE_BIN_SHA="$(sha256sum "$STAGED_IMAGE_BIN" | awk '{print $1}')"
-{
-  printf '%s  %s\n' "$API_BIN_SHA" "llm-access.$RELEASE_ID"
-  printf '%s  %s\n' "$WORKER_BIN_SHA" "llm-access-usage-worker.$RELEASE_ID"
-  printf '%s  %s\n' "$IMAGE_BIN_SHA" "llm-access-codex-image.$RELEASE_ID"
-} >"$SHA_FILE"
+printf '%s  %s\n' "$API_BIN_SHA" "llm-access.$RELEASE_ID" >"$SHA_FILE"
+WORKER_BIN_SHA=""
+IMAGE_BIN_SHA=""
+if [[ "$PRESERVE_RUNTIME_ENV" != "1" ]]; then
+  cp "$WORKER_BIN" "$STAGED_WORKER_BIN"
+  cp "$IMAGE_BIN" "$STAGED_IMAGE_BIN"
+  cp "$LOCAL_NEON_ENV_FILE" "$STAGED_NEON_ENV"
+  cp "$RENDER_DIR/llm-access-usage-worker.service" "$STAGED_WORKER_SERVICE_UNIT"
+  cp "$RENDER_DIR/llm-access-codex-image.service" "$STAGED_IMAGE_SERVICE_UNIT"
+  cp "$RENDER_DIR/juicefs-llm-access-usage.service" "$STAGED_USAGE_MOUNT_SERVICE_UNIT"
+  chmod 0755 "$STAGED_WORKER_BIN" "$STAGED_IMAGE_BIN"
+  chmod 0600 "$STAGED_NEON_ENV"
+  WORKER_BIN_SHA="$(sha256sum "$STAGED_WORKER_BIN" | awk '{print $1}')"
+  IMAGE_BIN_SHA="$(sha256sum "$STAGED_IMAGE_BIN" | awk '{print $1}')"
+  printf '%s  %s\n' "$WORKER_BIN_SHA" "llm-access-usage-worker.$RELEASE_ID" >>"$SHA_FILE"
+  printf '%s  %s\n' "$IMAGE_BIN_SHA" "llm-access-codex-image.$RELEASE_ID" >>"$SHA_FILE"
+fi
 
 cat >"$MANIFEST" <<EOF
 release_id=$RELEASE_ID
@@ -302,6 +318,9 @@ sha256=$API_BIN_SHA
 binary=llm-access.$RELEASE_ID
 api_sha256=$API_BIN_SHA
 api_binary=llm-access.$RELEASE_ID
+EOF
+if [[ "$PRESERVE_RUNTIME_ENV" != "1" ]]; then
+cat >>"$MANIFEST" <<EOF
 usage_worker_sha256=$WORKER_BIN_SHA
 usage_worker_binary=llm-access-usage-worker.$RELEASE_ID
 codex_image_sha256=$IMAGE_BIN_SHA
@@ -309,6 +328,7 @@ codex_image_binary=llm-access-codex-image.$RELEASE_ID
 control_neon_env=llm-access-neon.env.$RELEASE_ID
 runtime_env=llm-access-neon.env.$RELEASE_ID
 EOF
+fi
 
 SSH_OPTS=(-i "$GCP_SSH_KEY" -o IdentitiesOnly=yes -o BatchMode=yes)
 REMOTE_RELEASE_DIR_Q="$(shell_quote "$REMOTE_RELEASE_DIR")"
@@ -324,32 +344,44 @@ ssh "${SSH_OPTS[@]}" "$GCP_DEST" "
 "
 
 log "uploading release $RELEASE_ID to $GCP_DEST:$REMOTE_RELEASE_DIR"
-scp "${SSH_OPTS[@]}" \
-  "$STAGED_BIN" \
-  "$STAGED_WORKER_BIN" \
-  "$STAGED_IMAGE_BIN" \
-  "$STAGED_NEON_ENV" \
-  "$MANIFEST" \
-  "$SHA_FILE" \
-  "$STAGED_SERVICE_UNIT" \
-  "$STAGED_WORKER_SERVICE_UNIT" \
-  "$STAGED_IMAGE_SERVICE_UNIT" \
-  "$STAGED_USAGE_MOUNT_SERVICE_UNIT" \
-  "$REMOTE_SCRIPT" \
-  "$GCP_DEST:$REMOTE_RELEASE_DIR/"
+UPLOAD_FILES=("$STAGED_BIN" "$MANIFEST" "$SHA_FILE" "$STAGED_SERVICE_UNIT" "$REMOTE_SCRIPT")
+if [[ "$PRESERVE_RUNTIME_ENV" != "1" ]]; then
+  UPLOAD_FILES+=("$STAGED_WORKER_BIN" "$STAGED_IMAGE_BIN" "$STAGED_NEON_ENV"
+    "$STAGED_WORKER_SERVICE_UNIT" "$STAGED_IMAGE_SERVICE_UNIT" "$STAGED_USAGE_MOUNT_SERVICE_UNIT")
+fi
+scp "${SSH_OPTS[@]}" "${UPLOAD_FILES[@]}" "$GCP_DEST:$REMOTE_RELEASE_DIR/"
 
 log "updating remote latest pointers"
 ssh "${SSH_OPTS[@]}" "$GCP_DEST" "
   set -e
   cd $REMOTE_RELEASE_DIR_Q
-  chmod 0755 $REMOTE_SCRIPT_NAME llm-access.$RELEASE_ID llm-access-usage-worker.$RELEASE_ID llm-access-codex-image.$RELEASE_ID
+  chmod 0755 $REMOTE_SCRIPT_NAME llm-access.$RELEASE_ID
   sha256sum -c SHA256SUMS.$RELEASE_ID
   ln -sfn llm-access.$RELEASE_ID llm-access.latest
-  ln -sfn llm-access-usage-worker.$RELEASE_ID llm-access-usage-worker.latest
-  ln -sfn llm-access-codex-image.$RELEASE_ID llm-access-codex-image.latest
-  ln -sfn llm-access-neon.env.$RELEASE_ID llm-access-neon.env.latest
   ln -sfn release.$RELEASE_ID.env release.latest.env
+  if [ '$PRESERVE_RUNTIME_ENV' != 1 ]; then
+    chmod 0755 llm-access-usage-worker.$RELEASE_ID llm-access-codex-image.$RELEASE_ID
+    ln -sfn llm-access-usage-worker.$RELEASE_ID llm-access-usage-worker.latest
+    ln -sfn llm-access-codex-image.$RELEASE_ID llm-access-codex-image.latest
+    ln -sfn llm-access-neon.env.$RELEASE_ID llm-access-neon.env.latest
+  fi
 "
+
+if [[ "$PRESERVE_RUNTIME_ENV" == "1" ]]; then
+  cat <<EOF
+
+Prepared API-only llm-access cloud release:
+  release_id: $RELEASE_ID
+  git_commit: $GIT_COMMIT
+  api_sha256: $API_BIN_SHA
+  remote_dir: $REMOTE_RELEASE_DIR
+
+Activate with the existing remote runtime env:
+  LLM_ACCESS_ACTIVATE_TARGET=api LLM_ACCESS_STAGED_NEON_ENV=/dev/null/no-staged-env \\
+  $REMOTE_RELEASE_DIR/$REMOTE_SCRIPT_NAME
+EOF
+  exit 0
+fi
 
 cat <<EOF
 

@@ -77,4 +77,5 @@ grep -F 'PB_MAPPER_RELAY_ADDR=' "$CONFIG_EXAMPLE" >/dev/null
 grep -F 'PB_MAPPER_LOCAL_RELAY_ADDR=' "$CONFIG_EXAMPLE" >/dev/null
 grep -F 'VALKEY_SSH_TARGET=' "$CONFIG_EXAMPLE" >/dev/null
 
+python3 "$ROOT_DIR/scripts/test_llm_access_api_preserve_env.py"
 python3 "$ROOT_DIR/scripts/test_managed_accounts_activation.py"

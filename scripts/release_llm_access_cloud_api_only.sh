@@ -71,5 +71,11 @@ scp "${SSH_OPTS[@]}" \
   "$RENDER_DIR/llm-access.service" \
   "$GCP_DEST:$REMOTE_RELEASE_DIR/llm-access.service.release"
 
+REMOTE_ENV_OVERRIDE=""
+if [[ "${LLM_ACCESS_PRESERVE_RUNTIME_ENV:-0}" == "1" ]]; then
+  # /dev/null cannot contain a child: the activation script will verify and
+  # retain the existing remote runtime env without staging another copy.
+  REMOTE_ENV_OVERRIDE="LLM_ACCESS_STAGED_NEON_ENV=/dev/null/no-staged-env"
+fi
 ssh "${SSH_OPTS[@]}" "$GCP_DEST" \
-  "LLM_ACCESS_ACTIVATE_TARGET=api LLM_ACCESS_STAGED_SERVICE_UNIT=$REMOTE_RELEASE_DIR/llm-access.service.release $REMOTE_RELEASE_DIR/$REMOTE_SCRIPT_NAME"
+  "LLM_ACCESS_ACTIVATE_TARGET=api $REMOTE_ENV_OVERRIDE LLM_ACCESS_STAGED_SERVICE_UNIT=$REMOTE_RELEASE_DIR/llm-access.service.release $REMOTE_RELEASE_DIR/$REMOTE_SCRIPT_NAME"
