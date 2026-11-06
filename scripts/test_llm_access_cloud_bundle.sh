@@ -112,6 +112,8 @@ grep -F -- '--usage-journal-dir "$LLM_ACCESS_USAGE_JOURNAL_DIR"' "$OUT_DIR/llm-a
 grep -F 'RequiresMountsFor=/mnt/llm-access' "$OUT_DIR/llm-access-cursor.service"
 grep -F 'Environment=STATICFLOW_LOG_SERVICE=llm-access-antigravity' "$OUT_DIR/llm-access-antigravity.service"
 grep -F -- '/usr/local/bin/llm-access-antigravity serve --bind 127.0.0.1:19095' "$OUT_DIR/llm-access-antigravity.service"
+grep -F -- '/usr/local/bin/llm-access-opencode-gateway serve --bind 127.0.0.1:19085' "$OUT_DIR/llm-access-opencode.service"
+grep -F -- 'test -n "$${LLM_ACCESS_REQUEST_CACHE_URL:-}"' "$OUT_DIR/llm-access-opencode.service"
 grep -F -- '--postgres-control-database-url-env LLM_ACCESS_CONTROL_DATABASE_URL' "$OUT_DIR/llm-access-antigravity.service"
 grep -F -- '--usage-journal-dir /var/lib/staticflow/llm-access/usage-journal' "$OUT_DIR/llm-access-antigravity.service"
 grep -F 'RequiresMountsFor=/mnt/llm-access' "$OUT_DIR/llm-access-antigravity.service"

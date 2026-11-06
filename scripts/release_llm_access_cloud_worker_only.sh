@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG_FILE=""
 REMOTE_SCRIPT_NAME="activate_llm_access_cloud_release.sh"
+mkdir -p "$ROOT_DIR/tmp"
 RENDER_DIR="$(mktemp -d "$ROOT_DIR/tmp/llm-access-cloud-worker-only.XXXXXX")"
 
 cleanup() {
@@ -73,5 +74,9 @@ scp "${SSH_OPTS[@]}" \
   "$RENDER_DIR/juicefs-llm-access-usage.service" \
   "$GCP_DEST:$REMOTE_RELEASE_DIR/juicefs-llm-access-usage.service.release"
 
+REMOTE_ENV_OVERRIDE=""
+if [[ "${LLM_ACCESS_PRESERVE_RUNTIME_ENV:-0}" == "1" ]]; then
+  REMOTE_ENV_OVERRIDE="LLM_ACCESS_STAGED_NEON_ENV=/dev/null/no-staged-env"
+fi
 ssh "${SSH_OPTS[@]}" "$GCP_DEST" \
-  "LLM_ACCESS_ACTIVATE_TARGET=worker LLM_ACCESS_STAGED_WORKER_SERVICE_UNIT=$REMOTE_RELEASE_DIR/llm-access-usage-worker.service.release LLM_ACCESS_STAGED_USAGE_MOUNT_SERVICE_UNIT=$REMOTE_RELEASE_DIR/juicefs-llm-access-usage.service.release $REMOTE_RELEASE_DIR/$REMOTE_SCRIPT_NAME"
+  "LLM_ACCESS_ACTIVATE_TARGET=worker $REMOTE_ENV_OVERRIDE LLM_ACCESS_STAGED_WORKER_SERVICE_UNIT=$REMOTE_RELEASE_DIR/llm-access-usage-worker.service.release LLM_ACCESS_STAGED_USAGE_MOUNT_SERVICE_UNIT=$REMOTE_RELEASE_DIR/juicefs-llm-access-usage.service.release $REMOTE_RELEASE_DIR/$REMOTE_SCRIPT_NAME"

@@ -17,6 +17,7 @@ LLM_ACCESS_FRONTEND_SERVICE_KEY="${LLM_ACCESS_FRONTEND_SERVICE_KEY:-ai-review-ui
 LLM_ACCESS_MONITOR_TUNNEL_SCRIPT="${LLM_ACCESS_MONITOR_TUNNEL_SCRIPT:-$ROOT_DIR/scripts/start_llm_access_monitor_tunnel.sh}"
 LLM_ACCESS_OAUTH_TUNNEL_SCRIPT="${LLM_ACCESS_OAUTH_TUNNEL_SCRIPT:-$ROOT_DIR/.local/llm-access-oauth-aws-tunnel.sh}"
 LLM_ACCESS_ANTIGRAVITY_TUNNEL_SCRIPT="${LLM_ACCESS_ANTIGRAVITY_TUNNEL_SCRIPT:-$ROOT_DIR/scripts/start_llm_access_antigravity_tunnel.sh}"
+LLM_ACCESS_OPENCODE_TUNNEL_SCRIPT="${LLM_ACCESS_OPENCODE_TUNNEL_SCRIPT:-$ROOT_DIR/scripts/start_llm_access_opencode_tunnel.sh}"
 LLM_ACCESS_CURSOR_PBMAPPER_ENV_FILE="${LLM_ACCESS_CURSOR_PBMAPPER_ENV_FILE:-$ROOT_DIR/.local/pbmapper/llm-access-cursor.env}"
 GPT2API_BIN="${GPT2API_BIN:-/mnt/wsl/data4tb/static-flow-data/cargo-target/gpt2api_rs/release/gpt2api-rs}"
 GPT2API_TARGET_DIR="${GPT2API_TARGET_DIR:-/mnt/wsl/data4tb/static-flow-data/cargo-target/gpt2api_rs/release}"
@@ -214,7 +215,7 @@ print_status() {
   log "tmux sessions"
   tmux list-sessions 2>/dev/null | grep -E '^(sf-|pbmapper-|gpt2api-rs|antigravity-manager)' || true
   log "listening ports"
-  ss -ltnp 2>/dev/null | grep -E ':(8045|18787|19092|19182|19183|19190|19191|19194|19195|39080|39081|39085|39180)\b' || true
+  ss -ltnp 2>/dev/null | grep -E ':(8045|18787|19092|19182|19183|19190|19191|19194|19195|19196|39080|39081|39085|39180)\b' || true
 }
 
 active_slot() {
@@ -394,6 +395,12 @@ start_llm_access_antigravity_tunnel() {
   wait_http "llm-access-antigravity" "http://127.0.0.1:19195/healthz" 20
 }
 
+start_llm_access_opencode_tunnel() {
+  [[ -x "$LLM_ACCESS_OPENCODE_TUNNEL_SCRIPT" ]] || fail "missing OpenCode tunnel script: $LLM_ACCESS_OPENCODE_TUNNEL_SCRIPT"
+  start_tmux "sf-llm-access-opencode-aws" "exec $(q "$LLM_ACCESS_OPENCODE_TUNNEL_SCRIPT")"
+  wait_http "llm-access-opencode" "http://127.0.0.1:19196/healthz" 20
+}
+
 start_llm_access_frontend_stack() {
   local api_cmd
   local ui_cmd
@@ -409,8 +416,9 @@ start_llm_access_frontend_stack() {
   start_llm_access_monitor_tunnel
   start_llm_access_oauth_tunnel
   start_llm_access_antigravity_tunnel
+  start_llm_access_opencode_tunnel
   api_cmd="cd $(q "$ROOT_DIR") && if [[ -f $(q "$ANTIGRAVITY_CONFIG_FILE") ]]; then export ANTIGRAVITY_MANAGER_API_KEY=\$(jq -r '.proxy.api_key // .api_key // empty' $(q "$ANTIGRAVITY_CONFIG_FILE")); fi && exec $(q "$AI_REVIEW_START_SCRIPT") $(q "$AI_REVIEW_ENV_FILE") $(q "$AI_REVIEW_BIN") serve --bind 127.0.0.1:19190"
-  ui_cmd="cd $(q "$LLM_ACCESS_FRONTEND_DIR") && export PATH=$(q "$PATH") LLM_ACCESS_ADMIN_TARGET=http://127.0.0.1:19182 LLM_ACCESS_CURSOR_ADMIN_TARGET=http://127.0.0.1:19183 LLM_ACCESS_ANTIGRAVITY_ADMIN_TARGET=http://127.0.0.1:19195 && pnpm build && exec pnpm preview"
+  ui_cmd="cd $(q "$LLM_ACCESS_FRONTEND_DIR") && export PATH=$(q "$PATH") LLM_ACCESS_ADMIN_TARGET=http://127.0.0.1:19182 LLM_ACCESS_CURSOR_ADMIN_TARGET=http://127.0.0.1:19183 LLM_ACCESS_ANTIGRAVITY_ADMIN_TARGET=http://127.0.0.1:19195 LLM_ACCESS_OPENCODE_ADMIN_TARGET=http://127.0.0.1:19196 && pnpm build && exec pnpm preview"
   pbmapper_cmd="cd $(q "$ROOT_DIR") && set -a && . .local/pbmapper/sf-backend.env && set +a && SERVICE_KEY=$(q "$LLM_ACCESS_FRONTEND_SERVICE_KEY") && LOCAL_ADDR=127.0.0.1:19191 && exec pb-mapper register tcp --key \"\$SERVICE_KEY\" --addr \"\$LOCAL_ADDR\""
 
   start_tmux "sf-ai-review" "$api_cmd"
