@@ -417,6 +417,34 @@ apply independently.
   the shared schema and usage worker support its provider events. The script
   checks the deployed binary hash and `/version` revision, and confirms that
   the other LLM service processes were not restarted.
+- The production Kiro Thinking Guard reviewer key
+  `llm-key-70291ccd3cd2481d947298f2e3a921eb` first uses the private OpenCode
+  key `opencode-key-78c11ede5cbb42a091e80f74d8da4de0` and `jev-1.13-free`.
+  Its next node is the existing all-account Kiro review key
+  `kiro-key-fead81ecaab94a6f8713fcd06edb5941`, followed by its previous
+  review graph. The OpenCode account `opencode-review-personal` has a 16
+  request concurrency limit, a 60 RPM limit, and direct egress. The private
+  review key has moderation and full-request logging disabled. No account
+  restriction is set on either review pool key.
+- On 2026-11-07 a controlled source request
+  `llm-usage-60271b7a-2772-4654-b857-9bb2d8e54b7d` returned HTTP 200; its
+  reviewer record `llm-usage-1c5be383-29cc-4df3-9451-7468ef1a55cb` selected
+  Jev and recorded no duplicate provider tokens. Its OpenCode provider record
+  `llm-usage-9ce0120f-8d78-4250-b1a7-36605365e29b` carried review ID
+  `kiro-review-99b84e4a752a485fb25af325e9fc148f`, reported zero USD cost,
+  and retained no full request. The direct provider test
+  `llm-usage-cd9838cf-40ec-44d7-bdc6-d289552a8f25` also returned HTTP 200.
+  After these two tests, the OpenCode key and account rollups both showed
+  1,070 uncached input tokens and 94 output tokens (1,164 billable tokens).
+  Journal files are sealed on the configured 300-second age, so analytics
+  and charts can lag rollups. Reviewer and provider records are separate
+  Usage records for the same source request, not additional source failures.
+  Admin Usage list and detail responses include `provider_type` so the console
+  can display provider-specific account attempts and cost without guessing.
+- During the first rollout of migration 0126, an older API cannot decode the
+  newly seeded OpenCode model price. The rollout temporarily deferred only
+  that unused default price, upgraded the API, and restored the exact zero
+  default; the price endpoint was then verified healthy.
 - The local console keeps the admin plane local-only. The
   `pbmapper-llm-access-aws` subscription exposes the main admin API at
   `127.0.0.1:19182`, while `pbmapper-llm-access-cursor-aws` exposes the Cursor
