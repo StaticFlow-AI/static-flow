@@ -11,6 +11,7 @@ cp "$ROOT_DIR/deployment-examples/systemd/llm-access-codex-image.service.templat
 cp "$ROOT_DIR/deployment-examples/systemd/llm-access-cursor.service.template" "$OUT_DIR/llm-access-cursor.service"
 cp "$ROOT_DIR/deployment-examples/systemd/llm-access-oauth.service.template" "$OUT_DIR/llm-access-oauth.service"
 cp "$ROOT_DIR/deployment-examples/systemd/llm-access-antigravity.service.template" "$OUT_DIR/llm-access-antigravity.service"
+cp "$ROOT_DIR/deployment-examples/systemd/llm-access-opencode.service.template" "$OUT_DIR/llm-access-opencode.service"
 cp "$ROOT_DIR/deployment-examples/systemd/llm-access-juicefs.mount.template" "$OUT_DIR/mnt-llm\\x2daccess.mount"
 cp "$ROOT_DIR/deployment-examples/systemd/juicefs-llm-access-usage.service.template" "$OUT_DIR/juicefs-llm-access-usage.service"
 cp "$ROOT_DIR/deployment-examples/systemd/juicefs-llm-access.resource-guard.conf" "$OUT_DIR/juicefs-llm-access.resource-guard.conf"

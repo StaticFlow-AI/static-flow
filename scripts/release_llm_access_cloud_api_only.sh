@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG_FILE=""
 REMOTE_SCRIPT_NAME="activate_llm_access_cloud_release.sh"
+mkdir -p "$ROOT_DIR/tmp"
 RENDER_DIR="$(mktemp -d "$ROOT_DIR/tmp/llm-access-cloud-api-only.XXXXXX")"
 
 cleanup() {
@@ -64,7 +65,11 @@ GCP_SSH_KEY="$(expand_path "$GCP_SSH_KEY")"
 SSH_OPTS=(-i "$GCP_SSH_KEY" -o IdentitiesOnly=yes -o BatchMode=yes)
 
 LLM_ACCESS_ACTIVATE_TARGET=api "$ROOT_DIR/scripts/prepare_llm_access_cloud_release.sh"
-"$ROOT_DIR/scripts/apply_cursor_key_usage_migration.sh"
+if [[ "${LLM_ACCESS_SKIP_LEGACY_CURSOR_MIGRATION:-0}" == "1" ]]; then
+  printf '[llm-access-release-api] assuming shared migrations were applied by the worker release\n'
+else
+  "$ROOT_DIR/scripts/apply_cursor_key_usage_migration.sh"
+fi
 "$ROOT_DIR/scripts/render_llm_access_cloud_bundle.sh" "$RENDER_DIR"
 
 scp "${SSH_OPTS[@]}" \

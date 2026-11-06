@@ -387,8 +387,9 @@ apply independently.
 - The completed migration model is:
   1. Production `llm-access` state lives under `/mnt/llm-access` and the local
      VM active DuckDB directory described above.
-  2. Only cloud `llm-access.service` writes live control rows and local journal
-     files; only `llm-access-usage-worker.service` writes tiered DuckDB.
+  2. The cloud API and independent provider services write their live control
+     rows and shared local journal files; only `llm-access-usage-worker.service`
+     writes tiered DuckDB.
   3. Cloud Caddy owns the public LLM route split and sends LLM paths directly
      to `127.0.0.1:19080`.
   4. Local StaticFlow reaches cloud `llm-access` through the local
@@ -402,7 +403,7 @@ apply independently.
   usage, moderation, runtime configuration, and proxy configuration.
 - `/admin/llm-gateway/keys` without a provider filter is a shared inventory,
   not a Codex-only list. Provider-specific consumers must send
-  `provider_type=codex|kiro|cursor|antigravity`; filtering happens before pagination and
+  `provider_type=codex|kiro|cursor|antigravity|opencode`; filtering happens before pagination and
   summary aggregation. The console applies this in its shared key API helper.
 - Cloud `llm-access-cursor` on `127.0.0.1:19090` owns both the Cursor data plane
   and `/admin/cursor-gateway/*`. Its admin handlers reuse the shared Neon
@@ -410,13 +411,19 @@ apply independently.
   Cursor handlers.
 - Cloud `llm-access-antigravity` on `127.0.0.1:19095` owns its independent data
   plane and `/admin/antigravity-gateway/*`, including accounts, keys and groups.
+- Cloud `llm-access-opencode` on `127.0.0.1:19085` owns the decision data plane
+  and `/admin/opencode-gateway/*`, including accounts, keys and groups.
+  Release it with `scripts/release_llm_access_cloud_opencode_only.sh` after
+  the shared schema and usage worker support its provider events. The script
+  checks the deployed binary hash and `/version` revision, and confirms that
+  the other LLM service processes were not restarted.
 - The local console keeps the admin plane local-only. The
   `pbmapper-llm-access-aws` subscription exposes the main admin API at
   `127.0.0.1:19182`, while `pbmapper-llm-access-cursor-aws` exposes the Cursor
   admin API at `127.0.0.1:19183`. The Antigravity subscription exposes its admin
-  API at `127.0.0.1:19195`. Vite routes `/admin/cursor-gateway/*` to `19183`,
-  `/admin/antigravity-gateway/*` to `19195`, and other `/admin/*` requests to
-  `19182`.
+  API at `127.0.0.1:19195`. The OpenCode SSH tunnel exposes its admin API at
+  `127.0.0.1:19196`. Vite routes each provider-specific admin namespace to its
+  matching local port and other `/admin/*` requests to `19182`.
 - `.local/pbmapper/llm-access-cursor.env` must contain the Cursor subscription's
   `PB_MAPPER_SERVER`, dedicated `SERVICE_KEY`, `MSG_HEADER_KEY`, keepalive and
   health-check settings, plus `LOCAL_ADDR=127.0.0.1:19183`. The matching AWS

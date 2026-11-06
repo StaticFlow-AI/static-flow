@@ -85,7 +85,7 @@ require_env_file_var() {
   env_file_has_nonempty_var "$file" "$name" || fail "$label does not define $name: $file"
 }
 
-for cmd in cargo curl df git scp sha256sum ssh; do
+for cmd in cargo curl df git pgrep python3 scp sha256sum ssh; do
   require_cmd "$cmd"
 done
 
@@ -104,8 +104,8 @@ esac
 if [[ "$PRESERVE_RUNTIME_ENV" != "0" && "$PRESERVE_RUNTIME_ENV" != "1" ]]; then
   fail "LLM_ACCESS_PRESERVE_RUNTIME_ENV must be 0 or 1"
 fi
-if [[ "$PRESERVE_RUNTIME_ENV" == "1" && "$PREPARE_TARGET" != "api" ]]; then
-  fail "preserving the remote runtime env is supported for API-only releases"
+if [[ "$PRESERVE_RUNTIME_ENV" == "1" && "$PREPARE_TARGET" != "api" && "$PREPARE_TARGET" != "worker" ]]; then
+  fail "preserving the remote runtime env is supported for API-only or worker-only releases"
 fi
 require_var CARGO_TARGET_DIR
 require_var GCP_SSH_KEY
@@ -130,7 +130,7 @@ fi
 [[ -x "$RENDER_SCRIPT" ]] || fail "render script is not executable: $RENDER_SCRIPT"
 [[ -r "$LLM_ACCESS_DIR/Cargo.toml" ]] || fail "llm-access submodule is not initialized: $LLM_ACCESS_DIR"
 [[ -r "$GCP_SSH_KEY" ]] || fail "SSH key is not readable: $GCP_SSH_KEY"
-if [[ "$PREPARE_TARGET" != "cursor" ]]; then
+if [[ "$PREPARE_TARGET" != "cursor" && "$PRESERVE_RUNTIME_ENV" != "1" ]]; then
   [[ -r "$LOCAL_NEON_ENV_FILE" ]] || fail "local llm-access runtime env is not readable: $LOCAL_NEON_ENV_FILE"
   require_env_file_var "$LOCAL_NEON_ENV_FILE" LLM_ACCESS_CONTROL_DATABASE_URL "local llm-access runtime env"
   if [[ "$PREPARE_TARGET" == "image" || "$PREPARE_TARGET" == "both" ]]; then
@@ -145,6 +145,9 @@ if [[ "$ALLOW_DIRTY" != "1" ]] && [[ -n "$(git -C "$LLM_ACCESS_DIR" status --por
   git -C "$LLM_ACCESS_DIR" status --short >&2
   fail "llm-access working tree is dirty; commit first or run with ALLOW_DIRTY=1"
 fi
+CHILD_REV="$(git -C "$LLM_ACCESS_DIR" rev-parse HEAD)"
+[[ "$(git -C "$ROOT_DIR" rev-parse HEAD:deps/llm-access)" == "$CHILD_REV" ]] || fail "parent gitlink does not match llm-access checkout"
+git -C "$LLM_ACCESS_DIR" merge-base --is-ancestor "$CHILD_REV" origin/main || fail "llm-access revision is not on fetched origin/main"
 
 mkdir -p "$CARGO_TARGET_DIR"
 df -h "$CARGO_TARGET_DIR" >/dev/null
@@ -153,16 +156,26 @@ export CARGO_TARGET_DIR
 export LD_LIBRARY_PATH="$CARGO_TARGET_DIR/debug/deps${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export LLM_ACCESS_BUILD_REVISION="$(git -C "$LLM_ACCESS_DIR" rev-parse HEAD)"
 
+check_build_budget() {
+  df -h /mnt/wsl/data4tb >/dev/null
+  if pgrep -af 'cargo|rustc|trunk|ld|lld|mold' | python3 -c 'import os,sys; rows=(line.strip().split(None,1) for line in sys.stdin); sys.exit(0 if any(len(row)>1 and os.path.basename(row[1].split()[0]) in ("cargo","rustc","trunk","ld","lld","mold") for row in rows) else 1)'; then
+    fail 'another Rust build or linker is running'
+  fi
+}
+
 cd "$LLM_ACCESS_DIR"
 
 if [[ "$PREPARE_TARGET" == "cursor" ]]; then
   log "running llm-access Cursor test suite"
+  check_build_budget
   cargo test -p llm-access-cursor-protocol -p llm-access-cursor --locked --jobs "$BUILD_JOBS"
 
   log "running llm-access Cursor clippy"
+  check_build_budget
   cargo clippy -p llm-access-cursor-protocol -p llm-access-cursor --all-targets --locked --jobs "$BUILD_JOBS" -- -D warnings
 
   log "building Cursor release binary"
+  check_build_budget
   cargo build -p llm-access-cursor --bin llm-access-cursor --release --locked --jobs "$BUILD_JOBS"
 
   CURSOR_BIN="$CARGO_TARGET_DIR/release/llm-access-cursor"
@@ -245,13 +258,45 @@ EOF
   exit 0
 fi
 
+if [[ "$PREPARE_TARGET" == "worker" && "$PRESERVE_RUNTIME_ENV" == "1" ]]; then
+  log "building usage worker while preserving the remote runtime env"
+  check_build_budget
+  cargo build -p llm-access --bin llm-access-usage-worker --release --locked --jobs "$BUILD_JOBS"
+  WORKER_BIN="$CARGO_TARGET_DIR/release/llm-access-usage-worker"
+  [[ -x "$WORKER_BIN" ]] || fail 'built usage worker binary not found'
+  GIT_COMMIT="$(git rev-parse HEAD)"
+  GIT_SHORT="$(git rev-parse --short=12 HEAD)"
+  RELEASE_ID="${RELEASE_ID:-$(date -u +%Y%m%dT%H%M%SZ)-$GIT_SHORT}"
+  [[ "$RELEASE_ID" =~ ^[a-zA-Z0-9._-]+$ ]] || fail 'invalid release id'
+  OUT_DIR="${LLM_ACCESS_RELEASE_OUT:-$ROOT_DIR/tmp/llm-access-cloud-release/$RELEASE_ID}"
+  mkdir -p "$OUT_DIR"
+  cp "$WORKER_BIN" "$OUT_DIR/llm-access-usage-worker.$RELEASE_ID"
+  WORKER_BIN_SHA="$(sha256sum "$WORKER_BIN" | awk '{print $1}')"
+  printf '%s  %s\n' "$WORKER_BIN_SHA" "llm-access-usage-worker.$RELEASE_ID" > "$OUT_DIR/WORKER_SHA256SUMS.$RELEASE_ID"
+  printf 'release_id=%s\ngit_commit=%s\nusage_worker_sha256=%s\n' "$RELEASE_ID" "$GIT_COMMIT" "$WORKER_BIN_SHA" > "$OUT_DIR/worker-release.$RELEASE_ID.env"
+  SSH_OPTS=(-i "$GCP_SSH_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o ControlMaster=no -o ControlPath=none -o ControlPersist=no)
+  REMOTE_RELEASE_DIR_Q="$(shell_quote "$REMOTE_RELEASE_DIR")"
+  ssh "${SSH_OPTS[@]}" "$GCP_DEST" "mkdir -p $REMOTE_RELEASE_DIR_Q"
+  scp "${SSH_OPTS[@]}" "$OUT_DIR/llm-access-usage-worker.$RELEASE_ID" "$OUT_DIR/WORKER_SHA256SUMS.$RELEASE_ID" "$OUT_DIR/worker-release.$RELEASE_ID.env" "$REMOTE_SCRIPT" "$GCP_DEST:$REMOTE_RELEASE_DIR/"
+  ssh "${SSH_OPTS[@]}" "$GCP_DEST" "set -e; cd $REMOTE_RELEASE_DIR_Q
+    sha256sum -c WORKER_SHA256SUMS.$RELEASE_ID
+    chmod 0755 activate_llm_access_cloud_release.sh llm-access-usage-worker.$RELEASE_ID
+    ln -sfn llm-access-usage-worker.$RELEASE_ID llm-access-usage-worker.latest
+    ln -sfn worker-release.$RELEASE_ID.env release.latest.env"
+  log "prepared worker release $RELEASE_ID (child $GIT_COMMIT)"
+  exit 0
+fi
+
 log "running llm-access test suite"
+check_build_budget
 cargo test -p llm-usage-journal -p llm-access-core -p llm-access-store -p llm-access -p llm-access-codex-image --jobs "$BUILD_JOBS"
 
 log "running llm-access clippy"
+check_build_budget
 cargo clippy -p llm-usage-journal -p llm-access-core -p llm-access-store -p llm-access -p llm-access-codex-image --jobs "$BUILD_JOBS" -- -D warnings
 
 log "building release binaries"
+check_build_budget
 if [[ "$PRESERVE_RUNTIME_ENV" == "1" ]]; then
   cargo build -p llm-access --bin llm-access --release --jobs "$BUILD_JOBS"
 else
