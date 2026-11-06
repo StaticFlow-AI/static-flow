@@ -513,6 +513,7 @@ pub struct AdminLlmGatewayAccountPageQuery {
 #[serde(default)]
 pub struct AdminLlmGatewayUsageEventView {
     pub id: String,
+    pub provider_type: String,
     pub key_id: String,
     pub key_name: String,
     pub account_name: Option<String>,
@@ -7558,5 +7559,18 @@ pub async fn delete_admin_kiro_account(name: &str) -> Result<(), String> {
             return Err(format!("Failed: {text}"));
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod usage_contract_tests {
+    use super::AdminLlmGatewayUsageEventView;
+
+    #[test]
+    fn admin_usage_event_keeps_provider_type() {
+        let event: AdminLlmGatewayUsageEventView =
+            serde_json::from_str(r#"{"id":"usage-example","provider_type":"opencode"}"#)
+                .expect("usage event");
+        assert_eq!(event.provider_type, "opencode");
     }
 }
