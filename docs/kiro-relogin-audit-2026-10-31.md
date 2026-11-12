@@ -1,4 +1,80 @@
-# Kiro 认证异常与重登清单（更新至 2026-11-02）
+# Kiro 认证异常与重登清单（更新至 2026-11-13）
+
+## 2026-11-13 最新复核与新增重登候选
+
+复核时间：**2026-11-13T02:46:15+08:00**。完整读取 **200 + 200 + 50 = 450** 个唯一账号，对照 2026-11-02 的 447 个账号及 170 个认证异常清单。初次读取时间为 2026-11-13T02:44:18+08:00；最终统计采用本次最后一次读取。
+
+**新增 16 个 `401 Bad credentials`，全部有明确历史成功上号记录，GitHub 用户名及邮箱已逐项对应。** 这些是待重新授权的候选账号，本次尚未重新登录或验证恢复结果。
+
+下载：[本次新增 16 个账号 CSV](kiro-relogin-new-2026-11-13.csv)；[最新全部 186 个认证异常与处理清单 CSV](kiro-relogin-current-2026-11-13.csv)。
+
+| 当前分类 | 数量 | 相比 2026-11-02 |
+| --- | ---: | --- |
+| 全部账号 | 450 | 新增录入 3 条，删除 0 条 |
+| 401 Bad credentials | 184 | 新增 16，解除 0 |
+| IDC invalid_grant | 2 | 仍为 KitWilliam、laohan_MarleyMacdo |
+| 认证异常合计 | 186 | 原 170 个 + 本次新增 16 个 |
+| 仅停用，无认证失效记录 | 63 | 原 60 个 + 新录入的 3 个停用记录 |
+| 启用且无认证异常 | 201 | 原 217 个减少 16 个 |
+
+### 本次新增账号与历史身份
+
+| 网关账号 | 历史 GitHub 用户名 | 邮箱 | 最近失败检查（北京时间） |
+| --- | --- | --- | --- |
+| `laohan186` | `Kaceysghg` | `Kaceysghg@asu.edu` | 2026-11-04T01:35:08+08:00 |
+| `laohan187` | `Zelmahhhf` | `Zelmahhhf@asu.edu` | 2026-11-04T01:41:22+08:00 |
+| `laohan188` | `Casandragg` | `Casandragg@asu.edu` | 2026-11-09T14:08:39+08:00 |
+| `laohan189` | `Milanssgg` | `Milanssgg@asu.edu` | 2026-11-09T14:15:37+08:00 |
+| `laohan190` | `Paucekhhh` | `Paucekhhh@asu.edu` | 2026-11-09T22:48:54+08:00 |
+| `laohan191` | `Smithamhhg` | `Smithamhhg@asu.edu` | 2026-11-09T22:54:34+08:00 |
+| `laohan193` | `Dietrichssg` | `Dietrichssg@asu.edu` | 2026-11-11T12:58:57+08:00 |
+| `laohan194` | `Walshhhjj` | `Walshhhjj@asu.edu` | 2026-11-11T13:04:33+08:00 |
+| `laohan195` | `Dellasggh` | `Dellasggh@asu.edu` | 2026-11-13T01:48:11+08:00 |
+| `laohan196` | `Kleinhhfh` | `Kleinhhfh@asu.edu` | 2026-11-13T01:51:29+08:00 |
+| `laohan197` | `Paucekjjkk` | `Paucekjjkk@asu.edu` | 2026-11-13T01:57:15+08:00 |
+| `laohan198` | `Bechtelars` | `Bechtelar@asu.edu` | 2026-11-13T02:08:07+08:00 |
+| `laohan199` | `Townehhhj` | `Townehhhj@asu.edu` | 2026-11-13T02:12:53+08:00 |
+| `laohan200` | `Eichmannsff` | `Eichmannsff@asu.edu` | 2026-11-13T02:32:15+08:00 |
+| `laohan201` | `Uliceshdh` | `Uliceshdh@asu.edu` | 2026-11-13T02:35:35+08:00 |
+| `laohan202` | `Kiehnhhh` | `Kiehnhhh@asu.edu` | 2026-11-13T02:41:44+08:00 |
+
+身份来自 [历史恢复快照](../tmp/kiro-account-recovery/quota-snapshot-2026-07-11.md) 的明确成功行。`laohan198` 的 GitHub 用户名是 **Bechtelars**，邮箱是 **Bechtelar@asu.edu**；保留真实差异。`laohan193` 使用自己的成功记录，未将相邻记录的身份移用给旧问题账号 `laohan192`。
+
+### 记录中的失败检查日期
+
+| 最近失败检查日 | 新增账号数 |
+| --- | ---: |
+| 2026-11-04 | 2 |
+| 2026-11-09 | 4 |
+| 2026-11-11 | 2 |
+| 2026-11-13 | 8 |
+
+这些账号最后成功检查距离上次导入为 **89.99628–89.99929 天**；失败检查为 **89.99972–90.00280 天**。时间特征仍集中在约 90 天，推测授权有效期到期，需要重新授权；该判断未通过官方有效期规则或逐号重登确认。401 本身不证明 GitHub 账号封禁。
+
+### 累计处理分组
+
+| 处理分组 | 数量 |
+| --- | ---: |
+| 01_优先重登_历史成功已核对 | 150 |
+| 02_身份已知_先核对旧尝试 | 5 |
+| 03_先确认登录身份 | 24 |
+| 04_IDC需要重新授权 | 2 |
+| 05_按用户要求暂缓 | 3 |
+| 06_按用户要求忽略 | 2 |
+
+其中 **150 个**为历史成功身份已核对、可优先重新授权的 GitHub 候选：原 134 个 + 本次新增 16 个。此前暂缓的 3 个、忽略的 2 个，以及历史未完成或身份待确认的旧条目，均保持原处理标记。上次 10 月 12–15 日恢复的 **99 个账号仍全部启用且无认证异常**。
+
+### 其他变化与审计边界
+
+- 新增录入 `kiro-markhernandez2067-github-social`（markhernandez2067@gmail.com）：当前 `issue_kind=disabled`、停用；不列入新增重登候选。
+- 新增录入 `kiro-ssmerommagdalena558-google-social`（ssmerommagdalena558@gmail.com）：当前 `issue_kind=disabled`、停用；不列入新增重登候选。
+- 新增录入 `kiro-tracyblair7803-github-social`（tracyblair7803@gmail.com）：当前 `issue_kind=disabled`、停用；不列入新增重登候选。
+- 最终快照中 `laohan203` 仍启用且无认证异常，本次未计入新增重登名单。
+- 开始与结束两次读取的账号身份、认证异常、启停和主要调度配置一致。
+- 本次所有管理请求均为 GET；仅更新项目台账，未强制刷新、重新登录、改密、启停、代理、Key 或模型调用。状态来自线上已有认证检查记录。
+- `last_checked_at` 是最近检查时间，不是首次异常时间；新增通过与前次账号集合、认证分类和恢复进度比较确定。
+- 历史 CSV 与原审计段落继续保留；当前累计清单保留既有身份、文档证据、暂缓及忽略决定。
+- 脱敏核查记录：`/home/ts_user/.local/share/kiro-account-audits/20261113-024417`；目录权限为 `0700`，不保存密码、验证码、访问令牌、刷新令牌或客户端密钥。
 
 ## 2026-11-02 最新复核与待处理清单
 
