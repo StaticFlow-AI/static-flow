@@ -36,6 +36,11 @@ pub fn mini_player() -> Html {
     let title = song.title.clone();
     let artist = song.artist.clone();
     let playing = ctx.playing;
+    let progress_pct = if ctx.duration > 0.0 && ctx.duration.is_finite() {
+        ((ctx.current_time / ctx.duration) * 100.0).clamp(0.0, 100.0)
+    } else {
+        0.0
+    };
 
     let on_toggle_play = {
         let ctx = ctx.clone();
@@ -93,27 +98,34 @@ pub fn mini_player() -> Html {
     let vis_class = if show {
         "translate-y-0 opacity-100 pointer-events-auto"
     } else {
-        "translate-y-4 opacity-0 pointer-events-none"
+        "translate-y-2 opacity-0 pointer-events-none"
     };
 
     let container_class = format!(
-        "fixed bottom-4 right-4 z-[70] flex items-center gap-2 bg-[var(--surface)] \
-         acrylic-surface border border-[var(--border)] rounded-[var(--radius-lg)] \
-         shadow-[var(--shadow-8)] py-2 pl-2 pr-1.5 cursor-pointer \
-         hover:border-[var(--primary)]/50 transition-[transform,opacity,border-color] \
-         duration-[var(--motion-base)] ease-[var(--ease-spring)] motion-reduce:transition-none \
-         max-w-[min(280px,calc(100vw-2rem))] select-none {vis_class}"
+        "fixed bottom-4 right-4 max-sm:inset-x-3 max-sm:bottom-3 sm:w-[360px] h-16 z-[70] \
+         overflow-hidden rounded-[12px] border border-[var(--border-strong,var(--border))] \
+         bg-[var(--surface)] shadow-[var(--shadow-lg)] px-3 cursor-pointer flex items-center \
+         gap-2.5 select-none transition-[transform,opacity,border-color] duration-[240ms] \
+         ease-out hover:border-[var(--primary)]/55 motion-reduce:transition-none {vis_class}"
     );
 
     html! {
-        <div onclick={on_expand}
-            class={container_class}
-            style="backdrop-filter: blur(12px);">
-            // Cover thumbnail
-            <div class="w-10 h-10 rounded-[var(--radius-sm)] overflow-hidden shrink-0 \
-                        bg-[var(--surface-alt)] ring-1 ring-inset ring-[var(--border)]">
+        <div onclick={on_expand} class={container_class}>
+            // Top 2px terracotta playback progress hairline
+            <div
+                class="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-[var(--border)]"
+                aria-hidden="true"
+            >
+                <div
+                    class="h-full bg-[var(--primary)] transition-[width] duration-200 ease-linear"
+                    style={format!("width: {progress_pct:.2}%")}
+                />
+            </div>
+
+            // 40px static square cover
+            <div class="h-10 w-10 shrink-0 overflow-hidden rounded-[6px] border border-[var(--border)] bg-[var(--surface-alt)]">
                 if cover_url.is_empty() {
-                    <div class="w-full h-full flex items-center justify-center text-[var(--muted)]">
+                    <div class="flex h-full w-full items-center justify-center text-[var(--muted)]">
                         <Icon name={IconName::Music} size={16} class={classes!("opacity-40")} />
                     </div>
                 } else {
@@ -122,61 +134,61 @@ pub fn mini_player() -> Html {
                         alt={title.clone()}
                         referrerpolicy={Some(AttrValue::from("no-referrer"))}
                         loading={Some(AttrValue::from("eager"))}
-                        class="w-full h-full object-cover"
+                        class="h-full w-full object-cover"
                         container_class={classes!("w-full", "h-full")}
                     />
                 }
             </div>
 
-            // Song info
-            <div class="flex-1 min-w-0 pl-1">
-                <p class="text-xs font-semibold text-[var(--text)] truncate">
+            // Serif song title + monospace artist
+            <div class="min-w-0 flex-1 pl-0.5">
+                <p class="truncate font-serif text-[0.875rem] font-normal leading-tight text-[var(--text)]">
                     {title}
                 </p>
-                <p class="mt-0.5 text-[10px] text-[var(--muted)] truncate">
+                <p class="mt-0.5 truncate font-mono text-[0.6875rem] leading-tight text-[var(--muted)]">
                     {artist}
                 </p>
             </div>
 
-            // Prev button
-            <button onclick={on_prev} type="button" disabled={!can_prev}
-                class="w-7 h-7 rounded-full flex items-center justify-center \
-                       text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-alt)] \
-                       transition-colors duration-[var(--motion-fast)] ease-[var(--ease-snap)] shrink-0 \
-                       disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent \
-                       disabled:hover:text-[var(--muted)]"
-                aria-label="Previous song">
-                <Icon name={IconName::SkipBack} size={12} />
-            </button>
+            // Restrained playback controls
+            <div class="flex shrink-0 items-center gap-0.5">
+                <button
+                    onclick={on_prev}
+                    type="button"
+                    disabled={!can_prev}
+                    class="flex h-7 w-7 items-center justify-center rounded-full text-[var(--muted)] transition-colors hover:bg-[var(--surface-alt)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-[var(--muted)]"
+                    aria-label="Previous song"
+                >
+                    <Icon name={IconName::SkipBack} size={13} />
+                </button>
 
-            // Play/Pause button
-            <button onclick={on_toggle_play} type="button"
-                class="w-8 h-8 rounded-full bg-[var(--primary)] dark:bg-[#2563eb] text-white \
-                       flex items-center justify-center shadow-[var(--shadow-sm)] hover:scale-105 \
-                       active:scale-95 transition-transform duration-[var(--motion-fast)] \
-                       ease-[var(--ease-snap)] motion-reduce:transition-none \
-                       motion-reduce:hover:scale-100 motion-reduce:active:scale-100 shrink-0"
-                aria-label={if playing { "Pause" } else { "Play" }}>
-                <Icon name={if playing { IconName::Pause } else { IconName::Play }} size={14} color="white" />
-            </button>
+                <button
+                    onclick={on_toggle_play}
+                    type="button"
+                    class="mx-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--primary)] text-[var(--on-primary,#FAF9F5)] transition-colors hover:bg-[var(--primary-hover,#B85735)]"
+                    aria-label={if playing { "Pause" } else { "Play" }}
+                >
+                    <Icon name={if playing { IconName::Pause } else { IconName::Play }} size={13} />
+                </button>
 
-            // Next button
-            <button onclick={on_next} type="button"
-                class="w-7 h-7 rounded-full flex items-center justify-center \
-                       text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-alt)] \
-                       transition-colors duration-[var(--motion-fast)] ease-[var(--ease-snap)] shrink-0"
-                aria-label="Next song">
-                <Icon name={IconName::SkipForward} size={12} />
-            </button>
+                <button
+                    onclick={on_next}
+                    type="button"
+                    class="flex h-7 w-7 items-center justify-center rounded-full text-[var(--muted)] transition-colors hover:bg-[var(--surface-alt)] hover:text-[var(--text)]"
+                    aria-label="Next song"
+                >
+                    <Icon name={IconName::SkipForward} size={13} />
+                </button>
 
-            // Close button
-            <button onclick={on_close} type="button"
-                class="w-7 h-7 rounded-full flex items-center justify-center \
-                       text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-alt)] \
-                       transition-colors duration-[var(--motion-fast)] ease-[var(--ease-snap)] shrink-0"
-                aria-label="Close player">
-                <Icon name={IconName::X} size={12} />
-            </button>
+                <button
+                    onclick={on_close}
+                    type="button"
+                    class="ml-0.5 flex h-7 w-7 items-center justify-center rounded-full text-[var(--muted)] transition-colors hover:bg-[var(--surface-alt)] hover:text-[var(--text)]"
+                    aria-label="Close player"
+                >
+                    <Icon name={IconName::X} size={12} />
+                </button>
+            </div>
         </div>
     }
 }

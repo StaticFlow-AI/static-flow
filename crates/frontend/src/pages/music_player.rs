@@ -64,7 +64,6 @@ pub fn music_player_page(props: &Props) -> Html {
     }
 
     // Fetch song detail (highest priority)
-    // Fix: reuse global context data on remount; fire-and-forget track_song_play
     {
         let id = id.clone();
         let song = song.clone();
@@ -73,7 +72,7 @@ pub fn music_player_page(props: &Props) -> Html {
         let player_ctx = player_ctx.clone();
         use_effect_with(id.clone(), move |id| {
             let id = id.clone();
-            // If global context already has this song, skip fetch
+            error.set(None);
             let ctx_hit = player_ctx.as_ref().and_then(|c| {
                 if c.song_id.as_deref() == Some(id.as_str()) {
                     c.current_song.clone()
@@ -82,9 +81,11 @@ pub fn music_player_page(props: &Props) -> Html {
                 }
             });
             if let Some(cached) = ctx_hit {
+                if let Some(ref ctx) = player_ctx {
+                    ctx.dispatch(MusicAction::Expand);
+                }
                 song.set(Some(cached));
                 song_loading.set(false);
-                // fire-and-forget play tracking
                 let id2 = id.clone();
                 wasm_bindgen_futures::spawn_local(async move {
                     let _ = api::track_song_play(&id2).await;
@@ -110,7 +111,6 @@ pub fn music_player_page(props: &Props) -> Html {
                         },
                     }
                     song_loading.set(false);
-                    // fire-and-forget play tracking
                     let id2 = id.clone();
                     wasm_bindgen_futures::spawn_local(async move {
                         let _ = api::track_song_play(&id2).await;
@@ -471,11 +471,26 @@ pub fn music_player_page(props: &Props) -> Html {
         })
     };
 
-    let on_back = Callback::from(|_: MouseEvent| {
-        if let Some(w) = web_sys::window() {
-            let _ = w.history().map(|h| h.back());
-        }
-    });
+    let on_back = {
+        let ctx = player_ctx.clone();
+        let navigator = navigator.clone();
+        Callback::from(move |_: MouseEvent| {
+            if let Some(ref c) = ctx {
+                if c.playing {
+                    c.dispatch(MusicAction::Minimize);
+                }
+            }
+            if let Some(w) = web_sys::window() {
+                if w.history().ok().and_then(|h| h.length().ok()).unwrap_or(0) > 1 {
+                    let _ = w.history().map(|h| h.back());
+                    return;
+                }
+            }
+            if let Some(ref nav) = navigator {
+                nav.push(&Route::MediaAudio);
+            }
+        })
+    };
 
     let on_offset_dec = {
         let ctx = player_ctx.clone();
@@ -512,15 +527,41 @@ pub fn music_player_page(props: &Props) -> Html {
     };
 
     if *song_loading {
-        return html! { <div class="flex justify-center py-20"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]" /></div> };
+        return html! {
+            <div class="mx-auto max-w-[1080px] px-4 py-12 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,400px)_1fr] lg:gap-14">
+                    <div class="aspect-square w-full max-w-[400px] animate-pulse rounded-[12px] border border-[var(--border)] bg-[var(--surface-alt)]" />
+                    <div class="space-y-4 pt-2">
+                        <div class="h-3 w-28 animate-pulse rounded bg-[var(--surface-alt)]" />
+                        <div class="h-9 w-2/3 animate-pulse rounded bg-[var(--surface-alt)]" />
+                        <div class="h-4 w-44 animate-pulse rounded bg-[var(--surface-alt)]" />
+                        <div class="h-56 w-full animate-pulse rounded-[12px] border border-[var(--border)] bg-[var(--surface)]" />
+                    </div>
+                </div>
+            </div>
+        };
     }
     if let Some(err) = (*error).as_ref() {
-        return html! { <div class="text-center py-20 text-red-500">{format!("Error: {}", err)}</div> };
+        return html! {
+            <div class="mx-auto max-w-xl px-4 py-20 text-center">
+                <p class="font-serif text-xl font-normal text-[var(--err,#B8443A)]">{format!("无法加载曲目：{err}")}</p>
+                <div class="mt-6">
+                    <Link<Route>
+                        to={Route::MediaAudio}
+                        classes="sf-btn sf-btn--secondary inline-flex items-center gap-2 rounded-[8px] border border-[var(--border-strong,var(--border))] px-4 py-2 text-sm text-[var(--text)] no-underline hover:bg-[var(--surface-alt)]"
+                    >
+                        {"← 返回声学曲库"}
+                    </Link<Route>>
+                </div>
+            </div>
+        };
     }
     let detail = match (*song).as_ref() {
         Some(d) => d,
         None => {
-            return html! { <div class="text-center py-20 text-[var(--muted)]">{"Song not found"}</div> };
+            return html! {
+                <div class="py-20 text-center text-sm text-[var(--muted)]">{"Song not found"}</div>
+            };
         },
     };
 
@@ -532,9 +573,17 @@ pub fn music_player_page(props: &Props) -> Html {
         .as_ref()
         .and_then(|l| l.lyrics_translation.clone());
     let playing = player_ctx.as_ref().map(|c| c.playing).unwrap_or(false);
-    let duration = player_ctx.as_ref().map(|c| c.duration).unwrap_or(0.0);
+    let duration = player_ctx
+        .as_ref()
+        .map(|c| c.duration)
+        .filter(|d| *d > 0.0 && d.is_finite())
+        .unwrap_or(detail.duration_ms as f64 / 1000.0);
     let volume = player_ctx.as_ref().map(|c| c.volume).unwrap_or(1.0);
-    let progress_pct = if duration > 0.0 { (current_time / duration) * 100.0 } else { 0.0 };
+    let progress_pct = if duration > 0.0 && duration.is_finite() {
+        ((current_time / duration) * 100.0).clamp(0.0, 100.0)
+    } else {
+        0.0
+    };
 
     let artist_name = detail.artist.clone();
     let album_name = detail.album.clone();
@@ -561,266 +610,471 @@ pub fn music_player_page(props: &Props) -> Html {
         })
     };
 
-    html! {
-        <div class="max-w-3xl mx-auto px-4 py-8">
-            // Back button
-            <button onclick={on_back} type="button"
-                class="flex items-center gap-1.5 text-sm text-[var(--muted)] hover:text-[var(--text)] transition-colors mb-4">
-                <Icon name={IconName::ArrowLeft} size={16} />
-                {"Back"}
-            </button>
-
-            <div class="flex flex-col items-center mb-8">
-                <div class="w-64 h-64 sm:w-72 sm:h-72 rounded-2xl overflow-hidden shadow-[var(--shadow-8)] mb-6 bg-[var(--surface-alt)]">
-                    if cover_url.is_empty() {
-                        <div class="w-full h-full flex items-center justify-center text-[var(--muted)]">
-                            <Icon name={IconName::Music} size={64} class={classes!("opacity-30")} />
-                        </div>
-                    } else {
-                        <ImageWithLoading
-                            src={cover_url}
-                            alt={detail.title.clone()}
-                            referrerpolicy={Some(AttrValue::from("no-referrer"))}
-                            loading={Some(AttrValue::from("eager"))}
-                            class="w-full h-full object-cover"
-                            container_class={classes!("w-full", "h-full")}
-                        />
-                    }
-                </div>
-                <h1 class="text-2xl sm:text-3xl font-bold text-[var(--text)] text-center mb-1" style="font-family: var(--font-sans);">{&detail.title}</h1>
-                <div class="flex items-center gap-2 text-[var(--muted)] text-sm mb-1">
-                    <a href="#" onclick={on_artist_nav}
-                        class="hover:text-[var(--primary)] transition-colors cursor-pointer">{&detail.artist}</a>
-                    if !detail.album.is_empty() {
-                        <span class="text-[var(--border)]">{"·"}</span>
-                        <a href="#" onclick={on_album_nav}
-                            class="hover:text-[var(--primary)] transition-colors cursor-pointer">{&detail.album}</a>
-                    }
-                </div>
-                <p class="text-xs text-[var(--muted)]/70">{format!("{} | {} | {}kbps", duration_str, &detail.format, detail.bitrate / 1000)}</p>
-            </div>
-
-            // Player controls
-            <div class="mb-8 w-full">
-                <div class="relative w-full h-2 group mb-3">
-                    <div class="absolute inset-0 rounded-full bg-[var(--border)] overflow-hidden">
-                        <div class="h-full bg-[var(--primary)] transition-all" style={format!("width: {}%", progress_pct)} />
-                    </div>
-                    <input type="range" min="0" max={duration.to_string()} step="0.1" value={current_time.to_string()} oninput={on_seek}
-                        class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" aria-label="Seek" />
-                </div>
-                <div class="flex flex-wrap items-center justify-center gap-3">
-                    <button onclick={on_set_random_mode} type="button"
-                        class={classes!(
-                            "transition-colors",
-                            if is_random_mode {
-                                "text-[var(--primary)]"
-                            } else {
-                                "text-[var(--muted)] hover:text-[var(--text)]"
-                            }
-                        )}
-                        aria-label="Random mode"
-                        title="Mode: Random">
-                        <Icon name={IconName::Shuffle} size={18} />
-                    </button>
-                    <button onclick={on_set_playlist_mode} type="button"
-                        class={classes!(
-                            "transition-colors",
-                            if is_playlist_mode {
-                                "text-[var(--primary)]"
-                            } else {
-                                "text-[var(--muted)] hover:text-[var(--text)]"
-                            }
-                        )}
-                        aria-label="Playlist sequential mode"
-                        title="Mode: Playlist Sequential">
-                        <Icon name={IconName::List} size={18} />
-                    </button>
-                    <button onclick={on_set_semantic_mode} type="button"
-                        class={classes!(
-                            "transition-colors",
-                            if is_semantic_mode {
-                                "text-red-500"
-                            } else {
-                                "text-[var(--muted)] hover:text-red-500"
-                            }
-                        )}
-                        aria-label="Semantic mode"
-                        title="Mode: Semantic">
-                        <Icon name={IconName::Heart} size={18} />
-                    </button>
-                    <button onclick={on_prev} type="button" disabled={!can_prev}
-                        class="text-[var(--muted)] hover:text-[var(--text)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed" aria-label="Previous song">
-                        <Icon name={IconName::SkipBack} size={18} />
-                    </button>
-                    <button onclick={on_toggle_play} type="button"
-                        class="w-10 h-10 rounded-full bg-[var(--primary)] text-white flex items-center justify-center hover:opacity-90 transition-opacity shrink-0"
-                        aria-label={if playing { "Pause" } else { "Play" }}>
-                        <Icon name={if playing { IconName::Pause } else { IconName::Play }} size={18} color="white" />
-                    </button>
-                    <button onclick={on_next} type="button" class="text-[var(--muted)] hover:text-[var(--text)] transition-colors" aria-label="Next song">
-                        <Icon name={IconName::SkipForward} size={18} />
-                    </button>
-                    <span class="text-[10px] text-[var(--muted)] px-2 py-0.5 rounded-full border border-[var(--border)] bg-[var(--surface-alt)]">
-                        {if is_random_mode {
-                            "Random"
-                        } else if is_semantic_mode {
-                            "Semantic"
-                        } else {
-                            "Playlist"
-                        }}
-                    </span>
-                </div>
-                <div class="flex items-center justify-center gap-3 mt-2">
-                    <span class="text-xs text-[var(--muted)] tabular-nums whitespace-nowrap">
-                        {format!("{} / {}", format_time(current_time), format_time(duration))}
-                    </span>
-                    <a href={audio_url} download={format!("{}.{}", detail.title, detail.format)}
-                        class="text-[var(--muted)] hover:text-[var(--text)] transition-colors" aria-label="Download"
-                        onclick={Callback::from(|e: MouseEvent| e.stop_propagation())}>
-                        <Icon name={IconName::Download} size={18} />
-                    </a>
-                    <button onclick={on_minimize} type="button" class="text-[var(--muted)] hover:text-[var(--text)] transition-colors" aria-label="Minimize player">
-                        <Icon name={IconName::Minimize2} size={18} />
-                    </button>
-                    <button onclick={on_toggle_mute.clone()} type="button" class="text-[var(--muted)] hover:text-[var(--text)] transition-colors" aria-label="Toggle mute">
-                        <Icon name={if volume > 0.0 { IconName::Volume2 } else { IconName::VolumeX }} size={18} />
-                    </button>
-                    <div class="w-20 max-sm:hidden">
-                        <input type="range" min="0" max="1" step="0.01" value={volume.to_string()} oninput={on_volume.clone()}
-                            class="w-full h-1 rounded-full appearance-none bg-[var(--border)] accent-[var(--primary)] cursor-pointer" aria-label="Volume" />
-                    </div>
-                </div>
-                // Mobile-only volume row
-                <div class="flex items-center gap-2 mt-3 sm:hidden">
-                    <button onclick={on_toggle_mute.clone()} type="button"
-                        class="text-[var(--muted)] hover:text-[var(--text)] transition-colors shrink-0" aria-label="Toggle mute">
-                        <Icon name={if volume > 0.0 { IconName::Volume2 } else { IconName::VolumeX }} size={16} />
-                    </button>
-                    <input type="range" min="0" max="1" step="0.01" value={volume.to_string()} oninput={on_volume}
-                        class="flex-1 h-1.5 rounded-full appearance-none bg-[var(--border)] accent-[var(--primary)] cursor-pointer" aria-label="Volume" />
-                    <span class="text-xs text-[var(--muted)] w-8 text-right tabular-nums">
-                        {format!("{:.0}%", volume * 100.0)}
-                    </span>
-                </div>
-            </div>
-
-            <div class="mb-8">
-                if *next_hint_loading {
-                    <div class="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 text-sm text-[var(--muted)]">
-                        {"Prefetching next song..."}
-                    </div>
-                } else if let Some(next) = (*next_hint).as_ref() {
-                    <div class="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 flex items-center justify-between gap-3">
-                        <div class="min-w-0">
-                            <p class="text-[10px] uppercase tracking-wide text-[var(--muted)]">{"Up Next"}</p>
-                            <p class="text-sm text-[var(--text)] font-medium truncate">{&next.title}</p>
-                            <p class="text-xs text-[var(--muted)] truncate">{format!("{} · {}", next.artist, next.album)}</p>
-                        </div>
-                        <Link<Route>
-                            to={Route::MusicPlayer { id: next.id.clone() }}
-                            classes="shrink-0 text-xs px-3 py-1.5 rounded-lg bg-[var(--primary)] text-white hover:opacity-90 transition-opacity">
-                            {"Play next"}
-                        </Link<Route>>
-                    </div>
-                } else {
-                    <div class="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 text-sm text-[var(--muted)]">
-                        {"No available next song for current mode."}
-                    </div>
-                }
-            </div>
-
-            if *lyrics_loading {
-                <div class="mb-8 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 space-y-2">
-                    <div class="h-4 w-20 bg-[var(--border)] rounded animate-pulse" />
-                    <div class="h-3 w-3/4 bg-[var(--border)] rounded animate-pulse" />
-                    <div class="h-3 w-2/3 bg-[var(--border)] rounded animate-pulse" />
-                    <div class="h-3 w-4/5 bg-[var(--border)] rounded animate-pulse" />
-                </div>
-            } else if lyrics_lrc.is_some() {
-                <div class="mb-8 bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden">
-                    <div class="flex items-center justify-between px-4 pt-3 pb-1">
-                        <h2 class="text-sm font-semibold text-[var(--muted)]">{"Lyrics"}</h2>
-                        <div class="flex items-center gap-1.5 text-xs">
-                            <button onclick={on_offset_dec} type="button"
-                                class="w-6 h-6 rounded bg-[var(--surface-alt)] border border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--primary)] transition-colors flex items-center justify-center font-mono"
-                                aria-label="Lyrics offset -0.5s">{"-"}</button>
-                            <span class="tabular-nums text-[var(--muted)] min-w-[3.5rem] text-center font-mono">{&offset_display}</span>
-                            <button onclick={on_offset_inc} type="button"
-                                class="w-6 h-6 rounded bg-[var(--surface-alt)] border border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--primary)] transition-colors flex items-center justify-center font-mono"
-                                aria-label="Lyrics offset +0.5s">{"+"}</button>
-                            if lyrics_offset != 0.0 {
-                                <button onclick={on_offset_reset} type="button"
-                                    class="ml-1 px-1.5 h-6 rounded bg-[var(--surface-alt)] border border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--primary)] transition-colors font-mono"
-                                    aria-label="Reset lyrics offset">{"↺"}</button>
-                            }
-                        </div>
-                    </div>
-                    <SyncedLyrics lyrics_lrc={lyrics_lrc.map(AttrValue::from)} lyrics_translation={lyrics_trans.map(AttrValue::from)} current_time={current_time} lyrics_offset={lyrics_offset} />
-                </div>
+    let mode_btn_class = |active: bool| {
+        classes!(
+            "inline-flex",
+            "h-8",
+            "items-center",
+            "gap-1.5",
+            "rounded-full",
+            "border",
+            "px-2.5",
+            "font-mono",
+            "text-[11px]",
+            "transition-colors",
+            if active {
+                "border-[var(--primary)]/40 bg-[var(--primary-soft,rgba(201,100,66,0.12))] \
+                 text-[var(--primary)]"
+            } else {
+                "border-[var(--border)] bg-transparent text-[var(--muted)] \
+                 hover:border-[var(--border-strong,var(--primary))] hover:text-[var(--text)]"
             }
+        )
+    };
 
-            // Comments
-            <div>
-                if *comments_loading {
-                    <div class="space-y-3">
-                        <div class="h-5 w-32 bg-[var(--border)] rounded animate-pulse mb-4" />
-                        <div class="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-3 space-y-2">
-                            <div class="h-3 w-24 bg-[var(--border)] rounded animate-pulse" />
-                            <div class="h-3 w-3/4 bg-[var(--border)] rounded animate-pulse" />
-                        </div>
-                        <div class="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-3 space-y-2">
-                            <div class="h-3 w-20 bg-[var(--border)] rounded animate-pulse" />
-                            <div class="h-3 w-2/3 bg-[var(--border)] rounded animate-pulse" />
-                        </div>
-                    </div>
-                } else {
-                <h2 class="text-lg font-semibold text-[var(--text)] mb-4">{format!("Comments ({})", comments.len())}</h2>
-                <form onsubmit={on_submit_comment} class="mb-6 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4">
-                    <div class="flex gap-3 mb-3">
-                        <input type="text" placeholder="Nickname (optional)" value={(*nickname).clone()} oninput={on_nickname_input}
-                            class="flex-1 px-3 py-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-sm text-[var(--text)] placeholder-[var(--muted)] focus:outline-none focus:border-[var(--primary)]" />
-                    </div>
-                    <div class="flex gap-3">
-                        <input type="text" placeholder="Write a comment..." value={(*comment_text).clone()} oninput={on_comment_input}
-                            class="flex-1 px-3 py-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-sm text-[var(--text)] placeholder-[var(--muted)] focus:outline-none focus:border-[var(--primary)]" />
-                        <button type="submit" disabled={*submitting}
-                            class="px-4 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity">
-                            if *submitting { {"..."} } else { {"Send"} }
-                        </button>
-                    </div>
-                    if let Some(err) = (*submit_error).as_ref() { <p class="text-xs text-red-500 mt-2">{err}</p> }
-                </form>
-                if comments.is_empty() {
-                    <p class="text-sm text-[var(--muted)] text-center py-8">{"No comments yet. Be the first!"}</p>
-                } else {
-                    <div class="space-y-3">
-                        { for comments.iter().map(|c| { let ts = format_timestamp(c.created_at); html! {
-                            <div class="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-3">
-                                <div class="flex items-center gap-2 mb-1">
-                                    <span class="text-sm font-medium text-[var(--text)]">{&c.nickname}</span>
-                                    if let Some(region) = c.ip_region.as_ref() { <span class="text-xs text-[var(--muted)]">{region}</span> }
-                                    <span class="text-xs text-[var(--muted)] ml-auto">{ts}</span>
-                                </div>
-                                <p class="text-sm text-[var(--muted)]">{&c.comment_text}</p>
-                            </div>
-                        }}) }
-                    </div>
-                }
-                } // comments_loading else
+    html! {
+        <div class="mx-auto max-w-[1080px] px-4 py-8 sm:px-6 md:py-12 lg:px-8">
+            // Top editorial navigation bar
+            <div class="mb-8 flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-4">
+                <button
+                    onclick={on_back}
+                    type="button"
+                    class="inline-flex items-center gap-2 font-mono text-xs text-[var(--muted)] transition-colors hover:text-[var(--text)]"
+                >
+                    <Icon name={IconName::ArrowLeft} size={14} />
+                    <span>{"返回声学曲库"}</span>
+                </button>
+                <button
+                    type="button"
+                    onclick={Callback::from(|_: MouseEvent| {
+                        crate::navigation_context::navigate_spa_to(
+                            &crate::config::route_path("/media/audio#music-wish-section")
+                        );
+                    })}
+                    class="font-mono text-xs text-[var(--primary)] transition-colors hover:underline"
+                >
+                    {"想听别的歌？前往点歌工坊许愿 →"}
+                </button>
             </div>
 
-            <div class="mt-10">
+            // Two-column Editorial Player Layout
+            <div class="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,400px)_1fr] lg:items-start lg:gap-14">
+                // Left column: Static square cover (no shadow, no vinyl spin) + Up Next
+                <div class="mx-auto w-full max-w-[400px] lg:sticky lg:top-24 lg:mx-0">
+                    <div class="aspect-square w-full overflow-hidden rounded-[12px] border border-[var(--border)] bg-[var(--surface-alt)]">
+                        if cover_url.is_empty() {
+                            <div class="flex h-full w-full items-center justify-center text-[var(--muted)]">
+                                <Icon name={IconName::Music} size={64} class={classes!("opacity-30")} />
+                            </div>
+                        } else {
+                            <ImageWithLoading
+                                src={cover_url}
+                                alt={detail.title.clone()}
+                                referrerpolicy={Some(AttrValue::from("no-referrer"))}
+                                loading={Some(AttrValue::from("eager"))}
+                                class="h-full w-full object-cover"
+                                container_class={classes!("w-full", "h-full")}
+                            />
+                        }
+                    </div>
+
+                    // Up Next card beneath cover
+                    <div class="mt-5 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-4">
+                        if *next_hint_loading {
+                            <p class="font-mono text-xs text-[var(--muted)]">{"正在预取下一首曲目..."}</p>
+                        } else if let Some(next) = (*next_hint).as_ref() {
+                            <div class="flex items-center justify-between gap-3">
+                                <div class="min-w-0">
+                                    <p class="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--muted)]">
+                                        {"UP NEXT · 即将播放"}
+                                    </p>
+                                    <p class="mt-1 truncate font-serif text-[0.975rem] font-normal text-[var(--text)]">
+                                        {&next.title}
+                                    </p>
+                                    <p class="mt-0.5 truncate text-xs text-[var(--muted)]">
+                                        {if next.album.is_empty() {
+                                            next.artist.clone()
+                                        } else {
+                                            format!("{} · {}", next.artist, next.album)
+                                        }}
+                                    </p>
+                                </div>
+                                <Link<Route>
+                                    to={Route::MusicPlayer { id: next.id.clone() }}
+                                    classes="shrink-0 rounded-[8px] border border-[var(--border-strong,var(--border))] bg-[var(--surface-alt)] px-3 py-1.5 font-mono text-xs text-[var(--text)] no-underline transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
+                                >
+                                    {"下一首 →"}
+                                </Link<Route>>
+                            </div>
+                        } else {
+                            <p class="font-mono text-xs text-[var(--muted)]">
+                                {"当前播放模式下暂无预设下一首。"}
+                            </p>
+                        }
+                    </div>
+                </div>
+
+                // Right column: Serif header + slim 2px terracotta progress + synced lyrics + comments
+                <div class="min-w-0">
+                    <div class="sf-eyebrow mb-2 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted)]">
+                        {"NOW PLAYING · AUDIO ARCHIVE"}
+                    </div>
+                    <h1 class="font-serif text-[clamp(1.875rem,3.4vw,2.625rem)] font-normal leading-[1.15] tracking-[-0.02em] text-[var(--text)]">
+                        {&detail.title}
+                    </h1>
+                    <div class="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.95rem] text-[var(--muted)]">
+                        <a
+                            href="#"
+                            onclick={on_artist_nav}
+                            class="cursor-pointer text-[var(--muted)] no-underline transition-colors hover:text-[var(--primary)]"
+                        >
+                            {&detail.artist}
+                        </a>
+                        if !detail.album.is_empty() {
+                            <span class="text-[var(--border-strong,var(--border))]">{"·"}</span>
+                            <a
+                                href="#"
+                                onclick={on_album_nav}
+                                class="cursor-pointer text-[var(--muted)] no-underline transition-colors hover:text-[var(--primary)]"
+                            >
+                                {&detail.album}
+                            </a>
+                        }
+                    </div>
+                    <div class="mt-2 flex flex-wrap items-center gap-2 font-mono text-xs tabular-nums text-[var(--muted)]">
+                        <span>{&duration_str}</span>
+                        <span class="text-[var(--border-strong,var(--border))]">{"·"}</span>
+                        <span class="uppercase">{&detail.format}</span>
+                        if detail.bitrate > 0 {
+                            <span class="text-[var(--border-strong,var(--border))]">{"·"}</span>
+                            <span>{format!("{} kbps", detail.bitrate / 1000)}</span>
+                        }
+                    </div>
+
+                    // Slim 2px (hover 4px + 10px circular thumb) terracotta progress bar & controls
+                    <div class="mt-6 border-y border-[var(--border)] py-5">
+                        <div class="group relative flex h-4 w-full items-center">
+                            <div class="relative h-[2px] w-full overflow-hidden rounded-full bg-[var(--border-strong,var(--border))] transition-[height] duration-150 group-hover:h-1">
+                                <div
+                                    class="h-full bg-[var(--primary)]"
+                                    style={format!("width: {progress_pct:.2}%")}
+                                />
+                            </div>
+                            <div
+                                class="pointer-events-none absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--primary)] opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                                style={format!("left: {progress_pct:.2}%")}
+                                aria-hidden="true"
+                            />
+                            <input
+                                type="range"
+                                min="0"
+                                max={if duration.is_finite() && duration > 0.0 { duration.to_string() } else { "0".to_string() }}
+                                step="0.1"
+                                value={current_time.to_string()}
+                                oninput={on_seek}
+                                class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                                aria-label="Seek"
+                            />
+                        </div>
+
+                        <div class="mt-1.5 flex items-center justify-between font-mono text-xs tabular-nums text-[var(--muted)]">
+                            <span>{format_time(current_time)}</span>
+                            <span>{format_time(duration)}</span>
+                        </div>
+
+                        <div class="mt-4 flex flex-wrap items-center justify-between gap-4">
+                            // Transport controls
+                            <div class="flex items-center gap-2.5">
+                                <button
+                                    onclick={on_prev}
+                                    type="button"
+                                    disabled={!can_prev}
+                                    class="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] text-[var(--muted)] transition-colors hover:border-[var(--border-strong,var(--primary))] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-30"
+                                    aria-label="Previous song"
+                                >
+                                    <Icon name={IconName::SkipBack} size={15} />
+                                </button>
+                                <button
+                                    onclick={on_toggle_play}
+                                    type="button"
+                                    class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--primary)] text-[var(--on-primary,#FAF9F5)] transition-colors hover:bg-[var(--primary-hover,#B85735)]"
+                                    aria-label={if playing { "Pause" } else { "Play" }}
+                                >
+                                    <Icon name={if playing { IconName::Pause } else { IconName::Play }} size={18} />
+                                </button>
+                                <button
+                                    onclick={on_next}
+                                    type="button"
+                                    class="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] text-[var(--muted)] transition-colors hover:border-[var(--border-strong,var(--primary))] hover:text-[var(--text)]"
+                                    aria-label="Next song"
+                                >
+                                    <Icon name={IconName::SkipForward} size={15} />
+                                </button>
+                            </div>
+
+                            // Playback mode chips (warm terracotta active state)
+                            <div class="flex flex-wrap items-center gap-1.5">
+                                <button
+                                    onclick={on_set_random_mode}
+                                    type="button"
+                                    class={mode_btn_class(is_random_mode)}
+                                    aria-label="Random mode"
+                                    title="随机播放"
+                                >
+                                    <Icon name={IconName::Shuffle} size={13} />
+                                    <span>{"随机"}</span>
+                                </button>
+                                <button
+                                    onclick={on_set_playlist_mode}
+                                    type="button"
+                                    class={mode_btn_class(is_playlist_mode)}
+                                    aria-label="Playlist sequential mode"
+                                    title="列表顺序播放"
+                                >
+                                    <Icon name={IconName::List} size={13} />
+                                    <span>{"顺序"}</span>
+                                </button>
+                                <button
+                                    onclick={on_set_semantic_mode}
+                                    type="button"
+                                    class={mode_btn_class(is_semantic_mode)}
+                                    aria-label="Semantic mode"
+                                    title="语义相似推荐"
+                                >
+                                    <Icon name={IconName::Heart} size={13} />
+                                    <span>{"语义"}</span>
+                                </button>
+                            </div>
+
+                            // Volume + Download + Minimize
+                            <div class="flex items-center gap-2.5">
+                                <button
+                                    onclick={on_toggle_mute.clone()}
+                                    type="button"
+                                    class="text-[var(--muted)] transition-colors hover:text-[var(--text)]"
+                                    aria-label="Toggle mute"
+                                >
+                                    <Icon name={if volume > 0.0 { IconName::Volume2 } else { IconName::VolumeX }} size={16} />
+                                </button>
+                                <div class="w-20 max-sm:hidden">
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="1"
+                                        step="0.01"
+                                        value={volume.to_string()}
+                                        oninput={on_volume.clone()}
+                                        class="h-[2px] w-full cursor-pointer appearance-none rounded-full bg-[var(--border-strong,var(--border))] accent-[var(--primary)]"
+                                        aria-label="Volume"
+                                    />
+                                </div>
+                                <a
+                                    href={audio_url}
+                                    download={format!("{}.{}", detail.title, detail.format)}
+                                    class="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border)] text-[var(--muted)] transition-colors hover:border-[var(--border-strong,var(--primary))] hover:text-[var(--text)]"
+                                    aria-label="Download"
+                                    title="下载音频"
+                                    onclick={Callback::from(|e: MouseEvent| e.stop_propagation())}
+                                >
+                                    <Icon name={IconName::Download} size={14} />
+                                </a>
+                                <button
+                                    onclick={on_minimize}
+                                    type="button"
+                                    class="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border)] text-[var(--muted)] transition-colors hover:border-[var(--border-strong,var(--primary))] hover:text-[var(--text)]"
+                                    aria-label="Minimize player"
+                                    title="收起至悬浮迷你播放器"
+                                >
+                                    <Icon name={IconName::Minimize2} size={14} />
+                                </button>
+                            </div>
+                        </div>
+
+                        // Mobile volume bar
+                        <div class="mt-3 flex items-center gap-2 sm:hidden">
+                            <button
+                                onclick={on_toggle_mute}
+                                type="button"
+                                class="shrink-0 text-[var(--muted)] transition-colors hover:text-[var(--text)]"
+                                aria-label="Toggle mute"
+                            >
+                                <Icon name={if volume > 0.0 { IconName::Volume2 } else { IconName::VolumeX }} size={15} />
+                            </button>
+                            <input
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.01"
+                                value={volume.to_string()}
+                                oninput={on_volume}
+                                class="h-[2px] flex-1 cursor-pointer appearance-none rounded-full bg-[var(--border-strong,var(--border))] accent-[var(--primary)]"
+                                aria-label="Volume"
+                            />
+                            <span class="w-9 text-right font-mono text-xs tabular-nums text-[var(--muted)]">
+                                {format!("{:.0}%", volume * 100.0)}
+                            </span>
+                        </div>
+                    </div>
+
+                    // Serif Synced Lyrics Panel
+                    if *lyrics_loading {
+                        <div class="mt-7 space-y-2.5 rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-5">
+                            <div class="h-3.5 w-24 animate-pulse rounded bg-[var(--surface-alt)]" />
+                            <div class="h-3.5 w-3/4 animate-pulse rounded bg-[var(--surface-alt)]" />
+                            <div class="h-3.5 w-2/3 animate-pulse rounded bg-[var(--surface-alt)]" />
+                            <div class="h-3.5 w-4/5 animate-pulse rounded bg-[var(--surface-alt)]" />
+                        </div>
+                    } else if lyrics_lrc.is_some() {
+                        <div class="mt-7 overflow-hidden rounded-[12px] border border-[var(--border)] bg-[var(--surface)]">
+                            <div class="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
+                                <h2 class="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--muted)]">
+                                    {"LYRICS · 同步歌词"}
+                                </h2>
+                                <div class="flex items-center gap-1.5 font-mono text-xs">
+                                    <button
+                                        onclick={on_offset_dec}
+                                        type="button"
+                                        class="flex h-6 w-6 items-center justify-center rounded border border-[var(--border)] bg-[var(--surface-alt)] text-[var(--muted)] transition-colors hover:border-[var(--primary)] hover:text-[var(--text)]"
+                                        aria-label="Lyrics offset -0.5s"
+                                    >
+                                        {"−"}
+                                    </button>
+                                    <span class="min-w-[3.5rem] text-center tabular-nums text-[var(--muted)]">
+                                        {&offset_display}
+                                    </span>
+                                    <button
+                                        onclick={on_offset_inc}
+                                        type="button"
+                                        class="flex h-6 w-6 items-center justify-center rounded border border-[var(--border)] bg-[var(--surface-alt)] text-[var(--muted)] transition-colors hover:border-[var(--primary)] hover:text-[var(--text)]"
+                                        aria-label="Lyrics offset +0.5s"
+                                    >
+                                        {"+"}
+                                    </button>
+                                    if lyrics_offset != 0.0 {
+                                        <button
+                                            onclick={on_offset_reset}
+                                            type="button"
+                                            class="ml-1 h-6 rounded border border-[var(--border)] bg-[var(--surface-alt)] px-1.5 text-[var(--muted)] transition-colors hover:border-[var(--primary)] hover:text-[var(--text)]"
+                                            aria-label="Reset lyrics offset"
+                                        >
+                                            {"↺"}
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                            <div class="font-serif">
+                                <SyncedLyrics
+                                    lyrics_lrc={lyrics_lrc.map(AttrValue::from)}
+                                    lyrics_translation={lyrics_trans.map(AttrValue::from)}
+                                    current_time={current_time}
+                                    lyrics_offset={lyrics_offset}
+                                />
+                            </div>
+                        </div>
+                    }
+
+                    // Warm Editorial Comments Section
+                    <section class="mt-9">
+                        if *comments_loading {
+                            <div class="space-y-3">
+                                <div class="mb-4 h-5 w-32 animate-pulse rounded bg-[var(--surface-alt)]" />
+                                <div class="space-y-2 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-4">
+                                    <div class="h-3 w-24 animate-pulse rounded bg-[var(--surface-alt)]" />
+                                    <div class="h-3 w-3/4 animate-pulse rounded bg-[var(--surface-alt)]" />
+                                </div>
+                            </div>
+                        } else {
+                            <div class="mb-4 flex items-baseline justify-between">
+                                <h2 class="font-serif text-xl font-normal text-[var(--text)]">
+                                    {format!("听友评论 ({})", comments.len())}
+                                </h2>
+                                <span class="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--muted)]">
+                                    {"LISTENER NOTES"}
+                                </span>
+                            </div>
+
+                            <form
+                                onsubmit={on_submit_comment}
+                                class="sf-card mb-6 rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5"
+                            >
+                                <div class="mb-3 flex gap-3">
+                                    <input
+                                        type="text"
+                                        placeholder="昵称（可选）"
+                                        value={(*nickname).clone()}
+                                        oninput={on_nickname_input}
+                                        class="sf-input w-full rounded-[8px] border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)] placeholder-[var(--muted)] transition-colors focus:border-[var(--primary)] focus:outline-none sm:max-w-xs"
+                                    />
+                                </div>
+                                <div class="flex flex-col gap-2.5 sm:flex-row">
+                                    <input
+                                        type="text"
+                                        placeholder="写下此刻听歌的感受..."
+                                        value={(*comment_text).clone()}
+                                        oninput={on_comment_input}
+                                        class="sf-input flex-1 rounded-[8px] border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)] placeholder-[var(--muted)] transition-colors focus:border-[var(--primary)] focus:outline-none"
+                                    />
+                                    <button
+                                        type="submit"
+                                        disabled={*submitting}
+                                        class="sf-btn sf-btn--primary shrink-0 rounded-[8px] bg-[var(--primary)] px-4 py-2 text-sm font-medium text-[var(--on-primary,#FAF9F5)] transition-colors hover:bg-[var(--primary-hover,#B85735)] disabled:opacity-50"
+                                    >
+                                        if *submitting { {"发送中..."} } else { {"发送评论"} }
+                                    </button>
+                                </div>
+                                if let Some(err) = (*submit_error).as_ref() {
+                                    <p class="mt-2 text-xs text-[var(--err,#B8443A)]">{err}</p>
+                                }
+                            </form>
+
+                            if comments.is_empty() {
+                                <div class="rounded-[12px] border border-[var(--border)] bg-[var(--surface)] px-4 py-8 text-center text-sm text-[var(--muted)]">
+                                    {"暂无评论，留下第一条听歌笔记吧。"}
+                                </div>
+                            } else {
+                                <div class="divide-y divide-[var(--border)] rounded-[12px] border border-[var(--border)] bg-[var(--surface)]">
+                                    { for comments.iter().map(|c| {
+                                        let ts = format_timestamp(c.created_at);
+                                        html! {
+                                            <div class="p-4">
+                                                <div class="mb-1.5 flex items-center gap-2">
+                                                    <span class="text-sm font-medium text-[var(--text)]">{&c.nickname}</span>
+                                                    if let Some(region) = c.ip_region.as_ref() {
+                                                        if !region.trim().is_empty() {
+                                                            <span class="font-mono text-[11px] text-[var(--muted)]">{region}</span>
+                                                        }
+                                                    }
+                                                    <span class="ml-auto font-mono text-[11px] tabular-nums text-[var(--muted)]">{ts}</span>
+                                                </div>
+                                                <p class="text-sm leading-relaxed text-[var(--text-2,var(--muted))]">{&c.comment_text}</p>
+                                            </div>
+                                        }
+                                    }) }
+                                </div>
+                            }
+                        }
+                    </section>
+                </div>
+            </div>
+
+            // Bottom Related Tracks (static shadowless cards)
+            <div class="mt-14 border-t border-[var(--border)] pt-10">
                 if *bottom_recs_loading {
-                    <h2 class="text-sm font-semibold text-[var(--muted)] mb-3">{"Recommended for You"}</h2>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div class="mb-4 flex items-baseline justify-between">
+                        <h2 class="font-serif text-xl font-normal text-[var(--text)]">{"相似曲目推荐"}</h2>
+                        <span class="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--muted)]">{"RELATED TRACKS"}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
                         { for (0..4).map(|_| html! {
-                            <div class="bg-[var(--surface)] border border-[var(--border)] rounded-lg aspect-[3/4] animate-pulse" />
-                        })}
+                            <div class="aspect-[3/4] animate-pulse rounded-[8px] border border-[var(--border)] bg-[var(--surface)]" />
+                        }) }
                     </div>
                 } else if !bottom_recommendations.is_empty() {
-                    <h2 class="text-sm font-semibold text-[var(--muted)] mb-3">{"Recommended for You"}</h2>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div class="mb-4 flex items-baseline justify-between">
+                        <h2 class="font-serif text-xl font-normal text-[var(--text)]">{"相似曲目推荐"}</h2>
+                        <span class="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--muted)]">{"RELATED TRACKS"}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
                         { for bottom_recommendations.iter().map(render_candidate_card) }
                     </div>
                 }
@@ -833,12 +1087,13 @@ fn render_candidate_card(c: &api::SongSearchResult) -> Html {
     let cover = api::song_cover_url(c.cover_image.as_deref());
     let cid = c.id.clone();
     html! {
-        <Link<Route> to={Route::MusicPlayer { id: cid }}
-            classes="group bg-[var(--surface)] border border-[var(--border)] rounded-lg overflow-hidden flex flex-col \
-                     transition-all duration-200 hover:border-[var(--primary)] hover:shadow-[var(--shadow-4)]">
-            <div class="aspect-square bg-[var(--surface-alt)] relative overflow-hidden">
+        <Link<Route>
+            to={Route::MusicPlayer { id: cid }}
+            classes="group flex flex-col overflow-hidden rounded-[8px] border border-[var(--border)] bg-[var(--surface)] no-underline transition-colors hover:border-[var(--border-strong,var(--primary))]"
+        >
+            <div class="relative aspect-square overflow-hidden bg-[var(--surface-alt)]">
                 if cover.is_empty() {
-                    <div class="w-full h-full flex items-center justify-center text-[var(--muted)]">
+                    <div class="flex h-full w-full items-center justify-center text-[var(--muted)]">
                         <Icon name={IconName::Music} size={32} class={classes!("opacity-30")} />
                     </div>
                 } else {
@@ -847,20 +1102,16 @@ fn render_candidate_card(c: &api::SongSearchResult) -> Html {
                         alt={c.title.clone()}
                         loading={Some(AttrValue::from("lazy"))}
                         referrerpolicy={Some(AttrValue::from("no-referrer"))}
-                        class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        class="h-full w-full object-cover"
                         container_class={classes!("w-full", "h-full")}
                     />
                 }
-                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200 \
-                            flex items-center justify-center opacity-0 group-hover:opacity-100">
-                    <div class="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow">
-                        <Icon name={IconName::Play} size={14} color="#000" />
-                    </div>
-                </div>
             </div>
-            <div class="p-2">
-                <p class="text-xs font-semibold text-[var(--text)] truncate" style="font-family: var(--font-sans);">{&c.title}</p>
-                <p class="text-[10px] text-[var(--muted)] truncate">{&c.artist}</p>
+            <div class="border-t border-[var(--border)] p-3">
+                <p class="truncate font-serif text-[0.95rem] font-normal text-[var(--text)] transition-colors group-hover:text-[var(--primary)]">
+                    {&c.title}
+                </p>
+                <p class="mt-0.5 truncate text-xs text-[var(--muted)]">{&c.artist}</p>
             </div>
         </Link<Route>>
     }
@@ -892,6 +1143,7 @@ fn format_duration(ms: u64) -> String {
     let s = ms / 1000;
     format!("{:02}:{:02}", s / 60, s % 60)
 }
+
 fn format_time(secs: f64) -> String {
     if secs.is_nan() || secs.is_infinite() {
         return "00:00".to_string();
@@ -899,6 +1151,7 @@ fn format_time(secs: f64) -> String {
     let t = secs as u64;
     format!("{:02}:{:02}", t / 60, t % 60)
 }
+
 fn format_timestamp(epoch_ms: i64) -> String {
     let secs = epoch_ms / 1000;
     let hours_ago = (js_sys::Date::now() as i64 / 1000 - secs) / 3600;

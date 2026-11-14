@@ -56,8 +56,7 @@ pub fn kiro_access_page() -> Html {
     let copy_timeout = use_mut_ref(|| None::<Timeout>);
     // 0 = Claude Code env, 1 = curl
     let active_tab = use_state(|| 0u8);
-    // Reusable callback to (re-)fetch Kiro access data from the backend.
-    // Shared between the initial mount effect and manual refresh buttons.
+
     let reload_access = {
         let access = access.clone();
         let loading = loading.clone();
@@ -80,7 +79,6 @@ pub fn kiro_access_page() -> Html {
 
     {
         let reload_access = reload_access.clone();
-        // effect: fetch kiro access on mount
         use_effect_with((), move |_| {
             reload_access.emit(());
             || ()
@@ -92,7 +90,7 @@ pub fn kiro_access_page() -> Html {
         let copy_timeout = copy_timeout.clone();
         Callback::from(move |value: String| {
             copy_text(&value);
-            copied.set(Some("Copied!".to_string()));
+            copied.set(Some("已复制到剪贴板".to_string()));
             let copied = copied.clone();
             *copy_timeout.borrow_mut() = Some(Timeout::new(2_000, move || {
                 copied.set(None);
@@ -117,22 +115,35 @@ pub fn kiro_access_page() -> Html {
          [\n      {{\"role\": \"user\", \"content\": \"Reply exactly OK.\"}}\n    ]\n  }}'"
     );
 
+    let secondary_btn_class = "sf-btn sf-btn--secondary inline-flex items-center gap-1.5 \
+                               rounded-[8px] border border-[var(--border-strong,var(--border))] \
+                               bg-transparent px-3 py-1.5 font-mono text-xs text-[var(--text)] \
+                               no-underline transition-colors hover:bg-[var(--surface-alt)] \
+                               disabled:cursor-not-allowed disabled:opacity-50";
+
     html! {
-        <main class={classes!("container", "py-8", "space-y-5")}>
-            // ── Header ──
-            <section class={classes!("rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                <div class={classes!("flex", "items-center", "justify-between", "gap-4", "flex-wrap")}>
-                    <div class={classes!("flex", "items-center", "gap-3")}>
-                        <span class={classes!("inline-flex", "items-center", "rounded-full", "bg-slate-900", "px-2.5", "py-1", "font-mono", "text-[11px]", "font-semibold", "uppercase", "tracking-[0.16em]", "text-emerald-300")}>
-                            { "Kiro" }
-                        </span>
-                        <h1 class={classes!("m-0", "font-mono", "text-xl", "font-bold", "text-[var(--text)]")}>
-                            { "Kiro Access" }
+        <main class="mx-auto max-w-[960px] space-y-6 px-4 pb-20 pt-10 sm:px-6 md:pt-14">
+            // Editorial Header Card
+            <section class="sf-card rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-6 sm:p-7">
+                <div class="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                        <div class="mb-2 flex items-center gap-2.5">
+                            <span class="sf-chip sf-chip--active inline-flex items-center rounded-full border border-[var(--primary)]/35 bg-[var(--primary-soft,rgba(201,100,66,0.12))] px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--primary)]">
+                                { "KIRO GATEWAY" }
+                            </span>
+                            <span class="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--muted)]">
+                                { "ANTHROPIC MESSAGES COMPATIBLE" }
+                            </span>
+                        </div>
+                        <h1 class="m-0 font-serif text-[clamp(1.75rem,3vw,2.375rem)] font-normal leading-[1.15] tracking-[-0.02em] text-[var(--text)]">
+                            { "Kiro Access · 网关接入" }
                         </h1>
                     </div>
-                    <div class={classes!("flex", "items-center", "gap-2")}>
+
+                    <div class="flex flex-wrap items-center gap-2">
                         <button
-                            class={classes!("btn-terminal")}
+                            type="button"
+                            class={secondary_btn_class}
                             onclick={{
                                 let reload_access = reload_access.clone();
                                 Callback::from(move |_| reload_access.emit(()))
@@ -141,129 +152,174 @@ pub fn kiro_access_page() -> Html {
                             title="刷新接入信息"
                             aria-label="刷新接入信息"
                         >
-                            <i class={classes!("fas", if *loading { "fa-spinner animate-spin" } else { "fa-rotate-right" })}></i>
+                            <i class={classes!("fas", if *loading { "fa-spinner animate-spin" } else { "fa-rotate-right" })} />
+                            <span>{ "刷新" }</span>
                         </button>
                         <button
-                            class={classes!("btn-terminal")}
+                            type="button"
+                            class="sf-btn sf-btn--primary inline-flex items-center gap-1.5 rounded-[8px] bg-[var(--primary)] px-3.5 py-1.5 font-mono text-xs font-medium text-[var(--on-primary,#FAF9F5)] transition-colors hover:bg-[var(--primary-hover,#B85735)]"
                             onclick={{
                                 let on_copy = on_copy.clone();
                                 let resolved_base = resolved_base.clone();
                                 Callback::from(move |_| on_copy.emit(resolved_base.clone()))
                             }}
                         >
-                            <i class="fas fa-copy"></i>
+                            <i class="fas fa-copy" />
+                            <span>{ "复制 Base URL" }</span>
                         </button>
-                        <Link<Route> to={Route::LlmAccess} classes={classes!("btn-terminal")}>
-                            { "Codex" }
+                        <Link<Route> to={Route::LlmAccess} classes={secondary_btn_class}>
+                            <span>{ "Codex Gateway" }</span>
                         </Link<Route>>
-                        <Link<Route> to={Route::AdminKiroGateway} classes={classes!("btn-terminal")}>
-                            <i class="fas fa-sliders"></i>
+                        <Link<Route>
+                            to={Route::AdminKiroGateway}
+                            classes={secondary_btn_class}
+                        >
+                            <i class="fas fa-sliders" />
+                            <span>{ "控制台" }</span>
                         </Link<Route>>
                     </div>
                 </div>
-                <div class={classes!("mt-2", "flex", "items-center", "gap-2")}>
-                    <code class={classes!("break-all", "font-mono", "text-sm", "text-[var(--muted)]")}>{ resolved_base.clone() }</code>
+
+                <div class="mt-4 rounded-[8px] border border-[var(--border)] bg-[var(--surface-sunk,var(--surface-alt))] px-3.5 py-2.5">
+                    <div class="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--muted)]">
+                        { "ENDPOINT BASE URL" }
+                    </div>
+                    <code class="mt-1 block break-all font-mono text-sm text-[var(--text)]">
+                        { resolved_base.clone() }
+                    </code>
                 </div>
+
                 if *loading {
-                    <div class={classes!("mt-4", "font-mono", "text-sm", "text-[var(--muted)]")}>{ "> loading..." }</div>
+                    <div class="mt-4 font-mono text-xs text-[var(--muted)]">{ "正在加载接入配置..." }</div>
                 } else if let Some(err) = (*error).clone() {
-                    <div class={classes!("mt-4", "rounded-lg", "bg-red-500/10", "px-3", "py-2", "font-mono", "text-xs", "text-red-700", "dark:text-red-200")}>
+                    <div class="mt-4 rounded-[8px] border border-[var(--err,#B8443A)]/35 bg-[var(--err-soft,rgba(184,68,58,0.10))] px-3.5 py-2.5 font-mono text-xs text-[var(--err,#B8443A)]">
                         { err }
                     </div>
                 }
             </section>
 
-            // ── Code Examples (tabbed) ──
-            <section class={classes!("rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                <div class={classes!("flex", "items-center", "gap-1")}>
+            // Code Examples (Tabbed)
+            <section class="sf-card rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-6">
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
+                    <div class="flex items-center gap-4">
+                        <button
+                            type="button"
+                            class={classes!(
+                                "border-b-[1.5px]",
+                                "pb-2",
+                                "-mb-[13px]",
+                                "font-mono",
+                                "text-xs",
+                                "transition-colors",
+                                if *active_tab == 0 {
+                                    "border-[var(--primary)] font-medium text-[var(--text)]"
+                                } else {
+                                    "border-transparent text-[var(--muted)] hover:text-[var(--text)]"
+                                }
+                            )}
+                            onclick={{ let active_tab = active_tab.clone(); Callback::from(move |_| active_tab.set(0)) }}
+                        >
+                            { "Claude Code" }
+                        </button>
+                        <button
+                            type="button"
+                            class={classes!(
+                                "border-b-[1.5px]",
+                                "pb-2",
+                                "-mb-[13px]",
+                                "font-mono",
+                                "text-xs",
+                                "transition-colors",
+                                if *active_tab == 1 {
+                                    "border-[var(--primary)] font-medium text-[var(--text)]"
+                                } else {
+                                    "border-transparent text-[var(--muted)] hover:text-[var(--text)]"
+                                }
+                            )}
+                            onclick={{ let active_tab = active_tab.clone(); Callback::from(move |_| active_tab.set(1)) }}
+                        >
+                            { "curl" }
+                        </button>
+                    </div>
+
                     <button
                         type="button"
-                        class={classes!(
-                            "rounded-t-lg", "px-3", "py-1.5", "font-mono", "text-xs", "font-semibold",
-                            "transition-colors", "duration-150",
-                            if *active_tab == 0 { "bg-[var(--surface-alt)] text-[var(--text)]" } else { "text-[var(--muted)] hover:text-[var(--text)]" },
-                        )}
-                        onclick={{ let active_tab = active_tab.clone(); Callback::from(move |_| active_tab.set(0)) }}
-                    >
-                        { "Claude Code" }
-                    </button>
-                    <button
-                        type="button"
-                        class={classes!(
-                            "rounded-t-lg", "px-3", "py-1.5", "font-mono", "text-xs", "font-semibold",
-                            "transition-colors", "duration-150",
-                            if *active_tab == 1 { "bg-[var(--surface-alt)] text-[var(--text)]" } else { "text-[var(--muted)] hover:text-[var(--text)]" },
-                        )}
-                        onclick={{ let active_tab = active_tab.clone(); Callback::from(move |_| active_tab.set(1)) }}
-                    >
-                        { "curl" }
-                    </button>
-                    <button
-                        type="button"
-                        class={classes!("ml-auto", "btn-terminal")}
+                        class={secondary_btn_class}
                         onclick={{
                             let on_copy = on_copy.clone();
                             let claude_env_example = claude_env_example.clone();
                             let curl_example = curl_example.clone();
                             let active_tab = active_tab.clone();
                             Callback::from(move |_| {
-                                let text = if *active_tab == 0 { claude_env_example.clone() } else { curl_example.clone() };
+                                let text = if *active_tab == 0 {
+                                    claude_env_example.clone()
+                                } else {
+                                    curl_example.clone()
+                                };
                                 on_copy.emit(text);
                             })
                         }}
                     >
-                        <i class="fas fa-copy"></i>
-                        { " 复制" }
+                        <i class="fas fa-copy" />
+                        <span>{ "复制代码" }</span>
                     </button>
                 </div>
-                <pre class={classes!("mt-0", "overflow-x-auto", "rounded-b-xl", "rounded-tr-xl", "bg-[var(--surface-alt)]", "p-4", "font-mono", "text-xs")}>
+
+                <pre class="mt-4 overflow-x-auto rounded-[8px] border border-[var(--border)] bg-[var(--surface-sunk,var(--surface-alt))] p-4 font-mono text-xs leading-relaxed text-[var(--text)]">
                     <code>{ if *active_tab == 0 { claude_env_example } else { curl_example } }</code>
                 </pre>
-                <div class={classes!("mt-3", "flex", "items-center", "gap-3", "font-mono", "text-[10px]", "text-[var(--muted)]", "flex-wrap")}>
-                    <span>{ "/v1/models" }</span>
-                    <span>{ "/v1/messages" }</span>
-                    <span>{ "/v1/messages/count_tokens" }</span>
-                    <span>{ "/cc/v1/messages" }</span>
+
+                <div class="mt-3 flex flex-wrap items-center gap-2 font-mono text-[11px] text-[var(--muted)]">
+                    <span class="rounded border border-[var(--border)] bg-[var(--surface-alt)] px-2 py-0.5">{ "/v1/models" }</span>
+                    <span class="rounded border border-[var(--border)] bg-[var(--surface-alt)] px-2 py-0.5">{ "/v1/messages" }</span>
+                    <span class="rounded border border-[var(--border)] bg-[var(--surface-alt)] px-2 py-0.5">{ "/v1/messages/count_tokens" }</span>
+                    <span class="rounded border border-[var(--border)] bg-[var(--surface-alt)] px-2 py-0.5">{ "/cc/v1/messages" }</span>
                 </div>
             </section>
 
-            // ── Recommended Settings ──
-            <section class={classes!("rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                <h2 class={classes!("m-0", "font-mono", "text-sm", "font-bold", "uppercase", "tracking-[0.18em]", "text-[var(--muted)]")}>
-                    { "Recommended ~/.claude/settings.json" }
+            // Recommended Settings
+            <section class="sf-card rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-6">
+                <div class="sf-eyebrow mb-1 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted)]">
+                    { "RECOMMENDED CONFIGURATION" }
+                </div>
+                <h2 class="m-0 font-serif text-xl font-normal text-[var(--text)]">
+                    { "推荐配置 ~/.claude/settings.json" }
                 </h2>
-                <ul class={classes!("mt-3", "space-y-3", "list-none", "p-0", "m-0")}>
-                    <li class={classes!("rounded-lg", "bg-[var(--surface-alt)]", "p-3")}>
-                        <code class={classes!("font-mono", "text-xs", "text-[var(--text)]")}>
+                <ul class="m-0 mt-4 list-none space-y-3 p-0">
+                    <li class="rounded-[8px] border border-[var(--border)] bg-[var(--surface-alt)] p-3.5">
+                        <code class="font-mono text-xs text-[var(--primary)]">
                             { r#""skipWebFetchPreflight": true"# }
                         </code>
-                        <p class={classes!("mt-1", "mb-0", "font-mono", "text-[11px]", "text-[var(--muted)]")}>
-                            { "允许 Claude Code 正常使用 WebFetch 工具，跳过预检限制" }
+                        <p class="mb-0 mt-1 text-xs leading-relaxed text-[var(--muted)]">
+                            { "允许 Claude Code 正常使用 WebFetch 工具，跳过预检限制。" }
                         </p>
                     </li>
-                    <li class={classes!("rounded-lg", "bg-[var(--surface-alt)]", "p-3")}>
-                        <code class={classes!("font-mono", "text-xs", "text-[var(--text)]")}>
+                    <li class="rounded-[8px] border border-[var(--border)] bg-[var(--surface-alt)] p-3.5">
+                        <code class="font-mono text-xs text-[var(--primary)]">
                             { r#""showClearContextOnPlanAccept": true"# }
                         </code>
-                        <p class={classes!("mt-1", "mb-0", "font-mono", "text-[11px]", "text-[var(--muted)]")}>
-                            { "Plan Mode 批准时保留旧版 context 感知能力，显示清除上下文选项" }
+                        <p class="mb-0 mt-1 text-xs leading-relaxed text-[var(--muted)]">
+                            { "Plan Mode 批准时保留旧版 context 感知能力，显示清除上下文选项。" }
                         </p>
                     </li>
                 </ul>
             </section>
 
-            // ── Optional Env Flags ──
-            <section class={classes!("rounded-lg", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                <h2 class={classes!("m-0", "font-mono", "text-sm", "font-bold", "uppercase", "tracking-[0.18em]", "text-[var(--muted)]")}>
-                    { "Optional Claude Code Env Flags" }
+            // Optional Env Flags
+            <section class="sf-card rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-6">
+                <div class="sf-eyebrow mb-1 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted)]">
+                    { "ENVIRONMENT FLAGS" }
+                </div>
+                <h2 class="m-0 font-serif text-xl font-normal text-[var(--text)]">
+                    { "可选 Claude Code 环境变量" }
                 </h2>
-                <div class={classes!("mt-3", "space-y-3")}>
+                <div class="mt-4 grid gap-3 sm:grid-cols-2">
                     { for CLAUDE_CODE_ENV_HINTS.iter().map(|(key, description)| html! {
-                        <article class={classes!("rounded-lg", "bg-[var(--surface-alt)]", "p-3")}>
-                            <code class={classes!("block", "break-all", "font-mono", "text-xs", "text-[var(--text)]")}>
+                        <article class="rounded-[8px] border border-[var(--border)] bg-[var(--surface-alt)] p-3.5">
+                            <code class="block break-all font-mono text-xs text-[var(--primary)]">
                                 { *key }
                             </code>
-                            <p class={classes!("mt-1", "mb-0", "font-mono", "text-[11px]", "text-[var(--muted)]")}>
+                            <p class="mb-0 mt-1.5 text-xs leading-relaxed text-[var(--muted)]">
                                 { *description }
                             </p>
                         </article>
@@ -271,17 +327,11 @@ pub fn kiro_access_page() -> Html {
                 </div>
             </section>
 
-            // Fixed bottom-right toast
+            // Warm floating copy toast
             if let Some(message) = (*copied).clone() {
-                <div class={classes!(
-                    "fixed", "bottom-6", "right-6", "z-[80]",
-                    "rounded-lg", "bg-slate-900", "px-4", "py-2.5",
-                    "font-mono", "text-xs", "font-semibold", "text-emerald-300",
-                    "shadow-[0_8px_24px_rgba(0,0,0,0.25)]",
-                    "animate-[fade-in_0.2s_ease-out]",
-                )}>
-                    <i class={classes!("fas", "fa-check", "mr-2")}></i>
-                    { message }
+                <div class="fixed bottom-6 right-6 z-[80] inline-flex items-center gap-2 rounded-[10px] border border-[var(--border-strong,var(--border))] bg-[var(--surface)] px-4 py-2.5 font-mono text-xs text-[var(--text)] shadow-[var(--shadow-lg)]">
+                    <span class="h-2 w-2 rounded-full bg-[var(--ok,#4E7A51)]" />
+                    <span>{ message }</span>
                 </div>
             }
         </main>
