@@ -1,9 +1,8 @@
 //! Loading skeletons that reserve final layout space (zero CLS).
 //!
-//! Use these instead of full-page spinners wherever the loaded layout is
-//! predictable: card grids, list rows, and the article reading column.
-//! Purely presentational — the shimmer lives in CSS and pauses under
-//! `prefers-reduced-motion`.
+//! Aligned with the warm parchment / obsidian editorial design system:
+//! borderless article footprints, hairline-only surfaces, zero drop shadows,
+//! and reduced-motion-safe shimmer defined by `.skeleton` in `input.css`.
 
 use yew::prelude::*;
 
@@ -16,7 +15,7 @@ use yew::prelude::*;
 #[derive(Properties, PartialEq)]
 pub struct SkeletonBlockProps {
     /// Extra classes controlling the block's size/shape (width, height,
-    /// rounding); the base `.skeleton` class supplies color and shimmer.
+    /// rounding); the base `.skeleton` class supplies warm color and shimmer.
     #[prop_or_default]
     pub class: Classes,
 }
@@ -43,64 +42,59 @@ pub fn skeleton_text(props: &SkeletonTextProps) -> Html {
         <div class={classes!("flex", "flex-col", "gap-2")} aria-hidden="true">
             { for (0..lines).map(|i| {
                 let width = if i + 1 == lines { "w-3/5" } else { "w-full" };
-                html! { <div class={classes!("skeleton", "h-4", "rounded", width)}></div> }
+                html! { <div class={classes!("skeleton", "h-3.5", "rounded-[4px]", width)}></div> }
             }) }
         </div>
     }
 }
 
-/// Card-shaped skeleton matching the article/list card footprint:
-/// cover area, meta line, title, and two body lines.
+/// Editorial article placeholder matching the borderless `ArticleCard`:
+/// 16:10 framed cover, eyebrow line, serif title bar, and two summary lines.
 #[function_component(SkeletonCard)]
 pub fn skeleton_card() -> Html {
     html! {
-        <div
-            class={classes!(
-                "rounded-xl", "border", "border-[var(--border)]",
-                "bg-[var(--surface)]", "overflow-hidden"
-            )}
-            aria-hidden="true"
-        >
-            <div class={classes!("skeleton", "h-40", "w-full", "rounded-none")}></div>
-            <div class={classes!("p-4", "flex", "flex-col", "gap-3")}>
-                <div class={classes!("skeleton", "h-3", "w-24", "rounded")}></div>
-                <div class={classes!("skeleton", "h-5", "w-4/5", "rounded")}></div>
-                <SkeletonText lines={2} />
-            </div>
+        <div class={classes!("flex", "flex-col", "gap-3")} aria-hidden="true">
+            <div class={classes!(
+                "skeleton", "aspect-[16/10]", "w-full",
+                "rounded-[10px]", "border", "border-[var(--border)]"
+            )}></div>
+            <div class={classes!("skeleton", "h-3", "w-28", "rounded-[4px]")}></div>
+            <div class={classes!("skeleton", "h-5", "w-4/5", "rounded-[4px]")}></div>
+            <SkeletonText lines={2} />
         </div>
     }
 }
 
-/// Card-shaped skeleton matching the music song-card footprint: a square
-/// cover block and a compact footer with a title line and a meta line.
+/// Music song placeholder: square 1:1 cover with hairline border and two text
+/// lines.
 #[function_component(SkeletonSongCard)]
 pub fn skeleton_song_card() -> Html {
     html! {
-        <div
-            class={classes!(
-                "rounded-xl", "border", "border-[var(--border)]",
-                "bg-[var(--surface)]", "overflow-hidden"
-            )}
-            aria-hidden="true"
-        >
-            <div class={classes!("skeleton", "aspect-square", "w-full", "rounded-none")}></div>
-            <div class={classes!("p-3", "flex", "flex-col", "gap-2")}>
-                <div class={classes!("skeleton", "h-4", "w-4/5", "rounded")}></div>
-                <div class={classes!("skeleton", "h-3", "w-1/2", "rounded")}></div>
-            </div>
+        <div class={classes!("flex", "flex-col", "gap-2.5")} aria-hidden="true">
+            <div class={classes!(
+                "skeleton", "aspect-square", "w-full",
+                "rounded-[8px]", "border", "border-[var(--border)]"
+            )}></div>
+            <div class={classes!("skeleton", "h-4", "w-4/5", "rounded-[4px]")}></div>
+            <div class={classes!("skeleton", "h-3", "w-1/2", "rounded-[4px]")}></div>
         </div>
     }
 }
 
-/// Reading-column skeleton for the article detail page: hero, title,
-/// meta row, and paragraph blocks sized to the article measure.
+/// Reading-column skeleton for the article detail page: eyebrow, display title,
+/// italic summary, hairline divider, cover frame, and prose paragraphs.
 #[function_component(SkeletonArticle)]
 pub fn skeleton_article() -> Html {
     html! {
-        <div class={classes!("flex", "flex-col", "gap-6", "w-full")} aria-hidden="true">
-            <div class={classes!("skeleton", "h-56", "w-full", "rounded-xl")}></div>
-            <div class={classes!("skeleton", "h-8", "w-3/4", "rounded")}></div>
-            <div class={classes!("skeleton", "h-4", "w-40", "rounded")}></div>
+        <div class={classes!("flex", "flex-col", "gap-5", "w-full", "max-w-[760px]", "mx-auto")} aria-hidden="true">
+            <div class={classes!("skeleton", "h-3", "w-36", "rounded-[4px]")}></div>
+            <div class={classes!("skeleton", "h-9", "w-4/5", "rounded-[6px]")}></div>
+            <div class={classes!("skeleton", "h-5", "w-2/3", "rounded-[4px]")}></div>
+            <hr class="sf-rule" />
+            <div class={classes!(
+                "skeleton", "aspect-[16/10]", "w-full",
+                "rounded-[12px]", "border", "border-[var(--border)]"
+            )}></div>
             <SkeletonText lines={4} />
             <SkeletonText lines={5} />
             <SkeletonText lines={3} />

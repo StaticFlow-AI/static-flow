@@ -1,8 +1,10 @@
-//! Reading progress bar: a 2px primary line under the sticky header that
-//! fills as the reader moves through the article body.
+//! Reading progress bar: a warm 2px terracotta line under the sticky header
+//! that fills as the reader moves through the article body.
 //!
-//! The scroll handler writes the bar width straight through a `NodeRef`
+//! The scroll/resize handlers write the bar width straight through a `NodeRef`
 //! (no `use_state`), so scrolling never re-renders the component tree.
+
+use std::rc::Rc;
 
 use gloo_events::EventListener;
 use gloo_utils::{document, window};
@@ -21,7 +23,7 @@ pub fn reading_progress() -> Html {
     {
         let bar_ref = bar_ref.clone();
         use_effect_with((), move |_| {
-            let update = move || {
+            let update: Rc<dyn Fn()> = Rc::new(move || {
                 let Some(bar) = bar_ref.cast::<HtmlElement>() else {
                     return;
                 };
@@ -42,7 +44,6 @@ pub fn reading_progress() -> Html {
                     .unwrap_or(0.0);
                 let total = rect.height() - viewport;
                 if total <= 0.0 {
-                    // Article fits in the viewport: no progress to report.
                     let _ = bar.style().set_property("width", "0%");
                     return;
                 }
@@ -50,10 +51,17 @@ pub fn reading_progress() -> Html {
                 let _ = bar
                     .style()
                     .set_property("width", &format!("{:.2}%", progress * 100.0));
-            };
+            });
             update();
-            let on_scroll = EventListener::new(&window(), "scroll", move |_| update());
-            move || drop(on_scroll)
+            let win = window();
+            let update_scroll = Rc::clone(&update);
+            let on_scroll = EventListener::new(&win, "scroll", move |_| update_scroll());
+            let update_resize = Rc::clone(&update);
+            let on_resize = EventListener::new(&win, "resize", move |_| update_resize());
+            move || {
+                drop(on_scroll);
+                drop(on_resize);
+            }
         });
     }
 

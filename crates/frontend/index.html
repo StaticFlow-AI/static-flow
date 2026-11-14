@@ -11,8 +11,8 @@
   <meta name="googlebot" content="index,follow,max-image-preview:large" />
   <meta name="author" content="ackingliu" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
-  <meta name="theme-color" content="#fafaf9" media="(prefers-color-scheme: light)" />
-  <meta name="theme-color" content="#0b0d11" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#FAF9F5" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)" />
   <link rel="canonical" href="https://acking-you.github.io/" data-sf-seo="canonical" />
 
   <meta property="og:type" content="website" />
@@ -57,8 +57,8 @@
   <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png" />
   <link rel="icon" href="/static/favicon.ico" />
   <link rel="manifest" href="/static/site.webmanifest" />
-  <link rel="mask-icon" href="/static/safari-pinned-tab.svg" color="#2563eb" />
-  <meta name="msapplication-TileColor" content="#0b0d11" />
+  <link rel="mask-icon" href="/static/safari-pinned-tab.svg" color="#C96442" />
+  <meta name="msapplication-TileColor" content="#141413" />
   <meta name="msapplication-TileImage" content="/static/mstile-150x150.png" />
 
   <!-- Trunk will compile Rust to WASM; scripts/build_frontend_selfhosted.sh runs wasm-opt -Oz -->
@@ -71,6 +71,7 @@
        expand: the new (dark) snapshot grows out of the toggle on top;
        retract: the old (dark) snapshot shrinks back into the toggle on top. -->
   <style>
+    html[data-theme-transition]::view-transition-group(root),
     html[data-theme-transition]::view-transition-old(root),
     html[data-theme-transition]::view-transition-new(root) {
       animation: none;
@@ -98,7 +99,7 @@
       inset: 0;
       z-index: 2147483646;
       pointer-events: none;
-      background: #0b0d11;
+      background: #141413;
       will-change: clip-path;
     }
   </style>
@@ -165,10 +166,23 @@
         if (stored !== 'dark' && stored !== 'light') stored = null;
         var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
         var theme = stored || (prefersDark ? 'dark' : 'light');
-        document.documentElement.setAttribute('data-theme', theme);
-        setHighlightTheme(theme);
         var root = document.documentElement;
-        var applyTheme = function (next) {
+        root.setAttribute('data-theme', theme);
+        setHighlightTheme(theme);
+
+        // Module-level desired theme: flips synchronously on every click so
+        // rapid multi-clicks never skipTransition() or desync button icons.
+        var desiredTheme = theme;
+
+        var commitThemePreference = function (next) {
+          desiredTheme = next;
+          try { localStorage.setItem('theme', next); } catch (_) { }
+          try {
+            window.dispatchEvent(new CustomEvent('sf-theme-change', { detail: { theme: next } }));
+          } catch (_) { }
+        };
+
+        var applyDomThemeSilent = function (next) {
           root.setAttribute('data-theme', next);
           setHighlightTheme(next);
           if (window.mermaid && typeof window.mermaid.initialize === 'function') {
@@ -179,18 +193,14 @@
               });
             } catch (_) { }
           }
-          try { localStorage.setItem('theme', next); } catch (_) { }
-          try {
-            window.dispatchEvent(new CustomEvent('sf-theme-change', { detail: { theme: next } }));
-          } catch (_) { }
         };
 
-        // Mutate the theme with every CSS transition suspended, then force a
+        // Mutate DOM theme with every CSS transition suspended, then force a
         // style flush, so snapshots / reveal layers carry final colors instead
         // of half-interpolated ones.
         var applyThemeInstantly = function (next) {
           root.setAttribute('data-theme-switching', '');
-          applyTheme(next);
+          applyDomThemeSilent(next);
           void root.offsetHeight;
         };
         var releaseSwitching = function () {
@@ -217,64 +227,175 @@
           return { x: Math.max(0, w - 28), y: 28 };
         };
 
-        var activeTransition = null;
-        var transitionToken = 0;
-        var fallbackOverlay = null;
-
-        // Radial clip overlay for browsers without View Transitions: a fixed
-        // layer painted in the dark canvas color grows out of (light -> dark)
-        // or shrinks back into (dark -> light) the toggle.
-        var runOverlayReveal = function (next, cx, cy, radius) {
-          if (fallbackOverlay) {
-            fallbackOverlay.remove();
-            fallbackOverlay = null;
+        var getAnimProgress = function (anim) {
+          if (!anim || !anim.effect || typeof anim.effect.getComputedTiming !== 'function') {
+            return 0;
           }
-          var expand = next === 'dark';
+          var timing = anim.effect.getComputedTiming();
+          if (timing && typeof timing.progress === 'number' && isFinite(timing.progress)) {
+            return Math.max(0, Math.min(1, timing.progress));
+          }
+          return anim.playState === 'finished' ? 1 : 0;
+        };
+
+        // Sub-pixel continuous radius state machine for View Transitions
+        var activeTransition = null;
+        var activeAnim = null;
+        var activePseudo = null;
+        var activeStartTheme = theme;
+        var activeInitialTarget = theme;
+        var animFromR = 0;
+        var animToR = 0;
+        var activeCx = 0;
+        var activeCy = 0;
+        var activeEndRadius = 1;
+        var rafWatcherId = 0;
+
+        var stopRafWatcher = function () {
+          if (rafWatcherId) {
+            cancelAnimationFrame(rafWatcherId);
+            rafWatcherId = 0;
+          }
+        };
+
+        var startRafWatcher = function () {
+          if (rafWatcherId) return;
+          var step = function () {
+            rafWatcherId = 0;
+            if (!activeTransition || !activeAnim) return;
+            var p = getAnimProgress(activeAnim);
+            var curR = animFromR + (animToR - animFromR) * p;
+            var goalR = desiredTheme === 'dark' ? activeEndRadius : 0;
+            var domNow = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+
+            if (desiredTheme === activeStartTheme && domNow !== desiredTheme && Math.abs(curR - goalR) <= 4) {
+              // Even-click return approaching endpoint (<4px inside button in expand,
+              // or 99.9%+ covered by dark old snapshot in retract): pre-sync live DOM
+              // silently so transition teardown never flashes a single frame.
+              applyThemeInstantly(desiredTheme);
+              releaseSwitching();
+            } else if (desiredTheme === activeInitialTarget && domNow !== activeInitialTarget) {
+              applyThemeInstantly(activeInitialTarget);
+              releaseSwitching();
+            }
+
+            if (activeTransition && activeAnim && activeAnim.playState !== 'finished') {
+              rafWatcherId = requestAnimationFrame(step);
+            }
+          };
+          rafWatcherId = requestAnimationFrame(step);
+        };
+
+        // Fallback radial clip overlay for browsers without View Transitions,
+        // also supporting smooth continuous radius reversal on rapid clicks.
+        var fallbackOverlay = null;
+        var fbAnim = null;
+        var fbFromR = 0;
+        var fbToR = 0;
+        var fbCx = 0;
+        var fbCy = 0;
+        var fbEndRadius = 1;
+
+        var runOverlayReveal = function (cx, cy, endRadius) {
+          if (fallbackOverlay && fbAnim) {
+            var fp = getAnimProgress(fbAnim);
+            var fCurR = fbFromR + (fbToR - fbFromR) * fp;
+            var fGoalR = desiredTheme === 'dark' ? fbEndRadius : 0;
+            var fDur = Math.max(
+              190,
+              Math.round(480 * Math.pow(Math.abs(fGoalR - fCurR) / Math.max(1, fbEndRadius), 0.75))
+            );
+            var prevFbAnim = fbAnim;
+            var overlayRef = fallbackOverlay;
+            var nextFbAnim = overlayRef.animate(
+              {
+                clipPath: [
+                  'circle(' + fCurR.toFixed(1) + 'px at ' + fbCx + 'px ' + fbCy + 'px)',
+                  'circle(' + fGoalR + 'px at ' + fbCx + 'px ' + fbCy + 'px)'
+                ]
+              },
+              {
+                duration: fDur,
+                easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+                fill: 'both'
+              }
+            );
+            prevFbAnim.cancel();
+            fbAnim = nextFbAnim;
+            fbFromR = fCurR;
+            fbToR = fGoalR;
+            nextFbAnim.onfinish = function () {
+              if (fbAnim !== nextFbAnim) return;
+              applyThemeInstantly(desiredTheme);
+              releaseSwitching();
+              fbAnim = null;
+              if (fallbackOverlay === overlayRef) fallbackOverlay = null;
+              overlayRef.remove();
+            };
+            return;
+          }
+
+          var expand = desiredTheme === 'dark';
           var overlay = document.createElement('div');
           overlay.setAttribute('aria-hidden', 'true');
           overlay.className = 'sf-theme-reveal';
+          fbCx = cx;
+          fbCy = cy;
+          fbEndRadius = endRadius;
+          fbFromR = expand ? 0 : endRadius;
+          fbToR = expand ? endRadius : 0;
           var small = 'circle(0px at ' + cx + 'px ' + cy + 'px)';
-          var large = 'circle(' + radius + 'px at ' + cx + 'px ' + cy + 'px)';
+          var large = 'circle(' + endRadius + 'px at ' + cx + 'px ' + cy + 'px)';
           overlay.style.clipPath = expand ? small : large;
           overlay.style.webkitClipPath = overlay.style.clipPath;
           document.body.appendChild(overlay);
           fallbackOverlay = overlay;
-          if (!expand) {
-            applyThemeInstantly(next);
+
+          // Keep underlying DOM in light while the #141413 dark reveal circle animates.
+          if ((root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light') !== 'light') {
+            applyThemeInstantly('light');
             releaseSwitching();
           }
+
           var done = function () {
-            if (expand) {
-              applyThemeInstantly(next);
-              releaseSwitching();
-            }
+            applyThemeInstantly(desiredTheme);
+            releaseSwitching();
+            fbAnim = null;
             if (fallbackOverlay === overlay) fallbackOverlay = null;
             overlay.remove();
           };
+
           if (typeof overlay.animate !== 'function') {
             done();
             return;
           }
+
           var anim = overlay.animate(
             { clipPath: expand ? [small, large] : [large, small] },
             {
-              duration: expand ? 480 : 440,
-              easing: expand ? 'cubic-bezier(0.22, 1, 0.36, 1)' : 'cubic-bezier(0.4, 0, 0.2, 1)',
-              fill: 'forwards'
+              duration: expand ? 520 : 460,
+              easing: expand ? 'cubic-bezier(0.22, 1, 0.36, 1)' : 'cubic-bezier(0.16, 1, 0.3, 1)',
+              fill: 'both'
             }
           );
-          anim.onfinish = done;
-          anim.oncancel = done;
+          fbAnim = anim;
+          anim.onfinish = function () {
+            if (fbAnim !== anim) return;
+            done();
+          };
         };
 
         window.__toggleTheme = function (evt, originEl) {
-          var current = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-          var next = current === 'dark' ? 'light' : 'dark';
+          var next = desiredTheme === 'dark' ? 'light' : 'dark';
+          commitThemePreference(next);
+
           var reduceMotion = !!(window.matchMedia &&
             window.matchMedia('(prefers-reduced-motion: reduce)').matches);
           if (reduceMotion) {
-            applyThemeInstantly(next);
-            releaseSwitching();
+            if (!activeTransition) {
+              applyThemeInstantly(desiredTheme);
+              releaseSwitching();
+            }
             return;
           }
 
@@ -287,52 +408,132 @@
           ));
 
           if (typeof document.startViewTransition !== 'function') {
-            runOverlayReveal(next, cx, cy, endRadius);
+            runOverlayReveal(cx, cy, endRadius);
             return;
           }
 
+          // Smooth sub-pixel mid-flight reversal when a ViewTransition is active:
+          // NEVER call skipTransition() (which flashes the viewport).
           if (activeTransition) {
-            try { activeTransition.skipTransition(); } catch (_) { }
+            if (activeAnim) {
+              var p = getAnimProgress(activeAnim);
+              var curR = animFromR + (animToR - animFromR) * p;
+              var goalR = desiredTheme === 'dark' ? activeEndRadius : 0;
+              var dur = Math.max(
+                190,
+                Math.round(480 * Math.pow(Math.abs(goalR - curR) / Math.max(1, activeEndRadius), 0.75))
+              );
+              try {
+                var prevAnim = activeAnim;
+                var nextAnim = root.animate(
+                  {
+                    clipPath: [
+                      'circle(' + curR.toFixed(1) + 'px at ' + activeCx + 'px ' + activeCy + 'px)',
+                      'circle(' + goalR + 'px at ' + activeCx + 'px ' + activeCy + 'px)'
+                    ]
+                  },
+                  {
+                    duration: dur,
+                    easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+                    fill: 'both',
+                    pseudoElement: activePseudo
+                  }
+                );
+                prevAnim.cancel();
+                activeAnim = nextAnim;
+                animFromR = curR;
+                animToR = goalR;
+                startRafWatcher();
+                return;
+              } catch (_) {
+                // Pseudo-element tree already tearing down; fall through to cleanup.
+              }
+            } else {
+              // Clicked again during the snapshot capture microtask before ready:
+              // transition.ready will read the updated desiredTheme automatically.
+              return;
+            }
           }
-          var mode = next === 'dark' ? 'expand' : 'retract';
-          var token = ++transitionToken;
+
+          var startTheme = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+          var initialTarget = desiredTheme;
+          if (startTheme === initialTarget) {
+            applyThemeInstantly(desiredTheme);
+            releaseSwitching();
+            return;
+          }
+
+          var mode = initialTarget === 'dark' ? 'expand' : 'retract';
+          activeStartTheme = startTheme;
+          activeInitialTarget = initialTarget;
+          activePseudo = mode === 'expand'
+            ? '::view-transition-new(root)'
+            : '::view-transition-old(root)';
+          activeCx = cx;
+          activeCy = cy;
+          activeEndRadius = endRadius;
+          animFromR = mode === 'expand' ? 0 : endRadius;
+          animToR = mode === 'expand' ? endRadius : 0;
+          activeAnim = null;
+
           root.setAttribute('data-theme-transition', mode);
 
           var transition;
           try {
             transition = document.startViewTransition(function () {
-              applyThemeInstantly(next);
+              applyThemeInstantly(initialTarget);
             });
           } catch (_) {
             root.removeAttribute('data-theme-transition');
-            applyThemeInstantly(next);
+            applyThemeInstantly(desiredTheme);
             releaseSwitching();
             return;
           }
           activeTransition = transition;
 
           var cleanup = function () {
-            if (token !== transitionToken) return;
+            if (activeTransition !== transition) return;
+            stopRafWatcher();
             activeTransition = null;
+            activeAnim = null;
+            activePseudo = null;
             root.removeAttribute('data-theme-transition');
+            if ((root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light') !== desiredTheme) {
+              applyThemeInstantly(desiredTheme);
+            }
             releaseSwitching();
           };
 
           transition.ready.then(function () {
-            // Both snapshots are captured; live DOM may animate again.
+            if (activeTransition !== transition) return;
             releaseSwitching();
-            var small = 'circle(0px at ' + cx + 'px ' + cy + 'px)';
-            var large = 'circle(' + endRadius + 'px at ' + cx + 'px ' + cy + 'px)';
-            var expand = mode === 'expand';
-            root.animate(
-              { clipPath: expand ? [small, large] : [large, small] },
+            var startR = mode === 'expand' ? 0 : activeEndRadius;
+            var targetR = desiredTheme === 'dark' ? activeEndRadius : 0;
+            var unchanged = desiredTheme === initialTarget;
+            var ratio = Math.abs(targetR - startR) / Math.max(1, activeEndRadius);
+            var firstDur = unchanged
+              ? (mode === 'expand' ? 520 : 460)
+              : Math.max(190, Math.round(480 * Math.pow(ratio, 0.75)));
+            var firstEasing = (unchanged && mode === 'expand')
+              ? 'cubic-bezier(0.22, 1, 0.36, 1)'
+              : 'cubic-bezier(0.16, 1, 0.3, 1)';
+            animFromR = startR;
+            animToR = targetR;
+            activeAnim = root.animate(
               {
-                duration: expand ? 480 : 440,
-                easing: expand ? 'cubic-bezier(0.22, 1, 0.36, 1)' : 'cubic-bezier(0.4, 0, 0.2, 1)',
+                clipPath: [
+                  'circle(' + startR.toFixed(1) + 'px at ' + activeCx + 'px ' + activeCy + 'px)',
+                  'circle(' + targetR + 'px at ' + activeCx + 'px ' + activeCy + 'px)'
+                ]
+              },
+              {
+                duration: firstDur,
+                easing: firstEasing,
                 fill: 'both',
-                pseudoElement: expand ? '::view-transition-new(root)' : '::view-transition-old(root)'
+                pseudoElement: activePseudo
               }
             );
+            startRafWatcher();
           }).catch(function () { });
           transition.finished.then(cleanup, cleanup);
         };
@@ -481,113 +682,269 @@
   <!-- WASM app will render here -->
   <noscript>本应用需要启用 JavaScript。</noscript>
 
-  <!-- Instant editorial app-shell skeleton: painted at TTFB from inline CSS
-       (no stylesheet / WASM dependency), tokens mirror input.css so the
-       hand-off to the hydrated app has zero flash. -->
+  <!-- Editorial WASM identity boot screen: painted at TTFB from inline CSS
+       using pre-hydrated data-theme so Light (#FAF9F5) and Dark (#141413)
+       never flash before WebAssembly hydration completes. -->
   <div id="sf-loading" role="status" aria-live="polite" aria-label="StaticFlow loading">
     <style>
       #sf-loading {
-        --sk-bg: #fafaf9;
-        --sk-bar: rgba(250, 250, 249, .86);
-        --sk-surface: #ffffff;
-        --sk-line: #e4e4e7;
-        --sk-block: #ececee;
-        --sk-ink: #18181b;
-        --sk-accent: #2563eb;
+        --boot-bg: #FAF9F5;
+        --boot-ink: #141413;
+        --boot-muted: #5E5D59;
+        --boot-faint: #87867F;
+        --boot-border: rgba(20, 20, 19, 0.09);
+        --boot-accent: #C96442;
+        --boot-serif: "Source Serif 4", "Newsreader", "Iowan Old Style", "Songti SC", "Noto Serif SC", Georgia, serif;
+        --boot-sans: "Inter", "Styrene B", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif;
+        --boot-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
         position: fixed;
         inset: 0;
         z-index: 99999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         overflow: hidden;
-        background: var(--sk-bg);
-        color: var(--sk-ink);
-        font: 600 15px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", system-ui, sans-serif;
-        transition: opacity .16s ease-out;
+        background: var(--boot-bg);
+        color: var(--boot-ink);
+        transition: opacity 420ms cubic-bezier(.22, 1, .36, 1),
+          transform 420ms cubic-bezier(.22, 1, .36, 1);
       }
+
       [data-theme="dark"] #sf-loading {
-        --sk-bg: #0b0d11;
-        --sk-bar: rgba(11, 13, 17, .86);
-        --sk-surface: #12151c;
-        --sk-line: #262c3a;
-        --sk-block: #1c212c;
-        --sk-ink: #f4f4f5;
-        --sk-accent: #60a5fa;
+        --boot-bg: #141413;
+        --boot-ink: #FAF9F5;
+        --boot-muted: #A3A198;
+        --boot-faint: #7A786F;
+        --boot-border: rgba(250, 249, 245, 0.10);
+        --boot-accent: #D97757;
       }
-      #sf-loading.sf-loading--done { opacity: 0; pointer-events: none; }
-      #sf-loading .sk-bar { height: 4rem; border-bottom: 1px solid var(--sk-line); background: var(--sk-bar); }
-      #sf-loading .sk-row { display: flex; align-items: center; gap: 12px; max-width: 80rem; height: 100%; margin: 0 auto; padding: 0 2rem; }
-      #sf-loading .sk-brand { display: inline-flex; align-items: center; gap: 8px; letter-spacing: -.02em; font-weight: 700; font-size: 1.02rem; }
-      #sf-loading .sk-dot { width: 7.5px; height: 7.5px; border-radius: 99px; background: var(--sk-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sk-accent) 16%, transparent); }
-      #sf-loading .sk-nav { display: flex; gap: 10px; margin-left: 16px; }
-      #sf-loading .sk-nav span { width: 46px; height: 12px; }
-      #sf-loading .sk-end { display: flex; gap: 8px; margin-left: auto; }
-      #sf-loading .sk-search { width: 220px; height: 36px; border-radius: 999px; }
-      #sf-loading .sk-btn { width: 36px; height: 36px; border-radius: 10px; }
-      #sf-loading .sk-main { max-width: 72rem; margin: 0 auto; padding: 3rem 2rem 0; }
-      #sf-loading .sk-hero { display: flex; gap: 40px; padding: 40px; border: 1px solid var(--sk-line); border-radius: 16px; background: var(--sk-surface); }
-      #sf-loading .sk-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
-      #sf-loading .sk-avatar { flex: none; width: 128px; height: 128px; border-radius: 16px; }
-      #sf-loading .sk-chips { display: flex; gap: 10px; margin-top: 12px; }
-      #sf-loading .sk-chips span { width: 104px; height: 36px; border-radius: 10px; }
-      #sf-loading .sk-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 56px; }
-      #sf-loading .sk-card { display: flex; flex-direction: column; gap: 12px; padding: 22px; border: 1px solid var(--sk-line); border-radius: 14px; background: var(--sk-surface); }
-      #sf-loading .sk { display: block; border-radius: 6px; background: var(--sk-block); animation: sf-sk-pulse 1.3s ease-in-out infinite alternate; }
-      #sf-loading .sk-d1 { animation-delay: .12s; }
-      #sf-loading .sk-d2 { animation-delay: .24s; }
-      @keyframes sf-sk-pulse { from { opacity: 1; } to { opacity: .45; } }
-      @media (max-width: 1023px) { #sf-loading .sk-row { padding: 0 1.5rem; } #sf-loading .sk-nav { display: none; } }
-      @media (max-width: 767px) {
-        #sf-loading .sk-bar { height: 3.75rem; }
-        #sf-loading .sk-row { padding: 0 1rem; }
-        #sf-loading .sk-search { display: none; }
-        #sf-loading .sk-main { padding: 2rem 1rem 0; }
-        #sf-loading .sk-hero { flex-direction: column-reverse; gap: 24px; padding: 24px; }
-        #sf-loading .sk-avatar { width: 96px; height: 96px; }
-        #sf-loading .sk-grid { grid-template-columns: minmax(0, 1fr); margin-top: 40px; }
+
+      #sf-loading.is-leaving {
+        opacity: 0;
+        transform: translateY(-6px);
+        pointer-events: none;
       }
-      @media (prefers-reduced-motion: reduce) { #sf-loading .sk { animation: none; } }
+
+      #sf-loading .sf-boot {
+        width: min(420px, 86vw);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+
+      #sf-loading .sf-boot__brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      #sf-loading .sf-boot__diamond {
+        flex: none;
+        width: 16px;
+        height: 16px;
+        background: var(--boot-accent);
+        transform: rotate(45deg);
+        animation: sf-boot-breathe 2.4s ease-in-out infinite;
+      }
+
+      #sf-loading .sf-boot__title {
+        font-family: var(--boot-serif);
+        font-size: 1.75rem;
+        font-weight: 400;
+        line-height: 1.15;
+        letter-spacing: -0.015em;
+        color: var(--boot-ink);
+      }
+
+      #sf-loading .sf-boot__tagline {
+        margin: 12px 0 0;
+        font-family: var(--boot-serif);
+        font-style: italic;
+        font-size: 1rem;
+        font-weight: 400;
+        line-height: 1.5;
+        color: var(--boot-muted);
+      }
+
+      #sf-loading .sf-boot__track {
+        width: 100%;
+        height: 1px;
+        margin: 26px 0 22px;
+        background: var(--boot-border);
+        overflow: hidden;
+        position: relative;
+      }
+
+      #sf-loading .sf-boot__bar {
+        display: block;
+        width: 30%;
+        height: 100%;
+        background: var(--boot-accent);
+        will-change: transform;
+        animation: sf-boot-slide 1.6s ease-in-out infinite alternate;
+      }
+
+      #sf-loading .sf-boot__plate-en {
+        margin: 0;
+        font-family: var(--boot-mono);
+        font-size: 0.6875rem;
+        font-weight: 400;
+        line-height: 1.5;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--boot-faint);
+      }
+
+      #sf-loading .sf-boot__plate-zh {
+        margin: 6px 0 0;
+        font-family: var(--boot-sans);
+        font-size: 0.75rem;
+        font-weight: 400;
+        line-height: 1.5;
+        color: var(--boot-faint);
+      }
+
+      #sf-loading .sf-boot__stats {
+        margin: 10px 0 0;
+        min-height: 1rem;
+        font-family: var(--boot-mono);
+        font-size: 0.6875rem;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.04em;
+        color: var(--boot-faint);
+      }
+
+      @keyframes sf-boot-breathe {
+        0%, 100% { opacity: 0.55; }
+        50% { opacity: 1; }
+      }
+
+      @keyframes sf-boot-slide {
+        from { transform: translateX(-100%); }
+        to { transform: translateX(330%); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #sf-loading {
+          transition: opacity 200ms linear;
+        }
+        #sf-loading.is-leaving {
+          transform: none;
+        }
+        #sf-loading .sf-boot__diamond,
+        #sf-loading .sf-boot__bar {
+          animation: none;
+        }
+        #sf-loading .sf-boot__bar {
+          width: 100%;
+          opacity: 0.45;
+        }
+      }
     </style>
-    <div class="sk-bar">
-      <div class="sk-row">
-        <span class="sk-brand"><span class="sk-dot"></span>StaticFlow</span>
-        <span class="sk-nav"><span class="sk"></span><span class="sk sk-d1"></span><span class="sk sk-d2"></span><span class="sk"></span><span class="sk sk-d1"></span></span>
-        <span class="sk-end"><span class="sk sk-search"></span><span class="sk sk-btn sk-d1"></span></span>
+    <div class="sf-boot">
+      <div class="sf-boot__brand">
+        <span class="sf-boot__diamond" aria-hidden="true"></span>
+        <span class="sf-boot__title">StaticFlow</span>
       </div>
-    </div>
-    <div class="sk-main">
-      <div class="sk-hero">
-        <div class="sk-col">
-          <span class="sk" style="width:190px;height:11px"></span>
-          <span class="sk sk-d1" style="width:min(300px,70%);height:36px;border-radius:8px"></span>
-          <span class="sk sk-d2" style="width:min(520px,92%);height:13px"></span>
-          <span class="sk" style="width:min(460px,80%);height:13px"></span>
-          <span class="sk-chips"><span class="sk sk-d1"></span><span class="sk sk-d2"></span><span class="sk"></span></span>
-        </div>
-        <span class="sk sk-avatar sk-d1"></span>
+      <p class="sf-boot__tagline">A reader-driven, local-first library.</p>
+      <div class="sf-boot__track" aria-hidden="true">
+        <span class="sf-boot__bar"></span>
       </div>
-      <div class="sk-grid">
-        <div class="sk-card"><span class="sk" style="width:38%;height:10px"></span><span class="sk sk-d1" style="width:86%;height:18px"></span><span class="sk sk-d2" style="width:100%;height:12px"></span><span class="sk" style="width:72%;height:12px"></span></div>
-        <div class="sk-card"><span class="sk sk-d1" style="width:30%;height:10px"></span><span class="sk sk-d2" style="width:78%;height:18px"></span><span class="sk" style="width:100%;height:12px"></span><span class="sk sk-d1" style="width:64%;height:12px"></span></div>
-        <div class="sk-card"><span class="sk sk-d2" style="width:34%;height:10px"></span><span class="sk" style="width:82%;height:18px"></span><span class="sk sk-d1" style="width:100%;height:12px"></span><span class="sk sk-d2" style="width:58%;height:12px"></span></div>
-        <div class="sk-card"><span class="sk" style="width:26%;height:10px"></span><span class="sk sk-d1" style="width:74%;height:18px"></span><span class="sk sk-d2" style="width:100%;height:12px"></span><span class="sk" style="width:68%;height:12px"></span></div>
-      </div>
+      <p class="sf-boot__plate-en">◆ 100% RUST → WEBASSEMBLY · ZERO JS RUNTIME FRAMEWORK</p>
+      <p class="sf-boot__plate-zh">全站由原生 Rust 编译为 WebAssembly · 无 JS 框架运行时</p>
+      <p id="sf-boot-stats" class="sf-boot__stats" aria-hidden="true"></p>
     </div>
   </div>
   <script>
-    addEventListener('TrunkApplicationStarted', function () {
-      var el = document.getElementById('sf-loading');
-      if (el) {
-        el.classList.add('sf-loading--done');
-        setTimeout(function () { el.remove(); }, 180);
-      }
-      // Reclaim legacy IndexedDB WASM cache storage in idle time
-      setTimeout(function () {
+    (function () {
+      var bootAt = (window.performance && typeof performance.now === 'function')
+        ? performance.now()
+        : Date.now();
+
+      var readWasmStatsText = function (elapsedMs) {
         try {
-          if (window.indexedDB && typeof indexedDB.deleteDatabase === 'function') {
-            indexedDB.deleteDatabase('sf-wasm-cache');
+          if (!window.performance || typeof performance.getEntriesByType !== 'function') return '';
+          var entries = performance.getEntriesByType('resource') || [];
+          for (var i = entries.length - 1; i >= 0; i--) {
+            var e = entries[i];
+            if (e && typeof e.name === 'string' && e.name.indexOf('.wasm') !== -1) {
+              var bytes = e.decodedBodySize || e.encodedBodySize || e.transferSize || 0;
+              var ms = Math.max(1, Math.round(e.duration || elapsedMs));
+              if (bytes > 0) {
+                var mb = (bytes / (1024 * 1024)).toFixed(2);
+                return 'wasm ' + mb + ' MB · ' + ms + ' ms';
+              }
+              return 'wasm · ' + ms + ' ms';
+            }
           }
         } catch (_) { }
-      }, 3000);
-    });
+        return '';
+      };
+
+      addEventListener('TrunkApplicationStarted', function () {
+        var el = document.getElementById('sf-loading');
+        var now = (window.performance && typeof performance.now === 'function')
+          ? performance.now()
+          : Date.now();
+        var elapsed = Math.max(0, now - bootAt);
+        var statsEl = document.getElementById('sf-boot-stats');
+        if (statsEl) {
+          var label = readWasmStatsText(elapsed);
+          if (label) statsEl.textContent = label;
+        }
+
+        var waitMs = Math.max(0, 220 - elapsed);
+        setTimeout(function () {
+          if (!el || !el.parentNode) return;
+          var reduceMotion = !!(window.matchMedia &&
+            window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+          // Fade in the mounted app container simultaneously over 240ms
+          try {
+            var children = document.body ? document.body.children : [];
+            for (var i = 0; i < children.length; i++) {
+              var child = children[i];
+              if (child !== el && child.tagName !== 'SCRIPT' && child.tagName !== 'NOSCRIPT' && child.tagName !== 'LINK') {
+                child.style.opacity = '0';
+                child.style.transition = 'opacity 240ms cubic-bezier(.22, 1, .36, 1)';
+                void child.offsetHeight;
+                child.style.opacity = '1';
+                (function (node) {
+                  setTimeout(function () {
+                    node.style.opacity = '';
+                    node.style.transition = '';
+                  }, 260);
+                })(child);
+              }
+            }
+          } catch (_) { }
+
+          var removed = false;
+          var removeBoot = function () {
+            if (removed) return;
+            removed = true;
+            if (el.parentNode) el.parentNode.removeChild(el);
+          };
+          el.addEventListener('transitionend', function onEnd(ev) {
+            if (ev.target === el && ev.propertyName === 'opacity') {
+              el.removeEventListener('transitionend', onEnd);
+              removeBoot();
+            }
+          });
+          el.classList.add('is-leaving');
+          setTimeout(removeBoot, reduceMotion ? 240 : 480);
+        }, waitMs);
+
+        // Reclaim legacy IndexedDB WASM cache storage in idle time
+        setTimeout(function () {
+          try {
+            if (window.indexedDB && typeof indexedDB.deleteDatabase === 'function') {
+              indexedDB.deleteDatabase('sf-wasm-cache');
+            }
+          } catch (_) { }
+        }, 3000);
+      });
+    })();
   </script>
 
   <script>

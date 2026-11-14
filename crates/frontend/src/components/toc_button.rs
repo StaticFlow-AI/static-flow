@@ -4,20 +4,17 @@ use yew::prelude::*;
 
 use crate::{
     components::{
-        icons::IconName,
-        tooltip::{TooltipIconButton, TooltipPosition},
+        icons::{Icon, IconName},
+        tooltip::{Tooltip, TooltipPosition},
     },
     i18n::current::toc_button as t,
 };
 
-/// 目录移动端切换按钮组件
-/// 修复原 bug：将 JS 创建的按钮改为 Yew 组件，路由切换时自动清理
+/// 目录移动端切换按钮组件（温暖细线无阴影风格）
 #[function_component(TocButton)]
 pub fn toc_button() -> Html {
-    let on_click = Callback::from(|_: MouseEvent| {
-        // 触发目录显示（与 JS 生成的目录交互）
+    let onclick = Callback::from(|_: MouseEvent| {
         if let Some(window) = web_sys::window() {
-            // 如果已存在目录，则直接切换展开/收起
             if let Some(existing) = window
                 .document()
                 .and_then(|d| d.query_selector(".article-toc").ok())
@@ -32,7 +29,6 @@ pub fn toc_button() -> Html {
                 return;
             }
 
-            // 若目录未生成，尝试调用全局 generateTOC 后再展开
             if let Ok(gen) = Reflect::get(&window, &JsValue::from_str("generateTOC")) {
                 if let Ok(func) = gen.dyn_into::<js_sys::Function>() {
                     let _ = func.call0(&window);
@@ -57,23 +53,29 @@ pub fn toc_button() -> Html {
     html! {
         <div class={classes!(
             "mobile-toc-fab",
-            "fixed", "left-8", "bottom-8", "z-[99]",
-            "w-12", "h-12",
-            "bg-[var(--primary)]", "text-white",
-            "rounded-full",
-            "items-center", "justify-center",
-            "shadow-[0_4px_12px_rgba(29,158,216,0.4)]",
-            "transition-all", "duration-300",
-            "active:scale-95",
-            "max-md:left-6", "max-md:bottom-6", "max-md:w-11", "max-md:h-11", "max-md:text-base"
+            "fixed", "left-6", "bottom-6", "z-[99]",
+            "items-center", "justify-center"
         )}>
-            <TooltipIconButton
-                icon={IconName::List}
-                tooltip={t::TOOLTIP}
-                position={TooltipPosition::Top}
-                onclick={on_click}
-                size={20}
-            />
+            <Tooltip text={t::TOOLTIP.to_string()} position={TooltipPosition::Top}>
+                <button
+                    type="button"
+                    {onclick}
+                    aria-label={t::TOOLTIP}
+                    class={classes!(
+                        "w-10", "h-10", "rounded-full",
+                        "border", "border-[var(--border-strong)]",
+                        "bg-[var(--surface)]",
+                        "text-[var(--muted)]",
+                        "inline-flex", "items-center", "justify-center",
+                        "hover:border-[var(--primary)]",
+                        "hover:text-[var(--primary)]",
+                        "transition-colors", "duration-150",
+                        "cursor-pointer"
+                    )}
+                >
+                    <Icon name={IconName::List} size={18} />
+                </button>
+            </Tooltip>
         </div>
     }
 }

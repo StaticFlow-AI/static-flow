@@ -1118,27 +1118,41 @@ fn build_interactive_page_shell_html(
   <style>
     :root {{
       color-scheme: light;
-      --bg: #fafaf9;
-      --bar: rgba(250, 250, 249, 0.86);
-      --ink: #18181b;
-      --muted: #71717a;
-      --line: rgba(24, 24, 27, 0.09);
-      --wash: rgba(24, 24, 27, 0.05);
-      --seg-on: #ffffff;
-      --focus: rgba(37, 99, 235, 0.5);
-      --float-shadow: 0 6px 18px rgba(24, 24, 27, 0.12);
+      --bg: #FAF9F5;
+      --header-bg: rgba(250, 249, 245, 0.88);
+      --surface: #FFFFFF;
+      --surface-alt: #F4F1EA;
+      --ink: #141413;
+      --muted: #5E5D59;
+      --faint: #87867F;
+      --line: rgba(20, 20, 19, 0.09);
+      --line-strong: rgba(20, 20, 19, 0.16);
+      --primary: #C96442;
+      --primary-hover: #B5573A;
+      --primary-soft: #F4E4DC;
+      --focus: rgba(201, 100, 66, 0.55);
+      --float-shadow: 0 8px 24px -8px rgba(20, 20, 19, 0.12), 0 2px 6px rgba(20, 20, 19, 0.05);
+      --font-serif: "Source Serif 4", "Newsreader", "Iowan Old Style", "Songti SC", "Noto Serif SC", Georgia, serif;
+      --font-sans: "Inter", "Styrene B", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      --ease-out: cubic-bezier(.22, 1, .36, 1);
     }}
     [data-theme="dark"] {{
       color-scheme: dark;
-      --bg: #0b0d11;
-      --bar: rgba(14, 16, 21, 0.86);
-      --ink: #f4f4f5;
-      --muted: #9a9ea8;
-      --line: rgba(255, 255, 255, 0.08);
-      --wash: rgba(255, 255, 255, 0.065);
-      --seg-on: #262b38;
-      --focus: rgba(96, 165, 250, 0.55);
-      --float-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+      --bg: #141413;
+      --header-bg: rgba(20, 20, 19, 0.86);
+      --surface: #1C1B19;
+      --surface-alt: #252421;
+      --ink: #FAF9F5;
+      --muted: #A3A198;
+      --faint: #7A786F;
+      --line: rgba(250, 249, 245, 0.10);
+      --line-strong: rgba(250, 249, 245, 0.18);
+      --primary: #D97757;
+      --primary-hover: #E58B6C;
+      --primary-soft: rgba(217, 119, 87, 0.14);
+      --focus: rgba(217, 119, 87, 0.55);
+      --float-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.6);
     }}
     *, *::before, *::after {{ box-sizing: border-box; }}
     html, body {{
@@ -1147,7 +1161,7 @@ fn build_interactive_page_shell_html(
       overflow: hidden;
       background: var(--bg);
       color: var(--ink);
-      font: 500 12.5px/1 -apple-system, BlinkMacSystemFont, "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+      font: 400 13px/1 var(--font-sans);
       -webkit-font-smoothing: antialiased;
     }}
     .viewer {{
@@ -1160,78 +1174,89 @@ fn build_interactive_page_shell_html(
     .bar {{
       position: relative;
       z-index: 2;
-      flex: 0 0 38px;
-      height: 38px;
+      flex: 0 0 44px;
+      height: 44px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      padding: 0 8px;
-      padding-left: max(8px, env(safe-area-inset-left));
-      padding-right: max(8px, env(safe-area-inset-right));
+      gap: 14px;
+      padding: 0 14px;
+      padding-left: max(14px, env(safe-area-inset-left));
+      padding-right: max(14px, env(safe-area-inset-right));
       border-bottom: 1px solid var(--line);
-      background: var(--bar);
-      -webkit-backdrop-filter: saturate(1.6) blur(14px);
-      backdrop-filter: saturate(1.6) blur(14px);
+      background: var(--header-bg);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
     }}
     .bar-side {{
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 6px;
       min-width: 0;
     }}
-    .bar-side--start {{ flex: 1 1 auto; }}
+    .bar-side--start {{ flex: 1 1 auto; gap: 10px; }}
     .bar-side--end {{ flex: 0 0 auto; }}
     .link {{
       display: inline-flex;
       align-items: center;
-      gap: 4px;
-      height: 26px;
-      padding: 0 8px;
-      border-radius: 7px;
+      gap: 5px;
+      height: 28px;
+      padding: 0 9px;
+      border-radius: 999px;
       color: var(--muted);
+      font-family: var(--font-sans);
+      font-size: 12.5px;
+      font-weight: 500;
       text-decoration: none;
       white-space: nowrap;
-      transition: color 140ms ease, background-color 140ms ease;
+      transition: color 150ms var(--ease-out), background-color 150ms var(--ease-out);
     }}
-    .link:hover {{ color: var(--ink); background: var(--wash); }}
-    .link--back {{ color: var(--ink); font-weight: 600; }}
-    .link--back .arrow {{ display: inline-block; transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1); }}
+    .link:hover {{ color: var(--primary); background: var(--surface-alt); }}
+    .link--back {{ color: var(--ink); padding-left: 6px; }}
+    .link--back .arrow {{ display: inline-block; transition: transform 150ms var(--ease-out); }}
     .link--back:hover .arrow {{ transform: translateX(-2px); }}
-    .ext {{ font-size: 10px; opacity: 0.6; }}
-    .sep {{ flex: none; width: 1px; height: 14px; margin: 0 4px; background: var(--line); }}
-    .pill {{
+    .ext {{ font-size: 10px; opacity: 0.65; }}
+    .sep {{ flex: none; width: 1px; height: 14px; margin: 0 2px; background: var(--line); }}
+    .title {{
+      min-width: 0;
+      max-width: 48ch;
+      overflow: hidden;
+      color: var(--ink);
+      font-family: var(--font-serif);
+      font-size: 0.9375rem;
+      font-weight: 400;
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }}
+    .mirror-tag {{
       flex: none;
       display: inline-flex;
       align-items: center;
-      height: 20px;
-      padding: 0 7px;
-      border-radius: 999px;
-      background: var(--wash);
-      color: var(--muted);
-      font-size: 10.5px;
-      font-weight: 600;
+      gap: 5px;
+      padding: 0 4px;
+      color: var(--faint);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 400;
       letter-spacing: 0.04em;
       white-space: nowrap;
     }}
-    .title {{
-      min-width: 0;
-      max-width: 320px;
-      margin-left: 4px;
-      overflow: hidden;
-      color: var(--muted);
-      font-weight: 500;
-      white-space: nowrap;
-      text-overflow: ellipsis;
+    .mirror-tag::before {{
+      content: "◆";
+      font-size: 9px;
+      color: var(--primary);
     }}
     .seg {{
       display: inline-flex;
       align-items: center;
-      height: 24px;
+      height: 26px;
       padding: 2px;
       gap: 2px;
-      border-radius: 7px;
-      background: var(--wash);
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--surface-alt);
     }}
     .seg a {{
       display: inline-flex;
@@ -1239,38 +1264,42 @@ fn build_interactive_page_shell_html(
       justify-content: center;
       min-width: 34px;
       height: 20px;
-      padding: 0 8px;
-      border-radius: 5px;
+      padding: 0 9px;
+      border-radius: 999px;
       color: var(--muted);
+      font-family: var(--font-sans);
       font-size: 11.5px;
-      font-weight: 600;
+      font-weight: 500;
       text-decoration: none;
-      transition: color 140ms ease, background-color 140ms ease;
+      transition: color 150ms var(--ease-out), background-color 150ms var(--ease-out);
     }}
     .seg a:hover {{ color: var(--ink); }}
     .seg a[aria-current="page"] {{
-      background: var(--seg-on);
-      color: var(--ink);
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 0 0 0.5px var(--line);
+      background: var(--primary-soft);
+      color: var(--primary);
     }}
     .icon-btn {{
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 26px;
-      height: 26px;
+      width: 28px;
+      height: 28px;
       margin-left: 2px;
       padding: 0;
-      border: 0;
-      border-radius: 7px;
+      border: 1px solid transparent;
+      border-radius: 999px;
       background: transparent;
       color: var(--muted);
       cursor: pointer;
-      transition: color 140ms ease, background-color 140ms ease;
+      transition: color 150ms var(--ease-out), background-color 150ms var(--ease-out), border-color 150ms var(--ease-out);
     }}
-    .icon-btn:hover {{ color: var(--ink); background: var(--wash); }}
-    .icon-btn svg, .restore svg {{ width: 14px; height: 14px; }}
-    a:focus-visible, button:focus-visible {{ outline: 2px solid var(--focus); outline-offset: 1px; }}
+    .icon-btn:hover {{ color: var(--primary); background: var(--surface-alt); border-color: var(--line); }}
+    .icon-btn svg, .restore svg {{
+      width: 14px;
+      height: 14px;
+      transition: transform 240ms var(--ease-out);
+    }}
+    a:focus-visible, button:focus-visible {{ outline: 2px solid var(--focus); outline-offset: 2px; }}
     .stage {{
       position: relative;
       flex: 1 1 auto;
@@ -1281,38 +1310,40 @@ fn build_interactive_page_shell_html(
       width: 100%;
       height: 100%;
       border: 0;
-      background: #ffffff;
+      background: var(--bg);
     }}
     .restore {{
       position: fixed;
+      top: max(10px, env(safe-area-inset-top));
       right: max(12px, env(safe-area-inset-right));
-      bottom: max(12px, env(safe-area-inset-bottom));
       z-index: 3;
       display: none;
       align-items: center;
-      gap: 6px;
+      justify-content: center;
+      width: 28px;
       height: 28px;
-      padding: 0 11px 0 9px;
-      border: 1px solid var(--line);
+      padding: 0;
+      border: 1px solid var(--line-strong);
       border-radius: 999px;
-      background: var(--bar);
-      -webkit-backdrop-filter: saturate(1.6) blur(12px);
-      backdrop-filter: saturate(1.6) blur(12px);
+      background: var(--header-bg);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
       box-shadow: var(--float-shadow);
       color: var(--muted);
-      font: inherit;
-      font-size: 11.5px;
       cursor: pointer;
-      opacity: 0.5;
-      transition: opacity 180ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1), color 140ms ease;
+      transition: color 150ms var(--ease-out), border-color 150ms var(--ease-out), background-color 150ms var(--ease-out);
     }}
-    .restore:hover, .restore:focus-visible {{ opacity: 1; color: var(--ink); transform: translateY(-1px); }}
+    .restore svg {{ transform: rotate(180deg); }}
+    .restore:hover, .restore:focus-visible {{ color: var(--primary); border-color: var(--primary); background: var(--surface); }}
     [data-bar="collapsed"] .bar {{ display: none; }}
     [data-bar="collapsed"] .restore {{ display: inline-flex; }}
-    @media (max-width: 760px) {{
-      .pill, .title, .sep--title, .link--raw .label {{ display: none; }}
+    @media (max-width: 820px) {{
+      .mirror-tag, .sep--mirror, .link--raw .label {{ display: none; }}
     }}
-    @media (max-width: 420px) {{
+    @media (max-width: 560px) {{
+      .title, .sep--title {{ display: none; }}
+    }}
+    @media (max-width: 400px) {{
       .link--back .label {{ display: none; }}
     }}
     @media (prefers-reduced-motion: reduce) {{
@@ -1326,10 +1357,11 @@ fn build_interactive_page_shell_html(
       <div class="bar-side bar-side--start">
         <a class="link link--back" href="{article_href}" title="{back_label}"><span class="arrow" aria-hidden="true">←</span><span class="label">{back_label}</span></a>
         <span class="sep sep--title" aria-hidden="true"></span>
-        <span class="pill">{shell_title}</span>
         <span class="title" title="{page_title}">{page_title}</span>
       </div>
       <div class="bar-side bar-side--end">
+        <span class="mirror-tag" title="{shell_title}">Interactive mirror</span>
+        <span class="sep sep--mirror" aria-hidden="true"></span>
         {lang_switch}
         <a class="link link--raw" href="{entry_src}" target="_blank" rel="noopener" title="{raw_hint}"><span class="label">{raw_label}</span><span class="ext" aria-hidden="true">↗</span></a>
         {source_link}
@@ -1350,8 +1382,7 @@ fn build_interactive_page_shell_html(
     </main>
   </div>
   <button type="button" class="restore" id="bar-restore" title="{restore_label}" aria-label="{restore_label}">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
-    <span>{restore_label}</span>
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10l4-4 4 4"/></svg>
   </button>
   <script>
     (function () {{
