@@ -51,102 +51,21 @@ pub fn categories_page() -> Html {
     let total_articles: usize = categories.iter().map(|c| c.count).sum();
 
     html! {
-        <main class={classes!(
-            "mt-[var(--header-height-mobile)]",
-            "md:mt-[var(--header-height-desktop)]",
-            "pb-20"
-        )}>
+        <main class={classes!("pb-20")}>
             <div class={classes!("container")}>
-                // Hero Section with Geometric Art Deco Style
-                <div class={classes!(
-                    "text-center",
-                    "py-16",
-                    "md:py-24",
-                    "px-4",
-                    "relative",
-                    "overflow-hidden"
-                )}>
-                    <p class={classes!(
-                        "text-sm",
-                        "tracking-[0.4em]",
-                        "uppercase",
-                        "text-[var(--muted)]",
-                        "mb-6",
-                        "font-semibold"
-                    )}>{ t::HERO_INDEX }</p>
-
-                    <h1 class={classes!(
-                        "category-title",
-                        "text-5xl",
-                        "md:text-7xl",
-                        "font-bold",
-                        "mb-6",
-                        "leading-tight"
-                    )}
-                    style="font-family: 'Fraunces', serif;">
-                        { t::HERO_TITLE }
-                    </h1>
-
-                    <p class={classes!(
-                        "text-lg",
-                        "md:text-xl",
-                        "text-[var(--muted)]",
-                        "max-w-2xl",
-                        "mx-auto",
-                        "leading-relaxed",
-                        "mb-8"
-                    )}>
+                <header class="sf-page-hero">
+                    <div class="sf-eyebrow">{ t::HERO_INDEX }</div>
+                    <h1 class="sf-page-title">{ t::HERO_TITLE }</h1>
+                    <p class="sf-page-sub">
                         { fill_two(t::HERO_DESC_TEMPLATE, total_categories, total_articles) }
                     </p>
-
-                    // Geometric decorative brackets - 几何装饰括号
-                    <div class={classes!(
-                        "category-brackets",
-                        "flex",
-                        "items-center",
-                        "justify-center",
-                        "gap-6",
-                        "mt-8"
-                    )}>
-                        <div class={classes!(
-                            "w-12",
-                            "h-1",
-                            "bg-gradient-to-r",
-                            "from-[var(--primary)]",
-                            "via-sky-500/30",
-                            "to-transparent"
-                        )}></div>
-                        <div class={classes!(
-                            "category-badge",
-                            "inline-flex",
-                            "items-center",
-                            "gap-2",
-                            "px-6",
-                            "py-3",
-                            "bg-gradient-to-r",
-                            "from-[var(--primary)]/10",
-                            "to-sky-500/10",
-                            "border-2",
-                            "border-[var(--primary)]/30",
-                            "rounded-lg",
-                            "text-sm",
-                            "font-bold",
-                            "text-[var(--primary)]",
-                            "dark:text-sky-400"
-                        )}>
-                            <i class={classes!("fas", "fa-th-large")}></i>
+                    <div class={classes!("flex", "flex-wrap", "items-center", "gap-2.5", "mt-4")}>
+                        <span class="sf-chip">
+                            <i class={classes!("fas", "fa-folder-open", "text-[var(--primary)]")} aria-hidden="true"></i>
                             <span>{ fill_one(t::HERO_BADGE_TEMPLATE, total_categories) }</span>
-                        </div>
-                        <div class={classes!(
-                            "w-12",
-                            "h-1",
-                            "bg-gradient-to-l",
-                            "from-[var(--primary)]",
-                            "via-sky-500/30",
-                            "to-transparent"
-                        )}></div>
+                        </span>
                     </div>
-                </div>
+                </header>
 
                 // Category Grid with Geometric Style
                 {
@@ -258,15 +177,14 @@ pub fn categories_page() -> Html {
                                                 // Category name with geometric styling
                                                 <h3 class={classes!(
                                                     "m-0",
-                                                    "text-2xl",
+                                                    "text-xl",
                                                     "font-bold",
+                                                    "tracking-[-0.02em]",
                                                     "text-[var(--text)]",
                                                     "transition-colors",
-                                                    "duration-200",
-                                                    "group-hover:text-[var(--primary)]",
-                                                    "dark:group-hover:text-sky-400"
-                                                )}
-                                                style="font-family: 'Fraunces', serif;">
+                                                    "duration-150",
+                                                    "group-hover:text-[var(--primary)]"
+                                                )}>
                                                     { &category.name }
                                                 </h3>
 

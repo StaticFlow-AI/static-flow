@@ -137,108 +137,26 @@ pub fn category_detail_page(props: &CategoryDetailProps) -> Html {
     }
 
     html! {
-        <main class={classes!(
-            "category-detail-page",
-            "min-h-screen",
-            "pt-24",
-            "pb-20",
-            "px-4",
-            "md:px-8"
-        )}>
-            <div class={classes!(
-                "max-w-5xl",
-                "mx-auto"
-            )}>
-                // Header Section with Structured Style
-                <header class={classes!(
-                    "category-header",
-                    "mb-16",
-                    "text-center",
-                    "relative"
-                )}>
-                    <div class={classes!(
-                        "category-badge",
-                        "inline-flex",
-                        "items-center",
-                        "gap-2",
-                        "px-4",
-                        "py-2",
-                        "mb-6",
-                        "rounded-lg",
-                        "bg-gradient-to-r",
-                        "from-[var(--primary)]/10",
-                        "to-sky-500/10",
-                        "border",
-                        "border-[var(--primary)]/30",
-                        "text-[var(--primary)]",
-                        "dark:text-sky-400",
-                        "font-medium",
-                        "text-sm",
-                        "tracking-wider",
-                        "uppercase"
-                    )}>
-                        <i class="fas fa-folder-open"></i>
-                        <span>{ t::COLLECTION_BADGE }</span>
+        <main class={classes!("category-detail-page", "min-h-[60vh]", "pb-20")}>
+            <div class={classes!("container")}>
+                <header class="sf-page-hero">
+                    <div class="flex items-center gap-3 mb-3">
+                        <Link<Route>
+                            to={Route::Categories}
+                            classes="sf-chip"
+                        >
+                            <i class="fas fa-arrow-left text-[10px]" aria-hidden="true"></i>
+                            <span>{ t::COLLECTION_BADGE }</span>
+                        </Link<Route>>
                     </div>
-
-                    <h1 class={classes!(
-                        "category-title",
-                        "text-5xl",
-                        "md:text-7xl",
-                        "font-bold",
-                        "mb-4",
-                        "leading-tight"
-                    )}>
-                        { &display_category }
-                    </h1>
-
-                    <p class={classes!(
-                        "category-count",
-                        "text-xl",
-                        "text-[var(--muted)]",
-                        "font-light"
-                    )}>
+                    <h1 class="sf-page-title">{ &display_category }</h1>
+                    <p class="sf-page-sub">
                         if total_posts > 0 {
                             { fill_one(t::HIGHLIGHT_COUNT_TEMPLATE, total_posts) }
                         } else {
                             { t::NO_CONTENT }
                         }
                     </p>
-
-                    // Decorative corner brackets
-                    <div class={classes!(
-                        "category-brackets",
-                        "flex",
-                        "justify-center",
-                        "gap-8",
-                        "mt-8"
-                    )}>
-                        <div class={classes!(
-                            "w-12",
-                            "h-1",
-                            "bg-gradient-to-r",
-                            "from-[var(--primary)]",
-                            "to-sky-500",
-                            "rounded-full"
-                        )}></div>
-                        <div class={classes!(
-                            "w-2",
-                            "h-2",
-                            "bg-gradient-to-br",
-                            "from-[var(--primary)]",
-                            "to-sky-500",
-                            "rounded-full",
-                            "mt-[-2px]"
-                        )}></div>
-                        <div class={classes!(
-                            "w-12",
-                            "h-1",
-                            "bg-gradient-to-l",
-                            "from-[var(--primary)]",
-                            "to-sky-500",
-                            "rounded-full"
-                        )}></div>
-                    </div>
                 </header>
 
                 // Content Section

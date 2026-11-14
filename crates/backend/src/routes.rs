@@ -1,14 +1,18 @@
 use axum::{
     body::Bytes,
-    extract::{DefaultBodyLimit, OriginalUri, State},
+    extract::{DefaultBodyLimit, OriginalUri, Request, State},
     handler::Handler,
-    http::{header, HeaderMap, HeaderValue, Method},
-    middleware,
+    http::{header, HeaderMap, HeaderValue, Method, StatusCode},
+    middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{any, get, patch, post, put},
     Router,
 };
 use tower_http::{
+    compression::{
+        predicate::{DefaultPredicate, NotForContentType, Predicate},
+        CompressionLayer,
+    },
     cors::{Any, CorsLayer},
     services::ServeDir,
 };
@@ -594,22 +598,100 @@ pub fn create_router(state: AppState) -> Router {
         .route("/static_flow/gpt2api/*path", get(handlers::serve_gpt2api_frontend))
         .with_state(spa_state.clone());
 
-    // 3) SPA fallback — serve frontend/dist/ static files; unknown routes get
-    //    index.html (200)
+    // 3) SPA fallback — serve frontend/dist/ static files (preferring build-time
+    //    .br / .gz sidecars); unknown routes get SEO SPA shell (200)
     let frontend_dist_dir = spa_state.frontend_dist_dir.as_ref().clone();
-    let spa_fallback = ServeDir::new(frontend_dist_dir);
+    let spa_fallback = ServeDir::new(frontend_dist_dir)
+        .precompressed_br()
+        .precompressed_gzip();
+
+    // Compress dynamic HTML/JSON/SVG/WASM/JS/CSS responses while skipping
+    // already-encoded files, audio/video media, binary streams, and SSE.
+    let compression_predicate = DefaultPredicate::new()
+        .and(NotForContentType::const_new("audio/"))
+        .and(NotForContentType::const_new("video/"))
+        .and(NotForContentType::const_new("text/event-stream"))
+        .and(NotForContentType::const_new("application/octet-stream"));
+    let compression_layer = CompressionLayer::new()
+        .br(true)
+        .gzip(true)
+        .zstd(true)
+        .compress_when(compression_predicate);
 
     // Merge: API first, then SEO, then static files, then SPA index fallback
     api_router
         .merge(seo_router)
         .merge(gpt2api_frontend_router)
         .fallback_service(spa_fallback.fallback(get(seo::seo_spa_shell).with_state(spa_state)))
+        .layer(middleware::from_fn(static_cache_control_middleware))
+        .layer(compression_layer)
         .layer(middleware::from_fn(request_context::request_context_middleware))
         .layer(middleware::from_fn_with_state(
             behavior_state,
             behavior_analytics::behavior_analytics_middleware,
         ))
         .layer(cors)
+}
+
+fn has_trunk_hash_stem(path: &str) -> bool {
+    let file_name = path.rsplit('/').next().unwrap_or(path);
+    let stem = file_name
+        .strip_suffix("_bg.wasm")
+        .or_else(|| file_name.strip_suffix(".wasm"))
+        .or_else(|| file_name.strip_suffix(".js"))
+        .or_else(|| file_name.strip_suffix(".css"));
+    let Some(stem) = stem else {
+        return false;
+    };
+    let Some((_, hash)) = stem.rsplit_once('-') else {
+        return false;
+    };
+    hash.len() == 16 && hash.bytes().all(|b| b.is_ascii_hexdigit())
+}
+
+async fn static_cache_control_middleware(request: Request, next: Next) -> Response {
+    let method = request.method().clone();
+    let path = request.uri().path().to_owned();
+    let mut response = next.run(request).await;
+
+    if !matches!(method, Method::GET | Method::HEAD)
+        || response.status() != StatusCode::OK
+        || response.headers().contains_key(header::CACHE_CONTROL)
+    {
+        return response;
+    }
+
+    if !path.starts_with("/api/")
+        && (has_trunk_hash_stem(&path)
+            || path.starts_with("/snippets/")
+            || path.starts_with("/static/vendor/"))
+    {
+        response.headers_mut().insert(
+            header::CACHE_CONTROL,
+            HeaderValue::from_static("public, max-age=31536000, immutable"),
+        );
+        return response;
+    }
+
+    if path.starts_with("/static/") {
+        response
+            .headers_mut()
+            .insert(header::CACHE_CONTROL, HeaderValue::from_static("public, max-age=3600"));
+        return response;
+    }
+
+    let is_html = response
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|ct| ct.starts_with("text/html"));
+    if is_html {
+        response
+            .headers_mut()
+            .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
+    }
+
+    response
 }
 
 fn parse_allowed_origins(value: Option<&str>) -> Option<Vec<HeaderValue>> {
@@ -1008,5 +1090,85 @@ mod tests {
         let mut wildcard_headers = header::HeaderMap::new();
         wildcard_headers.insert(header::ACCEPT, header::HeaderValue::from_static("*/*"));
         assert!(!super::request_prefers_html(&wildcard_headers));
+    }
+
+    #[test]
+    fn has_trunk_hash_stem_matches_fingerprinted_bundles_only() {
+        assert!(super::has_trunk_hash_stem("/static-flow-frontend-854bb9e8f2f3fadc_bg.wasm"));
+        assert!(super::has_trunk_hash_stem("/static-flow-frontend-854bb9e8f2f3fadc.js"));
+        assert!(super::has_trunk_hash_stem("/styles-31e58a6872717370.css"));
+        assert!(!super::has_trunk_hash_stem("/index.html"));
+        assert!(!super::has_trunk_hash_stem("/static-flow-frontend-short_bg.wasm"));
+        assert!(!super::has_trunk_hash_stem("/static/logo.png"));
+    }
+
+    #[tokio::test]
+    async fn static_cache_control_middleware_assigns_expected_policies() {
+        let mut router = Router::new()
+            .route("/", get(|| async { Html("<!doctype html>") }))
+            .route(
+                "/static-flow-frontend-854bb9e8f2f3fadc_bg.wasm",
+                get(|| async { ([("content-type", "application/wasm")], "wasm") }),
+            )
+            .route(
+                "/static/logo.svg",
+                get(|| async { ([("content-type", "image/svg+xml")], "svg") }),
+            )
+            .route("/api/healthz", get(|| async { Json(serde_json::json!({"ok": true})) }))
+            .layer(axum::middleware::from_fn(super::static_cache_control_middleware))
+            .into_service();
+
+        let html_resp = router
+            .call(
+                Request::builder()
+                    .uri("/")
+                    .body(Body::empty())
+                    .expect("req"),
+            )
+            .await
+            .expect("resp");
+        assert_eq!(
+            html_resp.headers().get(header::CACHE_CONTROL),
+            Some(&header::HeaderValue::from_static("no-cache"))
+        );
+
+        let wasm_resp = router
+            .call(
+                Request::builder()
+                    .uri("/static-flow-frontend-854bb9e8f2f3fadc_bg.wasm")
+                    .body(Body::empty())
+                    .expect("req"),
+            )
+            .await
+            .expect("resp");
+        assert_eq!(
+            wasm_resp.headers().get(header::CACHE_CONTROL),
+            Some(&header::HeaderValue::from_static("public, max-age=31536000, immutable"))
+        );
+
+        let static_resp = router
+            .call(
+                Request::builder()
+                    .uri("/static/logo.svg")
+                    .body(Body::empty())
+                    .expect("req"),
+            )
+            .await
+            .expect("resp");
+        assert_eq!(
+            static_resp.headers().get(header::CACHE_CONTROL),
+            Some(&header::HeaderValue::from_static("public, max-age=3600"))
+        );
+
+        let api_resp = router
+            .call(
+                Request::builder()
+                    .uri("/api/healthz")
+                    .body(Body::empty())
+                    .expect("req"),
+            )
+            .await
+            .expect("resp");
+        assert!(api_resp.headers().get(header::CACHE_CONTROL).is_none());
     }
 }

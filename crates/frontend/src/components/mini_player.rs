@@ -127,8 +127,7 @@ pub fn mini_player() -> Html {
 
             // Song info
             <div class="flex-1 min-w-0">
-                <p class="text-xs font-semibold text-[var(--text)] truncate"
-                   style="font-family: 'Fraunces', serif;">
+                <p class="text-xs font-semibold text-[var(--text)] truncate">
                     {title}
                 </p>
                 <p class="text-[10px] text-[var(--muted)] truncate">

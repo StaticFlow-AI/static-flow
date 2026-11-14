@@ -15,9 +15,8 @@
 use std::rc::Rc;
 
 use yew::prelude::*;
-use yew_hooks::prelude::use_timeout;
 
-use crate::i18n::current::toast as t;
+use crate::{hooks::use_timeout, i18n::current::toast as t};
 
 /// Visual flavor of one toast message.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

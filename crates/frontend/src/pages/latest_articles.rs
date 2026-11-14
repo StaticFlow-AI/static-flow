@@ -677,52 +677,25 @@ pub fn latest_articles_page() -> Html {
     });
 
     html! {
-        <main class={classes!(
-            "mt-[var(--header-height-mobile)]",
-            "md:mt-[var(--header-height-desktop)]",
-            "pb-20"
-        )}>
+        <main class={classes!("pb-20")}>
             <div class={classes!("container")}>
-                // Hero Section with Editorial Style
-                <div class={classes!(
-                    "text-center",
-                    "py-16",
-                    "md:py-24",
-                    "px-4",
-                    "relative",
-                    "overflow-hidden"
-                )}>
-                    <p class={classes!(
-                        "text-sm",
-                        "tracking-[0.4em]",
-                        "uppercase",
-                        "text-[var(--muted)]",
-                        "mb-6",
-                        "font-semibold"
-                    )}>{ t::HERO_INDEX }</p>
-
-                    <h1 class={classes!(
-                        "text-5xl",
-                        "md:text-7xl",
-                        "font-bold",
-                        "mb-6",
-                        "leading-tight"
-                    )}
-                    style="font-family: 'Fraunces', serif;">
-                        { t::HERO_TITLE }
-                    </h1>
-
-                    <p class={classes!(
-                        "text-lg",
-                        "md:text-xl",
-                        "text-[var(--muted)]",
-                        "max-w-2xl",
-                        "mx-auto",
-                        "leading-relaxed"
-                    )}>
-                        { t::HERO_DESC }
-                    </p>
-                </div>
+                <header class="sf-page-hero">
+                    <div class="sf-eyebrow">{ t::HERO_INDEX }</div>
+                    <div class="flex flex-wrap items-end justify-between gap-4">
+                        <div>
+                            <h1 class="sf-page-title">{ t::HERO_TITLE }</h1>
+                            <p class="sf-page-sub">{ t::HERO_DESC }</p>
+                        </div>
+                        <button
+                            type="button"
+                            onclick={scroll_to_request_section.clone()}
+                            class="btn-terminal shrink-0"
+                        >
+                            <i class="fas fa-pen-nib text-xs text-[var(--primary)]" aria-hidden="true"></i>
+                            { ar_t::SECTION_TITLE }
+                        </button>
+                    </div>
+                </header>
 
                 // Article Grid with Editorial Style
                 {
@@ -818,7 +791,7 @@ pub fn latest_articles_page() -> Html {
             // Article request section
             <div class="container" id="article-request-section">
                 <div class="mt-16 border-t border-[var(--border)] pt-10">
-                    <h2 class="text-2xl font-bold text-[var(--text)] mb-1" style="font-family: 'Fraunces', serif;">
+                    <h2 class="text-2xl font-bold tracking-[-0.02em] text-[var(--text)] mb-1">
                         {ar_t::SECTION_TITLE}
                     </h2>
                     <p class="text-[var(--muted)] text-sm mb-6">{ar_t::SECTION_SUBTITLE}</p>

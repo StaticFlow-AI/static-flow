@@ -57,7 +57,7 @@ pub mod modal {
 }
 
 pub mod footer {
-    pub const COPYRIGHT: &str = "© 2024 L_B__. All rights reserved.";
+    pub const COPYRIGHT: &str = "© 2026 StaticFlow · L_B__";
     pub const SOCIAL_ARIA: &str = "社交媒体";
 }
 

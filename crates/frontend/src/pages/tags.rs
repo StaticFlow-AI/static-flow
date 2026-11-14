@@ -50,107 +50,28 @@ pub fn tags_page() -> Html {
     let max_count = tag_stats.iter().map(|t| t.count as f32).fold(1.0, f32::max);
 
     html! {
-        <main class={classes!(
-            "mt-[var(--header-height-mobile)]",
-            "md:mt-[var(--header-height-desktop)]",
-            "pb-20"
-        )}>
+        <main class={classes!("pb-20")}>
             <div class={classes!("container")}>
-                // Hero Section with Editorial Style
-                <div class={classes!(
-                    "text-center",
-                    "py-16",
-                    "md:py-24",
-                    "px-4",
-                    "relative",
-                    "overflow-hidden"
-                )}>
-                    <p class={classes!(
-                        "text-sm",
-                        "tracking-[0.4em]",
-                        "uppercase",
-                        "text-[var(--muted)]",
-                        "mb-6",
-                        "font-semibold"
-                    )}>{ t::HERO_INDEX }</p>
-
-                    <h1 class={classes!(
-                        "tag-title",
-                        "text-5xl",
-                        "md:text-7xl",
-                        "font-bold",
-                        "mb-6",
-                        "leading-tight"
-                    )}
-                    style="font-family: 'Fraunces', serif;">
-                        { t::HERO_TITLE }
-                    </h1>
-
-                    <p class={classes!(
-                        "text-lg",
-                        "md:text-xl",
-                        "text-[var(--muted)]",
-                        "max-w-2xl",
-                        "mx-auto",
-                        "leading-relaxed"
-                    )}>
+                <header class="sf-page-hero">
+                    <div class="sf-eyebrow">{ t::HERO_INDEX }</div>
+                    <h1 class="sf-page-title">{ t::HERO_TITLE }</h1>
+                    <p class="sf-page-sub">
                         { fill_two(t::HERO_DESC_TEMPLATE, total_tags, total_articles) }
                     </p>
-
-                    // Decorative badges
-                    <div class={classes!(
-                        "tag-badge",
-                        "flex",
-                        "items-center",
-                        "justify-center",
-                        "gap-4",
-                        "mt-8"
-                    )}>
-                        <div class={classes!(
-                            "inline-flex",
-                            "items-center",
-                            "gap-2",
-                            "px-4",
-                            "py-2",
-                            "bg-gradient-to-r",
-                            "from-[var(--primary)]/10",
-                            "to-purple-500/10",
-                            "border",
-                            "border-[var(--primary)]/30",
-                            "rounded-full",
-                            "text-sm",
-                            "font-semibold"
-                        )}>
-                            <i class={classes!("fas", "fa-tags", "text-[var(--primary)]")}></i>
+                    <div class={classes!("flex", "flex-wrap", "items-center", "gap-2.5", "mt-4")}>
+                        <span class="sf-chip">
+                            <i class={classes!("fas", "fa-tags", "text-[var(--primary)]")} aria-hidden="true"></i>
                             <span>{ fill_one(t::TAG_COUNT_TEMPLATE, total_tags) }</span>
-                        </div>
-                        <div class={classes!(
-                            "inline-flex",
-                            "items-center",
-                            "gap-2",
-                            "px-4",
-                            "py-2",
-                            "bg-gradient-to-r",
-                            "from-[var(--primary)]/10",
-                            "to-purple-500/10",
-                            "border",
-                            "border-[var(--primary)]/30",
-                            "rounded-full",
-                            "text-sm",
-                            "font-semibold"
-                        )}>
-                            <i class={classes!("fas", "fa-book", "text-[var(--primary)]")}></i>
+                        </span>
+                        <span class="sf-chip">
+                            <i class={classes!("fas", "fa-book", "text-[var(--primary)]")} aria-hidden="true"></i>
                             <span>{ fill_one(t::ARTICLE_COUNT_TEMPLATE, total_articles) }</span>
-                        </div>
+                        </span>
                     </div>
-                </div>
+                </header>
 
                 // Editorial Timeline Section
-                <div class={classes!(
-                    "editorial-timeline",
-                    "mt-12",
-                    "mb-16"
-                )}>
+                <div class={classes!("editorial-timeline", "mb-16")}>
                     {
                         if *loading {
                             html! {

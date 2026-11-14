@@ -1,3 +1,12 @@
+#![cfg_attr(
+    not(feature = "legacy-llm-admin"),
+    allow(
+        dead_code,
+        reason = "Some shared formatting helpers are only referenced by legacy Yew LLM/Kiro admin \
+                  pages when built with --features legacy-llm-admin."
+    )
+)]
+
 use js_sys::Date;
 use serde::Deserialize;
 use yew::prelude::*;

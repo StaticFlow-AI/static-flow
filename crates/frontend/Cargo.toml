@@ -13,12 +13,12 @@ yew = { workspace = true }
 yew-router = { workspace = true }
 gloo-events = "0.2"
 gloo-net = { workspace = true }
-gloo-timers = "0.3"
-gloo-utils = "0.2"
+gloo-timers = { version = "0.4", features = ["futures"] }
+gloo-utils = "0.3"
 serde = { workspace = true }
 serde_json = { workspace = true }
 wasm-bindgen = { workspace = true }
-wasm-bindgen-futures = "0.4"
+wasm-bindgen-futures = "0.4.80"
 futures = "0.3"
 web-sys = { workspace = true, features = [
   "Window", "Storage", "Document", "Element", "KeyboardEvent", "Crypto",
@@ -34,7 +34,6 @@ js-sys = { workspace = true }
 pulldown-cmark = { workspace = true }
 url = "2.5"
 urlencoding = "2.1"
-yew-hooks = "0.3.4"
 base64 = "0.22.1"
 ammonia = "4"
 
@@ -45,4 +44,5 @@ static-flow-media-types = { path = "../media-types" }
 [features]
 default = ["local-media"]
 local-media = []
+legacy-llm-admin = []
 mock = []

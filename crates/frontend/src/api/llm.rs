@@ -1,3 +1,12 @@
+#![cfg_attr(
+    not(feature = "legacy-llm-admin"),
+    allow(
+        dead_code,
+        reason = "Legacy Yew LLM/Kiro admin client functions and DTOs are only referenced when \
+                  built with --features legacy-llm-admin; LTO strips them in default builds."
+    )
+)]
+
 use super::*;
 
 /// Public key metadata exposed on the read-only LLM access page.

@@ -5,6 +5,7 @@ pub mod admin_local_media_uploads;
 pub mod article_card;
 pub mod audio_player;
 pub mod copy_button;
+#[cfg(feature = "legacy-llm-admin")]
 pub mod date_range_picker;
 pub mod drawer;
 pub mod empty_state;

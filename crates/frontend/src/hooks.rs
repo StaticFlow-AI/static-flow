@@ -1,6 +1,80 @@
+use std::{
+    cell::{Cell, RefCell},
+    rc::Rc,
+};
+
+use gloo_timers::callback::Timeout;
 use web_sys::{ScrollBehavior, ScrollToOptions};
 use yew::prelude::*;
 use yew_router::prelude::use_location;
+
+/// Handle returned by [`use_timeout`] for resetting or cancelling a scheduled
+/// one-shot timer.
+#[derive(Clone)]
+pub struct UseTimeoutHandle {
+    state: Rc<TimeoutInner>,
+}
+
+struct TimeoutInner {
+    timeout: RefCell<Option<Timeout>>,
+    callback: RefCell<Box<dyn FnMut()>>,
+    millis: Cell<u32>,
+}
+
+impl UseTimeoutHandle {
+    /// Cancel any in-flight timer and arm a fresh one if `millis > 0`.
+    pub fn reset(&self) {
+        self.cancel();
+        let millis = self.state.millis.get();
+        if millis == 0 {
+            return;
+        }
+        let state = Rc::clone(&self.state);
+        let handle = Timeout::new(millis, move || {
+            state.timeout.borrow_mut().take();
+            (state.callback.borrow_mut())();
+        });
+        *self.state.timeout.borrow_mut() = Some(handle);
+    }
+
+    /// Cancel any in-flight timer without invoking the callback.
+    pub fn cancel(&self) {
+        self.state.timeout.borrow_mut().take();
+    }
+}
+
+/// Schedule a one-shot timeout (`millis > 0`) that automatically cancels on
+/// unmount and can be manually reset or cancelled.
+#[hook]
+pub fn use_timeout<F>(callback: F, millis: u32) -> UseTimeoutHandle
+where
+    F: FnMut() + 'static,
+{
+    let state = use_mut_ref(|| {
+        Rc::new(TimeoutInner {
+            timeout: RefCell::new(None),
+            callback: RefCell::new(Box::new(|| {}) as Box<dyn FnMut()>),
+            millis: Cell::new(millis),
+        })
+    });
+    let inner = Rc::clone(&state.borrow());
+    *inner.callback.borrow_mut() = Box::new(callback);
+    inner.millis.set(millis);
+
+    let handle = UseTimeoutHandle {
+        state: inner,
+    };
+
+    {
+        let handle = handle.clone();
+        use_effect_with(millis, move |_| {
+            handle.reset();
+            move || handle.cancel()
+        });
+    }
+
+    handle
+}
 
 /// Paginate arbitrary vectors inside a component.
 ///
@@ -111,7 +185,7 @@ fn scroll_window_to_top() {
         let options = ScrollToOptions::new();
         options.set_left(0.0);
         options.set_top(0.0);
-        options.set_behavior(ScrollBehavior::Smooth);
+        options.set_behavior(ScrollBehavior::Instant);
         window.scroll_to_with_scroll_to_options(&options);
     }
 }

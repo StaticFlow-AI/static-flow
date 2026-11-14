@@ -11,8 +11,8 @@
   <meta name="googlebot" content="index,follow,max-image-preview:large" />
   <meta name="author" content="ackingliu" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
-  <meta name="theme-color" content="#0078d4" media="(prefers-color-scheme: light)" />
-  <meta name="theme-color" content="#3aa0ff" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#fafaf9" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b0d11" media="(prefers-color-scheme: dark)" />
   <link rel="canonical" href="https://acking-you.github.io/" data-sf-seo="canonical" />
 
   <meta property="og:type" content="website" />
@@ -46,197 +46,75 @@
   <!-- Compiled by the Trunk pre_build tailwind hook; rel="css" + filehash gives
        a content-hashed filename so browsers/Cloudflare never serve stale CSS -->
   <link data-trunk rel="css" href="static/styles.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-
-  <!-- Google Fonts: Fraunces for editorial headlines -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&display=swap"
-    rel="stylesheet" />
-
-  <!-- KaTeX for math rendering -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
-    integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV" crossorigin="anonymous" />
-
-  <!-- Highlight.js for syntax highlighting -->
-  <link id="hljs-light" rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css" />
-  <link id="hljs-dark" rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" disabled />
-
-  <!-- Mermaid for diagrams -->
-  <script type="module">
-    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-    window.mermaid = mermaid;
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
-    });
-  </script>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+  <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  </noscript>
 
   <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png" />
   <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png" />
   <link rel="icon" href="/static/favicon.ico" />
   <link rel="manifest" href="/static/site.webmanifest" />
-  <link rel="mask-icon" href="/static/safari-pinned-tab.svg" color="#2d96bd" />
-  <meta name="msapplication-TileColor" content="#161209" />
+  <link rel="mask-icon" href="/static/safari-pinned-tab.svg" color="#2563eb" />
+  <meta name="msapplication-TileColor" content="#0b0d11" />
   <meta name="msapplication-TileImage" content="/static/mstile-150x150.png" />
 
-  <!-- Cache WASM bytes in IndexedDB to survive HTTP/V8 code-cache eviction.
-         After long idle the browser may discard both compiled code and disk cache;
-         IndexedDB persists the raw bytes so we skip the network round-trip and let
-         V8's internal compile cache (keyed on identical bytes) accelerate startup.
-
-         Key design: use IndexedDB only when the cached bytes exactly match the
-         current WASM URL. Older builds may have compatible imports but different
-         embedded API endpoints, so an arbitrary cached module is not safe. -->
-  <script>
-    (function () {
-      var DB = 'sf-wasm-cache', STORE = 'compiled', SCHEMA = 3;
-      var log = function (msg) { console.log('[WASM-Cache] ' + msg); };
-      function normalizeUrl(url) {
-        if (!url) return '';
-        try {
-          return new URL(url, window.location.href).href;
-        } catch (_) {
-          return url;
-        }
-      }
-      function expectedWasmUrl() {
-        var link = document.querySelector('link[rel="preload"][as="fetch"][type="application/wasm"]');
-        return normalizeUrl(link && link.getAttribute('href'));
-      }
-      function openDB() {
-        return new Promise(function (ok, fail) {
-          var r = indexedDB.open(DB, SCHEMA);
-          r.onupgradeneeded = function () {
-            var db = r.result;
-            if (db.objectStoreNames.contains(STORE)) db.deleteObjectStore(STORE);
-            db.createObjectStore(STORE);
-            log('IndexedDB upgrade to v' + SCHEMA);
-          };
-          r.onsuccess = function () { ok(r.result); };
-          r.onerror = function () { fail(r.error); };
-        });
-      }
-
-      // Read cached bytes only for the WASM URL referenced by this HTML.
-      function getCache(cacheKey) {
-        if (!cacheKey) return Promise.resolve(null);
-        return openDB().then(function (db) {
-          return new Promise(function (ok) {
-            var tx = db.transaction(STORE, 'readonly');
-            var st = tx.objectStore(STORE);
-            var req = st.get(cacheKey);
-            req.onsuccess = function () {
-              var bytes = req.result;
-              ok(bytes ? { key: cacheKey, bytes: bytes } : null);
-            };
-            req.onerror = function () { ok(null); };
-          });
-        });
-      }
-
-      function storeBytes(url, bytes) {
-        var cacheKey = normalizeUrl(url);
-        if (!cacheKey) return;
-        openDB().then(function (db) {
-          var tx = db.transaction(STORE, 'readwrite');
-          var st = tx.objectStore(STORE);
-          st.clear();
-          st.put(bytes, cacheKey);
-          tx.oncomplete = function () { log('Stored ' + bytes.byteLength + ' bytes (key=' + cacheKey + ')'); };
-          tx.onerror = function () { log('Store FAILED: ' + tx.error); };
-        }).catch(function () {});
-      }
-
-      function clearCache() {
-        openDB().then(function (db) {
-          var tx = db.transaction(STORE, 'readwrite');
-          tx.objectStore(STORE).clear();
-          tx.oncomplete = function () { log('Stale cache cleared'); };
-        }).catch(function () {});
-      }
-
-      function nativeCompileAndStore(source, imports) {
-        var t1 = performance.now();
-        var resp;
-        return Promise.resolve(source)
-          .then(function (r) {
-            resp = r;
-            var cloned = r.clone();
-            return _is.call(WebAssembly, r, imports)
-              .then(function (result) {
-                log('Native instantiateStreaming OK in ' + (performance.now() - t1).toFixed(0) + 'ms');
-                cloned.arrayBuffer().then(function (bytes) {
-                  storeBytes(resp.url || '', bytes);
-                }).catch(function () {});
-                return result;
-              });
-          });
-      }
-
-      var _is = WebAssembly.instantiateStreaming;
-      if (!_is) return;
-      log('Monkey-patching WebAssembly.instantiateStreaming');
-
-      WebAssembly.instantiateStreaming = function (source, imports) {
-        // Probe IndexedDB immediately using the current build's WASM URL.
-        var cacheKey = expectedWasmUrl();
-        var cacheP = getCache(cacheKey).catch(function () { return null; });
-
-        return cacheP.then(function (cached) {
-          if (cached && cached.bytes instanceof ArrayBuffer && cached.bytes.byteLength > 0) {
-            log('IndexedDB HIT (' + cached.bytes.byteLength + ' bytes, key=' + cached.key + ')');
-            var t0 = performance.now();
-            return WebAssembly.instantiate(cached.bytes, imports)
-              .then(function (result) {
-                log('Instantiated from cache in ' + (performance.now() - t0).toFixed(0) + 'ms');
-                // Refresh bytes in the background when the response URL differs.
-                Promise.resolve(source).then(function (resp) {
-                  var url = normalizeUrl(resp && resp.url || '');
-                  if (url && url !== cached.key) {
-                    log('URL changed (' + cached.key + ' -> ' + url + '), refreshing cache');
-                    resp.arrayBuffer().then(function (b) { storeBytes(url, b); }).catch(function () {});
-                  }
-                }).catch(function () {});
-                return result;
-              })
-              .catch(function (e) {
-                // LinkError = stale bytes (imports mismatch after rebuild)
-                log('Cache stale (' + e.name + '), clearing and recompiling');
-                clearCache();
-                return nativeCompileAndStore(source, imports);
-              });
-          }
-
-          // Cache empty — fall through to fetch + native compile
-          log('IndexedDB MISS, awaiting fetch + native compile');
-          return nativeCompileAndStore(source, imports);
-        })
-        .catch(function (e) {
-          log('Cache path error, falling back: ' + e);
-          return _is.call(WebAssembly, source, imports);
-        });
-      };
-    })();
-  </script>
-
-  <!-- Trunk will compile Rust to WASM -->
-  <!-- Disable built-in wasm-opt; post_build hook runs it with correct feature flags -->
+  <!-- Trunk will compile Rust to WASM; scripts/build_frontend_selfhosted.sh runs wasm-opt -Oz -->
   <link data-trunk rel="rust" data-wasm-opt="0" />
 
   <!-- Copy entire static directory -->
   <link data-trunk rel="copy-dir" href="static" />
-  <link rel="stylesheet" href="/static/vendor/xgplayer/index.min.css" />
-  <script src="/static/vendor/xgplayer/index.min.js"></script>
-  <script src="/static/vendor/xgplayer-hls/index.min.js"></script>
-  <script src="/static/local_media_player_bridge.js"></script>
 
   <script>
-    // Theme bootstrap: set initial theme from localStorage or prefers-color-scheme
+    // Theme bootstrap + lazy vendor asset loader (Highlight.js, KaTeX, Mermaid, xgplayer)
     (function () {
+      var scriptPromises = Object.create(null);
+      var stylePromises = Object.create(null);
+
+      window.__sfLoadStyle = function (id, href, disabled) {
+        var existing = id ? document.getElementById(id) : null;
+        if (existing) {
+          if (typeof disabled === 'boolean') existing.disabled = disabled;
+          return Promise.resolve(existing);
+        }
+        if (stylePromises[href]) return stylePromises[href];
+        stylePromises[href] = new Promise(function (resolve, reject) {
+          var link = document.createElement('link');
+          if (id) link.id = id;
+          link.rel = 'stylesheet';
+          link.href = href;
+          link.crossOrigin = 'anonymous';
+          if (typeof disabled === 'boolean') link.disabled = disabled;
+          link.onload = function () { resolve(link); };
+          link.onerror = function (err) {
+            delete stylePromises[href];
+            reject(err);
+          };
+          document.head.appendChild(link);
+        });
+        return stylePromises[href];
+      };
+
+      window.__sfLoadScript = function (src) {
+        if (scriptPromises[src]) return scriptPromises[src];
+        scriptPromises[src] = new Promise(function (resolve, reject) {
+          var script = document.createElement('script');
+          script.src = src;
+          script.async = false;
+          script.crossOrigin = 'anonymous';
+          script.onload = function () { resolve(); };
+          script.onerror = function (err) {
+            delete scriptPromises[src];
+            reject(err);
+          };
+          document.head.appendChild(script);
+        });
+        return scriptPromises[src];
+      };
+
       var setHighlightTheme = function (theme) {
         var lightTheme = document.getElementById('hljs-light');
         var darkTheme = document.getElementById('hljs-dark');
@@ -244,6 +122,7 @@
         if (lightTheme) lightTheme.disabled = useDark;
         if (darkTheme) darkTheme.disabled = !useDark;
       };
+      window.__sfSyncHighlightTheme = setHighlightTheme;
 
       try {
         var stored = localStorage.getItem('theme');
@@ -251,17 +130,158 @@
         var theme = stored || (prefersDark ? 'dark' : 'light');
         document.documentElement.setAttribute('data-theme', theme);
         setHighlightTheme(theme);
-        // expose a tiny toggle helper for quick demos
         window.__toggleTheme = function () {
           var current = document.documentElement.getAttribute('data-theme') || 'light';
           var next = current === 'dark' ? 'light' : 'dark';
           document.documentElement.setAttribute('data-theme', next);
           setHighlightTheme(next);
+          if (window.mermaid && typeof window.mermaid.initialize === 'function') {
+            try {
+              window.mermaid.initialize({
+                startOnLoad: false,
+                theme: next === 'dark' ? 'dark' : 'default'
+              });
+            } catch (_) { }
+          }
           try { localStorage.setItem('theme', next); } catch (_) { }
         };
-      } catch (_) {
-        // noop
-      }
+      } catch (_) { }
+
+      var hljsReady = null;
+      var extraLangMap = {
+        rust: 'rust',
+        toml: 'ini',
+        dockerfile: 'dockerfile',
+        protobuf: 'protobuf'
+      };
+      window.__sfEnsureHighlightJs = function (codeBlocks) {
+        var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        window.__sfLoadStyle(
+          'hljs-light',
+          'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css',
+          isDark
+        ).catch(function () { });
+        window.__sfLoadStyle(
+          'hljs-dark',
+          'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css',
+          !isDark
+        ).catch(function () { });
+
+        if (!hljsReady) {
+          hljsReady = window.__sfLoadScript(
+            'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js'
+          ).catch(function (err) {
+            hljsReady = null;
+            throw err;
+          });
+        }
+
+        return hljsReady.then(function () {
+          setHighlightTheme(document.documentElement.getAttribute('data-theme') || 'light');
+          if (!window.hljs || !Array.isArray(codeBlocks)) return;
+          var missing = [];
+          codeBlocks.forEach(function (block) {
+            var cls = Array.from(block.classList || []).find(function (c) {
+              return c.indexOf('language-') === 0;
+            });
+            if (!cls) return;
+            var rawLang = cls.slice('language-'.length).toLowerCase();
+            if (!rawLang || rawLang === 'plaintext' || rawLang === 'text' || rawLang === 'mermaid') return;
+            if (!window.hljs.getLanguage(rawLang)) {
+              var mapped = extraLangMap[rawLang] || rawLang;
+              if (/^[a-z0-9_-]+$/.test(mapped) && missing.indexOf(mapped) === -1) {
+                missing.push(mapped);
+              }
+            }
+          });
+          if (missing.length === 0) return;
+          return Promise.all(missing.map(function (lang) {
+            return window.__sfLoadScript(
+              'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/' + lang + '.min.js'
+            ).catch(function () { });
+          }));
+        });
+      };
+
+      var katexReady = null;
+      window.__sfEnsureKatex = function () {
+        if (window.renderMathInElement) return Promise.resolve();
+        if (katexReady) return katexReady;
+        katexReady = Promise.all([
+          window.__sfLoadStyle(
+            'sf-katex-css',
+            'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css'
+          ),
+          window.__sfLoadScript('https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js')
+        ]).then(function () {
+          return window.__sfLoadScript(
+            'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js'
+          );
+        }).catch(function (err) {
+          katexReady = null;
+          throw err;
+        });
+        return katexReady;
+      };
+
+      var mermaidReady = null;
+      window.__sfEnsureMermaid = function () {
+        if (window.mermaid) return Promise.resolve(window.mermaid);
+        if (mermaidReady) return mermaidReady;
+        mermaidReady = import('https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs')
+          .then(function (mod) {
+            var mermaid = mod.default || mod;
+            window.mermaid = mermaid;
+            mermaid.initialize({
+              startOnLoad: false,
+              theme: document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+            });
+            return mermaid;
+          })
+          .catch(function (err) {
+            mermaidReady = null;
+            throw err;
+          });
+        return mermaidReady;
+      };
+
+      var localMediaReady = null;
+      window.__sfEnsureLocalMediaPlayer = function () {
+        if (window.sfLocalMediaPlayerMount && window.Player) return Promise.resolve();
+        if (localMediaReady) return localMediaReady;
+        localMediaReady = Promise.all([
+          window.__sfLoadStyle('sf-xgplayer-css', '/static/vendor/xgplayer/index.min.css'),
+          window.__sfLoadScript('/static/vendor/xgplayer/index.min.js')
+        ]).then(function () {
+          return window.__sfLoadScript('/static/vendor/xgplayer-hls/index.min.js');
+        }).then(function () {
+          return window.__sfLoadScript('/static/local_media_player_bridge.js');
+        }).catch(function (err) {
+          localMediaReady = null;
+          throw err;
+        });
+        return localMediaReady;
+      };
+
+      window.sfLocalMediaPlayerMountLazy = function (element, url, mode, title, storageKey) {
+        if (!element) return;
+        element.__sfLazyUnmounted = false;
+        window.__sfEnsureLocalMediaPlayer().then(function () {
+          if (element.__sfLazyUnmounted || !element.isConnected) return;
+          if (typeof window.sfLocalMediaPlayerMount === 'function') {
+            window.sfLocalMediaPlayerMount(element, url, mode, title, storageKey);
+          }
+        }).catch(function (err) {
+          console.error('[LocalMediaPlayer] Failed to load assets:', err);
+        });
+      };
+
+      window.sfLocalMediaPlayerUnmountLazy = function (element) {
+        if (element) element.__sfLazyUnmounted = true;
+        if (typeof window.sfLocalMediaPlayerUnmount === 'function') {
+          window.sfLocalMediaPlayerUnmount(element);
+        }
+      };
     })();
   </script>
 </head>
@@ -270,9 +290,9 @@
   <!-- WASM app will render here -->
   <noscript>本应用需要启用 JavaScript。</noscript>
 
-  <!-- Loading indicator shown while WASM compiles; removed once app mounts -->
+  <!-- Minimalist editorial loading shell; matches CSS theme tokens with zero flash -->
   <div id="sf-loading"
-    style="position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg,#fafafa);transition:opacity .3s ease">
+    style="position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fafaf9;transition:opacity .18s ease-out">
     <style>
       @keyframes sf-spin {
         to {
@@ -281,90 +301,55 @@
       }
 
       #sf-loading-ring {
-        width: 40px;
-        height: 40px;
-        border: 3px solid #e5e7eb;
-        border-top-color: #0078d4;
+        width: 28px;
+        height: 28px;
+        border: 2px solid #e4e4e7;
+        border-top-color: #2563eb;
         border-radius: 50%;
-        animation: sf-spin .8s linear infinite
+        animation: sf-spin .7s linear infinite
       }
 
       #sf-loading-main {
-        margin-top: 16px;
-        font: 600 15px/1.2 system-ui, sans-serif;
-        color: var(--text, #1f2937);
+        margin-top: 14px;
+        font: 500 13.5px/1.3 -apple-system, BlinkMacSystemFont, "Inter", "PingFang SC", system-ui, sans-serif;
+        color: #18181b;
         letter-spacing: .01em
       }
 
-      #sf-loading-sub {
-        margin-top: 6px;
-        font: 400 12.5px/1.4 system-ui, sans-serif;
-        color: #9ca3af;
-        max-width: 300px;
-        text-align: center
-      }
-
-      #sf-loading-hint {
-        margin-top: 14px;
-        font: 400 11.5px/1.3 system-ui, sans-serif;
-        color: #b0b8c4;
-        max-width: 320px;
-        text-align: center
-      }
-
       [data-theme="dark"] #sf-loading {
-        background: #0d1117
+        background: #0b0d11 !important
       }
 
       [data-theme="dark"] #sf-loading-ring {
-        border-color: #30363d;
-        border-top-color: #58a6ff
+        border-color: #262b38;
+        border-top-color: #60a5fa
       }
 
       [data-theme="dark"] #sf-loading-main {
-        color: #e6edf3
-      }
-
-      [data-theme="dark"] #sf-loading-sub {
-        color: #8b949e
-      }
-
-      [data-theme="dark"] #sf-loading-hint {
-        color: #6e7681
+        color: #f4f4f5
       }
     </style>
     <div id="sf-loading-ring"></div>
-    <div id="sf-loading-main">正在初始化 WebAssembly 引擎…</div>
-    <div id="sf-loading-sub">首次编译原生模块可能需要数秒</div>
-    <div id="sf-loading-hint">就绪后，页面交互将以接近原生的速度运行</div>
+    <div id="sf-loading-main">StaticFlow</div>
   </div>
   <script>
     addEventListener('TrunkApplicationStarted', function () {
       var el = document.getElementById('sf-loading');
-      if (el) { el.style.opacity = '0'; setTimeout(function () { el.remove(); }, 320); }
+      if (el) {
+        el.style.opacity = '0';
+        el.style.pointerEvents = 'none';
+        setTimeout(function () { el.remove(); }, 200);
+      }
+      // Reclaim legacy IndexedDB WASM cache storage in idle time
+      setTimeout(function () {
+        try {
+          if (window.indexedDB && typeof indexedDB.deleteDatabase === 'function') {
+            indexedDB.deleteDatabase('sf-wasm-cache');
+          }
+        } catch (_) { }
+      }, 3000);
     });
   </script>
-
-  <!-- KaTeX and Highlight.js scripts -->
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
-    integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8"
-    crossorigin="anonymous"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
-    integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05"
-    crossorigin="anonymous"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-
-  <!-- Common languages for highlight.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/rust.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/typescript.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/yaml.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/toml.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/sql.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/markdown.min.js"></script>
 
   <script>
     function slugifyHeadingText(text) {
@@ -616,12 +601,23 @@
         pre.replaceWith(mermaidDiv);
       });
 
-      // Syntax highlighting for code blocks (skip mermaid)
-      articleContent.querySelectorAll('pre code:not(.language-mermaid)').forEach((block) => {
-        hljs.highlightElement(block);
-      });
+      // Syntax highlighting for code blocks (lazy-loads Highlight.js on demand)
+      const codeBlocks = Array.from(articleContent.querySelectorAll('pre code:not(.language-mermaid)'));
+      finalizeCodeEnhancements();
+      if (codeBlocks.length > 0 && typeof window.__sfEnsureHighlightJs === 'function') {
+        window.__sfEnsureHighlightJs(codeBlocks)
+          .then(() => {
+            if (!window.hljs) return;
+            codeBlocks.forEach((block) => {
+              if (block.isConnected && !block.dataset.highlighted) {
+                window.hljs.highlightElement(block);
+              }
+            });
+          })
+          .catch(() => {});
+      }
 
-      // Render Mermaid diagrams
+      // Render Mermaid diagrams (lazy-loads Mermaid ESM only when diagrams exist)
       articleContent.querySelectorAll('.mermaid').forEach((node) => {
         // Existing rendered diagrams should not be parsed again.
         if (node.querySelector('svg')) {
@@ -642,9 +638,9 @@
         markMermaidPending(node);
         return true;
       });
-      if (window.mermaid && mermaidNodes.length > 0) {
-        Promise.resolve()
-          .then(async () => {
+      if (mermaidNodes.length > 0 && typeof window.__sfEnsureMermaid === 'function') {
+        window.__sfEnsureMermaid()
+          .then(async (mermaid) => {
             const validNodes = [];
             for (const node of mermaidNodes) {
               const source = node.dataset.sfMermaidSource || normalizeMermaidDefinition(node.textContent || '');
@@ -652,9 +648,9 @@
               node.textContent = source;
               markMermaidPending(node);
 
-              if (typeof window.mermaid.parse === 'function') {
+              if (typeof mermaid.parse === 'function') {
                 try {
-                  await window.mermaid.parse(source);
+                  await mermaid.parse(source);
                   validNodes.push(node);
                 } catch (_) {
                   node.dataset.sfMermaidRendered = 'true';
@@ -665,15 +661,15 @@
                 validNodes.push(node);
               }
             }
-            return validNodes;
+            return { mermaid, validNodes };
           })
-          .then((validNodes) => {
-            if (!validNodes || validNodes.length === 0) return;
-            return window.mermaid.run({
-              nodes: validNodes,
+          .then((ctx) => {
+            if (!ctx || !ctx.validNodes || ctx.validNodes.length === 0) return;
+            return ctx.mermaid.run({
+              nodes: ctx.validNodes,
               suppressErrors: true
             }).then(() => {
-              validNodes.forEach((node) => {
+              ctx.validNodes.forEach((node) => {
                 const renderedText = String(node.textContent || '').toLowerCase();
                 if (renderedText.includes('syntax error in text')) {
                   const source = node.dataset.sfMermaidSource || '';
@@ -696,35 +692,34 @@
             });
           })
           .finally(() => {
-            // Add copy buttons to mermaid diagrams after rendering
             addCopyButtonsToMermaid(articleContent);
             finalizeCodeEnhancements();
           });
       } else {
-        if (mermaidNodes.length > 0) {
-          mermaidNodes.forEach((node) => {
-            const source = node.dataset.sfMermaidSource || normalizeMermaidDefinition(node.textContent || '');
-            node.dataset.sfMermaidRendered = 'true';
-            clearMermaidPending(node);
-            replaceMermaidWithCodeBlock(node, source);
-          });
-        }
         addCopyButtonsToMermaid(articleContent);
         finalizeCodeEnhancements();
       }
 
-      // Math formula rendering with KaTeX
-      if (window.renderMathInElement) {
-        renderMathInElement(articleContent, {
-          delimiters: [
-            { left: '$$', right: '$$', display: true },
-            { left: '$', right: '$', display: false },
-            { left: '\\[', right: '\\]', display: true },
-            { left: '\\(', right: '\\)', display: false }
-          ],
-          throwOnError: false,
-          strict: false
-        });
+      // Math formula rendering with KaTeX (lazy-loads KaTeX only when math exists)
+      const hasMath =
+        Boolean(articleContent.querySelector('.sf-math-block, .math, [data-math]')) ||
+        /(\$\$|\\\[|\\\(|(^|[^\\])\$[^\s$])/.test(articleContent.textContent || '');
+      if (hasMath && typeof window.__sfEnsureKatex === 'function') {
+        window.__sfEnsureKatex()
+          .then(() => {
+            if (!articleContent.isConnected || !window.renderMathInElement) return;
+            window.renderMathInElement(articleContent, {
+              delimiters: [
+                { left: '$$', right: '$$', display: true },
+                { left: '$', right: '$', display: false },
+                { left: '\\[', right: '\\]', display: true },
+                { left: '\\(', right: '\\)', display: false }
+              ],
+              throwOnError: false,
+              strict: false
+            });
+          })
+          .catch(() => {});
       }
 
       // Improve markdown wide-content UX on small screens and dense layouts

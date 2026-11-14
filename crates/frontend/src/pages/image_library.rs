@@ -191,13 +191,14 @@ pub fn image_library_page() -> Html {
     let should_show_pagination = query_active || *display_mode == LibraryDisplayMode::AllImages;
 
     html! {
-        <div class="max-w-7xl mx-auto px-4 py-8">
-            <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+            <header class="sf-page-hero flex flex-wrap items-end justify-between gap-4">
                 <div>
-                    <h1 class="text-3xl font-bold text-[var(--text)]" style="font-family: 'Fraunces', serif;">
+                    <div class="sf-eyebrow">{ "VISUAL ARCHIVE" }</div>
+                    <h1 class="sf-page-title">
                         { t::TITLE }
                     </h1>
-                    <p class="text-[var(--muted)] mt-1">
+                    <p class="sf-page-sub">
                         { t::SUBTITLE }
                     </p>
                 </div>
@@ -217,7 +218,7 @@ pub fn image_library_page() -> Html {
                         { t::BTN_VIDEO_LIBRARY }
                     </Link<Route>>
                 </div>
-            </div>
+            </header>
 
             <div class="mb-5 flex flex-wrap items-center gap-2">
                 <button

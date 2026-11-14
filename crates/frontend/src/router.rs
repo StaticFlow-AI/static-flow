@@ -335,6 +335,28 @@ pub enum Route {
     NotFound,
 }
 
+/// Default `/admin/{llm,kiro}-gateway*` routes are handoff pages into
+/// `deps/llm-access/apps/llm-access-frontend`. The legacy Yew admin modules are
+/// compiled and mounted only when built with `--features legacy-llm-admin` (or
+/// `STATICFLOW_ENABLE_LEGACY_LLM_ADMIN=1` via
+/// `scripts/build_frontend_selfhosted.sh`).
+macro_rules! migrated_llm_admin_route {
+    ($destination:expr, $workspace:expr, $legacy_component:path) => {{
+        #[cfg(feature = "legacy-llm-admin")]
+        {
+            if option_env!("STATICFLOW_ENABLE_LEGACY_LLM_ADMIN") != Some("0") {
+                return html! { <$legacy_component /> };
+            }
+        }
+        html! {
+            <pages::admin_llm_access_handoff::AdminLlmAccessHandoffPage
+                destination={$destination}
+                workspace={$workspace}
+            />
+        }
+    }};
+}
+
 fn switch(route: Route) -> Html {
     match route {
         Route::Home => html! { <pages::home::HomePage /> },
@@ -377,94 +399,96 @@ fn switch(route: Route) -> Html {
         },
         Route::KiroAccess => html! { <pages::kiro_access::KiroAccessPage /> },
         Route::Admin => html! { <pages::admin::AdminPage /> },
-        Route::AdminLlmGateway => migrated_llm_admin("/console", "LLM Gateway", || {
-            html! { <pages::admin_llm_gateway::AdminLlmGatewayPage /> }
-        }),
-        Route::AdminLlmGatewayKeys => {
-            migrated_llm_admin("/console/codex/keys", "Codex Keys", || {
-                html! { <pages::admin_llm_gateway_keys::AdminLlmGatewayKeysPage /> }
-            })
-        },
-        Route::AdminLlmGatewayGroups => {
-            migrated_llm_admin("/console/codex/groups", "Codex 账号组", || {
-                html! { <pages::admin_llm_gateway_groups::AdminLlmGatewayGroupsPage /> }
-            })
-        },
-        Route::AdminLlmGatewayAccounts => {
-            migrated_llm_admin("/console/codex/accounts", "Codex 账号池", || {
-                html! { <pages::admin_llm_gateway_accounts::AdminLlmGatewayAccountsPage /> }
-            })
-        },
-        Route::AdminLlmGatewayUsage => {
-            migrated_llm_admin("/console/usage/codex", "Codex 用量", || {
-                html! { <pages::admin_llm_gateway_usage::AdminLlmGatewayUsagePage /> }
-            })
-        },
-        Route::AdminLlmGatewayJournal => {
-            migrated_llm_admin("/console/journal", "Usage Journal", || {
-                html! { <pages::admin_llm_gateway_journal::AdminLlmGatewayJournalPage /> }
-            })
-        },
-        Route::AdminLlmGatewayRequests => {
-            migrated_llm_admin("/console/codex/requests", "LLM 申请审核", || {
-                html! { <pages::admin_llm_gateway_requests::AdminLlmGatewayRequestsPage /> }
-            })
-        },
-        Route::AdminLlmGatewaySettings => migrated_llm_admin(
+        Route::AdminLlmGateway => migrated_llm_admin_route!(
+            "/console",
+            "LLM Gateway",
+            pages::admin_llm_gateway::AdminLlmGatewayPage
+        ),
+        Route::AdminLlmGatewayKeys => migrated_llm_admin_route!(
+            "/console/codex/keys",
+            "Codex Keys",
+            pages::admin_llm_gateway_keys::AdminLlmGatewayKeysPage
+        ),
+        Route::AdminLlmGatewayGroups => migrated_llm_admin_route!(
+            "/console/codex/groups",
+            "Codex 账号组",
+            pages::admin_llm_gateway_groups::AdminLlmGatewayGroupsPage
+        ),
+        Route::AdminLlmGatewayAccounts => migrated_llm_admin_route!(
+            "/console/codex/accounts",
+            "Codex 账号池",
+            pages::admin_llm_gateway_accounts::AdminLlmGatewayAccountsPage
+        ),
+        Route::AdminLlmGatewayUsage => migrated_llm_admin_route!(
+            "/console/usage/codex",
+            "Codex 用量",
+            pages::admin_llm_gateway_usage::AdminLlmGatewayUsagePage
+        ),
+        Route::AdminLlmGatewayJournal => migrated_llm_admin_route!(
+            "/console/journal",
+            "Usage Journal",
+            pages::admin_llm_gateway_journal::AdminLlmGatewayJournalPage
+        ),
+        Route::AdminLlmGatewayRequests => migrated_llm_admin_route!(
+            "/console/codex/requests",
+            "LLM 申请审核",
+            pages::admin_llm_gateway_requests::AdminLlmGatewayRequestsPage
+        ),
+        Route::AdminLlmGatewaySettings => migrated_llm_admin_route!(
             "/console/system/runtime",
             "llm-access 运行时配置",
-            || html! { <pages::admin_llm_gateway_settings::AdminLlmGatewaySettingsPage /> },
+            pages::admin_llm_gateway_settings::AdminLlmGatewaySettingsPage
         ),
-        Route::AdminLlmGatewayMonitor => {
-            migrated_llm_admin("/console/observability", "LLM 运行监控", || {
-                html! { <pages::admin_llm_gateway_monitor::AdminLlmGatewayMonitorPage /> }
-            })
-        },
-        Route::AdminLlmGatewayModeration => {
-            migrated_llm_admin("/console/policy/moderation", "LLM 审核策略", || {
-                html! { <pages::admin_moderation::AdminModerationPage /> }
-            })
-        },
-        Route::AdminKiroGateway => {
-            migrated_llm_admin("/console/kiro/runtime", "Kiro Gateway", || {
-                html! { <pages::admin_kiro_gateway::AdminKiroGatewayPage /> }
-            })
-        },
-        Route::AdminKiroGatewayAccountsManage => {
-            migrated_llm_admin("/console/kiro/accounts", "Kiro 账号池", || {
-                html! { <pages::admin_kiro_gateway_accounts::AdminKiroGatewayAccountsPage /> }
-            })
-        },
-        Route::AdminKiroGatewayKeys => {
-            migrated_llm_admin("/console/kiro/keys", "Kiro Keys", || {
-                html! { <pages::admin_kiro_gateway_keys::AdminKiroGatewayKeysPage /> }
-            })
-        },
-        Route::AdminKiroGatewayModels => {
-            migrated_llm_admin("/console/kiro/models", "Kiro 模型目录", || {
-                html! { <pages::admin_kiro_gateway_models::AdminKiroGatewayModelsPage /> }
-            })
-        },
-        Route::AdminKiroGatewayGroups => {
-            migrated_llm_admin("/console/kiro/groups", "Kiro 账号组", || {
-                html! { <pages::admin_kiro_gateway_groups::AdminKiroGatewayGroupsPage /> }
-            })
-        },
-        Route::AdminKiroGatewayUsage => {
-            migrated_llm_admin("/console/usage/kiro", "Kiro 用量", || {
-                html! { <pages::admin_kiro_gateway_usage::AdminKiroGatewayUsagePage /> }
-            })
-        },
-        Route::AdminKiroAnthropicUpstreams => {
-            migrated_llm_admin("/console/kiro/upstreams", "Anthropic 上游通道", || {
-                html! { <pages::admin_kiro_anthropic_upstreams::AdminKiroAnthropicUpstreamsPage /> }
-            })
-        },
-        Route::AdminKiroAccountStatus => {
-            migrated_llm_admin("/console/kiro/health", "Kiro 账号健康", || {
-                html! { <pages::admin_kiro_account_status::AdminKiroAccountStatusPage /> }
-            })
-        },
+        Route::AdminLlmGatewayMonitor => migrated_llm_admin_route!(
+            "/console/observability",
+            "LLM 运行监控",
+            pages::admin_llm_gateway_monitor::AdminLlmGatewayMonitorPage
+        ),
+        Route::AdminLlmGatewayModeration => migrated_llm_admin_route!(
+            "/console/policy/moderation",
+            "LLM 审核策略",
+            pages::admin_moderation::AdminModerationPage
+        ),
+        Route::AdminKiroGateway => migrated_llm_admin_route!(
+            "/console/kiro/runtime",
+            "Kiro Gateway",
+            pages::admin_kiro_gateway::AdminKiroGatewayPage
+        ),
+        Route::AdminKiroGatewayAccountsManage => migrated_llm_admin_route!(
+            "/console/kiro/accounts",
+            "Kiro 账号池",
+            pages::admin_kiro_gateway_accounts::AdminKiroGatewayAccountsPage
+        ),
+        Route::AdminKiroGatewayKeys => migrated_llm_admin_route!(
+            "/console/kiro/keys",
+            "Kiro Keys",
+            pages::admin_kiro_gateway_keys::AdminKiroGatewayKeysPage
+        ),
+        Route::AdminKiroGatewayModels => migrated_llm_admin_route!(
+            "/console/kiro/models",
+            "Kiro 模型目录",
+            pages::admin_kiro_gateway_models::AdminKiroGatewayModelsPage
+        ),
+        Route::AdminKiroGatewayGroups => migrated_llm_admin_route!(
+            "/console/kiro/groups",
+            "Kiro 账号组",
+            pages::admin_kiro_gateway_groups::AdminKiroGatewayGroupsPage
+        ),
+        Route::AdminKiroGatewayUsage => migrated_llm_admin_route!(
+            "/console/usage/kiro",
+            "Kiro 用量",
+            pages::admin_kiro_gateway_usage::AdminKiroGatewayUsagePage
+        ),
+        Route::AdminKiroAnthropicUpstreams => migrated_llm_admin_route!(
+            "/console/kiro/upstreams",
+            "Anthropic 上游通道",
+            pages::admin_kiro_anthropic_upstreams::AdminKiroAnthropicUpstreamsPage
+        ),
+        Route::AdminKiroAccountStatus => migrated_llm_admin_route!(
+            "/console/kiro/health",
+            "Kiro 账号健康",
+            pages::admin_kiro_account_status::AdminKiroAccountStatusPage
+        ),
         Route::AdminGpt2ApiRs => html! { <pages::admin_gpt2api_rs::AdminGpt2ApiRsPage /> },
         Route::AdminCommentRuns {
             task_id,
@@ -494,25 +518,6 @@ fn switch(route: Route) -> Html {
             id,
         } => html! { <pages::music_player::MusicPlayerPage id={id} /> },
         Route::NotFound => html! { <pages::not_found::NotFoundPage /> },
-    }
-}
-
-/// Default `/admin/{llm,kiro}-gateway*` routes are handoff pages into
-/// `deps/llm-access/apps/llm-access-frontend`. The Yew admin is mounted only
-/// when the frontend is built with `STATICFLOW_ENABLE_LEGACY_LLM_ADMIN=1`.
-fn migrated_llm_admin<F>(destination: &'static str, workspace: &'static str, legacy: F) -> Html
-where
-    F: FnOnce() -> Html,
-{
-    if option_env!("STATICFLOW_ENABLE_LEGACY_LLM_ADMIN") == Some("1") {
-        legacy()
-    } else {
-        html! {
-            <pages::admin_llm_access_handoff::AdminLlmAccessHandoffPage
-                destination={destination}
-                workspace={workspace}
-            />
-        }
     }
 }
 

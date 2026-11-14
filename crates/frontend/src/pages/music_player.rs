@@ -587,7 +587,7 @@ pub fn music_player_page(props: &Props) -> Html {
                         />
                     }
                 </div>
-                <h1 class="text-2xl sm:text-3xl font-bold text-[var(--text)] text-center mb-1" style="font-family: 'Fraunces', serif;">{&detail.title}</h1>
+                <h1 class="text-2xl sm:text-3xl font-bold text-[var(--text)] text-center mb-1" style="font-family: var(--font-sans);">{&detail.title}</h1>
                 <div class="flex items-center gap-2 text-[var(--muted)] text-sm mb-1">
                     <a href="#" onclick={on_artist_nav}
                         class="hover:text-[var(--primary)] transition-colors cursor-pointer">{&detail.artist}</a>
@@ -859,7 +859,7 @@ fn render_candidate_card(c: &api::SongSearchResult) -> Html {
                 </div>
             </div>
             <div class="p-2">
-                <p class="text-xs font-semibold text-[var(--text)] truncate" style="font-family: 'Fraunces', serif;">{&c.title}</p>
+                <p class="text-xs font-semibold text-[var(--text)] truncate" style="font-family: var(--font-sans);">{&c.title}</p>
                 <p class="text-[10px] text-[var(--muted)] truncate">{&c.artist}</p>
             </div>
         </Link<Route>>

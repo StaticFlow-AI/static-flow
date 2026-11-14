@@ -1,3 +1,13 @@
+#![cfg_attr(
+    not(feature = "legacy-llm-admin"),
+    allow(
+        dead_code,
+        unused_imports,
+        reason = "Admin-only API helpers and re-exports are only referenced when built with \
+                  --features legacy-llm-admin; LTO strips unreferenced symbols in default builds."
+    )
+)]
+
 use std::collections::BTreeMap;
 
 #[cfg(not(feature = "mock"))]

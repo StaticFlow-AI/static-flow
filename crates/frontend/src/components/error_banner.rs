@@ -1,7 +1,6 @@
 use yew::{prelude::*, use_effect_with};
-use yew_hooks::prelude::use_timeout;
 
-use crate::i18n::current::error_banner as t;
+use crate::{hooks::use_timeout, i18n::current::error_banner as t};
 
 #[allow(
     dead_code,

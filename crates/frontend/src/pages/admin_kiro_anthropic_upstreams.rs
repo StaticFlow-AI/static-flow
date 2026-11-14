@@ -929,9 +929,9 @@ pub fn admin_kiro_anthropic_upstreams_page() -> Html {
                                                     html! { <option value="">{ "Refresh to select model" }</option> }
                                                 } else {
                                                     html! {
-                                                        for channel.models.iter().map(|model| html! {
+                                                        { for channel.models.iter().map(|model| html! {
                                                             <option value={model.clone()} selected={*model == selected_model}>{ model.clone() }</option>
-                                                        })
+                                                        }) }
                                                     }
                                                 }
                                             }

@@ -13,6 +13,33 @@ use crate::{
     router::Route,
 };
 
+fn is_nav_active(current: Option<&Route>, target: &Route) -> bool {
+    let Some(current) = current else {
+        return false;
+    };
+    match target {
+        Route::LatestArticles => matches!(current, Route::LatestArticles),
+        Route::Posts => matches!(
+            current,
+            Route::Posts
+                | Route::ArticleDetail { .. }
+                | Route::ArticleInteractive { .. }
+                | Route::ArticleRaw { .. }
+        ),
+        Route::Tags => matches!(current, Route::Tags | Route::TagDetail { .. }),
+        Route::Categories => {
+            matches!(current, Route::Categories | Route::CategoryDetail { .. })
+        },
+        Route::MediaAudio => matches!(current, Route::MediaAudio | Route::MusicPlayer { .. }),
+        Route::MediaImage => matches!(current, Route::MediaImage | Route::MediaVideo),
+        Route::LlmAccess => matches!(
+            current,
+            Route::LlmAccess | Route::LlmAccessGuide | Route::LlmAccessUsage | Route::KiroAccess
+        ),
+        _ => current == target,
+    }
+}
+
 #[function_component(Header)]
 pub fn header() -> Html {
     let mobile_menu_open = use_state(|| false);
@@ -60,7 +87,6 @@ pub fn header() -> Html {
         Callback::from(move |_| search_query.set(String::new()))
     };
 
-    // 执行搜索
     let do_search = {
         let search_query = search_query.clone();
         let route = route.clone();
@@ -70,104 +96,21 @@ pub fn header() -> Html {
             if !query.is_empty() {
                 let encoded_query = urlencoding::encode(query);
                 let search_url = build_search_url(route.clone(), location.clone(), &encoded_query);
-                if let Some(window) = web_sys::window() {
-                    if let Ok(history) = window.history() {
-                        let _ = history.push_state_with_url(
-                            &wasm_bindgen::JsValue::NULL,
-                            "",
-                            Some(&search_url),
-                        );
-                        if let Ok(event) = web_sys::Event::new("popstate") {
-                            let _ = window.dispatch_event(&event);
-                        }
-                    }
-                }
+                let _ = crate::navigation_context::navigate_spa_to(&search_url);
             }
         })
     };
 
-    // Enter键搜索
-    let mobile_menu_classes = classes!(
-        "fixed",
-        "inset-0",
-        "z-[120]",
-        "transition-opacity",
-        "duration-300",
-        "ease-[var(--ease-spring)]",
-        if *mobile_menu_open {
-            "opacity-100 pointer-events-auto"
-        } else {
-            "opacity-0 pointer-events-none"
-        }
-    );
-
-    let mobile_panel_classes = classes!(
-        "absolute",
-        "inset-0",
-        "bg-[var(--acrylic-bg-light)]",
-        "dark:bg-[var(--acrylic-bg-dark)]",
-        "text-[var(--text)]",
-        "px-6",
-        "pb-8",
-        "flex",
-        "flex-col",
-        "gap-5",
-        "overflow-y-auto",
-        "[backdrop-filter:blur(50px)_saturate(var(--acrylic-saturate))]",
-        "shadow-[var(--shadow-16)]",
-        "rounded-tr-lg",
-        "rounded-br-lg",
-        "transition-all",
-        "duration-[350ms]",
-        "ease-[var(--ease-spring)]",
-        if *mobile_menu_open { "translate-y-0 opacity-100" } else { "-translate-y-4 opacity-0" }
-    );
-
-    let hamburger_classes = classes!(
-        "w-12",
-        "h-12",
-        "min-w-[3rem]",
-        "min-h-[3rem]",
-        "border",
-        "border-[var(--border)]",
-        "rounded-lg",
-        "bg-[var(--surface)]",
-        "text-[var(--text)]",
-        "flex",
-        "flex-col",
-        "justify-center",
-        "items-center",
-        "gap-[0.35rem]",
-        "cursor-pointer",
-        "transition-colors",
-        "duration-100",
-        "ease-[var(--ease-snap)]",
-        "hover:bg-[var(--surface-alt)]"
-    );
-
-    let hamburger_line = classes!(
-        "block",
-        "w-[1.4rem]",
-        "h-[2px]",
-        "rounded-[1px]",
-        "bg-[var(--text)]",
-        "transition-all",
-        "duration-200",
-        "ease-in-out"
-    );
-
-    // Icon-based navigation
     let nav_items = [
-        (t::NAV_LATEST, Route::LatestArticles, "fa-clock"),
-        (t::NAV_POSTS, Route::Posts, "fa-file-lines"),
-        (t::NAV_TAGS, Route::Tags, "fa-tag"),
+        (t::NAV_LATEST, Route::LatestArticles, "fa-bolt"),
+        (t::NAV_POSTS, Route::Posts, "fa-book-open"),
         (t::NAV_CATEGORIES, Route::Categories, "fa-folder-open"),
-        (t::NAV_MUSIC, Route::MediaAudio, "fa-music"),
+        (t::NAV_TAGS, Route::Tags, "fa-hashtag"),
+        (t::NAV_MUSIC, Route::MediaAudio, "fa-headphones"),
+        (t::IMAGE_LIBRARY_TITLE, Route::MediaImage, "fa-image"),
         (t::NAV_LLM, Route::LlmAccess, "fa-key"),
     ];
 
-    // Mobile search submits through the shared SearchSuggest (live results);
-    // navigate to /search and close the menu.
     let mobile_search_submit = {
         let route = route.clone();
         let location = location.clone();
@@ -177,96 +120,120 @@ pub fn header() -> Html {
             if !query.is_empty() {
                 let encoded_query = urlencoding::encode(query);
                 let search_url = build_search_url(route.clone(), location.clone(), &encoded_query);
-                if let Some(window) = web_sys::window() {
-                    if let Ok(history) = window.history() {
-                        let _ = history.push_state_with_url(
-                            &wasm_bindgen::JsValue::NULL,
-                            "",
-                            Some(&search_url),
-                        );
-                        if let Ok(event) = web_sys::Event::new("popstate") {
-                            let _ = window.dispatch_event(&event);
-                        }
-                    }
-                }
+                let _ = crate::navigation_context::navigate_spa_to(&search_url);
                 mobile_menu_open.set(false);
             }
         })
     };
     let mobile_clear_search = clear_search.clone();
 
+    let mobile_menu_classes = classes!(
+        "fixed",
+        "inset-0",
+        "z-[120]",
+        "transition-opacity",
+        "duration-200",
+        if *mobile_menu_open {
+            "opacity-100 pointer-events-auto"
+        } else {
+            "opacity-0 pointer-events-none"
+        }
+    );
+
+    let mobile_panel_classes = classes!(
+        "absolute",
+        "top-0",
+        "right-0",
+        "bottom-0",
+        "w-full",
+        "max-w-sm",
+        "bg-[var(--surface)]",
+        "border-l",
+        "border-[var(--border)]",
+        "text-[var(--text)]",
+        "px-5",
+        "pb-8",
+        "flex",
+        "flex-col",
+        "gap-4",
+        "overflow-y-auto",
+        "shadow-[var(--shadow-16)]",
+        "transition-transform",
+        "duration-250",
+        "ease-[var(--ease-spring)]",
+        if *mobile_menu_open { "translate-x-0" } else { "translate-x-full" }
+    );
+
+    let hamburger_line = classes!(
+        "block",
+        "w-4",
+        "h-[1.75px]",
+        "rounded-full",
+        "bg-[var(--text)]",
+        "transition-all",
+        "duration-200"
+    );
+
     html! {
         <>
-            // Header container - sticky at top
             <header class={classes!(
                 "header-minimal",
-                "sticky", "top-0", "left-0", "right-0", "z-[80]", "w-full",
-                "shadow-[0_1px_0_rgba(var(--primary-rgb),0.08)]",
-                "transition-all", "duration-200", "ease-[var(--ease-snap)]"
+                "sticky", "top-0", "left-0", "right-0", "z-[80]", "w-full"
             )}>
                 // Desktop header
                 <div class={classes!(
                     "desktop-header",
-                    "items-center", "gap-4",
+                    "items-center", "gap-3",
                     "min-h-[var(--header-height-mobile)]", "md:min-h-[var(--header-height-desktop)]",
                     "max-w-7xl", "mx-auto", "px-4", "sm:px-6", "lg:px-8"
                 )}>
-                    // Brand
-                    <div>
-                        <Link<Route> to={Route::Home} classes="brand-logo">
-                            <span class="brand-logo-shine"></span>
-                            {t::BRAND_NAME}
-                            <span class="brand-logo-cursor"></span>
-                        </Link<Route>>
-                    </div>
+                    <Link<Route> to={Route::Home} classes="brand-logo shrink-0">
+                        <span class="brand-logo-dot" aria-hidden="true"></span>
+                        <span>{"StaticFlow"}</span>
+                        <span class="brand-logo-sub hidden xl:inline">{t::BRAND_NAME}</span>
+                    </Link<Route>>
 
-                    // Actions - right-aligned
+                    <nav class={classes!("flex", "items-center", "gap-0.5", "ml-2")} aria-label={t::NAV_MAIN_ARIA}>
+                        { for nav_items.iter().map(|(label, target_route, _icon)| {
+                            let active = is_nav_active(route.as_ref(), target_route);
+                            html! {
+                                <Link<Route>
+                                    to={target_route.clone()}
+                                    classes={classes!(
+                                        "sf-nav-pill",
+                                        active.then_some("sf-nav-pill--active")
+                                    )}
+                                >
+                                    { *label }
+                                </Link<Route>>
+                            }
+                        }) }
+                    </nav>
+
                     <div class={classes!("ml-auto", "flex", "items-center", "gap-2")}>
-                        // Icon navigation
-                        <nav class={classes!("flex", "items-center", "gap-1")} aria-label={t::NAV_MAIN_ARIA}>
-                            { for nav_items.iter().map(|(label, route, icon)| {
-                                html! {
-                                    <Link<Route> to={route.clone()} classes={classes!(
-                                        "nav-icon-btn",
-                                        "w-10", "h-10",
-                                        "rounded-lg",
-                                        "inline-flex", "items-center", "justify-center",
-                                        "text-[var(--muted)]",
-                                        "transition-all", "duration-200",
-                                        "hover:text-[var(--primary)]",
-                                        "hover:bg-[var(--surface-alt)]",
-                                        "hover:scale-110"
-                                    )}>
-                                        <i class={classes!("fas", *icon, "text-[1.1rem]")} title={*label} aria-hidden="true"></i>
-                                        <span class={classes!("sr-only")}>{ *label }</span>
-                                    </Link<Route>>
-                                }
-                            }) }
-                            <Link<Route>
-                                to={Route::MediaImage}
-                                classes={classes!(
-                                    "nav-icon-btn",
-                                    "w-10",
-                                    "h-10",
-                                    "rounded-lg",
-                                    "inline-flex",
-                                    "items-center",
-                                    "justify-center",
-                                    "text-[var(--muted)]",
-                                    "transition-all",
-                                    "duration-200",
-                                    "hover:text-[var(--primary)]",
-                                    "hover:bg-[var(--surface-alt)]",
-                                    "hover:scale-110"
+                        // Fixed-width search capsule (never reflows nav on focus)
+                        <div class={classes!(
+                            "flex", "items-center",
+                            "h-9", "pl-3", "pr-1.5",
+                            "rounded-full",
+                            "border", "border-[var(--border)]",
+                            "bg-[var(--surface)]",
+                            "transition-colors", "duration-150",
+                            "focus-within:border-[var(--primary)]"
+                        )}>
+                            <button
+                                type="button"
+                                onclick={do_search.clone()}
+                                class={classes!(
+                                    "w-6", "h-6",
+                                    "inline-flex", "items-center", "justify-center",
+                                    "text-[var(--muted)]", "hover:text-[var(--primary)]",
+                                    "transition-colors", "shrink-0"
                                 )}
+                                aria-label={t::SEARCH_ARIA}
                             >
-                                <i class={classes!("fas", "fa-image", "text-[1.1rem]")} title={t::IMAGE_LIBRARY_TITLE} aria-hidden="true"></i>
-                                <span class={classes!("sr-only")}>{ t::IMAGE_LIBRARY_TITLE }</span>
-                            </Link<Route>>
-                        </nav>
-
-                        // Search (with suggestion dropdown)
-                        <div class={classes!("flex", "items-center", "gap-1")}>
+                                <i class="fas fa-search text-xs" aria-hidden="true"></i>
+                            </button>
                             <SearchSuggest
                                 value={(*search_query).clone()}
                                 on_change={{
@@ -283,77 +250,40 @@ pub fn header() -> Html {
                                             location.clone(),
                                             &encoded_query,
                                         );
-                                        if let Some(window) = web_sys::window() {
-                                            if let Ok(history) = window.history() {
-                                                let _ = history.push_state_with_url(
-                                                    &wasm_bindgen::JsValue::NULL,
-                                                    "",
-                                                    Some(&search_url),
-                                                );
-                                                if let Ok(event) =
-                                                    web_sys::Event::new("popstate")
-                                                {
-                                                    let _ = window.dispatch_event(&event);
-                                                }
-                                            }
-                                        }
+                                        let _ = crate::navigation_context::navigate_spa_to(&search_url);
                                     })
                                 }}
                                 input_class={classes!(
-                                    "search-minimal",
-                                    "w-[180px]", "lg:w-[220px]",
-                                    "border", "border-[var(--border)]", "rounded-lg",
-                                    "px-3", "h-10",
-                                    "bg-[var(--surface)]", "text-[var(--text)]",
-                                    "text-sm",
-                                    "transition-all", "duration-200",
-                                    "focus:outline-none",
-                                    "focus:border-[var(--primary)]",
-                                    "focus:w-[220px]", "lg:focus:w-[280px]"
+                                    "w-[140px]", "lg:w-[175px]", "xl:w-[205px]",
+                                    "px-2", "h-8",
+                                    "bg-transparent", "text-[var(--text)]",
+                                    "text-sm", "border-0",
+                                    "focus:outline-none"
                                 )}
                             />
-                            <button
-                                type="button"
-                                onclick={do_search.clone()}
-                                class={classes!(
-                                    "icon-btn",
-                                    "w-10", "h-10",
-                                    "rounded-lg",
-                                    "inline-flex", "items-center", "justify-center",
-                                    "text-[var(--muted)]",
-                                    "transition-all", "duration-200",
-                                    "hover:text-[var(--primary)]",
-                                    "hover:bg-[var(--surface-alt)]"
-                                )}
-                                aria-label={t::SEARCH_ARIA}
-                            >
-                                <i class="fas fa-search"></i>
-                            </button>
                             <button
                                 type="button"
                                 onclick={clear_search.clone()}
                                 disabled={search_query.is_empty()}
                                 class={classes!(
-                                    "icon-btn",
-                                    "w-10", "h-10",
-                                    "rounded-lg",
+                                    "w-6", "h-6", "rounded-full",
                                     "inline-flex", "items-center", "justify-center",
-                                    "text-[var(--muted)]",
-                                    "transition-all", "duration-200",
-                                    "hover:text-[var(--primary)]",
+                                    "text-[var(--muted)]", "hover:text-[var(--text)]",
                                     "hover:bg-[var(--surface-alt)]",
-                                    "disabled:opacity-30", "disabled:pointer-events-none"
+                                    "transition-opacity",
+                                    if search_query.is_empty() {
+                                        "opacity-0 pointer-events-none"
+                                    } else {
+                                        "opacity-100"
+                                    }
                                 )}
                                 aria-label={t::CLEAR_ARIA}
                             >
-                                <i class="fas fa-times text-sm"></i>
+                                <i class="fas fa-times text-[11px]" aria-hidden="true"></i>
                             </button>
                         </div>
 
-                        // Theme toggle
-                        <div>
-                            <ThemeToggle />
-                        </div>
+                        <ThemeToggle />
                     </div>
                 </div>
 
@@ -367,182 +297,164 @@ pub fn header() -> Html {
                     "max-w-7xl",
                     "mx-auto",
                     "px-4",
-                    "sm:px-6",
-                    "lg:px-8"
+                    "sm:px-6"
                 )}>
-                    // Brand
-                    <div>
-                        <Link<Route> to={Route::Home} classes="brand-logo">
-                            <span class="brand-logo-shine"></span>
-                            {t::BRAND_NAME}
-                            <span class="brand-logo-cursor"></span>
-                        </Link<Route>>
-                    </div>
+                    <Link<Route> to={Route::Home} classes="brand-logo">
+                        <span class="brand-logo-dot" aria-hidden="true"></span>
+                        <span>{"StaticFlow"}</span>
+                        <span class="brand-logo-sub">{t::BRAND_NAME}</span>
+                    </Link<Route>>
 
-                    // Hamburger
-                    <button
-                        type="button"
-                        class={hamburger_classes}
-                        aria-label={t::OPEN_MENU_ARIA}
-                        aria-expanded={(*mobile_menu_open).to_string()}
-                        onclick={toggle_mobile_menu.clone()}
-                    >
-                        <span
+                    <div class="flex items-center gap-2">
+                        <ThemeToggle />
+                        <button
+                            type="button"
                             class={classes!(
-                                hamburger_line.clone(),
-                                if *mobile_menu_open { "translate-y-[6px] rotate-45" } else { "" }
+                                "w-10", "h-10",
+                                "border", "border-[var(--border)]",
+                                "rounded-lg",
+                                "bg-[var(--surface)]",
+                                "text-[var(--text)]",
+                                "flex", "flex-col", "justify-center", "items-center",
+                                "gap-[4px]",
+                                "cursor-pointer",
+                                "hover:bg-[var(--surface-alt)]"
                             )}
-                        />
-                        <span
-                            class={classes!(
-                                hamburger_line.clone(),
-                                if *mobile_menu_open { "opacity-0" } else { "opacity-100" }
-                            )}
-                        />
-                        <span
-                            class={classes!(
-                                hamburger_line,
-                                if *mobile_menu_open { "-translate-y-[6px] -rotate-45" } else { "" }
-                            )}
-                        />
-                    </button>
+                            aria-label={t::OPEN_MENU_ARIA}
+                            aria-expanded={(*mobile_menu_open).to_string()}
+                            onclick={toggle_mobile_menu.clone()}
+                        >
+                            <span
+                                class={classes!(
+                                    hamburger_line.clone(),
+                                    if *mobile_menu_open { "translate-y-[5.75px] rotate-45" } else { "" }
+                                )}
+                            />
+                            <span
+                                class={classes!(
+                                    hamburger_line.clone(),
+                                    if *mobile_menu_open { "opacity-0" } else { "opacity-100" }
+                                )}
+                            />
+                            <span
+                                class={classes!(
+                                    hamburger_line,
+                                    if *mobile_menu_open { "-translate-y-[5.75px] -rotate-45" } else { "" }
+                                )}
+                            />
+                        </button>
+                    </div>
                 </div>
             </header>
 
-            // Mobile menu overlay
+            // Mobile slide-over drawer
             <div class={mobile_menu_classes}>
-                // Backdrop
                 <div
                     class={classes!(
                         "absolute",
                         "inset-0",
-                        "bg-[rgba(15,23,42,0.45)]",
-                        "backdrop-blur-[12px]",
+                        "bg-black/40",
+                        "backdrop-blur-[4px]",
                         "transition-opacity",
-                        "duration-300",
+                        "duration-200",
                         if *mobile_menu_open { "opacity-100" } else { "opacity-0" }
                     )}
                     onclick={close_mobile_menu.clone()}
                 />
 
-                // Menu panel
                 <div
                     class={mobile_panel_classes}
                     role="dialog"
                     aria-modal="true"
                 >
-                    // Close button — sticky strip so it stays reachable while the
-                    // menu scrolls (it used to scroll away on short/landscape phones).
                     <div class={classes!(
                         "sticky", "top-0", "z-10",
-                        "flex", "justify-end",
-                        "pt-5", "pb-3", "-mx-6", "px-6",
-                        "bg-[var(--acrylic-bg-light)]", "dark:bg-[var(--acrylic-bg-dark)]",
-                        "[backdrop-filter:blur(50px)_saturate(var(--acrylic-saturate))]"
+                        "flex", "items-center", "justify-between",
+                        "pt-4", "pb-3",
+                        "bg-[var(--surface)]",
+                        "border-b", "border-[var(--border)]"
                     )}>
+                        <span class="text-sm font-semibold text-[var(--muted)]">{t::MOBILE_NAV_ARIA}</span>
                         <TooltipIconButton
                             icon={IconName::ArrowLeft}
                             tooltip={t::CLOSE_TOOLTIP}
                             position={TooltipPosition::Bottom}
                             onclick={close_mobile_menu.clone()}
-                            size={20}
+                            size={18}
                             class={classes!(
-                                "!bg-[var(--surface)]",
+                                "!bg-[var(--surface-alt)]",
                                 "!border",
                                 "!border-[var(--border)]",
-                                "!rounded-lg",
-                                "!shadow-[var(--shadow-2)]"
+                                "!rounded-lg"
                             )}
                         />
                     </div>
 
-                    // Mobile search
-                    <div class={classes!("mobile-search-suggest", "flex", "gap-2", "items-center", "mb-3")}>
+                    <div class={classes!("mobile-search-suggest", "flex", "gap-2", "items-center")}>
                         <SearchSuggest
                             value={(*search_query).clone()}
                             on_change={{
                                 let search_query = search_query.clone();
                                 Callback::from(move |value: String| search_query.set(value))
                             }}
-                            on_submit={mobile_search_submit.clone()}
+                            on_submit={mobile_search_submit}
                             input_class={classes!(
                                 "w-full",
                                 "border", "border-[var(--border)]", "rounded-lg",
-                                "px-4", "h-12",
-                                "bg-[var(--surface)]",
+                                "px-3.5", "h-10", "text-sm",
+                                "bg-[var(--surface-alt)]",
                                 "text-[var(--text)]",
                                 "focus:outline-none",
+                                "focus:bg-[var(--surface)]",
                                 "focus:border-[var(--primary)]"
                             )}
                         />
-                        <button
-                            type="button"
-                            onclick={mobile_clear_search.clone()}
-                            disabled={search_query.is_empty()}
-                            aria-label={t::CLEAR_ARIA}
-                            class={classes!(
-                                "w-12", "h-12",
-                                "rounded-lg",
-                                "border", "border-[var(--border)]",
-                                "bg-[var(--surface)]",
-                                "text-[var(--muted)]",
-                                "hover:text-[var(--primary)]",
-                                "disabled:opacity-30"
-                            )}
-                        >
-                            <i class="fas fa-times" aria-hidden="true"></i>
-                        </button>
+                        if !search_query.is_empty() {
+                            <button
+                                type="button"
+                                onclick={mobile_clear_search}
+                                aria-label={t::CLEAR_ARIA}
+                                class={classes!(
+                                    "w-10", "h-10", "shrink-0",
+                                    "rounded-lg",
+                                    "border", "border-[var(--border)]",
+                                    "bg-[var(--surface-alt)]",
+                                    "text-[var(--muted)]",
+                                    "hover:text-[var(--text)]"
+                                )}
+                            >
+                                <i class="fas fa-times text-xs" aria-hidden="true"></i>
+                            </button>
+                        }
                     </div>
 
-                    // Navigation
-                    <nav class={classes!("flex", "flex-col", "gap-3")} aria-label={t::MOBILE_NAV_ARIA}>
-                        { for nav_items.iter().map(|(label, route, icon)| {
+                    <nav class={classes!("flex", "flex-col", "gap-1.5")} aria-label={t::MOBILE_NAV_ARIA}>
+                        { for nav_items.iter().map(|(label, target_route, icon)| {
+                            let active = is_nav_active(route.as_ref(), target_route);
                             let close_cb = close_mobile_menu.clone();
                             html! {
                                 <div onclick={close_cb}>
-                                    <Link<Route> to={route.clone()} classes={classes!(
-                                        "mobile-nav-item",
+                                    <Link<Route> to={target_route.clone()} classes={classes!(
                                         "flex", "items-center", "gap-3",
-                                        "py-3", "px-4", "rounded-lg",
-                                        "bg-[var(--surface)]",
-                                        "border", "border-[var(--border)]",
-                                        "text-[var(--text)]",
-                                        "hover:border-[var(--primary)]"
+                                        "py-2.5", "px-3.5", "rounded-lg",
+                                        "text-sm", "font-medium", "no-underline",
+                                        "transition-colors",
+                                        if active {
+                                            "bg-[rgba(var(--primary-rgb),0.1)] text-[var(--primary)] font-semibold"
+                                        } else {
+                                            "text-[var(--text)] hover:bg-[var(--surface-alt)]"
+                                        }
                                     )}>
-                                        <i class={classes!("fas", *icon, "text-[var(--muted)]", "w-5")}></i>
-                                        <span class="font-medium">{ *label }</span>
+                                        <i class={classes!(
+                                            "fas", *icon, "w-4", "text-center",
+                                            if active { "text-[var(--primary)]" } else { "text-[var(--muted)]" }
+                                        )} aria-hidden="true"></i>
+                                        <span>{ *label }</span>
                                     </Link<Route>>
                                 </div>
                             }
                         }) }
-                        <div onclick={close_mobile_menu.clone()}>
-                            <Link<Route>
-                                to={Route::MediaImage}
-                                classes={classes!(
-                                    "mobile-nav-item",
-                                    "flex",
-                                    "items-center",
-                                    "gap-3",
-                                    "py-3",
-                                    "px-4",
-                                    "rounded-lg",
-                                    "bg-[var(--surface)]",
-                                    "border",
-                                    "border-[var(--border)]",
-                                    "text-[var(--text)]",
-                                    "hover:border-[var(--primary)]"
-                                )}
-                            >
-                                <i class={classes!("fas", "fa-image", "text-[var(--muted)]", "w-5")}></i>
-                                <span class="font-medium">{ t::IMAGE_LIBRARY_TITLE }</span>
-                            </Link<Route>>
-                        </div>
                     </nav>
-
-                    // Theme toggle
-                    <div class={classes!("text-center", "mt-4")}>
-                        <ThemeToggle />
-                    </div>
                 </div>
             </div>
         </>

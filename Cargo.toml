@@ -53,18 +53,18 @@ chrono = { version = "0.4.42", features = ["serde"] }
 reqwest = { version = "0.12", features = ["json", "socks"] }
 
 # Frontend 特定
-yew = { version = "0.21", features = ["csr"] }
-yew-router = "0.18"
-gloo-net = "0.6"
-wasm-bindgen = "0.2"
-web-sys = "0.3"
-js-sys = "0.3"
+yew = { version = "0.23", features = ["csr"] }
+yew-router = "0.20"
+gloo-net = "0.7"
+wasm-bindgen = "0.2.130"
+web-sys = "0.3.107"
+js-sys = "0.3.107"
 pulldown-cmark = "0.13"
 
 # Backend 特定
 axum = "0.7"
 tower = "0.4"
-tower-http = { version = "0.5", features = ["fs", "cors", "trace"] }
+tower-http = { version = "0.5", features = ["fs", "cors", "trace", "compression-br", "compression-gzip", "compression-zstd"] }
 better_mimalloc_rs = { version = "0.1.1", features = ["config"] }
 # LanceDB + Arrow (local forks for blob v2 compaction)
 lance = { path = "deps/lance/rust/lance", default-features = false }

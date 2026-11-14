@@ -547,15 +547,16 @@ pub fn music_library_page() -> Html {
     };
 
     html! {
-        <div class="max-w-7xl mx-auto px-4 py-8">
-            <div class="mb-6">
-                <h1 class="text-3xl font-bold text-[var(--text)]" style="font-family: 'Fraunces', serif;">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+            <header class="sf-page-hero">
+                <div class="sf-eyebrow">{ "AUDIO ARCHIVE" }</div>
+                <h1 class="sf-page-title">
                     {"Music Library"}
                 </h1>
-                <p class="text-[var(--muted)] mt-1">
+                <p class="sf-page-sub">
                     {"Explore and play the music collection"}
                 </p>
-            </div>
+            </header>
 
             <div class="mb-5 flex flex-wrap items-center gap-2">
                 <button type="button"
@@ -701,7 +702,7 @@ pub fn music_library_page() -> Html {
 
             // Wish board section
             <div class="mt-16 border-t border-[var(--border)] pt-10">
-                <h2 class="text-2xl font-bold text-[var(--text)] mb-1" style="font-family: 'Fraunces', serif;">
+                <h2 class="text-2xl font-bold text-[var(--text)] mb-1" style="font-family: var(--font-sans);">
                     {wish_t::SECTION_TITLE}
                 </h2>
                 <p class="text-[var(--muted)] text-sm mb-6">{wish_t::SECTION_SUBTITLE}</p>
@@ -884,7 +885,7 @@ fn render_song_card(
             </Link<Route>>
             <div class="p-3 flex flex-col gap-1">
                 <h3 class="text-sm font-semibold text-[var(--text)] truncate leading-tight"
-                    style="font-family: 'Fraunces', serif;">
+                    style="font-family: var(--font-sans);">
                     {&song.title}
                 </h3>
                 <a href="#" onclick={artist_cb}

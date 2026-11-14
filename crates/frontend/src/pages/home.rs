@@ -1,5 +1,5 @@
-use wasm_bindgen::{prelude::*, JsCast};
-use web_sys::{console, HtmlElement};
+use wasm_bindgen::JsCast;
+use web_sys::console;
 use yew::prelude::*;
 use yew_router::prelude::Link;
 
@@ -9,6 +9,7 @@ use crate::{
         article_card::ArticleCard,
         icons::{Icon, IconName},
         image_with_loading::ImageWithLoading,
+        skeleton::SkeletonCard,
     },
     i18n::current::{common as common_text, home as t},
     models::ArticleListItem,
@@ -32,9 +33,7 @@ pub fn home_page() -> Html {
     let articles_loaded = use_state(|| false);
     let recent_songs = use_state(Vec::<SongListItem>::new);
     let songs_loaded = use_state(|| false);
-    let active_page = use_state(|| 0usize);
-    let has_swiped = use_state(|| false);
-    let slider_ref = use_node_ref();
+    let avatar_loaded = use_state(|| false);
 
     {
         let total_articles = total_articles.clone();
@@ -82,9 +81,7 @@ pub fn home_page() -> Html {
                 let total_music = total_music.clone();
                 wasm_bindgen_futures::spawn_local(async move {
                     match api::fetch_songs(Some(1), Some(0), None, None, None).await {
-                        Ok(resp) => {
-                            total_music.set(resp.total);
-                        },
+                        Ok(resp) => total_music.set(resp.total),
                         Err(e) => {
                             console::error_1(&format!("Failed to fetch songs total: {e}").into());
                         },
@@ -95,10 +92,8 @@ pub fn home_page() -> Html {
                 let recent_songs = recent_songs.clone();
                 let songs_loaded = songs_loaded.clone();
                 wasm_bindgen_futures::spawn_local(async move {
-                    match api::fetch_random_recommended_songs(Some(2), &[]).await {
-                        Ok(songs) => {
-                            recent_songs.set(songs);
-                        },
+                    match api::fetch_random_recommended_songs(Some(4), &[]).await {
+                        Ok(songs) => recent_songs.set(songs),
                         Err(e) => {
                             console::error_1(&format!("Failed to fetch random songs: {e}").into());
                         },
@@ -110,10 +105,8 @@ pub fn home_page() -> Html {
                 let recent_articles = recent_articles.clone();
                 let articles_loaded = articles_loaded.clone();
                 wasm_bindgen_futures::spawn_local(async move {
-                    match api::fetch_articles(None, None, Some(2), Some(0)).await {
-                        Ok(page) => {
-                            recent_articles.set(page.articles);
-                        },
+                    match api::fetch_articles(None, None, Some(4), Some(0)).await {
+                        Ok(page) => recent_articles.set(page.articles),
                         Err(e) => {
                             console::error_1(
                                 &format!("Failed to fetch recent articles: {e}").into(),
@@ -127,85 +120,12 @@ pub fn home_page() -> Html {
         });
     }
 
-    // Scroll listener to track active page
-    {
-        let slider_ref = slider_ref.clone();
-        let active_page = active_page.clone();
-        let has_swiped = has_swiped.clone();
-        use_effect_with((), move |_| {
-            let closure = {
-                let slider_ref = slider_ref.clone();
-                let active_page = active_page.clone();
-                let has_swiped = has_swiped.clone();
-                Closure::<dyn Fn()>::new(move || {
-                    if let Some(el) = slider_ref.cast::<HtmlElement>() {
-                        let scroll_left = el.scroll_left() as f64;
-                        let width = el.client_width() as f64;
-                        if width > 0.0 {
-                            let page = ((scroll_left / width) + 0.5) as usize;
-                            if page != *active_page {
-                                active_page.set(page);
-                            }
-                            if page == 1 {
-                                has_swiped.set(true);
-                            }
-                        }
-                    }
-                })
-            };
-
-            if let Some(el) = slider_ref.cast::<HtmlElement>() {
-                let _ = el.add_event_listener_with_callback(
-                    "scrollend",
-                    closure.as_ref().unchecked_ref(),
-                );
-            }
-            closure.forget();
-            || ()
-        });
-    }
-
-    let on_dot_click = {
-        let slider_ref = slider_ref.clone();
-        let active_page = active_page.clone();
-        Callback::from(move |page: usize| {
-            active_page.set(page);
-            if let Some(el) = slider_ref.cast::<HtmlElement>() {
-                let width = el.client_width();
-                let opts = web_sys::ScrollToOptions::new();
-                opts.set_left((page as f64) * (width as f64));
-                opts.set_behavior(web_sys::ScrollBehavior::Smooth);
-                el.scroll_to_with_scroll_to_options(&opts);
-            }
-        })
-    };
-
-    let stats = vec![
-        (
-            IconName::FileText,
-            total_articles.to_string(),
-            t::STATS_ARTICLES.to_string(),
-            Some(Route::Posts),
-        ),
-        (IconName::Hash, total_tags.to_string(), t::STATS_TAGS.to_string(), Some(Route::Tags)),
-        (
-            IconName::Folder,
-            total_categories.to_string(),
-            t::STATS_CATEGORIES.to_string(),
-            Some(Route::Categories),
-        ),
-        (
-            IconName::Music,
-            total_music.to_string(),
-            t::STATS_MUSIC.to_string(),
-            Some(Route::MediaAudio),
-        ),
-        (
-            IconName::Folder,
-            total_images.to_string(),
-            t::STATS_IMAGES.to_string(),
-            Some(Route::MediaImage),
-        ),
+    let stats = [
+        (IconName::FileText, *total_articles, t::STATS_ARTICLES, Route::Posts),
+        (IconName::Hash, *total_tags, t::STATS_TAGS, Route::Tags),
+        (IconName::Folder, *total_categories, t::STATS_CATEGORIES, Route::Categories),
+        (IconName::Music, *total_music, t::STATS_MUSIC, Route::MediaAudio),
+        (IconName::Folder, *total_images, t::STATS_IMAGES, Route::MediaImage),
     ];
 
     let staticflow_search_href = crate::config::route_path("/search?q=staticflow");
@@ -225,12 +145,12 @@ pub fn home_page() -> Html {
         ),
         (
             crate::config::asset_path("static/logos/yew.svg"),
-            "Yew",
+            "Yew 0.23",
             "https://yew.rs/docs/getting-started/introduction",
         ),
         (
             crate::config::asset_path("static/logos/tailwind.svg"),
-            "Tailwind",
+            "Tailwind v4",
             "https://tailwindcss.com/docs",
         ),
         (
@@ -245,582 +165,458 @@ pub fn home_page() -> Html {
         ),
     ];
 
-    let avatar_hovered = use_state(|| false);
-    let avatar_loaded = use_state(|| false);
-
-    let on_avatar_enter = {
-        let avatar_hovered = avatar_hovered.clone();
-        Callback::from(move |_| avatar_hovered.set(true))
-    };
-    let on_avatar_leave = {
-        let avatar_hovered = avatar_hovered.clone();
-        Callback::from(move |_| avatar_hovered.set(false))
-    };
     let on_avatar_load = {
         let avatar_loaded = avatar_loaded.clone();
         Callback::from(move |_: Event| avatar_loaded.set(true))
     };
 
-    let avatar_container_class = classes!(
-        "inline-flex",
-        "justify-center",
-        "items-center",
-        "w-[140px]",
-        "h-[140px]",
-        "rounded-full",
-        "border-[3px]",
-        "border-[var(--surface)]",
-        "overflow-hidden",
-        "transition-[var(--transition-base)]",
-        "shadow-[0_15px_35px_rgba(0,0,0,0.15)]",
-        "no-underline",
-        "text-inherit",
-        "hero-avatar-trigger",
-        "relative",
-        if !*avatar_loaded { "bg-[var(--surface)]" } else { "bg-transparent" },
-        if *avatar_hovered { "hero-avatar-trigger--hovered" } else { "" }
-    );
-
-    let avatar_image_class = classes!(
-        "w-full",
-        "h-full",
-        "object-cover",
-        "rounded-[inherit]",
-        "block",
-        "hero-avatar",
-        "transition-opacity",
-        "duration-500",
-        if *avatar_loaded { "opacity-100" } else { "opacity-0" }
-    );
-
-    // --- social button class (reused in Section 7) ---
-    let social_button_class = classes!(
-        "btn-fluent-icon",
-        "border",
-        "border-[var(--border)]",
-        "hover:bg-[var(--surface-alt)]",
-        "hover:text-[var(--primary)]",
-        "transition-all",
-        "duration-100",
-        "ease-[var(--ease-snap)]"
-    );
-
     html! {
-        <div class={classes!(
-            "relative",
+        <main class={classes!(
             "w-full",
-            "min-w-0",
             "min-h-screen",
-            "overflow-x-hidden",
             "bg-[var(--bg)]",
+            "pb-16"
         )}>
-            <div class="page-dots">
-                <div
-                    class={if *active_page == 0 { "page-dot active" } else { "page-dot" }}
-                    onclick={let cb = on_dot_click.clone(); Callback::from(move |_: MouseEvent| cb.emit(0))}
-                />
-                <div
-                    class={if *active_page == 1 { "page-dot active" } else { "page-dot" }}
-                    onclick={let cb = on_dot_click.clone(); Callback::from(move |_: MouseEvent| cb.emit(1))}
-                />
-            </div>
-            <div
-                class="page-slider"
-                ref={slider_ref.clone()}
-            >
-            <div class="page-slide">
-            <div class={classes!("w-full", "pb-6")}>
+            <div class={classes!(
+                "max-w-6xl",
+                "mx-auto",
+                "px-4", "sm:px-6", "lg:px-8",
+                "pt-8", "md:pt-12",
+                "space-y-10", "md:space-y-14"
+            )}>
+                // 1. Editorial Studio Hero
                 <section class={classes!(
-                    "relative",
-                    "py-20",
-                    "md:py-24",
-                    "px-4",
-                    "max-[767px]:pb-16",
-                    "max-w-5xl",
-                    "mx-auto"
+                    "rounded-2xl",
+                    "border", "border-[var(--border)]",
+                    "bg-[var(--surface)]",
+                    "p-6", "sm:p-8", "md:p-10",
+                    "shadow-[var(--shadow-sm)]"
                 )}>
                     <div class={classes!(
-                        "w-full",
-                        "mx-auto",
-                        "px-[clamp(1rem,4vw,2rem)]"
+                        "flex", "flex-col-reverse", "md:flex-row",
+                        "md:items-start", "md:justify-between",
+                        "gap-6", "md:gap-10"
                     )}>
-                        // Section 1: Hero Terminal
-                        <div class="terminal-hero">
-                            <div class="terminal-header">
-                                <span class="terminal-dot terminal-dot-red"></span>
-                                <span class="terminal-dot terminal-dot-yellow"></span>
-                                <span class="terminal-dot terminal-dot-green"></span>
-                                <span class="terminal-title">{ t::TERMINAL_TITLE }</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="sf-eyebrow">
+                                <span class="w-1.5 h-1.5 rounded-full bg-[var(--primary)]" aria-hidden="true"></span>
+                                { "LOCAL-FIRST RUST KNOWLEDGE STUDIO" }
                             </div>
 
-                            // Avatar
-                            <div class="terminal-line">
-                                <span class="terminal-prompt">{ common_text::TERMINAL_PROMPT_CMD }</span>
-                                <span class="terminal-content">{ t::CMD_SHOW_AVATAR }</span>
-                            </div>
-                            <div
-                                class={classes!("flex", "justify-center", "my-6")}
-                                onmouseover={on_avatar_enter.clone()}
-                                onmouseout={on_avatar_leave.clone()}
-                            >
-                                <div class={avatar_container_class.clone()}>
-                                    {
-                                        if !*avatar_loaded {
-                                            html! {
-                                                <div class={classes!(
-                                                    "absolute", "inset-0", "rounded-full",
-                                                    "bg-gradient-to-br",
-                                                    "from-[var(--surface-alt)]",
-                                                    "to-[var(--surface)]",
-                                                    "animate-pulse"
-                                                )} />
-                                            }
-                                        } else {
-                                            html! {}
-                                        }
-                                    }
-                                    <Link<Route>
-                                        to={Route::Posts}
-                                        classes={classes!("inline-flex", "w-full", "h-full", "justify-center", "items-center")}
-                                    >
-                                        <img
-                                            src={crate::config::asset_path("static/avatar.jpg")}
-                                            alt={t::AVATAR_ALT}
-                                            loading="eager"
-                                            onload={on_avatar_load}
-                                            class={avatar_image_class.clone()}
-                                        />
-                                        <span class={classes!("sr-only")}>{ t::AVATAR_LINK_SR }</span>
-                                    </Link<Route>>
-                                </div>
-                            </div>
-                            // Motto + README
-                            <div class="terminal-line">
-                                <span class="terminal-prompt">{ common_text::TERMINAL_PROMPT_CMD }</span>
-                                <span class="terminal-content">{ t::CMD_SHOW_MOTTO }</span>
-                            </div>
-                            <div class="terminal-line">
-                                <span class="terminal-prompt">{ common_text::TERMINAL_PROMPT_OUTPUT }</span>
-                                <span class="terminal-content">{ t::MOTTO }</span>
-                            </div>
-                            <div class="terminal-line">
-                                <span class="terminal-prompt">{ common_text::TERMINAL_PROMPT_CMD }</span>
-                                <span class="terminal-content">{ t::CMD_SHOW_README }</span>
-                            </div>
-                            <div class="terminal-line">
-                                <span class="terminal-prompt">{ common_text::TERMINAL_PROMPT_OUTPUT }</span>
-                                <span class="terminal-content">{ t::INTRO }</span>
-                            </div>
-
-                            // Open source inline
-                            <div class="terminal-line" style="margin-top: 0.5rem;">
-                                <span class="terminal-prompt">{ common_text::TERMINAL_PROMPT_OUTPUT }</span>
-                                <span class="terminal-content">
-                                    { t::OPEN_SOURCE_INLINE }
-                                    { " " }
-                                    <a href="https://github.com/acking-you/static_flow"
-                                       target="_blank" rel="noopener noreferrer"
-                                       class={classes!("underline", "text-[var(--primary)]", "font-semibold")}>
-                                        { t::OPEN_SOURCE_GITHUB_CTA }
-                                    </a>
+                            <div class="flex flex-wrap items-baseline gap-3">
+                                <h1 class={classes!(
+                                    "m-0",
+                                    "text-3xl", "sm:text-4xl", "md:text-[2.65rem]",
+                                    "font-extrabold", "tracking-[-0.035em]", "leading-[1.12]",
+                                    "text-[var(--text)]"
+                                )}>
+                                    { "StaticFlow" }
+                                </h1>
+                                <span class="font-mono text-sm text-[var(--muted)]">
+                                    { "by L_B__" }
                                 </span>
                             </div>
 
-                            // CTA buttons (flat, no tabs)
-                            <div class="terminal-line" style="margin-top: 1.5rem;">
-                                <span class="terminal-prompt">{ common_text::TERMINAL_PROMPT_CMD }</span>
-                                <span class="terminal-content">{ t::CMD_SHOW_NAVIGATION }</span>
+                            <p class={classes!(
+                                "mt-3", "mb-0",
+                                "text-sm", "sm:text-base", "font-medium",
+                                "text-[var(--text)]/90"
+                            )}>
+                                { t::MOTTO }
+                            </p>
+
+                            <p class={classes!(
+                                "mt-2.5", "mb-0",
+                                "text-sm", "sm:text-[0.95rem]", "leading-relaxed",
+                                "text-[var(--muted)]", "max-w-2xl"
+                            )}>
+                                { t::INTRO }
+                            </p>
+
+                            // Open-source repo callout (pointing to acking-you/static_flow)
+                            <div class={classes!(
+                                "mt-4",
+                                "inline-flex", "flex-wrap", "items-center", "gap-1.5",
+                                "text-xs", "sm:text-[13px]", "text-[var(--muted)]",
+                                "bg-[var(--surface-alt)]",
+                                "border", "border-[var(--border)]",
+                                "rounded-lg", "px-3", "py-1.5"
+                            )}>
+                                <span>{ t::OPEN_SOURCE_INLINE }</span>
+                                <a
+                                    href="https://github.com/acking-you/static_flow"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="font-semibold text-[var(--primary)] hover:underline"
+                                >
+                                    { t::OPEN_SOURCE_GITHUB_CTA }
+                                </a>
                             </div>
-                            <div class={classes!("flex", "flex-wrap", "gap-2", "mt-4", "ml-2", "sm:ml-8")}>
+
+                            // Primary navigation actions
+                            <div class={classes!("flex", "flex-wrap", "items-center", "gap-2.5", "mt-6")}>
                                 <Link<Route>
                                     to={Route::LatestArticles}
-                                    classes={classes!("btn-terminal", "btn-terminal-primary")}
+                                    classes={classes!("btn-fluent-primary")}
                                 >
-                                    <i class="fas fa-arrow-right"></i>
+                                    <i class="fas fa-arrow-right text-xs" aria-hidden="true"></i>
                                     { t::BTN_VIEW_ARTICLES }
                                 </Link<Route>>
                                 <Link<Route>
                                     to={Route::Posts}
-                                    classes={classes!("btn-terminal")}
+                                    classes={classes!("btn-fluent-secondary")}
                                 >
-                                    <i class="fas fa-archive"></i>
+                                    <i class="fas fa-box-archive text-xs text-[var(--muted)]" aria-hidden="true"></i>
                                     { t::BTN_ARCHIVE }
                                 </Link<Route>>
+                                <a
+                                    href={staticflow_search_href}
+                                    onclick={on_staticflow_search_click}
+                                    class={classes!("btn-fluent-search-hero")}
+                                >
+                                    <i class="fas fa-search" aria-hidden="true"></i>
+                                    { t::BTN_SEARCH_STATICFLOW }
+                                </a>
                                 <Link<Route>
                                     to={Route::MediaAudio}
-                                    classes={classes!("btn-terminal", "btn-terminal-accent")}
+                                    classes={classes!("btn-terminal")}
                                 >
-                                    <i class="fas fa-headphones"></i>
+                                    <i class="fas fa-headphones text-xs text-[var(--muted)]" aria-hidden="true"></i>
                                     { t::BTN_MEDIA_AUDIO }
                                 </Link<Route>>
                                 <Link<Route>
                                     to={Route::MediaImage}
                                     classes={classes!("btn-terminal")}
                                 >
-                                    <i class="fas fa-image"></i>
+                                    <i class="fas fa-image text-xs text-[var(--muted)]" aria-hidden="true"></i>
                                     { t::BTN_IMAGE }
                                 </Link<Route>>
-                                <a
-                                    href={staticflow_search_href.clone()}
-                                    onclick={on_staticflow_search_click}
-                                    class={classes!("btn-fluent-search-hero", "no-underline")}
-                                >
-                                    <i class="fas fa-search"></i>
-                                    { t::BTN_SEARCH_STATICFLOW }
-                                </a>
                                 <Link<Route>
                                     to={Route::Admin}
                                     classes={classes!("btn-terminal")}
                                 >
-                                    <i class="fas fa-sliders"></i>
+                                    <i class="fas fa-sliders text-xs text-[var(--muted)]" aria-hidden="true"></i>
                                     { "Admin" }
                                 </Link<Route>>
                             </div>
 
-                            // Social Links
-                            <div class="terminal-line" style="margin-top: 1.5rem;">
-                                <span class="terminal-prompt">{ common_text::TERMINAL_PROMPT_CMD }</span>
-                                <span class="terminal-content">{ t::CMD_SHOW_SOCIAL }</span>
-                            </div>
-                            <div class={classes!("flex", "gap-3", "mt-3", "ml-2", "sm:ml-8")}>
-                                <a
-                                    href="https://github.com/ACking-you"
-                                    target="_blank" rel="noopener noreferrer"
-                                    aria-label={common_text::GITHUB}
-                                    class={social_button_class.clone()}
-                                >
-                                    <i class={classes!("fa-brands", "fa-github-alt", "text-lg")} aria-hidden="true"></i>
-                                    <span class={classes!("sr-only")}>{ common_text::GITHUB }</span>
-                                </a>
-                                <a
-                                    href="https://space.bilibili.com/24264499"
-                                    target="_blank" rel="noopener noreferrer"
-                                    aria-label={common_text::BILIBILI}
-                                    class={social_button_class.clone()}
-                                >
-                                    <svg viewBox="0 0 24 24" role="img" aria-hidden="true" focusable="false" width="20" height="20">
-                                        <path
-                                            fill="currentColor"
-                                            d="M17.813 4.653h.854c1.51.054 2.769.578 3.773 1.574 1.004.995 1.524 2.249 1.56 3.76v7.36c-.036 1.51-.556 2.769-1.56 3.773s-2.262 1.524-3.773 1.56H5.333c-1.51-.036-2.769-.556-3.773-1.56S.036 18.858 0 17.347v-7.36c.036-1.511.556-2.765 1.56-3.76 1.004-.996 2.262-1.52 3.773-1.574h.774l-1.174-1.12a1.234 1.234 0 0 1-.373-.906c0-.356.124-.658.373-.907l.027-.027c.267-.249.573-.373.92-.373.347 0 .653.124.92.373L9.653 4.44c.071.071.134.142.187.213h4.267a.836.836 0 0 1 .16-.213l2.853-2.747c.267-.249.573-.373.92-.373.347 0 .662.151.929.4.267.249.391.551.391.907 0 .355-.124.657-.373.906zM5.333 7.24c-.746.018-1.373.276-1.88.773-.506.498-.769 1.13-.786 1.894v7.52c.017.764.28 1.395.786 1.893.507.498 1.134.756 1.88.773h13.334c.746-.017 1.373-.275 1.88-.773.506-.498.769-1.129.786-1.893v-7.52c-.017-.765-.28-1.396-.786-1.894-.507-.497-1.134-.755-1.88-.773zM8 11.107c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c0-.373.129-.689.386-.947.258-.257.574-.386.947-.386zm8 0c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c.017-.391.15-.711.4-.96.249-.249.56-.373.933-.373Z"
-                                        />
-                                    </svg>
-                                    <span class={classes!("sr-only")}>{ common_text::BILIBILI }</span>
-                                </a>
-                            </div>
-
-                            // GitHub Wrapped
-                            <div class="terminal-line" style="margin-top: 1.5rem;">
-                                <span class="terminal-prompt">{ common_text::TERMINAL_PROMPT_CMD }</span>
-                                <span class="terminal-content">{ t::CMD_SHOW_WRAPPED }</span>
-                            </div>
-                            <GithubWrappedSelector />
-
-                            // Blinking cursor
-                            <div class="terminal-line" style="margin-top: 1.5rem;">
-                                <span class="terminal-prompt">{ common_text::TERMINAL_PROMPT_CMD }</span>
-                                <span class="terminal-cursor"></span>
-                            </div>
-                        </div>
-                        // Section 2: LLM/Kiro Access Banner
-                        <div class={classes!(
-                            "mt-8",
-                            "w-full",
-                            "rounded-[1rem]",
-                            "border",
-                            "border-[var(--border)]",
-                            "border-l-[4px]",
-                            "border-l-[var(--primary)]",
-                            "bg-[var(--surface)]/85",
-                            "px-5",
-                            "py-4",
-                            "shadow-[var(--shadow-2)]"
-                        )}>
+                            // Social & GitHub Wrapped row
                             <div class={classes!(
-                                "flex", "flex-col", "md:flex-row",
-                                "md:items-center", "md:justify-between", "gap-3"
+                                "mt-6", "pt-5",
+                                "border-t", "border-[var(--border)]",
+                                "flex", "flex-wrap", "items-center", "gap-3"
                             )}>
-                                <p class={classes!("m-0", "text-sm", "leading-7", "text-[var(--muted)]")}>
-                                    { t::LLM_ACCESS_HINT }
-                                </p>
-                                <div class={classes!("flex", "flex-wrap", "gap-2", "shrink-0")}>
-                                    <Link<Route>
-                                        to={Route::LlmAccess}
-                                        classes={classes!("btn-terminal", "btn-terminal-accent")}
-                                    >
-                                        <i class="fas fa-key"></i>
-                                        { t::BTN_LLM_ACCESS }
-                                    </Link<Route>>
-                                    <Link<Route>
-                                        to={Route::KiroAccess}
-                                        classes={classes!("btn-terminal")}
-                                    >
-                                        <i class="fas fa-bolt"></i>
-                                        { "Kiro Access" }
-                                    </Link<Route>>
-                                </div>
-                            </div>
-                        </div>
-                        // Section 3: Stats Bar
-                        <div class={classes!("mt-8", "w-full")}>
-                            <div class="terminal-line">
-                                <span class="terminal-prompt">{ common_text::TERMINAL_PROMPT_CMD }</span>
-                                <span class="terminal-content">{ t::CMD_SHOW_STATS }</span>
-                            </div>
-                            <div class={classes!(
-                                "mt-4", "grid", "gap-3", "grid-cols-2",
-                                "sm:grid-cols-3", "lg:grid-cols-5", "w-full"
-                            )}>
-                                { for stats.into_iter().map(|(icon, value, label, route)| {
-                                    let panel_content = html! {
-                                        <div class="system-panel-compact">
-                                            <div class={classes!(
-                                                "inline-flex", "h-10", "w-10",
-                                                "items-center", "justify-center",
-                                                "rounded-lg", "border", "border-[var(--border)]",
-                                                "bg-[var(--surface-alt)]", "text-[var(--primary)]"
-                                            )}>
-                                                <Icon name={icon} size={20} />
-                                            </div>
-                                            <div class={classes!(
-                                                "text-[1.75rem]", "font-bold",
-                                                "leading-none", "text-[var(--primary)]"
-                                            )}>
-                                                if *stats_loaded {
-                                                    { value.clone() }
-                                                } else {
-                                                    <div class="h-7 w-10 rounded bg-[var(--surface-alt)] animate-pulse inline-block" />
-                                                }
-                                            </div>
-                                            <div class={classes!(
-                                                "text-[0.72rem]", "uppercase",
-                                                "tracking-[0.15em]", "text-[var(--muted)]"
-                                            )}>{ label.clone() }</div>
-                                        </div>
-                                    };
-                                    if let Some(r) = route {
-                                        html! {
-                                            <Link<Route> to={r} classes={classes!("no-underline")}>
-                                                { panel_content }
-                                            </Link<Route>>
-                                        }
-                                    } else {
-                                        panel_content
-                                    }
-                                }) }
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            </div>
-            </div>
-            <div class="page-slide">
-            <div class={classes!("w-full", "pb-6")}>
-                <section class={classes!(
-                    "relative",
-                    "py-20",
-                    "md:py-24",
-                    "px-4",
-                    "max-[767px]:pb-16",
-                    "max-w-5xl",
-                    "mx-auto"
-                )}>
-                    <div class={classes!(
-                        "w-full",
-                        "mx-auto",
-                        "px-[clamp(1rem,4vw,2rem)]"
-                    )}>
-                        // Sections 4-7: Explore Terminal
-                        <div class={classes!("terminal-hero", "mt-8")}>
-                            <div class="terminal-header">
-                                <span class="terminal-dot terminal-dot-red"></span>
-                                <span class="terminal-dot terminal-dot-yellow"></span>
-                                <span class="terminal-dot terminal-dot-green"></span>
-                                <span class="terminal-title">{ "explore.sh" }</span>
-                            </div>
-
-                            // Section 4: Recent Articles
-                            <div class={classes!("flex", "items-center", "justify-between", "flex-wrap", "gap-2")}>
-                                <div class="terminal-line">
-                                    <span class="terminal-prompt">{ common_text::TERMINAL_PROMPT_CMD }</span>
-                                    <span class="terminal-content">{ t::CMD_SHOW_RECENT_ARTICLES }</span>
-                                </div>
-                                <Link<Route>
-                                    to={Route::LatestArticles}
-                                    classes={classes!("btn-terminal", "text-xs")}
-                                >
-                                    { t::BTN_VIEW_ALL_ARTICLES }
-                                </Link<Route>>
-                            </div>
-                            if *articles_loaded {
-                                <div class={classes!(
-                                    "mt-4", "grid", "gap-4",
-                                    "grid-cols-1", "md:grid-cols-2"
-                                )}>
-                                    { for recent_articles.iter().cloned().map(|article| html! {
-                                        <ArticleCard article={article} />
-                                    }) }
-                                </div>
-                            } else {
-                                <div class={classes!(
-                                    "mt-4", "grid", "gap-4",
-                                    "grid-cols-1", "md:grid-cols-2"
-                                )}>
-                                    { for (0..2).map(|_| html! {
-                                        <div class={classes!(
-                                            "rounded-lg", "border", "border-[var(--border)]",
-                                            "bg-[var(--surface)]", "p-4", "animate-pulse"
-                                        )}>
-                                            <div class="h-4 w-3/4 rounded bg-[var(--surface-alt)] mb-3" />
-                                            <div class="h-3 w-full rounded bg-[var(--surface-alt)] mb-2" />
-                                            <div class="h-3 w-2/3 rounded bg-[var(--surface-alt)]" />
-                                        </div>
-                                    }) }
-                                </div>
-                            }
-                            // Section 5: Recent Music
-                            <div class={classes!("flex", "items-center", "justify-between", "flex-wrap", "gap-2")} style="margin-top: 1.5rem;">
-                                <div class="terminal-line">
-                                    <span class="terminal-prompt">{ common_text::TERMINAL_PROMPT_CMD }</span>
-                                    <span class="terminal-content">{ t::CMD_SHOW_RECENT_MUSIC }</span>
-                                </div>
-                                <Link<Route>
-                                    to={Route::MediaAudio}
-                                    classes={classes!("btn-terminal", "text-xs")}
-                                >
-                                    { t::BTN_VIEW_ALL_MUSIC }
-                                </Link<Route>>
-                            </div>
-                            if *songs_loaded {
-                                <div class={classes!(
-                                    "mt-4", "grid", "gap-3",
-                                    "grid-cols-2"
-                                )}>
-                                    { for recent_songs.iter().map(|song| {
-                                        let has_cover = song.cover_image.as_ref().is_some_and(|c| !c.is_empty());
-                                        let cover_url = api::song_cover_url(song.cover_image.as_deref());
-                                        let duration = format_duration_short(song.duration_ms);
-                                        html! {
-                                            <Link<Route>
-                                                to={Route::MusicPlayer { id: song.id.clone() }}
-                                                classes={classes!(
-                                                    "no-underline", "group", "rounded-lg",
-                                                    "border", "border-[var(--border)]",
-                                                    "bg-[var(--surface)]", "overflow-hidden",
-                                                    "transition-all", "duration-150",
-                                                    "hover:shadow-[var(--shadow-4)]",
-                                                    "hover:border-[var(--primary)]"
-                                                )}
-                                            >
-                                                <div class={classes!(
-                                                    "aspect-square", "w-full",
-                                                    "bg-[var(--surface-alt)]",
-                                                    "flex", "items-center", "justify-center",
-                                                    "overflow-hidden"
-                                                )}>
-                                                    if has_cover {
-                                                        <ImageWithLoading
-                                                            src={cover_url}
-                                                            alt={song.title.clone()}
-                                                            loading={Some(AttrValue::from("lazy"))}
-                                                            class={classes!(
-                                                                "w-full", "h-full", "object-cover",
-                                                                "group-hover:scale-105",
-                                                                "transition-transform", "duration-200"
-                                                            )}
-                                                        />
-                                                    } else {
-                                                        <Icon name={IconName::Music} size={32} />
-                                                    }
-                                                </div>
-                                                <div class={classes!("p-2")}>
-                                                    <div class={classes!(
-                                                        "text-sm", "font-medium",
-                                                        "text-[var(--text)]", "truncate"
-                                                    )}>{ &song.title }</div>
-                                                    <div class={classes!(
-                                                        "text-xs", "text-[var(--muted)]",
-                                                        "truncate", "mt-0.5"
-                                                    )}>{ &song.artist }</div>
-                                                    <div class={classes!(
-                                                        "text-xs", "text-[var(--muted)]", "mt-0.5"
-                                                    )}>{ duration }</div>
-                                                </div>
-                                            </Link<Route>>
-                                        }
-                                    }) }
-                                </div>
-                            } else {
-                                <div class={classes!(
-                                    "mt-4", "grid", "gap-3",
-                                    "grid-cols-2"
-                                )}>
-                                    { for (0..2).map(|_| html! {
-                                        <div class={classes!(
-                                            "rounded-lg", "border", "border-[var(--border)]",
-                                            "bg-[var(--surface)]", "overflow-hidden", "animate-pulse"
-                                        )}>
-                                            <div class="aspect-square w-full bg-[var(--surface-alt)]" />
-                                            <div class="p-2">
-                                                <div class="h-3 w-3/4 rounded bg-[var(--surface-alt)] mb-1" />
-                                                <div class="h-2 w-1/2 rounded bg-[var(--surface-alt)]" />
-                                            </div>
-                                        </div>
-                                    }) }
-                                </div>
-                            }
-                            // Section 6: Tech Stack
-                            <div class="terminal-line" style="margin-top: 1.5rem;">
-                                <span class="terminal-prompt">{ common_text::TERMINAL_PROMPT_CMD }</span>
-                                <span class="terminal-content">{ t::CMD_SHOW_TECH_STACK }</span>
-                            </div>
-                            <div class={classes!("flex", "flex-wrap", "gap-3", "mt-3", "ml-8")}>
-                                { for tech_stack.iter().map(|(logo, name, href)| html! {
+                                <div class="flex items-center gap-2">
                                     <a
-                                        href={(*href).to_string()}
-                                        target="_blank" rel="noopener noreferrer"
-                                        title={*name}
-                                        aria-label={(*name).to_string()}
+                                        href="https://github.com/ACking-you"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        aria-label={common_text::GITHUB}
                                         class={classes!(
-                                            "inline-flex", "items-center", "gap-2",
+                                            "inline-flex", "h-9", "w-9",
+                                            "items-center", "justify-center",
                                             "rounded-lg", "border", "border-[var(--border)]",
-                                            "bg-[var(--surface)]", "px-3", "py-1.5",
-                                            "text-sm", "text-[var(--text)]",
-                                            "no-underline",
-                                            "transition-all", "duration-150",
-                                            "hover:bg-[var(--surface-alt)]",
-                                            "hover:text-[var(--primary)]",
-                                            "hover:border-[var(--primary)]"
+                                            "bg-[var(--surface-alt)]", "text-[var(--text)]",
+                                            "hover:border-[var(--primary)]", "hover:text-[var(--primary)]",
+                                            "transition-colors"
                                         )}
                                     >
-                                        <ImageWithLoading
-                                            src={logo.clone()}
-                                            alt={*name}
-                                            loading={Some(AttrValue::from("lazy"))}
-                                            class={classes!("w-5", "h-5")}
-                                            container_class={classes!("inline-flex")}
-                                        />
-                                        <span>{ *name }</span>
+                                        <i class="fa-brands fa-github text-base" aria-hidden="true"></i>
+                                        <span class="sr-only">{ common_text::GITHUB }</span>
                                     </a>
-                                }) }
-                            </div>
+                                    <a
+                                        href="https://space.bilibili.com/24264499"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        aria-label={common_text::BILIBILI}
+                                        class={classes!(
+                                            "inline-flex", "h-9", "w-9",
+                                            "items-center", "justify-center",
+                                            "rounded-lg", "border", "border-[var(--border)]",
+                                            "bg-[var(--surface-alt)]", "text-[var(--text)]",
+                                            "hover:border-[var(--primary)]", "hover:text-[var(--primary)]",
+                                            "transition-colors"
+                                        )}
+                                    >
+                                        <svg viewBox="0 0 24 24" role="img" aria-hidden="true" focusable="false" width="18" height="18">
+                                            <path
+                                                fill="currentColor"
+                                                d="M17.813 4.653h.854c1.51.054 2.769.578 3.773 1.574 1.004.995 1.524 2.249 1.56 3.76v7.36c-.036 1.51-.556 2.769-1.56 3.773s-2.262 1.524-3.773 1.56H5.333c-1.51-.036-2.769-.556-3.773-1.56S.036 18.858 0 17.347v-7.36c.036-1.511.556-2.765 1.56-3.76 1.004-.996 2.262-1.52 3.773-1.574h.774l-1.174-1.12a1.234 1.234 0 0 1-.373-.906c0-.356.124-.658.373-.907l.027-.027c.267-.249.573-.373.92-.373.347 0 .653.124.92.373L9.653 4.44c.071.071.134.142.187.213h4.267a.836.836 0 0 1 .16-.213l2.853-2.747c.267-.249.573-.373.92-.373.347 0 .662.151.929.4.267.249.391.551.391.907 0 .355-.124.657-.373.906zM5.333 7.24c-.746.018-1.373.276-1.88.773-.506.498-.769 1.13-.786 1.894v7.52c.017.764.28 1.395.786 1.893.507.498 1.134.756 1.88.773h13.334c.746-.017 1.373-.275 1.88-.773.506-.498.769-1.129.786-1.893v-7.52c-.017-.765-.28-1.396-.786-1.894-.507-.497-1.134-.755-1.88-.773zM8 11.107c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c0-.373.129-.689.386-.947.258-.257.574-.386.947-.386zm8 0c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c.017-.391.15-.711.4-.96.249-.249.56-.373.933-.373Z"
+                                            />
+                                        </svg>
+                                        <span class="sr-only">{ common_text::BILIBILI }</span>
+                                    </a>
+                                </div>
 
-                            // Blinking cursor
-                            <div class="terminal-line" style="margin-top: 1.5rem;">
-                                <span class="terminal-prompt">{ common_text::TERMINAL_PROMPT_CMD }</span>
-                                <span class="terminal-cursor"></span>
+                                <GithubWrappedSelector />
                             </div>
+                        </div>
+
+                        // Author Avatar
+                        <div class="shrink-0">
+                            <Link<Route>
+                                to={Route::Posts}
+                                classes={classes!(
+                                    "hero-avatar-trigger",
+                                    "relative",
+                                    "inline-flex",
+                                    "w-24", "h-24", "sm:w-28", "sm:h-28", "md:w-32", "md:h-32",
+                                    "rounded-2xl",
+                                    "border", "border-[var(--border)]",
+                                    "bg-[var(--surface-alt)]",
+                                    "overflow-hidden",
+                                    "shadow-[var(--shadow-4)]",
+                                    "no-underline"
+                                )}
+                            >
+                                if !*avatar_loaded {
+                                    <div class="absolute inset-0 skeleton" />
+                                }
+                                <img
+                                    src={crate::config::asset_path("static/avatar.jpg")}
+                                    alt={t::AVATAR_ALT}
+                                    loading="eager"
+                                    onload={on_avatar_load}
+                                    class={classes!(
+                                        "hero-avatar",
+                                        "w-full", "h-full", "object-cover",
+                                        "transition-opacity", "duration-300",
+                                        if *avatar_loaded { "opacity-100" } else { "opacity-0" }
+                                    )}
+                                />
+                                <span class="sr-only">{ t::AVATAR_LINK_SR }</span>
+                            </Link<Route>>
                         </div>
                     </div>
                 </section>
+
+                // 2. Live Content Metrics Strip
+                <section aria-label="站点数据概览">
+                    <div class={classes!(
+                        "grid", "gap-3",
+                        "grid-cols-2", "sm:grid-cols-3", "lg:grid-cols-5"
+                    )}>
+                        { for stats.into_iter().map(|(icon, value, label, target_route)| {
+                            html! {
+                                <Link<Route> to={target_route} classes="no-underline group">
+                                    <div class="system-panel-compact h-full">
+                                        <div class="w-full flex items-center justify-between text-[var(--muted)]">
+                                            <span class="text-xs font-medium tracking-wide">{ label }</span>
+                                            <Icon name={icon} size={16} class={classes!("text-[var(--muted)]", "group-hover:text-[var(--primary)]", "transition-colors")} />
+                                        </div>
+                                        <div class="text-2xl sm:text-[1.65rem] font-bold tabular-nums leading-none text-[var(--text)] mt-1">
+                                            if *stats_loaded {
+                                                { value.to_string() }
+                                            } else {
+                                                <span class="skeleton h-6 w-12 inline-block rounded" />
+                                            }
+                                        </div>
+                                    </div>
+                                </Link<Route>>
+                            }
+                        }) }
+                    </div>
+                </section>
+
+                // 3. LLM & Kiro Gateway Callout
+                <section class={classes!(
+                    "rounded-xl",
+                    "border", "border-[var(--border)]",
+                    "border-l-[3px]", "border-l-[var(--primary)]",
+                    "bg-[var(--surface)]",
+                    "px-5", "py-4",
+                    "shadow-[var(--shadow-sm)]",
+                    "flex", "flex-col", "md:flex-row",
+                    "md:items-center", "md:justify-between", "gap-3"
+                )}>
+                    <p class="m-0 text-sm leading-relaxed text-[var(--muted)]">
+                        { t::LLM_ACCESS_HINT }
+                    </p>
+                    <div class="flex flex-wrap gap-2 shrink-0">
+                        <Link<Route>
+                            to={Route::LlmAccess}
+                            classes={classes!("btn-terminal", "btn-terminal-accent")}
+                        >
+                            <i class="fas fa-key text-xs" aria-hidden="true"></i>
+                            { t::BTN_LLM_ACCESS }
+                        </Link<Route>>
+                        <Link<Route>
+                            to={Route::KiroAccess}
+                            classes={classes!("btn-terminal")}
+                        >
+                            <i class="fas fa-bolt text-xs text-[var(--muted)]" aria-hidden="true"></i>
+                            { "Kiro Access" }
+                        </Link<Route>>
+                    </div>
+                </section>
+
+                // 4. Recent Articles Section
+                <section>
+                    <div class="sf-section-head">
+                        <div>
+                            <h2 class="sf-section-title">{ "最新文章" }</h2>
+                            <p class="m-0 mt-0.5 text-xs text-[var(--muted)]">{ "近期技术深潜、源码剖析与工程记录" }</p>
+                        </div>
+                        <Link<Route>
+                            to={Route::LatestArticles}
+                            classes="text-sm font-semibold text-[var(--primary)] hover:underline no-underline shrink-0"
+                        >
+                            { t::BTN_VIEW_ALL_ARTICLES }
+                        </Link<Route>>
+                    </div>
+
+                    if *articles_loaded {
+                        <div class="grid gap-5 grid-cols-1 md:grid-cols-2">
+                            { for recent_articles.iter().cloned().map(|article| html! {
+                                <ArticleCard article={article} />
+                            }) }
+                        </div>
+                    } else {
+                        <div class="grid gap-5 grid-cols-1 md:grid-cols-2">
+                            { for (0..4).map(|_| html! { <SkeletonCard /> }) }
+                        </div>
+                    }
+                </section>
+
+                // 5. Curated Music Section
+                <section>
+                    <div class="sf-section-head">
+                        <div>
+                            <h2 class="sf-section-title">{ "随机推荐曲目" }</h2>
+                            <p class="m-0 mt-0.5 text-xs text-[var(--muted)]">{ "托管于本地 LanceDB 的无损与精选曲库" }</p>
+                        </div>
+                        <Link<Route>
+                            to={Route::MediaAudio}
+                            classes="text-sm font-semibold text-[var(--primary)] hover:underline no-underline shrink-0"
+                        >
+                            { t::BTN_VIEW_ALL_MUSIC }
+                        </Link<Route>>
+                    </div>
+
+                    if *songs_loaded {
+                        <div class="grid gap-3.5 grid-cols-1 sm:grid-cols-2">
+                            { for recent_songs.iter().map(|song| {
+                                let has_cover = song.cover_image.as_ref().is_some_and(|c| !c.is_empty());
+                                let cover_url = api::song_cover_url(song.cover_image.as_deref());
+                                let duration = format_duration_short(song.duration_ms);
+                                html! {
+                                    <Link<Route>
+                                        to={Route::MusicPlayer { id: song.id.clone() }}
+                                        classes={classes!(
+                                            "no-underline", "group",
+                                            "flex", "items-center", "gap-3.5",
+                                            "p-3", "rounded-xl",
+                                            "border", "border-[var(--border)]",
+                                            "bg-[var(--surface)]",
+                                            "shadow-[var(--shadow-sm)]",
+                                            "transition-all", "duration-150",
+                                            "hover:border-[rgba(var(--primary-rgb),0.5)]",
+                                            "hover:shadow-[var(--shadow-4)]"
+                                        )}
+                                    >
+                                        <div class={classes!(
+                                            "w-14", "h-14", "rounded-lg", "shrink-0",
+                                            "bg-[var(--surface-alt)]",
+                                            "flex", "items-center", "justify-center",
+                                            "overflow-hidden", "border", "border-[var(--border)]"
+                                        )}>
+                                            if has_cover {
+                                                <ImageWithLoading
+                                                    src={cover_url}
+                                                    alt={song.title.clone()}
+                                                    loading={Some(AttrValue::from("lazy"))}
+                                                    class={classes!(
+                                                        "w-full", "h-full", "object-cover",
+                                                        "group-hover:scale-105",
+                                                        "transition-transform", "duration-300"
+                                                    )}
+                                                    container_class={classes!("w-full", "h-full")}
+                                                />
+                                            } else {
+                                                <Icon name={IconName::Music} size={22} class={classes!("text-[var(--muted)]")} />
+                                            }
+                                        </div>
+
+                                        <div class="flex-1 min-w-0">
+                                            <div class="text-sm font-semibold text-[var(--text)] truncate group-hover:text-[var(--primary)] transition-colors">
+                                                { &song.title }
+                                            </div>
+                                            <div class="text-xs text-[var(--muted)] truncate mt-0.5">
+                                                { &song.artist }
+                                            </div>
+                                        </div>
+
+                                        <div class="flex items-center gap-2.5 shrink-0 pr-1">
+                                            <span class="font-mono text-xs tabular-nums text-[var(--muted)]">
+                                                { duration }
+                                            </span>
+                                            <span class={classes!(
+                                                "w-7", "h-7", "rounded-full",
+                                                "inline-flex", "items-center", "justify-center",
+                                                "bg-[var(--surface-alt)]", "text-[var(--muted)]",
+                                                "group-hover:bg-[var(--primary)]", "group-hover:text-white",
+                                                "transition-colors"
+                                            )}>
+                                                <i class="fas fa-play text-[10px] ml-0.5" aria-hidden="true"></i>
+                                            </span>
+                                        </div>
+                                    </Link<Route>>
+                                }
+                            }) }
+                        </div>
+                    } else {
+                        <div class="grid gap-3.5 grid-cols-1 sm:grid-cols-2">
+                            { for (0..4).map(|_| html! {
+                                <div class="flex items-center gap-3.5 p-3 rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+                                    <div class="w-14 h-14 rounded-lg skeleton shrink-0" />
+                                    <div class="flex-1 space-y-2">
+                                        <div class="h-3.5 w-3/5 skeleton rounded" />
+                                        <div class="h-3 w-2/5 skeleton rounded" />
+                                    </div>
+                                </div>
+                            }) }
+                        </div>
+                    }
+                </section>
+
+                // 6. Tech Stack Strip
+                <section class="pt-4 border-t border-[var(--border)] flex flex-wrap items-center justify-between gap-3">
+                    <span class="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                        { t::POWERED_BY }
+                    </span>
+                    <div class="flex flex-wrap items-center gap-2">
+                        { for tech_stack.iter().map(|(logo, name, href)| html! {
+                            <a
+                                href={(*href).to_string()}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title={*name}
+                                aria-label={(*name).to_string()}
+                                class={classes!(
+                                    "inline-flex", "items-center", "gap-2",
+                                    "rounded-full", "border", "border-[var(--border)]",
+                                    "bg-[var(--surface)]", "px-3", "py-1",
+                                    "text-xs", "font-medium", "text-[var(--muted)]",
+                                    "no-underline",
+                                    "transition-colors",
+                                    "hover:text-[var(--text)]",
+                                    "hover:border-[rgba(var(--primary-rgb),0.45)]"
+                                )}
+                            >
+                                <ImageWithLoading
+                                    src={logo.clone()}
+                                    alt={*name}
+                                    loading={Some(AttrValue::from("lazy"))}
+                                    class={classes!("w-3.5", "h-3.5", "object-contain")}
+                                    container_class={classes!("inline-flex")}
+                                />
+                                <span>{ *name }</span>
+                            </a>
+                        }) }
+                    </div>
+                </section>
             </div>
-            </div>
-            </div>
-            if *active_page == 0 && !*has_swiped {
-                <div class="swipe-hint" aria-hidden="true">
-                    <i class="fas fa-chevron-right swipe-hint-chevron"></i>
-                </div>
-            }
-        </div>
+        </main>
     }
 }
 
@@ -871,7 +667,6 @@ fn github_wrapped_selector() -> Html {
         Callback::from(move |_| expanded.set(false))
     };
 
-    // Close on outside click
     {
         let expanded = expanded.clone();
         use_effect_with(*expanded, move |is_expanded| {
@@ -913,7 +708,6 @@ fn github_wrapped_selector() -> Html {
     let group_ref = use_node_ref();
     let dropdown_style = use_state(String::new);
 
-    // Calculate dropdown position when expanded
     {
         let group_ref = group_ref.clone();
         let dropdown_style = dropdown_style.clone();
@@ -931,9 +725,8 @@ fn github_wrapped_selector() -> Html {
     }
 
     html! {
-        <div class={classes!("mt-3", "ml-8", "github-wrapped-container")}>
+        <div class="github-wrapped-container">
             <div class="github-wrapped-group" ref={group_ref}>
-                // Main button - always links to latest year
                 <a
                     href={latest.url()}
                     target="_blank"
@@ -941,14 +734,13 @@ fn github_wrapped_selector() -> Html {
                     class="github-wrapped-btn"
                 >
                     <span class="github-wrapped-badge">{ t::GITHUB_WRAPPED_BADGE }</span>
-                    <i class={classes!("fa-brands", "fa-github", "text-xl")} aria-hidden="true"></i>
+                    <i class={classes!("fa-brands", "fa-github", "text-lg")} aria-hidden="true"></i>
                     <span class="github-wrapped-text">
                         <span class="github-wrapped-title">{ format!("{} GitHub Wrapped", latest.year) }</span>
                         <span class="github-wrapped-subtitle">{ t::GITHUB_WRAPPED_SUBTITLE }</span>
                     </span>
                 </a>
 
-                // Expand button (only show if multiple years)
                 if has_multiple_years {
                     <button
                         type="button"
@@ -965,7 +757,6 @@ fn github_wrapped_selector() -> Html {
                 }
             </div>
 
-            // Dropdown with all years
             if has_multiple_years && *expanded {
                 <div
                     class="github-wrapped-dropdown"

@@ -231,99 +231,26 @@ pub fn posts_page() -> Html {
     }
 
     html! {
-        <main class={classes!(
-            "mt-[var(--header-height-mobile)]",
-            "md:mt-[var(--header-height-desktop)]",
-            "pb-20"
-        )}>
+        <main class={classes!("pb-20")}>
             <div class={classes!("container")}>
-                // Hero Section with Editorial Style
-                <div class={classes!(
-                    "text-center",
-                    "py-16",
-                    "md:py-24",
-                    "px-4",
-                    "relative",
-                    "overflow-hidden"
-                )}>
-                    <p class={classes!(
-                        "text-sm",
-                        "tracking-[0.4em]",
-                        "uppercase",
-                        "text-[var(--muted)]",
-                        "mb-6",
-                        "font-semibold"
-                    )}>{ t::HERO_INDEX }</p>
+                <header class="sf-page-hero">
+                    <div class="sf-eyebrow">{ t::HERO_INDEX }</div>
+                    <h1 class="sf-page-title">{ t::HERO_TITLE }</h1>
+                    <p class="sf-page-sub">{ description }</p>
 
-                    <h1 class={classes!(
-                        "text-5xl",
-                        "md:text-7xl",
-                        "font-bold",
-                        "mb-6",
-                        "leading-tight",
-                        "tag-title"
-                    )}
-                    style="font-family: 'Fraunces', serif;">
-                        { t::HERO_TITLE }
-                    </h1>
-
-                    <p class={classes!(
-                        "text-lg",
-                        "md:text-xl",
-                        "text-[var(--muted)]",
-                        "max-w-2xl",
-                        "mx-auto",
-                        "leading-relaxed"
-                    )}>
-                        { description }
-                    </p>
-
-                    // Filter badge if active
-                    {
-                        if query.has_filters() {
-                            html! {
-                                <div class={classes!(
-                                    "flex",
-                                    "flex-wrap",
-                                    "gap-3",
-                                    "items-center",
-                                    "justify-center",
-                                    "mt-8"
-                                )}>
-                                    <span class={classes!(
-                                        "tag-badge",
-                                        "inline-flex",
-                                        "items-center",
-                                        "gap-2",
-                                        "px-6",
-                                        "py-3",
-                                        "bg-gradient-to-r",
-                                        "from-[var(--primary)]",
-                                        "to-[var(--link)]",
-                                        "text-white",
-                                        "rounded-full",
-                                        "shadow-[var(--shadow-8)]",
-                                        "text-sm",
-                                        "font-semibold",
-                                        "tracking-wide"
-                                    )}>
-                                        <i class={classes!("fas", "fa-filter")}></i>
-                                        { filter_label }
-                                    </span>
-                                    <Link<Route> to={Route::Posts} classes={classes!(
-                                        "btn-fluent-secondary",
-                                        "!rounded-full"
-                                    )}>
-                                        <i class={classes!("fas", "fa-times", "mr-1")}></i>
-                                        { t::FILTER_CLEAR }
-                                    </Link<Route>>
-                                </div>
-                            }
-                        } else {
-                            html! {}
-                        }
+                    if query.has_filters() {
+                        <div class={classes!("flex", "flex-wrap", "gap-2.5", "items-center", "mt-4")}>
+                            <span class="sf-chip !border-[var(--primary)] !text-[var(--primary)]">
+                                <i class="fas fa-filter text-xs" aria-hidden="true"></i>
+                                { filter_label }
+                            </span>
+                            <Link<Route> to={Route::Posts} classes="btn-terminal !py-1 !px-3 !text-xs">
+                                <i class="fas fa-times" aria-hidden="true"></i>
+                                { t::FILTER_CLEAR }
+                            </Link<Route>>
+                        </div>
                     }
-                </div>
+                </header>
 
                 // Article Timeline Section
                 {
@@ -435,13 +362,12 @@ pub fn posts_page() -> Html {
                                             )}>
                                                 <div class={classes!(
                                                     "year-label",
-                                                    "text-4xl",
-                                                    "md:text-5xl",
+                                                    "text-2xl",
+                                                    "md:text-3xl",
                                                     "font-bold",
                                                     "text-[var(--text)]",
                                                     "tracking-tight"
-                                                )}
-                                                style="font-family: 'Fraunces', serif;">
+                                                )}>
                                                     { year_value }
                                                 </div>
                                                 <div class={classes!(
@@ -508,13 +434,12 @@ pub fn posts_page() -> Html {
                                                                 // Title
                                                                 <h3 class={classes!(
                                                                     "article-card-title",
-                                                                    "text-xl",
+                                                                    "text-lg",
                                                                     "font-bold",
                                                                     "text-[var(--text)]",
-                                                                    "leading-tight",
+                                                                    "leading-snug",
                                                                     "line-clamp-2"
-                                                                )}
-                                                                style="font-family: 'Fraunces', serif;">
+                                                                )}>
                                                                     { article.title.clone() }
                                                                 </h3>
 

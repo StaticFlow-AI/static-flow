@@ -19,7 +19,7 @@ use crate::{
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(js_namespace = window, js_name = sfLocalMediaPlayerMount)]
+    #[wasm_bindgen(js_namespace = window, js_name = sfLocalMediaPlayerMountLazy)]
     fn sf_local_media_player_mount(
         element: HtmlElement,
         url: &str,
@@ -28,7 +28,7 @@ extern "C" {
         storage_key: &str,
     );
 
-    #[wasm_bindgen(js_namespace = window, js_name = sfLocalMediaPlayerUnmount)]
+    #[wasm_bindgen(js_namespace = window, js_name = sfLocalMediaPlayerUnmountLazy)]
     fn sf_local_media_player_unmount(element: HtmlElement);
 }
 

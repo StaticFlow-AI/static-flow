@@ -20,6 +20,10 @@ extern "C" {
 
 /// Write `text` to the clipboard (best-effort). Shared by pages whose copy
 /// action is a callback rather than a [`CopyButton`].
+#[cfg_attr(
+    not(feature = "legacy-llm-admin"),
+    allow(dead_code, reason = "Used by legacy LLM/Kiro admin pages.")
+)]
 pub fn copy_to_clipboard(text: &str) {
     sf_copy_text(text);
 }

@@ -3,6 +3,14 @@
 //! The gateway implementation lives in a private submodule. Keeping the small
 //! HTTP contract used by this public frontend here avoids linking server
 //! internals into the open-source application.
+#![cfg_attr(
+    not(feature = "legacy-llm-admin"),
+    allow(
+        dead_code,
+        reason = "Legacy Yew LLM/Kiro admin contracts are only referenced when built with \
+                  --features legacy-llm-admin; LTO strips unreferenced symbols in default builds."
+    )
+)]
 
 use std::collections::BTreeMap;
 

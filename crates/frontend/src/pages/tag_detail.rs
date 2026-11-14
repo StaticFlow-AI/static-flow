@@ -137,87 +137,26 @@ pub fn tag_detail_page(props: &TagDetailProps) -> Html {
     }
 
     html! {
-        <main class={classes!(
-            "tag-detail-page",
-            "min-h-screen",
-            "pt-24",
-            "pb-20",
-            "px-4",
-            "md:px-8"
-        )}>
-            <div class={classes!(
-                "max-w-5xl",
-                "mx-auto"
-            )}>
-                // Header Section with Editorial Style
-                <header class={classes!(
-                    "tag-header",
-                    "mb-16",
-                    "text-center",
-                    "relative"
-                )}>
-                    <div class={classes!(
-                        "tag-badge",
-                        "inline-flex",
-                        "items-center",
-                        "gap-2",
-                        "px-4",
-                        "py-2",
-                        "mb-6",
-                        "rounded-full",
-                        "bg-gradient-to-r",
-                        "from-[var(--primary)]/10",
-                        "to-purple-500/10",
-                        "border",
-                        "border-[var(--primary)]/30",
-                        "text-[var(--primary)]",
-                        "font-medium",
-                        "text-sm",
-                        "tracking-wider",
-                        "uppercase"
-                    )}>
-                        <i class="fas fa-tag"></i>
-                        <span>{ t::ARCHIVE_BADGE }</span>
+        <main class={classes!("tag-detail-page", "min-h-[60vh]", "pb-20")}>
+            <div class={classes!("container")}>
+                <header class="sf-page-hero">
+                    <div class="flex items-center gap-3 mb-3">
+                        <Link<Route>
+                            to={Route::Tags}
+                            classes="sf-chip"
+                        >
+                            <i class="fas fa-arrow-left text-[10px]" aria-hidden="true"></i>
+                            <span>{ t::ARCHIVE_BADGE }</span>
+                        </Link<Route>>
                     </div>
-
-                    <h1 class={classes!(
-                        "tag-title",
-                        "text-5xl",
-                        "md:text-7xl",
-                        "font-bold",
-                        "mb-4",
-                        "leading-tight"
-                    )}>
-                        { format!("#{}", display_tag) }
-                    </h1>
-
-                    <p class={classes!(
-                        "tag-count",
-                        "text-xl",
-                        "text-[var(--muted)]",
-                        "font-light"
-                    )}>
+                    <h1 class="sf-page-title">{ format!("#{}", display_tag) }</h1>
+                    <p class="sf-page-sub">
                         if total_posts > 0 {
                             { fill_one(t::COLLECTED_COUNT_TEMPLATE, total_posts) }
                         } else {
                             { t::NO_CONTENT }
                         }
                     </p>
-
-                    // Decorative gradient line
-                    <div class={classes!(
-                        "tag-divider",
-                        "w-24",
-                        "h-1",
-                        "mx-auto",
-                        "mt-8",
-                        "rounded-full",
-                        "bg-gradient-to-r",
-                        "from-transparent",
-                        "via-[var(--primary)]",
-                        "to-transparent",
-                        "opacity-50"
-                    )}></div>
                 </header>
 
                 // Content Section

@@ -1335,67 +1335,64 @@ pub fn search_page() -> Html {
         <main onclick={intercept_search_links} class={classes!(
             "search-page",
             "min-h-[60vh]",
-            "mt-[var(--header-height-mobile)]",
-            "md:mt-[var(--header-height-desktop)]",
             "pb-20"
         )}>
             <div class={classes!("container")}>
-                <button onclick={Callback::from(|_: MouseEvent| {
-                        if let Some(w) = web_sys::window() { let _ = w.history().map(|h| h.back()); }
-                    })} type="button"
-                    class="flex items-center gap-1.5 text-sm text-[var(--muted)] hover:text-[var(--text)] transition-colors mt-4 mb-0">
-                    <i class="fas fa-arrow-left text-xs" />
-                    {"Back"}
-                </button>
-                // Hero Section with Cyberpunk Tech Style
-                <div class={classes!(
-                    "search-hero",
-                    "text-center",
-                    "py-16",
-                    "md:py-24",
-                    "px-4",
-                    "relative",
-                    "overflow-hidden"
-                )}>
-                    // Animated scanline overlay
-                    <div class={classes!("search-scanline")}></div>
+                <header class="sf-page-hero">
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                        <div class="flex items-center gap-3">
+                            <button
+                                onclick={Callback::from(|_: MouseEvent| {
+                                    if let Some(w) = web_sys::window() {
+                                        let _ = w.history().map(|h| h.back());
+                                    }
+                                })}
+                                type="button"
+                                class="sf-chip cursor-pointer"
+                            >
+                                <i class="fas fa-arrow-left text-[10px]" aria-hidden="true" />
+                                {"Back"}
+                            </button>
+                            <span class="sf-eyebrow !mb-0">{ t::SEARCH_ENGINE_BADGE }</span>
+                        </div>
 
-                    <p class={classes!(
-                        "text-sm",
-                        "tracking-[0.4em]",
-                        "uppercase",
-                        "text-[var(--muted)]",
-                        "mb-6",
-                        "font-semibold",
-                        "opacity-50"
-                    )}
-                    style="font-family: 'Space Mono', monospace;">
-                        { t::SEARCH_ENGINE_BADGE }
-                    </p>
+                        <span class="sf-chip font-mono">
+                            <i class={classes!("fas", "fa-search", "text-[var(--primary)]")} aria-hidden="true"></i>
+                            <span>
+                                if mode == "music" {
+                                    if *music_loading {
+                                        { t::STATUS_SCANNING }
+                                    } else if !keyword.is_empty() {
+                                        { format!("{} RESULTS", music_results.len()) }
+                                    } else {
+                                        { t::STATUS_READY }
+                                    }
+                                } else if mode == "image" {
+                                    if *image_loading || *image_text_loading {
+                                        { t::STATUS_SCANNING }
+                                    } else if !keyword.is_empty() {
+                                        { format!("{} RESULTS", image_text_results.len()) }
+                                    } else if selected_image_id.is_some() {
+                                        { format!("{} RESULTS", image_results.len()) }
+                                    } else {
+                                        { t::STATUS_READY }
+                                    }
+                                } else if keyword.is_empty() {
+                                    { t::STATUS_READY }
+                                } else if *loading {
+                                    { t::STATUS_SCANNING }
+                                } else {
+                                    { format!("{} RESULTS", results.len()) }
+                                }
+                            </span>
+                        </span>
+                    </div>
 
-                    <h1 class={classes!(
-                        "search-title",
-                        "text-5xl",
-                        "md:text-7xl",
-                        "font-bold",
-                        "mb-6",
-                        "leading-tight",
-                        "opacity-75"
-                    )}
-                    style="font-family: 'Space Mono', monospace;">
+                    <h1 class="sf-page-title">
                         <span>{ hero_label }</span>
                     </h1>
 
-                    <p class={classes!(
-                        "text-lg",
-                        "md:text-xl",
-                        "text-[var(--muted)]",
-                        "max-w-2xl",
-                        "mx-auto",
-                        "leading-relaxed",
-                        "mb-8",
-                        "opacity-80"
-                    )}>
+                    <p class="sf-page-sub">
                         if mode == "music" && !keyword.is_empty() {
                             if *music_loading {
                                 <span class={classes!("search-status-loading")}>
@@ -1456,83 +1453,8 @@ pub fn search_page() -> Html {
                         }
                     </p>
 
-                    // Decorative tech lines
-                    <div class={classes!(
-                        "search-tech-lines",
-                        "flex",
-                        "items-center",
-                        "justify-center",
-                        "gap-6",
-                        "mt-8"
-                    )}>
-                        <div class={classes!(
-                            "search-line-left",
-                            "w-24",
-                            "h-[2px]",
-                            "bg-gradient-to-r",
-                            "from-[var(--primary)]/50",
-                            "via-sky-500/50",
-                            "to-transparent"
-                        )}></div>
-                        <div class={classes!(
-                            "search-badge",
-                            "inline-flex",
-                            "items-center",
-                            "gap-2",
-                            "px-6",
-                            "py-3",
-                            "bg-gradient-to-r",
-                            "from-[var(--primary)]/10",
-                            "to-sky-500/10",
-                            "border-2",
-                            "border-[var(--primary)]/30",
-                            "rounded-lg",
-                            "text-sm",
-                            "font-bold",
-                            "text-[var(--primary)]"
-                        )}>
-                            <i class={classes!("fas", "fa-search")}></i>
-                            <span style="font-family: 'Space Mono', monospace;">
-                                if mode == "music" {
-                                    if *music_loading {
-                                        { t::STATUS_SCANNING }
-                                    } else if !keyword.is_empty() {
-                                        { format!("{} RESULTS", music_results.len()) }
-                                    } else {
-                                        { t::STATUS_READY }
-                                    }
-                                } else if mode == "image" {
-                                    if *image_loading || *image_text_loading {
-                                        { t::STATUS_SCANNING }
-                                    } else if !keyword.is_empty() {
-                                        { format!("{} RESULTS", image_text_results.len()) }
-                                    } else if selected_image_id.is_some() {
-                                        { format!("{} RESULTS", image_results.len()) }
-                                    } else {
-                                        { t::STATUS_READY }
-                                    }
-                                } else if keyword.is_empty() {
-                                    { t::STATUS_READY }
-                                } else if *loading {
-                                    { t::STATUS_SCANNING }
-                                } else {
-                                    { format!("{} RESULTS", results.len()) }
-                                }
-                            </span>
-                        </div>
-                        <div class={classes!(
-                            "search-line-right",
-                            "w-24",
-                            "h-[2px]",
-                            "bg-gradient-to-l",
-                            "from-[var(--primary)]/50",
-                            "via-sky-500/50",
-                            "to-transparent"
-                        )}></div>
-                    </div>
-
                     // Mode switches
-                    <div class={classes!("flex", "items-center", "justify-center", "gap-3", "mt-8")}>
+                    <div class={classes!("flex", "flex-wrap", "items-center", "gap-2.5", "mt-5")}>
                         <a
                             href={keyword_href}
                             class={classes!(
@@ -1650,7 +1572,7 @@ pub fn search_page() -> Html {
                                 "text-[var(--muted)]",
                                 "font-semibold"
                             )}
-                            style="font-family: 'Space Mono', monospace;">
+                            style="font-family: var(--font-mono);">
                                 { t::RESULT_SCOPE }
                             </span>
                             <a
@@ -1700,7 +1622,7 @@ pub fn search_page() -> Html {
                                 "text-[var(--muted)]",
                                 "font-semibold"
                             )}
-                            style="font-family: 'Space Mono', monospace;">
+                            style="font-family: var(--font-mono);">
                                 { t::DISTANCE_FILTER }
                             </span>
                             <a
@@ -1764,7 +1686,7 @@ pub fn search_page() -> Html {
                                 "text-[var(--muted)]",
                                 "font-semibold"
                             )}
-                            style="font-family: 'Space Mono', monospace;">
+                            style="font-family: var(--font-mono);">
                                 { t::DISTANCE_FILTER }
                             </span>
                             <input
@@ -1835,7 +1757,7 @@ pub fn search_page() -> Html {
                                 "text-[var(--muted)]",
                                 "font-semibold"
                             )}
-                            style="font-family: 'Space Mono', monospace;">
+                            style="font-family: var(--font-mono);">
                                 { t::HIGHLIGHT_PRECISION }
                             </span>
                             <a
@@ -1895,7 +1817,7 @@ pub fn search_page() -> Html {
                                     "text-[var(--muted)]",
                                     "font-semibold"
                                 )}
-                                style="font-family: 'Space Mono', monospace;">
+                                style="font-family: var(--font-mono);">
                                     { t::HYBRID_PANEL_TITLE }
                                 </span>
                                 <button
@@ -2108,7 +2030,7 @@ pub fn search_page() -> Html {
                             </a>
                         </div>
                     }
-                </div>
+                </header>
 
                 // Search Results
                 <div class={classes!("search-results", "flex", "flex-col", "gap-6", "mt-8")}>
@@ -2121,14 +2043,14 @@ pub fn search_page() -> Html {
                                     "uppercase",
                                     "tracking-[0.3em]",
                                     "font-semibold"
-                                )} style="font-family: 'Space Mono', monospace;">
+                                )} style="font-family: var(--font-mono);">
                                     { t::IMAGE_TEXT_RESULTS }
                                 </div>
                                 <div class={classes!(
                                     "text-sm",
                                     "text-[var(--muted)]",
                                     "mb-2"
-                                )} style="font-family: 'Space Mono', monospace;">
+                                )} style="font-family: var(--font-mono);">
                                     { fill_one(t::IMAGE_TEXT_QUERY_TEMPLATE, &keyword) }
                                 </div>
 
@@ -2149,7 +2071,7 @@ pub fn search_page() -> Html {
                                             "text-2xl",
                                             "text-[var(--primary)]"
                                         )}></i>
-                                        <span style="font-family: 'Space Mono', monospace;">{ t::IMAGE_TEXT_SEARCHING }</span>
+                                        <span style="font-family: var(--font-mono);">{ t::IMAGE_TEXT_SEARCHING }</span>
                                     </div>
                                 } else if image_text_results.is_empty() {
                                     <div class={classes!(
@@ -2243,7 +2165,7 @@ pub fn search_page() -> Html {
                                 "uppercase",
                                 "tracking-[0.3em]",
                                 "font-semibold"
-                            )} style="font-family: 'Space Mono', monospace;">
+                            )} style="font-family: var(--font-mono);">
                                 { t::IMAGE_CATALOG }
                             </div>
 
@@ -2264,7 +2186,7 @@ pub fn search_page() -> Html {
                                         "text-2xl",
                                         "text-[var(--primary)]"
                                     )}></i>
-                                    <span style="font-family: 'Space Mono', monospace;">{ t::IMAGE_LOADING }</span>
+                                    <span style="font-family: var(--font-mono);">{ t::IMAGE_LOADING }</span>
                                 </div>
                             } else if image_catalog.is_empty() {
                                 <div class={classes!(
@@ -2370,7 +2292,7 @@ pub fn search_page() -> Html {
                                     "uppercase",
                                     "tracking-[0.3em]",
                                     "font-semibold"
-                                )} style="font-family: 'Space Mono', monospace;">
+                                )} style="font-family: var(--font-mono);">
                                     { t::SIMILAR_IMAGES }
                                 </div>
 
@@ -2391,7 +2313,7 @@ pub fn search_page() -> Html {
                                             "text-2xl",
                                             "text-[var(--primary)]"
                                         )}></i>
-                                        <span style="font-family: 'Space Mono', monospace;">{ t::IMAGE_SEARCHING }</span>
+                                        <span style="font-family: var(--font-mono);">{ t::IMAGE_SEARCHING }</span>
                                     </div>
                                 } else if image_results.is_empty() {
                                     <div class={classes!(
@@ -2512,7 +2434,7 @@ pub fn search_page() -> Html {
                                 "text-2xl",
                                 "text-[var(--primary)]"
                             )}></i>
-                            <span style="font-family: 'Space Mono', monospace;">{ t::SEARCHING_SHORT }</span>
+                            <span style="font-family: var(--font-mono);">{ t::SEARCHING_SHORT }</span>
                         </div>
                     } else if mode == "music" && music_error.is_some() {
                         <div class={classes!(
@@ -2533,7 +2455,7 @@ pub fn search_page() -> Html {
                                 "mb-6",
                                 "opacity-70"
                             )}></i>
-                            <p class={classes!("text-xl", "mb-2", "font-bold")} style="font-family: 'Space Mono', monospace;">
+                            <p class={classes!("text-xl", "mb-2", "font-bold")} style="font-family: var(--font-mono);">
                                 { t::SEARCH_FAILED_TITLE }
                             </p>
                             <p class={classes!("text-base", "text-[var(--muted)]", "opacity-70")}>
@@ -2581,7 +2503,7 @@ pub fn search_page() -> Html {
                                             </div>
                                             <div class="p-3">
                                                 <h3 class="text-sm font-semibold text-[var(--text)] truncate"
-                                                    style="font-family: 'Fraunces', serif;">
+                                                    style="font-family: var(--font-sans);">
                                                     {&r.title}
                                                 </h3>
                                                 <p class="text-xs text-[var(--muted)] truncate mt-0.5">
@@ -2612,7 +2534,7 @@ pub fn search_page() -> Html {
                                 "mb-6",
                                 "opacity-50"
                             )}></i>
-                            <p class={classes!("text-xl", "mb-2", "font-bold")} style="font-family: 'Space Mono', monospace;">
+                            <p class={classes!("text-xl", "mb-2", "font-bold")} style="font-family: var(--font-mono);">
                                 { t::NO_RESULTS_TITLE }
                             </p>
                             <p class={classes!("text-base", "text-[var(--muted)]", "opacity-70")}>
@@ -2658,7 +2580,7 @@ pub fn search_page() -> Html {
                                 "text-2xl",
                                 "text-[var(--primary)]"
                             )}></i>
-                            <span style="font-family: 'Space Mono', monospace;">{ t::SEARCHING_SHORT }</span>
+                            <span style="font-family: var(--font-mono);">{ t::SEARCHING_SHORT }</span>
                         </div>
                     } else if !results.is_empty() {
                         <>
@@ -2705,7 +2627,7 @@ pub fn search_page() -> Html {
                                 "mb-6",
                                 "opacity-50"
                             )}></i>
-                            <p class={classes!("text-xl", "mb-2", "font-bold")} style="font-family: 'Space Mono', monospace;">
+                            <p class={classes!("text-xl", "mb-2", "font-bold")} style="font-family: var(--font-mono);">
                                 { t::NO_RESULTS_TITLE }
                             </p>
                             <p class={classes!("text-base", "text-[var(--muted)]", "opacity-70")}>
@@ -2999,7 +2921,7 @@ fn render_search_result(result: &SearchResult) -> Html {
                     "font-bold",
                     "text-[var(--primary)]"
                 )}
-                style="font-family: 'Space Mono', monospace;">
+                style="font-family: var(--font-mono);">
                     <i class={classes!("fas", "fa-database")}></i>
                     { t::MATCH_BADGE }
                 </div>
@@ -3014,7 +2936,7 @@ fn render_search_result(result: &SearchResult) -> Html {
                     "duration-200",
                     "group-hover:text-[var(--primary)]"
                 )}
-                style="font-family: 'Fraunces', serif;">
+                style="font-family: var(--font-sans);">
                     { &result.title }
                 </h2>
 
@@ -3044,12 +2966,12 @@ fn render_search_result(result: &SearchResult) -> Html {
                         "border",
                         "border-[var(--primary)]/30"
                     )}
-                    style="font-family: 'Space Mono', monospace;">
+                    style="font-family: var(--font-mono);">
                         <i class={classes!("far", "fa-folder")}></i>
                         { &result.category }
                     </span>
                     <span class={classes!("flex", "items-center", "gap-1.5", "opacity-70")}
-                    style="font-family: 'Space Mono', monospace;">
+                    style="font-family: var(--font-mono);">
                         <i class={classes!("far", "fa-calendar")}></i>
                         { &result.date }
                     </span>
@@ -3099,7 +3021,7 @@ fn render_search_result(result: &SearchResult) -> Html {
                                         "hover:text-[var(--primary)]",
                                         "hover:border-[var(--primary)]/50"
                                     )}
-                                    style="font-family: 'Space Mono', monospace;">
+                                    style="font-family: var(--font-mono);">
                                         { format!("#{}", tag) }
                                     </span>
                                 }
