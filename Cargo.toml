@@ -109,7 +109,7 @@ opt-level = "z"   # 优化体积（WASM 重要）
 lto = true        # 链接时优化
 codegen-units = 1 # 单一代码生成单元，更好的优化
 panic = "abort"   # Panic 时直接中止，减小体积
-strip = true      # 移除调试符号
+strip = false     # 保留 Wasm target_features 自定义段供 wasm-bindgen 读取；调试段由 wasm-opt 剥离
 
 # Backend release: keep symbols for memory profiler stack resolution
 [profile.release-backend]

@@ -88,7 +88,7 @@ NPM_CONFIG_CACHE="$NPM_CACHE_DIR" \
 STATICFLOW_API_BASE="/api" \
 trunk "${TRUNK_ARGS[@]}"
 
-# Optimize WASM binary size via wasm-opt (-Oz --all-features)
+# Optimize WASM binary size via wasm-opt (-Oz --all-features --strip-debug --strip-dwarf --strip-producers)
 WASM_OPT_BIN=""
 if command -v wasm-opt >/dev/null 2>&1; then
   WASM_OPT_BIN="$(command -v wasm-opt)"
@@ -103,7 +103,7 @@ if [[ -n "$WASM_OPT_BIN" ]]; then
   for wasm_file in "$FRONTEND_DIR"/dist/*_bg.wasm; do
     [[ -f "$wasm_file" ]] || continue
     before_bytes="$(wc -c < "$wasm_file")"
-    "$WASM_OPT_BIN" -Oz --all-features "$wasm_file" -o "${wasm_file}.opt"
+    "$WASM_OPT_BIN" -Oz --all-features --strip-debug --strip-dwarf --strip-producers "$wasm_file" -o "${wasm_file}.opt"
     mv "${wasm_file}.opt" "$wasm_file"
     after_bytes="$(wc -c < "$wasm_file")"
     if command -v node >/dev/null 2>&1 && [[ -f "$FRONTEND_DIR/dist/index.html" ]]; then

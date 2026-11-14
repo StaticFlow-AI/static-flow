@@ -266,6 +266,26 @@ impl AppState {
             Arc::new(Gpt2ApiContributionStore::connect(content_db_uri).await?);
         let geoip = GeoIpResolver::from_env()?;
         geoip.warmup().await;
+        if parse_bool_env("EMBEDDING_WARMUP_ENABLED", true) {
+            tokio::task::spawn_blocking(|| {
+                let started = std::time::Instant::now();
+                match static_flow_store::lancedb_api::warmup_default_text_models() {
+                    Ok(()) => {
+                        tracing::info!(
+                            elapsed_ms = started.elapsed().as_millis(),
+                            "background text embedding model warmup completed"
+                        );
+                    },
+                    Err(err) => {
+                        tracing::warn!(
+                            elapsed_ms = started.elapsed().as_millis(),
+                            error = %err,
+                            "background text embedding model warmup skipped or failed"
+                        );
+                    },
+                }
+            });
+        }
         let gpt2api_rs = Arc::new(Gpt2ApiRsState::load_from_env().await?);
         let llm_access_admin_proxy = LlmAccessAdminProxyState::from_env()?;
         let email_notifier = EmailNotifier::from_env()?.map(Arc::new);

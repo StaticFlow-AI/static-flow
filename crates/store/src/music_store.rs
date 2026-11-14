@@ -40,6 +40,16 @@ const MUSIC_COMMENTS_TABLE: &str = "music_comments";
 
 pub const MUSIC_TABLE_NAMES: &[&str] = &["songs", "music_plays", "music_comments"];
 
+async fn embed_text_with_language_async(
+    text: &str,
+    language: TextEmbeddingLanguage,
+) -> Result<Vec<f32>> {
+    let owned = text.to_string();
+    tokio::task::spawn_blocking(move || embed_text_with_language(&owned, language))
+        .await
+        .context("music text embedding blocking task panicked")?
+}
+
 // ---------------------------------------------------------------------------
 // Record structs (DB rows)
 // ---------------------------------------------------------------------------
@@ -1317,7 +1327,8 @@ impl MusicDataStore {
             TextEmbeddingLanguage::English => ("vector_en", "vector_zh"),
         };
 
-        let vector = embed_text_with_language(query_text, lang)
+        let vector = embed_text_with_language_async(query_text, lang)
+            .await
             .with_context(|| format!("failed to embed semantic music query with {:?}", lang))?;
 
         let results = self
@@ -1333,8 +1344,9 @@ impl MusicDataStore {
             TextEmbeddingLanguage::Chinese => TextEmbeddingLanguage::English,
             TextEmbeddingLanguage::English => TextEmbeddingLanguage::Chinese,
         };
-        let fallback_vector =
-            embed_text_with_language(query_text, fallback_lang).with_context(|| {
+        let fallback_vector = embed_text_with_language_async(query_text, fallback_lang)
+            .await
+            .with_context(|| {
                 format!("failed to embed semantic music fallback query with {:?}", fallback_lang)
             })?;
         self.run_vector_search(
@@ -1775,12 +1787,14 @@ impl MusicDataStore {
             id_builder.append_value(&ids[i]);
 
             let lang = detect_language(text);
-            let primary_vector = embed_text_with_language(text, lang);
+            let primary_vector = embed_text_with_language_async(text, lang).await;
 
             match lang {
                 TextEmbeddingLanguage::Chinese => {
                     let en_vector =
-                        match embed_text_with_language(text, TextEmbeddingLanguage::English) {
+                        match embed_text_with_language_async(text, TextEmbeddingLanguage::English)
+                            .await
+                        {
                             Ok(vector) => Some(vector),
                             Err(err) => {
                                 tracing::warn!(

@@ -10,7 +10,7 @@ use std::{
 use parking_lot::RwLock;
 use static_flow_store::{
     article_request_store, comments_store, interactive_store,
-    lancedb_api::CONTENT_BACKGROUND_COMPACTION_TABLE_NAMES,
+    lancedb_api::{resolve_table_compact_config, CONTENT_BACKGROUND_COMPACTION_TABLE_NAMES},
     llm_gateway_store::GPT2API_ACCOUNT_CONTRIBUTION_REQUESTS_TABLE,
     music_store, music_wish_store,
     optimize::{check_opened_table_and_compact, CompactAction, CompactConfig, CompactResult},
@@ -24,6 +24,9 @@ use crate::state::{
 const STARTUP_DELAY_SECONDS: u64 = 60;
 const DISPATCH_TICK_SECONDS: u64 = 1;
 const MIN_MIMALLOC_COLLECTION_INTERVAL: Duration = Duration::from_secs(30);
+/// Minimum accumulated unindexed rows required before triggering an expensive
+/// full scalar/vector index rebuild on append-heavy telemetry tables.
+const TELEMETRY_MIN_UNINDEXED_ROWS_FOR_INDEX_OPTIMIZE: usize = 512;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum MaintenanceDb {
@@ -53,6 +56,7 @@ struct TableMaintenanceTaskDefinition {
     prune_older_than_hours_override: Option<i64>,
     compact_enabled: bool,
     optimize_dirty_indices: bool,
+    min_unindexed_rows_for_index_optimize: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -309,6 +313,7 @@ fn default_table_maintenance_tasks() -> Vec<TableMaintenanceTaskDefinition> {
         prune_older_than_hours_override: None,
         compact_enabled: true,
         optimize_dirty_indices: true,
+        min_unindexed_rows_for_index_optimize: TELEMETRY_MIN_UNINDEXED_ROWS_FOR_INDEX_OPTIMIZE,
     });
     tasks.push(TableMaintenanceTaskDefinition {
         id: "content:api_behavior_events".to_string(),
@@ -319,6 +324,7 @@ fn default_table_maintenance_tasks() -> Vec<TableMaintenanceTaskDefinition> {
         prune_older_than_hours_override: None,
         compact_enabled: true,
         optimize_dirty_indices: true,
+        min_unindexed_rows_for_index_optimize: TELEMETRY_MIN_UNINDEXED_ROWS_FOR_INDEX_OPTIMIZE,
     });
     push_generic_tasks(
         &mut tasks,
@@ -351,6 +357,15 @@ fn default_table_maintenance_tasks() -> Vec<TableMaintenanceTaskDefinition> {
     tasks
 }
 
+fn default_min_unindexed_rows_for_table(table_name: &str) -> usize {
+    match table_name {
+        "api_behavior_events" | "article_views" | "music_plays" => {
+            TELEMETRY_MIN_UNINDEXED_ROWS_FOR_INDEX_OPTIMIZE
+        },
+        _ => 1,
+    }
+}
+
 fn push_generic_tasks(
     tasks: &mut Vec<TableMaintenanceTaskDefinition>,
     db_label: &'static str,
@@ -370,6 +385,7 @@ fn push_generic_tasks(
             prune_older_than_hours_override: None,
             compact_enabled: true,
             optimize_dirty_indices: true,
+            min_unindexed_rows_for_index_optimize: default_min_unindexed_rows_for_table(table_name),
         });
     }
 }
@@ -455,7 +471,15 @@ async fn execute_scheduled_task(
                 },
             };
             match connection.open_table(table_name).execute().await {
-                Ok(table) => check_opened_table_and_compact(&table, &task.compact_config).await,
+                Ok(table) => {
+                    let effective_config = resolve_table_compact_config(
+                        &table,
+                        &task.compact_config,
+                        task.definition.min_unindexed_rows_for_index_optimize,
+                    )
+                    .await;
+                    check_opened_table_and_compact(&table, &effective_config).await
+                },
                 Err(err) => CompactResult {
                     table: table_name.to_string(),
                     small_fragments: 0,
@@ -472,13 +496,19 @@ async fn execute_scheduled_task(
         TaskKind::ContentArticleViews => {
             stores
                 .content_store
-                .maintain_article_views_table(&task.compact_config)
+                .maintain_article_views_table_with_min_unindexed(
+                    &task.compact_config,
+                    task.definition.min_unindexed_rows_for_index_optimize,
+                )
                 .await
         },
         TaskKind::ContentApiBehavior => {
             stores
                 .content_store
-                .maintain_api_behavior_table(&task.compact_config)
+                .maintain_api_behavior_table_with_min_unindexed(
+                    &task.compact_config,
+                    task.definition.min_unindexed_rows_for_index_optimize,
+                )
                 .await
         },
     }
@@ -597,5 +627,26 @@ mod tests {
         let mut last_collection = None;
         assert!(!should_force_allocator_collection(false, &mut last_collection, Instant::now(),));
         assert!(last_collection.is_none());
+    }
+
+    #[test]
+    fn telemetry_tables_require_batched_unindexed_rows_before_index_optimize() {
+        let tasks = default_table_maintenance_tasks();
+        for telemetry_table in ["api_behavior_events", "article_views", "music_plays"] {
+            let task = tasks
+                .iter()
+                .find(|task| task.table_name == telemetry_table)
+                .unwrap_or_else(|| panic!("{telemetry_table} task should exist"));
+            assert_eq!(
+                task.min_unindexed_rows_for_index_optimize,
+                TELEMETRY_MIN_UNINDEXED_ROWS_FOR_INDEX_OPTIMIZE
+            );
+        }
+
+        let articles_task = tasks
+            .iter()
+            .find(|task| task.table_name == "articles")
+            .expect("articles task should exist");
+        assert_eq!(articles_task.min_unindexed_rows_for_index_optimize, 1);
     }
 }

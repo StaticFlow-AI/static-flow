@@ -2,8 +2,8 @@ use std::{
     collections::{HashMap, HashSet},
     fs::{self, File, OpenOptions},
     path::{Path, PathBuf},
-    sync::Arc,
-    time::{Instant, SystemTime, UNIX_EPOCH},
+    sync::{Arc, Mutex as StdMutex, OnceLock},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::{Context, Result};
@@ -24,9 +24,10 @@ use lancedb::{
     Connection, Table,
 };
 use serde::{Deserialize, Serialize};
+pub use static_flow_embedding::warmup_default_text_models;
 use static_flow_embedding::{
-    detect_language, embed_text_with_language, embed_text_with_model, TextEmbeddingLanguage,
-    TextEmbeddingModel,
+    detect_language, embed_text_with_language, embed_text_with_model, embed_texts_with_language,
+    TextEmbeddingLanguage, TextEmbeddingModel,
 };
 use static_flow_shared::{
     normalize_taxonomy_key, Article, ArticleKind, ArticleListItem, LocalizedText,
@@ -40,6 +41,77 @@ use crate::{
         scan_and_compact_tables, CompactAction, CompactConfig, CompactResult,
     },
 };
+
+/// Default result cap applied when `search_articles` or `semantic_search` is
+/// called without an explicit `limit`.
+pub const DEFAULT_SEARCH_LIMIT: usize = 50;
+
+const INDEX_DIAGNOSTIC_CACHE_TTL: Duration = Duration::from_secs(60);
+const INDEX_DIAGNOSTIC_CACHE_MAX_ENTRIES: usize = 128;
+const ENHANCED_HIGHLIGHT_MAX_DEEP_ROWS: usize = 8;
+const ENHANCED_HIGHLIGHT_MAX_CANDIDATES: usize = 10;
+const SEMANTIC_HIGHLIGHT_MAX_SNIPPET_CHARS: usize = 180;
+
+/// Inspects all indices on `table` and returns the maximum `num_unindexed_rows`
+/// across them, or `None` if listing indices fails.
+pub async fn inspect_max_unindexed_rows(table: &Table) -> Option<usize> {
+    let indices = match table.list_indices().await {
+        Ok(indices) => indices,
+        Err(err) => {
+            tracing::warn!(
+                table = table.name(),
+                error = %err,
+                "failed to list indices while checking unindexed row threshold"
+            );
+            return None;
+        },
+    };
+
+    let mut max_unindexed = 0usize;
+    for index in indices {
+        match table.index_stats(&index.name).await {
+            Ok(Some(stats)) => {
+                max_unindexed = max_unindexed.max(stats.num_unindexed_rows);
+            },
+            Ok(None) => {},
+            Err(err) => {
+                tracing::warn!(
+                    table = table.name(),
+                    index = index.name,
+                    error = %err,
+                    "failed to inspect index stats while checking unindexed row threshold"
+                );
+            },
+        }
+    }
+    Some(max_unindexed)
+}
+
+/// Returns an effective [`CompactConfig`] that suppresses expensive dirty-index
+/// rebuilds until at least `min_unindexed_rows` unindexed rows have
+/// accumulated.
+pub async fn resolve_table_compact_config(
+    table: &Table,
+    config: &CompactConfig,
+    min_unindexed_rows: usize,
+) -> CompactConfig {
+    let mut effective = config.clone();
+    if !effective.optimize_dirty_indices || min_unindexed_rows <= 1 {
+        return effective;
+    }
+    if let Some(max_unindexed_rows) = inspect_max_unindexed_rows(table).await {
+        if max_unindexed_rows < min_unindexed_rows {
+            tracing::debug!(
+                table = table.name(),
+                max_unindexed_rows,
+                min_unindexed_rows,
+                "deferring dirty index optimization until unindexed row threshold is reached"
+            );
+            effective.optimize_dirty_indices = false;
+        }
+    }
+    effective
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SearchResult {
@@ -642,20 +714,42 @@ impl StaticFlowDataStore {
             config,
         )
         .await;
-        results.push(self.check_and_compact_article_views(config).await);
-        results.push(self.check_and_compact_api_behavior(config).await);
+        results.push(self.check_and_compact_article_views(config, 1).await);
+        results.push(self.check_and_compact_api_behavior(config, 1).await);
         results
     }
 
     pub async fn maintain_article_views_table(&self, config: &CompactConfig) -> CompactResult {
-        self.check_and_compact_article_views(config).await
+        self.check_and_compact_article_views(config, 1).await
+    }
+
+    pub async fn maintain_article_views_table_with_min_unindexed(
+        &self,
+        config: &CompactConfig,
+        min_unindexed_rows: usize,
+    ) -> CompactResult {
+        self.check_and_compact_article_views(config, min_unindexed_rows)
+            .await
     }
 
     pub async fn maintain_api_behavior_table(&self, config: &CompactConfig) -> CompactResult {
-        self.check_and_compact_api_behavior(config).await
+        self.check_and_compact_api_behavior(config, 1).await
     }
 
-    async fn check_and_compact_article_views(&self, config: &CompactConfig) -> CompactResult {
+    pub async fn maintain_api_behavior_table_with_min_unindexed(
+        &self,
+        config: &CompactConfig,
+        min_unindexed_rows: usize,
+    ) -> CompactResult {
+        self.check_and_compact_api_behavior(config, min_unindexed_rows)
+            .await
+    }
+
+    async fn check_and_compact_article_views(
+        &self,
+        config: &CompactConfig,
+        min_unindexed_rows: usize,
+    ) -> CompactResult {
         if config
             .skip_tables
             .contains(self.article_views_table.as_str())
@@ -692,10 +786,16 @@ impl StaticFlowDataStore {
             Ok(table) => table,
             Err(err) => return open_failed_compact_result(&self.article_views_table, err),
         };
-        check_opened_table_and_compact(&table, config).await
+        let effective_config =
+            resolve_table_compact_config(&table, config, min_unindexed_rows).await;
+        check_opened_table_and_compact(&table, &effective_config).await
     }
 
-    async fn check_and_compact_api_behavior(&self, config: &CompactConfig) -> CompactResult {
+    async fn check_and_compact_api_behavior(
+        &self,
+        config: &CompactConfig,
+        min_unindexed_rows: usize,
+    ) -> CompactResult {
         if config
             .skip_tables
             .contains(self.api_behavior_table.as_str())
@@ -732,7 +832,9 @@ impl StaticFlowDataStore {
             Ok(table) => table,
             Err(err) => return open_failed_compact_result(&self.api_behavior_table, err),
         };
-        check_opened_table_and_compact(&table, config).await
+        let effective_config =
+            resolve_table_compact_config(&table, config, min_unindexed_rows).await;
+        check_opened_table_and_compact(&table, &effective_config).await
     }
 
     pub async fn track_article_view(
@@ -1112,6 +1214,7 @@ impl StaticFlowDataStore {
         keyword: &str,
         limit: Option<usize>,
     ) -> Result<Vec<SearchResult>> {
+        let limit = Some(limit.unwrap_or(DEFAULT_SEARCH_LIMIT));
         let table = self.articles_table().await?;
         let fts_index = inspect_index_for_column(&table, "content", true).await;
         let primary_path = if fts_index.is_some() { "fts_index" } else { "fts_without_index" };
@@ -1208,6 +1311,7 @@ impl StaticFlowDataStore {
         hybrid_vector_limit: Option<usize>,
         hybrid_fts_limit: Option<usize>,
     ) -> Result<Vec<SearchResult>> {
+        let limit = Some(limit.unwrap_or(DEFAULT_SEARCH_LIMIT));
         let table = self.articles_table().await?;
         let total_started = Instant::now();
         let effective_vector_limit = if hybrid { hybrid_vector_limit.or(limit) } else { limit };
@@ -1336,28 +1440,14 @@ impl StaticFlowDataStore {
         );
 
         let highlight_started = Instant::now();
-        let results = rows
-            .into_iter()
-            .map(|row| SearchResult {
-                id: row.id,
-                title: row.title,
-                summary: row.summary.clone(),
-                category: row.category,
-                date: row.date,
-                highlight: if enhanced_highlight {
-                    extract_semantic_highlight(
-                        &row.content,
-                        &row.summary,
-                        keyword,
-                        query_embedding.as_slice(),
-                        search_language,
-                    )
-                } else {
-                    extract_fast_semantic_highlight(&row.content, &row.summary, keyword)
-                },
-                tags: row.tags,
-            })
-            .collect::<Vec<_>>();
+        let results = build_semantic_search_results(
+            rows,
+            keyword,
+            query_embedding,
+            search_language,
+            enhanced_highlight,
+        )
+        .await;
 
         log_query_result(
             "semantic_search.highlight",
@@ -1515,7 +1605,8 @@ impl StaticFlowDataStore {
         let table = self.images_table().await?;
         let total_started = Instant::now();
 
-        let query_embedding = embed_text_with_model(query, TextEmbeddingModel::ClipVitB32)
+        let query_embedding = embed_text_with_model_async(query, TextEmbeddingModel::ClipVitB32)
+            .await
             .context("failed to embed text query for image search")?;
 
         let index_diag = inspect_index_for_column(&table, "vector", false).await;
@@ -1822,6 +1913,81 @@ fn is_fts_index_type(index_type: &lancedb::index::IndexType) -> bool {
     index_type.to_string().to_ascii_uppercase().contains("FTS")
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct IndexDiagnosticCacheKey {
+    table_key: String,
+    column: String,
+    require_fts: bool,
+}
+
+#[derive(Debug, Clone)]
+struct CachedIndexDiagnostic {
+    diagnostic: Option<IndexDiagnostic>,
+    expires_at: Instant,
+}
+
+static INDEX_DIAGNOSTIC_CACHE: OnceLock<
+    StdMutex<HashMap<IndexDiagnosticCacheKey, CachedIndexDiagnostic>>,
+> = OnceLock::new();
+
+fn index_diagnostic_cache(
+) -> &'static StdMutex<HashMap<IndexDiagnosticCacheKey, CachedIndexDiagnostic>> {
+    INDEX_DIAGNOSTIC_CACHE.get_or_init(|| StdMutex::new(HashMap::new()))
+}
+
+fn lookup_cached_index_diagnostic(
+    key: &IndexDiagnosticCacheKey,
+    now: Instant,
+) -> Option<Option<IndexDiagnostic>> {
+    let mut guard = index_diagnostic_cache()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    if let Some(entry) = guard.get(key) {
+        if now < entry.expires_at {
+            return Some(entry.diagnostic.clone());
+        }
+        guard.remove(key);
+    }
+    None
+}
+
+fn store_cached_index_diagnostic(
+    key: IndexDiagnosticCacheKey,
+    diagnostic: Option<IndexDiagnostic>,
+    now: Instant,
+) {
+    let mut guard = index_diagnostic_cache()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    if guard.len() >= INDEX_DIAGNOSTIC_CACHE_MAX_ENTRIES {
+        guard.retain(|_, entry| now < entry.expires_at);
+        if guard.len() >= INDEX_DIAGNOSTIC_CACHE_MAX_ENTRIES {
+            guard.clear();
+        }
+    }
+    guard.insert(key, CachedIndexDiagnostic {
+        diagnostic,
+        expires_at: now + INDEX_DIAGNOSTIC_CACHE_TTL,
+    });
+}
+
+async fn embed_text_with_language_async(
+    text: &str,
+    language: TextEmbeddingLanguage,
+) -> Result<Vec<f32>> {
+    let owned = text.to_string();
+    tokio::task::spawn_blocking(move || embed_text_with_language(&owned, language))
+        .await
+        .context("text embedding blocking task panicked")?
+}
+
+async fn embed_text_with_model_async(text: &str, model: TextEmbeddingModel) -> Result<Vec<f32>> {
+    let owned = text.to_string();
+    tokio::task::spawn_blocking(move || embed_text_with_model(&owned, model))
+        .await
+        .context("model embedding blocking task panicked")?
+}
+
 async fn inspect_index_for_column(
     table: &Table,
     column: &str,
@@ -1829,6 +1995,20 @@ async fn inspect_index_for_column(
 ) -> Option<IndexDiagnostic> {
     if !tracing::enabled!(tracing::Level::INFO) {
         return None;
+    }
+
+    let table_key = table
+        .uri()
+        .await
+        .unwrap_or_else(|_| table.name().to_string());
+    let cache_key = IndexDiagnosticCacheKey {
+        table_key,
+        column: column.to_string(),
+        require_fts,
+    };
+    let now = Instant::now();
+    if let Some(cached) = lookup_cached_index_diagnostic(&cache_key, now) {
+        return cached;
     }
 
     let indexes = match table.list_indices().await {
@@ -1842,11 +2022,14 @@ async fn inspect_index_for_column(
         },
     };
 
-    let index = indexes.into_iter().find(|index| {
+    let Some(index) = indexes.into_iter().find(|index| {
         index.columns.len() == 1
             && index.columns[0] == column
             && (!require_fts || is_fts_index_type(&index.index_type))
-    })?;
+    }) else {
+        store_cached_index_diagnostic(cache_key, None, Instant::now());
+        return None;
+    };
 
     let (indexed_rows, unindexed_rows) = match table.index_stats(&index.name).await {
         Ok(Some(stats)) => {
@@ -1863,12 +2046,14 @@ async fn inspect_index_for_column(
         },
     };
 
-    Some(IndexDiagnostic {
+    let diagnostic = Some(IndexDiagnostic {
         name: index.name,
         index_type: index.index_type.to_string(),
         indexed_rows,
         unindexed_rows,
-    })
+    });
+    store_cached_index_diagnostic(cache_key, diagnostic.clone(), Instant::now());
+    diagnostic
 }
 
 async fn fetch_category_descriptions(table: &Table) -> Result<HashMap<String, String>> {
@@ -2218,8 +2403,9 @@ async fn run_semantic_vector_search_with_fallback(
     enhanced_highlight: bool,
 ) -> Result<SemanticVectorSelection> {
     let mut search_language = choose_primary_search_language(keyword);
-    let mut query_embedding =
-        embed_text_with_language(keyword, search_language).with_context(|| {
+    let mut query_embedding = embed_text_with_language_async(keyword, search_language)
+        .await
+        .with_context(|| {
             format!("failed to embed semantic query for language {:?}", search_language)
         })?;
     let primary_column = vector_column_for_language(search_language);
@@ -2276,7 +2462,8 @@ async fn run_semantic_vector_search_with_fallback(
         );
         log_query_path("semantic_search.fallback", fallback_path, "vector_index", &fallback_reason);
 
-        let fallback_embedding = embed_text_with_language(keyword, fallback_language)
+        let fallback_embedding = embed_text_with_language_async(keyword, fallback_language)
+            .await
             .with_context(|| {
                 format!(
                     "failed to embed semantic fallback query for language {:?}",
@@ -3593,45 +3780,93 @@ fn extract_fast_semantic_highlight(content: &str, summary: &str, keyword: &str) 
 /// - Vector retrieval answers "which article is relevant".
 /// - This stage answers "which fragment of that article should be shown".
 /// - The result improves UX, especially when query terms are paraphrased.
-fn extract_semantic_highlight(
-    content: &str,
+#[derive(Debug)]
+struct PendingDeepHighlightRow {
+    row_index: usize,
+    offset: usize,
+    count: usize,
+    candidates: Vec<String>,
+}
+
+#[derive(Debug)]
+struct PlannedSemanticHighlights {
+    highlights: Vec<String>,
+    pending_rows: Vec<PendingDeepHighlightRow>,
+    pooled_candidates: Vec<String>,
+}
+
+fn plan_batched_semantic_highlights(
+    rows: &[SearchArticleRow],
+    keyword: &str,
+) -> PlannedSemanticHighlights {
+    let mut highlights = Vec::with_capacity(rows.len());
+    let mut pending_rows = Vec::new();
+    let mut pooled_candidates = Vec::new();
+    let mut deep_rows_scheduled = 0usize;
+
+    for (row_index, row) in rows.iter().enumerate() {
+        let content = row.content.trim();
+        if content.is_empty() {
+            highlights
+                .push(excerpt_with_ellipsis(&row.summary, SEMANTIC_HIGHLIGHT_MAX_SNIPPET_CHARS));
+            continue;
+        }
+
+        if !keyword.trim().is_empty()
+            && find_case_insensitive_match_range(content, keyword).is_some()
+        {
+            highlights.push(extract_highlight(content, keyword));
+            continue;
+        }
+
+        if deep_rows_scheduled >= ENHANCED_HIGHLIGHT_MAX_DEEP_ROWS {
+            highlights.push(extract_fast_semantic_highlight(&row.content, &row.summary, keyword));
+            continue;
+        }
+
+        let mut candidates =
+            semantic_snippet_candidates(content, SEMANTIC_HIGHLIGHT_MAX_SNIPPET_CHARS);
+        candidates.truncate(ENHANCED_HIGHLIGHT_MAX_CANDIDATES);
+        if candidates.is_empty() {
+            highlights.push(extract_fast_semantic_highlight(&row.content, &row.summary, keyword));
+            continue;
+        }
+
+        let offset = pooled_candidates.len();
+        let count = candidates.len();
+        pooled_candidates.extend(candidates.iter().cloned());
+        pending_rows.push(PendingDeepHighlightRow {
+            row_index,
+            offset,
+            count,
+            candidates,
+        });
+        deep_rows_scheduled += 1;
+        highlights.push(extract_fast_semantic_highlight(&row.content, &row.summary, keyword));
+    }
+
+    PlannedSemanticHighlights {
+        highlights,
+        pending_rows,
+        pooled_candidates,
+    }
+}
+
+fn select_best_semantic_highlight(
+    candidates: &[String],
+    embeddings: &[Vec<f32>],
     summary: &str,
+    content: &str,
     keyword: &str,
     query_embedding: &[f32],
-    language: TextEmbeddingLanguage,
 ) -> String {
-    const MAX_CANDIDATES: usize = 24;
-    const MAX_SNIPPET_CHARS: usize = 180;
-
-    let content = content.trim();
-    if content.is_empty() {
-        return excerpt_with_ellipsis(summary, MAX_SNIPPET_CHARS);
-    }
-
-    if find_case_insensitive_match_range(content, keyword).is_some() {
-        return extract_highlight(content, keyword);
-    }
-
-    let candidates = semantic_snippet_candidates(content, MAX_SNIPPET_CHARS);
     let mut best_snippet: Option<&str> = None;
     let mut best_score = f32::NEG_INFINITY;
 
-    for candidate in candidates.iter().take(MAX_CANDIDATES) {
-        let candidate_embedding = match embed_text_with_language(candidate, language) {
-            Ok(vector) => vector,
-            Err(err) => {
-                tracing::debug!(
-                    "semantic highlight embedding failed for snippet candidate (len={}): {}",
-                    candidate.len(),
-                    err
-                );
-                continue;
-            },
-        };
+    for (candidate, candidate_embedding) in candidates.iter().zip(embeddings.iter()) {
         let semantic_score = cosine_similarity(query_embedding, candidate_embedding.as_slice());
         let lexical_score = semantic_keyword_overlap_score(candidate, keyword);
         let score = semantic_score + lexical_score * 0.15;
-
         if score > best_score {
             best_score = score;
             best_snippet = Some(candidate.as_str());
@@ -3642,14 +3877,143 @@ fn extract_semantic_highlight(
         if let Some(token) = first_overlapping_token(snippet, keyword) {
             return extract_highlight(snippet, &token);
         }
-        return excerpt_with_ellipsis(snippet, MAX_SNIPPET_CHARS);
+        return excerpt_with_ellipsis(snippet, SEMANTIC_HIGHLIGHT_MAX_SNIPPET_CHARS);
     }
 
     if !summary.trim().is_empty() {
-        return excerpt_with_ellipsis(summary, MAX_SNIPPET_CHARS);
+        return excerpt_with_ellipsis(summary, SEMANTIC_HIGHLIGHT_MAX_SNIPPET_CHARS);
     }
 
-    excerpt_with_ellipsis(content, MAX_SNIPPET_CHARS)
+    excerpt_with_ellipsis(content.trim(), SEMANTIC_HIGHLIGHT_MAX_SNIPPET_CHARS)
+}
+
+async fn build_semantic_search_results(
+    rows: Vec<SearchArticleRow>,
+    keyword: &str,
+    query_embedding: Vec<f32>,
+    search_language: TextEmbeddingLanguage,
+    enhanced_highlight: bool,
+) -> Vec<SearchResult> {
+    if !enhanced_highlight {
+        return rows
+            .into_iter()
+            .map(|row| SearchResult {
+                highlight: extract_fast_semantic_highlight(&row.content, &row.summary, keyword),
+                id: row.id,
+                title: row.title,
+                summary: row.summary,
+                category: row.category,
+                date: row.date,
+                tags: row.tags,
+            })
+            .collect();
+    }
+
+    let mut planned = plan_batched_semantic_highlights(&rows, keyword);
+    if !planned.pooled_candidates.is_empty() {
+        let pooled_for_task = std::mem::take(&mut planned.pooled_candidates);
+        match tokio::task::spawn_blocking(move || {
+            embed_texts_with_language(&pooled_for_task, search_language)
+        })
+        .await
+        {
+            Ok(Ok(pooled_embeddings)) => {
+                for pending in &planned.pending_rows {
+                    let end = pending.offset + pending.count;
+                    if end <= pooled_embeddings.len() {
+                        let row = &rows[pending.row_index];
+                        planned.highlights[pending.row_index] = select_best_semantic_highlight(
+                            &pending.candidates,
+                            &pooled_embeddings[pending.offset..end],
+                            &row.summary,
+                            &row.content,
+                            keyword,
+                            query_embedding.as_slice(),
+                        );
+                    }
+                }
+            },
+            Ok(Err(err)) => {
+                tracing::warn!(
+                    candidate_count = planned
+                        .pending_rows
+                        .iter()
+                        .map(|item| item.count)
+                        .sum::<usize>(),
+                    error = %err,
+                    "batched semantic highlight embedding failed; keeping fast excerpts"
+                );
+            },
+            Err(err) => {
+                tracing::warn!(
+                    error = %err,
+                    "batched semantic highlight blocking task panicked; keeping fast excerpts"
+                );
+            },
+        }
+    }
+
+    rows.into_iter()
+        .zip(planned.highlights)
+        .map(|(row, highlight)| SearchResult {
+            id: row.id,
+            title: row.title,
+            summary: row.summary,
+            category: row.category,
+            date: row.date,
+            highlight,
+            tags: row.tags,
+        })
+        .collect()
+}
+
+#[cfg(test)]
+fn extract_semantic_highlight(
+    content: &str,
+    summary: &str,
+    keyword: &str,
+    query_embedding: &[f32],
+    language: TextEmbeddingLanguage,
+) -> String {
+    let content = content.trim();
+    if content.is_empty() {
+        return excerpt_with_ellipsis(summary, SEMANTIC_HIGHLIGHT_MAX_SNIPPET_CHARS);
+    }
+
+    if !keyword.trim().is_empty() && find_case_insensitive_match_range(content, keyword).is_some() {
+        return extract_highlight(content, keyword);
+    }
+
+    let mut candidates = semantic_snippet_candidates(content, SEMANTIC_HIGHLIGHT_MAX_SNIPPET_CHARS);
+    candidates.truncate(ENHANCED_HIGHLIGHT_MAX_CANDIDATES);
+    if !candidates.is_empty() {
+        match embed_texts_with_language(&candidates, language) {
+            Ok(embeddings) if embeddings.len() == candidates.len() => {
+                return select_best_semantic_highlight(
+                    &candidates,
+                    &embeddings,
+                    summary,
+                    content,
+                    keyword,
+                    query_embedding,
+                );
+            },
+            Ok(_) => {},
+            Err(err) => {
+                tracing::debug!(
+                    candidate_count = candidates.len(),
+                    error = %err,
+                    "batched semantic highlight embedding failed for single article"
+                );
+            },
+        }
+    }
+
+    if !summary.trim().is_empty() {
+        return excerpt_with_ellipsis(summary, SEMANTIC_HIGHLIGHT_MAX_SNIPPET_CHARS);
+    }
+
+    excerpt_with_ellipsis(content, SEMANTIC_HIGHLIGHT_MAX_SNIPPET_CHARS)
 }
 
 fn semantic_snippet_candidates(content: &str, max_chars: usize) -> Vec<String> {
@@ -3868,13 +4232,117 @@ mod tests {
     use super::{
         alternate_embedding_language, api_behavior_schema, choose_primary_search_language,
         cosine_similarity, extract_highlight, extract_semantic_highlight,
-        find_case_insensitive_match_range, is_pure_english_query,
-        quarantine_zero_byte_lance_tail_files, semantic_query_tokens,
-        split_text_by_sentence_or_size, table_uses_stable_row_ids, vector_column_for_language,
-        zero_byte_tail_quarantine_root, CompactAction, NewApiBehaviorEventInput,
-        StaticFlowDataStore, TextEmbeddingLanguage, CONTENT_COMPACTION_TABLE_NAMES,
-        CONTENT_TABLE_NAMES,
+        find_case_insensitive_match_range, is_pure_english_query, lookup_cached_index_diagnostic,
+        plan_batched_semantic_highlights, quarantine_zero_byte_lance_tail_files,
+        select_best_semantic_highlight, semantic_query_tokens, split_text_by_sentence_or_size,
+        store_cached_index_diagnostic, table_uses_stable_row_ids, vector_column_for_language,
+        zero_byte_tail_quarantine_root, CompactAction, IndexDiagnostic, IndexDiagnosticCacheKey,
+        NewApiBehaviorEventInput, SearchArticleRow, StaticFlowDataStore, TextEmbeddingLanguage,
+        CONTENT_COMPACTION_TABLE_NAMES, CONTENT_TABLE_NAMES, DEFAULT_SEARCH_LIMIT,
+        ENHANCED_HIGHLIGHT_MAX_CANDIDATES, ENHANCED_HIGHLIGHT_MAX_DEEP_ROWS,
+        INDEX_DIAGNOSTIC_CACHE_TTL,
     };
+
+    #[test]
+    fn default_search_limit_is_bounded() {
+        assert_eq!(DEFAULT_SEARCH_LIMIT, 50);
+    }
+
+    #[test]
+    fn batched_semantic_highlight_planner_caps_deep_rows_and_candidates() {
+        let long_body = (0..20)
+            .map(|idx| {
+                format!(
+                    "This is standalone semantic paragraph number {idx:02} without direct keyword \
+                     match."
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n\n");
+
+        let mut rows = Vec::new();
+        rows.push(SearchArticleRow {
+            id: "lexical-hit".to_string(),
+            title: "Lexical Hit".to_string(),
+            summary: "Summary".to_string(),
+            content: "This article explicitly mentions Rust async scheduling in detail."
+                .to_string(),
+            tags: vec![],
+            category: "rust".to_string(),
+            date: "2026-01-01".to_string(),
+        });
+        for idx in 0..12 {
+            rows.push(SearchArticleRow {
+                id: format!("miss-{idx}"),
+                title: format!("Miss {idx}"),
+                summary: format!("Summary fallback for article {idx}"),
+                content: long_body.clone(),
+                tags: vec![],
+                category: "perf".to_string(),
+                date: "2026-01-01".to_string(),
+            });
+        }
+
+        let planned = plan_batched_semantic_highlights(&rows, "Rust async");
+        assert!(planned.highlights[0].contains("<mark>Rust async</mark>"));
+        assert_eq!(planned.pending_rows.len(), ENHANCED_HIGHLIGHT_MAX_DEEP_ROWS);
+        assert!(planned
+            .pending_rows
+            .iter()
+            .all(|pending| pending.count == ENHANCED_HIGHLIGHT_MAX_CANDIDATES));
+        assert_eq!(
+            planned.pooled_candidates.len(),
+            ENHANCED_HIGHLIGHT_MAX_DEEP_ROWS * ENHANCED_HIGHLIGHT_MAX_CANDIDATES
+        );
+        assert_eq!(planned.highlights[10], "Summary fallback for article 9");
+    }
+
+    #[test]
+    fn select_best_semantic_highlight_prefers_highest_scoring_candidate() {
+        let candidates = vec![
+            "Unrelated background paragraph about build scripts.".to_string(),
+            "Zero-copy LanceDB projection avoids loading heavy content vectors.".to_string(),
+        ];
+        let embeddings = vec![vec![1.0, 0.0], vec![0.0, 1.0]];
+        let query_embedding = [0.0, 1.0];
+        let chosen = select_best_semantic_highlight(
+            &candidates,
+            &embeddings,
+            "summary text",
+            "full content",
+            "projection performance",
+            &query_embedding,
+        );
+        assert!(chosen.contains("<mark>projection</mark>"));
+    }
+
+    #[test]
+    fn index_diagnostic_cache_hits_before_ttl_and_expires_after_ttl() {
+        let start = std::time::Instant::now();
+        let key = IndexDiagnosticCacheKey {
+            table_key: format!("test://articles-{}", start.elapsed().as_nanos()),
+            column: "content".to_string(),
+            require_fts: true,
+        };
+        let diag = Some(IndexDiagnostic {
+            name: "content_idx".to_string(),
+            index_type: "FTS".to_string(),
+            indexed_rows: Some(176),
+            unindexed_rows: Some(0),
+        });
+        store_cached_index_diagnostic(key.clone(), diag, start);
+
+        let hit = lookup_cached_index_diagnostic(&key, start + std::time::Duration::from_secs(5))
+            .expect("cache should hit within TTL")
+            .expect("diagnostic should be Some");
+        assert_eq!(hit.name, "content_idx");
+
+        let expired = lookup_cached_index_diagnostic(
+            &key,
+            start + INDEX_DIAGNOSTIC_CACHE_TTL + std::time::Duration::from_millis(1),
+        );
+        assert!(expired.is_none());
+    }
 
     #[test]
     fn content_compaction_tables_include_api_behavior_events() {
