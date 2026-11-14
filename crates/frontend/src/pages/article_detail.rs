@@ -437,6 +437,7 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
     let selection_comment_input = use_state(String::new);
     let selection_submit_loading = use_state(|| false);
     let selection_submit_feedback = use_state(|| None::<(bool, String)>);
+    let more_menu_open = use_state(|| false);
     let toast = use_toast();
 
     // Back to where user came from (non-article route) with robust fallback.
@@ -1574,12 +1575,28 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
     let is_overlay_open =
         *is_lightbox_open || *is_brief_open || *is_trend_open || *selection_modal_open;
 
-    let navigate_to_workshop = Callback::from(move |e: MouseEvent| {
-        e.prevent_default();
-        let workshop_url = crate::config::route_path("/#workshop");
-        if !crate::navigation_context::navigate_spa_to(&workshop_url) {
+    {
+        let more_menu_open = more_menu_open.clone();
+        use_effect_with(article_id.clone(), move |_| {
+            more_menu_open.set(false);
+            || ()
+        });
+    }
+
+    let navigate_to_studio = Callback::from(move |e: MouseEvent| {
+        if !e.meta_key() && !e.ctrl_key() && !e.shift_key() && !e.alt_key() && e.button() == 0 {
+            e.prevent_default();
+            let studio_url = crate::config::route_path("/studio#article");
+            if !crate::navigation_context::navigate_spa_to(&studio_url) {
+                if let Some(win) = window() {
+                    let _ = win.location().set_href(&studio_url);
+                }
+                return;
+            }
             if let Some(win) = window() {
-                let _ = win.location().set_href(&workshop_url);
+                if let Ok(ev) = web_sys::Event::new("hashchange") {
+                    let _ = win.dispatch_event(&ev);
+                }
             }
         }
     });
@@ -1625,7 +1642,7 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                 "rounded-full",
                 "bg-[var(--primary)]",
                 "px-2.5",
-                "py-1",
+                "py-1.5",
                 "font-mono",
                 "text-[0.6875rem]",
                 "font-medium",
@@ -1638,7 +1655,7 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
             classes!(
                 "rounded-full",
                 "px-2.5",
-                "py-1",
+                "py-1.5",
                 "font-mono",
                 "text-[0.6875rem]",
                 "font-medium",
@@ -1654,7 +1671,7 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                 "rounded-full",
                 "bg-[var(--primary)]",
                 "px-2.5",
-                "py-1",
+                "py-1.5",
                 "font-mono",
                 "text-[0.6875rem]",
                 "font-medium",
@@ -1667,7 +1684,7 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
             classes!(
                 "rounded-full",
                 "px-2.5",
-                "py-1",
+                "py-1.5",
                 "font-mono",
                 "text-[0.6875rem]",
                 "font-medium",
@@ -1745,18 +1762,6 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
         };
         let export_button_icon =
             if *markdown_copied { classes!("fas", "fa-check") } else { classes!("far", "fa-copy") };
-        let export_button_class = if *markdown_copied {
-            classes!(
-                "sf-btn",
-                "sf-btn--sm",
-                "border",
-                "border-[var(--ok)]/40",
-                "bg-[var(--ok-soft)]",
-                "text-[var(--ok)]"
-            )
-        } else {
-            classes!("sf-btn", "sf-btn--secondary", "sf-btn--sm")
-        };
         let copy_markdown_click = {
             let markdown_copied = markdown_copied.clone();
             let markdown_source = markdown_for_external_export(active_content);
@@ -1853,20 +1858,96 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
             let interactive_callout_dismissed = interactive_callout_dismissed.clone();
             Callback::from(move |_: MouseEvent| interactive_callout_dismissed.set(true))
         };
+        // Article toolbar: primary actions (back on < xl, language, interactive
+        // mirror) stay visible; secondary actions are quiet ghost text buttons
+        // on >= md and collapse into a "more" menu on phones. Trend/comments
+        // only appear here below xl, where the floating left rail is hidden.
+        let toolbar_icon_button = classes!(
+            "inline-flex",
+            "h-10",
+            "w-10",
+            "shrink-0",
+            "items-center",
+            "justify-center",
+            "rounded-full",
+            "text-[var(--muted)]",
+            "transition-colors",
+            "cursor-pointer",
+            "hover:bg-[var(--surface-alt)]",
+            "hover:text-[var(--text)]"
+        );
+        let toolbar_ghost_button = classes!("sf-btn", "sf-btn--ghost", "sf-btn--sm", "!px-2.5");
+        let more_menu_item = classes!(
+            "flex",
+            "w-full",
+            "min-h-[2.75rem]",
+            "items-center",
+            "gap-3",
+            "px-4",
+            "text-left",
+            "text-[0.875rem]",
+            "text-[var(--text)]",
+            "transition-colors",
+            "cursor-pointer",
+            "hover:bg-[var(--surface-alt)]"
+        );
+        let more_label =
+            if *content_language == ArticleContentLanguage::En { "More" } else { "更多操作" };
+        let comments_label = if *content_language == ArticleContentLanguage::En {
+            "Comments"
+        } else {
+            "定位到评论区"
+        };
+        let close_more_then = |cb: Callback<MouseEvent>| {
+            let more_menu_open = more_menu_open.clone();
+            Callback::from(move |e: MouseEvent| {
+                more_menu_open.set(false);
+                cb.emit(e);
+            })
+        };
+        let toggle_more_menu = {
+            let more_menu_open = more_menu_open.clone();
+            Callback::from(move |_: MouseEvent| more_menu_open.set(!*more_menu_open))
+        };
+        let close_more_menu = {
+            let more_menu_open = more_menu_open.clone();
+            Callback::from(move |_: MouseEvent| more_menu_open.set(false))
+        };
         let render_article_actions = || -> Html {
             html! {
-                <div class={classes!(
-                    "flex",
-                    "flex-wrap",
-                    "items-center",
-                    "gap-2"
-                )}>
+                <div
+                    class={classes!(
+                        "article-toolbar",
+                        "mt-6",
+                        "flex",
+                        "min-w-0",
+                        "items-center",
+                        "gap-1.5",
+                        "sm:gap-2",
+                        "border-y",
+                        "border-[var(--border)]",
+                        "py-2",
+                        (!show_article_actions).then_some("xl:hidden")
+                    )}
+                    role="toolbar"
+                    aria-label={t::ARTICLE_META_ARIA}
+                >
+                    <button
+                        type="button"
+                        class={classes!(toolbar_icon_button.clone(), "xl:hidden", "-ml-2")}
+                        onclick={handle_back.clone()}
+                        aria-label={t::BACK_TOOLTIP}
+                        title={t::BACK_TOOLTIP}
+                    >
+                        <i class={classes!("fas", "fa-arrow-left", "text-[14px]")} aria-hidden="true"></i>
+                    </button>
                     {
                         if show_language_toggle {
                             html! {
                                 <div
                                     class={classes!(
                                         "inline-flex",
+                                        "shrink-0",
                                         "items-center",
                                         "gap-0.5",
                                         "rounded-full",
@@ -1909,22 +1990,6 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                         }
                     }
                     {
-                        if has_detailed_summary {
-                            html! {
-                                <button
-                                    type="button"
-                                    class={classes!("sf-btn", "sf-btn--secondary", "sf-btn--sm")}
-                                    onclick={open_brief_click.clone()}
-                                >
-                                    <i class={classes!("fas", "fa-list-check", "text-[11px]", "text-[var(--primary)]")} aria-hidden="true"></i>
-                                    { brief_button_text }
-                                </button>
-                            }
-                        } else {
-                            html! {}
-                        }
-                    }
-                    {
                         if has_interactive_mirror {
                             html! {
                                 <button
@@ -1932,6 +1997,7 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                     class={classes!(
                                         "sf-btn",
                                         "sf-btn--sm",
+                                        "min-w-0",
                                         "border",
                                         "border-[var(--primary)]/35",
                                         "bg-[var(--primary-soft)]",
@@ -1940,47 +2006,205 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                         "hover:text-[var(--on-primary)]"
                                     )}
                                     onclick={open_interactive_click.clone()}
+                                    title={interactive_button_text}
                                 >
                                     <span class="font-mono text-[10px]" aria-hidden="true">{ "◆" }</span>
-                                    { interactive_button_text }
+                                    <span class="min-w-0 truncate">{ interactive_button_text }</span>
                                 </button>
                             }
                         } else {
                             html! {}
                         }
                     }
-                    {
-                        if can_export_markdown {
-                            html! {
-                                <button
-                                    type="button"
-                                    class={classes!("sf-btn", "sf-btn--secondary", "sf-btn--sm")}
-                                    onclick={open_raw_markdown_click.clone()}
+
+                    <div class={classes!(
+                        "ml-auto",
+                        (!show_language_toggle && !has_interactive_mirror).then_some("xl:ml-0"),
+                        "flex",
+                        "shrink-0",
+                        "items-center",
+                        "gap-0.5"
+                    )}>
+                        // >= md: quiet ghost text buttons
+                        <div class={classes!("hidden", "md:flex", "items-center", "gap-0.5")}>
+                            {
+                                if has_detailed_summary {
+                                    html! {
+                                        <button
+                                            type="button"
+                                            class={toolbar_ghost_button.clone()}
+                                            onclick={open_brief_click.clone()}
+                                        >
+                                            <i class={classes!("fas", "fa-list-check", "text-[11px]")} aria-hidden="true"></i>
+                                            { brief_button_text }
+                                        </button>
+                                    }
+                                } else {
+                                    html! {}
+                                }
+                            }
+                            {
+                                if can_export_markdown {
+                                    html! {
+                                        <>
+                                            <button
+                                                type="button"
+                                                class={toolbar_ghost_button.clone()}
+                                                onclick={open_raw_markdown_click.clone()}
+                                            >
+                                                <i class={classes!("far", "fa-file-lines", "text-[11px]")} aria-hidden="true"></i>
+                                                { raw_markdown_button_text }
+                                            </button>
+                                            <button
+                                                type="button"
+                                                class={classes!(
+                                                    toolbar_ghost_button.clone(),
+                                                    (*markdown_copied).then_some("!text-[var(--ok)]")
+                                                )}
+                                                onclick={copy_markdown_click.clone()}
+                                                aria-live="polite"
+                                            >
+                                                <i class={classes!(export_button_icon.clone(), "text-[11px]")} aria-hidden="true"></i>
+                                                { export_button_label }
+                                            </button>
+                                        </>
+                                    }
+                                } else {
+                                    html! {}
+                                }
+                            }
+                        </div>
+                        // md..xl: trend + comments (the left rail takes over at xl)
+                        <button
+                            type="button"
+                            class={classes!(toolbar_icon_button.clone(), "hidden", "md:inline-flex", "xl:hidden")}
+                            onclick={open_trend_click.clone()}
+                            aria-label={t::TREND_TOOLTIP}
+                            title={t::TREND_TOOLTIP}
+                        >
+                            <i class={classes!("fas", "fa-chart-line", "text-[13px]")} aria-hidden="true"></i>
+                        </button>
+                        <button
+                            type="button"
+                            class={classes!(toolbar_icon_button.clone(), "hidden", "md:inline-flex", "xl:hidden")}
+                            onclick={jump_to_comments_click.clone()}
+                            aria-label={comments_label}
+                            title={comments_label}
+                        >
+                            <i class={classes!("far", "fa-comment", "text-[14px]")} aria-hidden="true"></i>
+                        </button>
+                        // < md: everything secondary lives in one menu
+                        <div class={classes!("relative", "md:hidden")}>
+                            <button
+                                type="button"
+                                class={classes!(
+                                    toolbar_icon_button.clone(),
+                                    "-mr-2",
+                                    (*more_menu_open).then_some("bg-[var(--surface-alt)]")
+                                )}
+                                onclick={toggle_more_menu.clone()}
+                                aria-label={more_label}
+                                aria-haspopup="menu"
+                                aria-expanded={(*more_menu_open).to_string()}
+                            >
+                                <i class={classes!("fas", "fa-ellipsis", "text-[15px]")} aria-hidden="true"></i>
+                            </button>
+                            if *more_menu_open {
+                                <div
+                                    class={classes!("fixed", "inset-0", "z-[55]", "cursor-default")}
+                                    onclick={close_more_menu.clone()}
+                                    aria-hidden="true"
+                                />
+                                <div
+                                    class={classes!(
+                                        "sf-pop-in",
+                                        "absolute",
+                                        "right-0",
+                                        "top-[calc(100%+0.5rem)]",
+                                        "z-[56]",
+                                        "w-[min(16rem,calc(100vw-2.5rem))]",
+                                        "overflow-hidden",
+                                        "rounded-[12px]",
+                                        "border",
+                                        "border-[var(--border-strong)]",
+                                        "bg-[var(--surface)]",
+                                        "py-1.5"
+                                    )}
+                                    role="menu"
                                 >
-                                    <i class={classes!("far", "fa-file-lines", "text-[11px]")} aria-hidden="true"></i>
-                                    { raw_markdown_button_text }
-                                </button>
+                                    {
+                                        if has_detailed_summary {
+                                            html! {
+                                                <button
+                                                    type="button"
+                                                    role="menuitem"
+                                                    class={more_menu_item.clone()}
+                                                    onclick={close_more_then(open_brief_click.clone())}
+                                                >
+                                                    <i class={classes!("fas", "fa-list-check", "w-4", "text-[13px]", "text-[var(--muted)]")} aria-hidden="true"></i>
+                                                    { brief_button_text }
+                                                </button>
+                                            }
+                                        } else {
+                                            html! {}
+                                        }
+                                    }
+                                    {
+                                        if can_export_markdown {
+                                            html! {
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        role="menuitem"
+                                                        class={more_menu_item.clone()}
+                                                        onclick={close_more_then(open_raw_markdown_click.clone())}
+                                                    >
+                                                        <i class={classes!("far", "fa-file-lines", "w-4", "text-[13px]", "text-[var(--muted)]")} aria-hidden="true"></i>
+                                                        { raw_markdown_button_text }
+                                                    </button>
+                                                    // Stays open so the "copied" confirmation is visible.
+                                                    <button
+                                                        type="button"
+                                                        role="menuitem"
+                                                        class={classes!(
+                                                            more_menu_item.clone(),
+                                                            (*markdown_copied).then_some("!text-[var(--ok)]")
+                                                        )}
+                                                        onclick={copy_markdown_click.clone()}
+                                                        aria-live="polite"
+                                                    >
+                                                        <i class={classes!(export_button_icon.clone(), "w-4", "text-[13px]", "text-[var(--muted)]")} aria-hidden="true"></i>
+                                                        { export_button_label }
+                                                    </button>
+                                                </>
+                                            }
+                                        } else {
+                                            html! {}
+                                        }
+                                    }
+                                    <div class={classes!("my-1.5", "border-t", "border-[var(--border)]")} role="separator" />
+                                    <button
+                                        type="button"
+                                        role="menuitem"
+                                        class={more_menu_item.clone()}
+                                        onclick={close_more_then(open_trend_click.clone())}
+                                    >
+                                        <i class={classes!("fas", "fa-chart-line", "w-4", "text-[13px]", "text-[var(--muted)]")} aria-hidden="true"></i>
+                                        { t::TREND_TOOLTIP }
+                                    </button>
+                                    <button
+                                        type="button"
+                                        role="menuitem"
+                                        class={more_menu_item.clone()}
+                                        onclick={close_more_then(jump_to_comments_click.clone())}
+                                    >
+                                        <i class={classes!("far", "fa-comment", "w-4", "text-[13px]", "text-[var(--muted)]")} aria-hidden="true"></i>
+                                        { comments_label }
+                                    </button>
+                                </div>
                             }
-                        } else {
-                            html! {}
-                        }
-                    }
-                    {
-                        if can_export_markdown {
-                            html! {
-                                <button
-                                    type="button"
-                                    class={export_button_class.clone()}
-                                    onclick={copy_markdown_click.clone()}
-                                >
-                                    <i class={classes!(export_button_icon.clone(), "text-[11px]")} aria-hidden="true"></i>
-                                    { export_button_label }
-                                </button>
-                            }
-                        } else {
-                            html! {}
-                        }
-                    }
+                        </div>
+                    </div>
                 </div>
             }
         };
@@ -2195,27 +2419,11 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                     }
                                 </div>
 
-                                {
-                                    if show_article_actions {
-                                        html! {
-                                            <div class={classes!("flex", "items-center")}>
-                                                { render_article_actions() }
-                                            </div>
-                                        }
-                                    } else {
-                                        html! {}
-                                    }
-                                }
                             </div>
 
-                            <hr class={classes!(
-                                "sf-rule",
-                                "my-8",
-                                "md:my-10",
-                                "border-0",
-                                "border-t",
-                                "border-[var(--border)]"
-                            )} />
+                            { render_article_actions() }
+
+                            <div class={classes!("h-8", "md:h-10")} aria-hidden="true" />
                         </header>
 
                         // Cover image placed cleanly below the 1px divider
@@ -2321,7 +2529,7 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                             )}
                                             role="note"
                                         >
-                                            <div class={classes!("flex", "flex-1", "flex-wrap", "items-center", "gap-2.5", "min-w-[220px]")}>
+                                            <div class={classes!("flex", "flex-1", "flex-wrap", "items-center", "gap-2.5", "min-w-0", "sm:min-w-[220px]")}>
                                                 <span class={classes!(
                                                     "inline-flex",
                                                     "items-center",
@@ -2706,9 +2914,9 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                                     { "取消引用" }
                                                 </button>
                                             </div>
-                                            <p class={classes!("m-0", "text-sm", "text-[var(--text-2)]")}>{ reply_target.comment_text.clone() }</p>
+                                            <p class={classes!("m-0", "text-sm", "text-[var(--text-2)]", "break-words")}>{ reply_target.comment_text.clone() }</p>
                                             if let Some(ai_reply) = reply_target.ai_reply_markdown {
-                                                <p class={classes!("m-0", "text-xs", "text-[var(--muted)]")}>
+                                                <p class={classes!("m-0", "text-xs", "text-[var(--muted)]", "break-words")}>
                                                     { format!("引用 AI 回复：{}", ai_reply.chars().take(140).collect::<String>()) }
                                                 </p>
                                             }
@@ -2887,7 +3095,7 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                                                 </div>
                                                                 <button
                                                                     type="button"
-                                                                    class={classes!("sf-btn", "sf-btn--ghost", "sf-btn--sm")}
+                                                                    class={classes!("sf-btn", "sf-btn--ghost", "sf-btn--sm", "shrink-0")}
                                                                     onclick={quote_reply_click}
                                                                 >
                                                                     { "引用并回复" }
@@ -2928,7 +3136,7 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                                                             }
                                                                         }
                                                                     </div>
-                                                                    <p class={classes!("m-0", "mt-1.5", "font-serif", "italic", "text-[0.9375rem]", "leading-relaxed", "text-[var(--muted)]", "whitespace-pre-wrap")}>
+                                                                    <p class={classes!("m-0", "mt-1.5", "font-serif", "italic", "text-[0.9375rem]", "leading-relaxed", "text-[var(--muted)]", "whitespace-pre-wrap", "break-words")}>
                                                                         { quote_text }
                                                                     </p>
                                                                 </div>
@@ -2957,18 +3165,18 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                                                             </button>
                                                                         }
                                                                     </div>
-                                                                    <p class={classes!("m-0", "mt-1", "text-sm", "leading-relaxed", "text-[var(--text-2)]", "whitespace-pre-wrap")}>
+                                                                    <p class={classes!("m-0", "mt-1", "text-sm", "leading-relaxed", "text-[var(--text-2)]", "whitespace-pre-wrap", "break-words")}>
                                                                         { reply_text }
                                                                     </p>
                                                                     if let Some(ai_reply) = reply_to_ai_reply_markdown {
-                                                                        <p class={classes!("m-0", "mt-1", "text-xs", "text-[var(--muted)]")}>
+                                                                        <p class={classes!("m-0", "mt-1", "text-xs", "text-[var(--muted)]", "break-words")}>
                                                                             { format!("被引用 AI 回复：{}", ai_reply.chars().take(140).collect::<String>()) }
                                                                         </p>
                                                                     }
                                                                 </div>
                                                             }
 
-                                                            <p class={classes!("m-0", "text-[0.95rem]", "leading-[1.7]", "text-[var(--text-2)]", "whitespace-pre-wrap")}>
+                                                            <p class={classes!("m-0", "text-[0.95rem]", "leading-[1.7]", "text-[var(--text-2)]", "whitespace-pre-wrap", "break-words")}>
                                                                 { comment.comment_text.clone() }
                                                             </p>
 
@@ -3017,7 +3225,7 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                 }
                             </section>
 
-                            // Reader-driven ingestion workshop prompt
+                            // Reader-driven ingestion studio prompt
                             <div class={classes!(
                                 "mt-10",
                                 "flex",
@@ -3030,8 +3238,8 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                 "pt-7"
                             )}>
                                 <a
-                                    href={crate::config::route_path("/#workshop")}
-                                    onclick={navigate_to_workshop}
+                                    href={crate::config::route_path("/studio#article")}
+                                    onclick={navigate_to_studio}
                                     class={classes!(
                                         "sf-link",
                                         "font-serif",
@@ -3041,7 +3249,7 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                         "hover:text-[var(--primary)]"
                                     )}
                                 >
-                                    { "想读相关的技术深潜？前往自助入库工坊提交 →" }
+                                    { "想读相关的技术深潜？前往共建台提交 →" }
                                 </a>
                             </div>
                         </div>
@@ -3077,11 +3285,11 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                                 "border",
                                                 "border-[var(--border-strong)]",
                                                 "bg-[var(--surface)]",
-                                                "px-6",
-                                                "py-5",
+                                                "px-4",
+                                                "py-4",
                                                 "shadow-[var(--shadow-lg)]",
-                                                "sm:px-4",
-                                                "sm:py-4"
+                                                "sm:px-6",
+                                                "sm:py-5"
                                             )}
                                             onclick={stop_brief_bubble.clone()}
                                         >
@@ -3152,14 +3360,15 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
         html! {
             <section class={classes!(
                 "sf-card",
-                "p-10",
-                "my-14",
+                "p-6",
+                "sm:p-10",
+                "my-10",
+                "sm:my-14",
                 "mx-auto",
                 "max-w-[760px]",
                 "flex",
                 "flex-col",
-                "gap-4",
-                "sm:p-6"
+                "gap-4"
             )}>
                 <div class={classes!("flex", "flex-col", "gap-3", "fade-in")}>
                     <p class={classes!("sf-eyebrow", "m-0")}>{ "404 · NOT FOUND" }</p>
@@ -3167,12 +3376,22 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                         "m-0",
                         "font-serif",
                         "font-normal",
-                        "text-[2rem]",
+                        "text-[1.6rem]",
                         "leading-[1.2]",
                         "text-[var(--text)]",
-                        "sm:text-[1.6rem]"
+                        "sm:text-[2rem]"
                     )}>{ t::NOT_FOUND_TITLE }</h1>
                     <p class={classes!("m-0", "text-[var(--muted)]")}>{ t::NOT_FOUND_DESC }</p>
+                    <div class={classes!("pt-1", "xl:hidden")}>
+                        <button
+                            type="button"
+                            class={classes!("sf-btn", "sf-btn--secondary", "sf-btn--sm")}
+                            onclick={handle_back.clone()}
+                        >
+                            <i class={classes!("fas", "fa-arrow-left", "text-[11px]")} aria-hidden="true"></i>
+                            { t::BACK_TOOLTIP }
+                        </button>
+                    </div>
                 </div>
             </section>
         }
@@ -3182,14 +3401,15 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
         <main class={classes!("main", "mt-[var(--space-lg)]")}>
             // Fixed back button - hide when any overlay is open
             if !is_overlay_open {
+                // >= xl only: floats in the left margin, anchored to the reading
+                // column (see `.article-float-rail`); below xl these actions
+                // live in the toolbar under the title.
                 <div class={classes!(
+                    "article-float-rail",
+                    "hidden",
+                    "xl:flex",
                     "fixed",
-                    "left-8",
-                    "top-[calc(var(--header-height-desktop)+2rem)]",
                     "z-50",
-                    "max-sm:left-6",
-                    "max-sm:top-[calc(var(--header-height-mobile)+1.5rem)]",
-                    "flex",
                     "flex-col",
                     "gap-3"
                 )}>
@@ -3296,12 +3516,12 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                     "border",
                                     "border-[var(--border-strong)]",
                                     "bg-[var(--surface)]",
-                                    "p-6",
+                                    "p-4",
                                     "shadow-[var(--shadow-lg)]",
                                     "flex",
                                     "flex-col",
                                     "gap-4",
-                                    "sm:p-5"
+                                    "sm:p-6"
                                 )}
                                 onclick={stop_selection_modal_bubble.clone()}
                             >
@@ -3339,7 +3559,7 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                     "py-3"
                                 )}>
                                     <p class={classes!("m-0", "font-mono", "text-[0.6875rem]", "uppercase", "tracking-[0.08em]", "text-[var(--faint)]")}>{ "选中内容" }</p>
-                                    <p class={classes!("m-0", "mt-1.5", "font-serif", "italic", "text-[0.9375rem]", "leading-relaxed", "text-[var(--muted)]", "whitespace-pre-wrap")}>
+                                    <p class={classes!("m-0", "mt-1.5", "font-serif", "italic", "text-[0.9375rem]", "leading-relaxed", "text-[var(--muted)]", "whitespace-pre-wrap", "break-words")}>
                                         {
                                             if has_ellipsis {
                                                 format!("{selected_excerpt}...")
@@ -3588,11 +3808,11 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                     "border",
                                     "border-[var(--border-strong)]",
                                     "bg-[var(--surface)]",
-                                    "px-6",
-                                    "py-5",
+                                    "px-4",
+                                    "py-4",
                                     "shadow-[var(--shadow-lg)]",
-                                    "sm:px-4",
-                                    "sm:py-4"
+                                    "sm:px-6",
+                                    "sm:py-5"
                                 )}
                                 onclick={stop_trend_bubble.clone()}
                             >

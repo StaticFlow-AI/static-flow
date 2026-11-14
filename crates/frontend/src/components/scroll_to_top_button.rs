@@ -42,32 +42,18 @@ pub fn scroll_to_top_button() -> Html {
         }
     });
 
-    let visibility =
-        if *show { "opacity-100 pointer-events-auto" } else { "opacity-0 pointer-events-none" };
-
+    // Shares the bottom-right floating stack with the TOC button (see the
+    // `.sf-fab` rules in input.css): 40px, safe-area aware, lifted above the
+    // MiniPlayer, and hidden near the top of the page.
     html! {
-        <div class={classes!(
-            "fixed", "right-8", "bottom-8", "z-50",
-            "max-md:bottom-6", "max-md:right-6",
-            "transition-opacity", "duration-200",
-            visibility
-        )}>
-            <Tooltip text={t::TOOLTIP.to_string()} position={TooltipPosition::Top}>
+        <div class={classes!("sf-fab", "sf-fab--top", (*show).then_some("is-visible"))}>
+            <Tooltip text={t::TOOLTIP.to_string()} position={TooltipPosition::Left}>
                 <button
                     type="button"
                     {onclick}
                     aria-label={t::TOOLTIP}
-                    class={classes!(
-                        "w-10", "h-10", "rounded-full",
-                        "border", "border-[var(--border-strong)]",
-                        "bg-[var(--surface)]",
-                        "text-[var(--muted)]",
-                        "inline-flex", "items-center", "justify-center",
-                        "hover:border-[var(--primary)]",
-                        "hover:text-[var(--primary)]",
-                        "transition-colors", "duration-150",
-                        "cursor-pointer"
-                    )}
+                    tabindex={if *show { "0" } else { "-1" }}
+                    class="sf-fab__btn"
                 >
                     <Icon name={IconName::ArrowUp} size={18} />
                 </button>

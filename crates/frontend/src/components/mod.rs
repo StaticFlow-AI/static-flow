@@ -3,6 +3,7 @@
 #[cfg(feature = "local-media")]
 pub mod admin_local_media_uploads;
 pub mod article_card;
+pub mod article_request_desk;
 pub mod audio_player;
 pub mod copy_button;
 #[cfg(feature = "legacy-llm-admin")]
@@ -18,6 +19,7 @@ pub mod image_with_loading;
 pub mod loading_spinner;
 pub mod mini_player;
 pub mod modal;
+pub mod music_wish_desk;
 pub mod pagination;
 pub mod persistent_audio;
 pub mod raw_html;

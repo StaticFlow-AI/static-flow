@@ -260,6 +260,7 @@ fn route_path_for(route: &Route) -> String {
     match route {
         Route::Home => config::route_path("/"),
         Route::LatestArticles => config::route_path("/latest"),
+        Route::Studio => config::route_path("/studio"),
         Route::Posts => config::route_path("/posts"),
         Route::ArticleDetail {
             id,
@@ -387,6 +388,19 @@ pub fn apply_route_seo(route: Option<&Route>) {
                 &canonical_url,
                 "website",
                 "index,follow,max-image-preview:large",
+                "zh-CN",
+                &og_image,
+            );
+            apply_default_hreflang(&canonical_url);
+        },
+        Route::Studio => {
+            apply_common_seo(
+                "共建台 · StaticFlow",
+                "把想读的文章、想听的歌交给这里——AI \
+                 会去调研、翻译、抓取音源与歌词，审核后入库。全程公开可追踪。",
+                &canonical_url,
+                "website",
+                "index,follow",
                 "zh-CN",
                 &og_image,
             );

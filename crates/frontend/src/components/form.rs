@@ -5,6 +5,11 @@
 //! and [`TextArea`] are the styled controls (one shared `.form-input` class
 //! instead of the utility string previously copy-pasted across admin pages).
 
+#![allow(
+    dead_code,
+    reason = "Reusable form component kit retained for admin form-component consumers."
+)]
+
 use web_sys::{HtmlInputElement, HtmlSelectElement, HtmlTextAreaElement};
 use yew::prelude::*;
 

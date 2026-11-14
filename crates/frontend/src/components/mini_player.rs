@@ -12,10 +12,35 @@ use crate::{
     router::Route,
 };
 
+const MINI_PLAYER_BODY_CLASS: &str = "has-mini-player";
+
 #[function_component(MiniPlayer)]
 pub fn mini_player() -> Html {
     let ctx = use_context::<MusicPlayerContext>();
     let navigator = use_navigator();
+
+    // Publish the docked state on <body> so the floating action stack
+    // (TOC / scroll-to-top, `.sf-fab` in input.css) can lift itself above
+    // the player instead of overlapping it.
+    let docked = ctx
+        .as_ref()
+        .map(|c| c.visible && c.minimized && c.current_song.is_some())
+        .unwrap_or(false);
+    use_effect_with(docked, |docked| {
+        let body = gloo_utils::document().body();
+        if let Some(body) = body.as_ref() {
+            let _ = if *docked {
+                body.class_list().add_1(MINI_PLAYER_BODY_CLASS)
+            } else {
+                body.class_list().remove_1(MINI_PLAYER_BODY_CLASS)
+            };
+        }
+        move || {
+            if let Some(body) = body {
+                let _ = body.class_list().remove_1(MINI_PLAYER_BODY_CLASS);
+            }
+        }
+    });
 
     let ctx = match ctx {
         Some(c) => c,
@@ -102,7 +127,8 @@ pub fn mini_player() -> Html {
     };
 
     let container_class = format!(
-        "fixed bottom-4 right-4 max-sm:inset-x-3 max-sm:bottom-3 sm:w-[360px] h-16 z-[70] \
+        "fixed bottom-4 right-4 max-sm:inset-x-3 \
+         max-sm:bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:w-[360px] h-16 z-[70] \
          overflow-hidden rounded-[12px] border border-[var(--border-strong,var(--border))] \
          bg-[var(--surface)] shadow-[var(--shadow-lg)] px-3 cursor-pointer flex items-center \
          gap-2.5 select-none transition-[transform,opacity,border-color] duration-[240ms] \
@@ -156,7 +182,7 @@ pub fn mini_player() -> Html {
                     onclick={on_prev}
                     type="button"
                     disabled={!can_prev}
-                    class="flex h-7 w-7 items-center justify-center rounded-full text-[var(--muted)] transition-colors hover:bg-[var(--surface-alt)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-[var(--muted)]"
+                    class="flex h-9 w-9 sm:h-7 sm:w-7 items-center justify-center rounded-full text-[var(--muted)] transition-colors hover:bg-[var(--surface-alt)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-[var(--muted)]"
                     aria-label="Previous song"
                 >
                     <Icon name={IconName::SkipBack} size={13} />
@@ -165,7 +191,7 @@ pub fn mini_player() -> Html {
                 <button
                     onclick={on_toggle_play}
                     type="button"
-                    class="mx-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--primary)] text-[var(--on-primary,#FAF9F5)] transition-colors hover:bg-[var(--primary-hover,#B85735)]"
+                    class="mx-0.5 flex h-10 w-10 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-[var(--primary)] text-[var(--on-primary,#FAF9F5)] transition-colors hover:bg-[var(--primary-hover,#B85735)]"
                     aria-label={if playing { "Pause" } else { "Play" }}
                 >
                     <Icon name={if playing { IconName::Pause } else { IconName::Play }} size={13} />
@@ -174,7 +200,7 @@ pub fn mini_player() -> Html {
                 <button
                     onclick={on_next}
                     type="button"
-                    class="flex h-7 w-7 items-center justify-center rounded-full text-[var(--muted)] transition-colors hover:bg-[var(--surface-alt)] hover:text-[var(--text)]"
+                    class="flex h-9 w-9 sm:h-7 sm:w-7 items-center justify-center rounded-full text-[var(--muted)] transition-colors hover:bg-[var(--surface-alt)] hover:text-[var(--text)]"
                     aria-label="Next song"
                 >
                     <Icon name={IconName::SkipForward} size={13} />
@@ -183,7 +209,7 @@ pub fn mini_player() -> Html {
                 <button
                     onclick={on_close}
                     type="button"
-                    class="ml-0.5 flex h-7 w-7 items-center justify-center rounded-full text-[var(--muted)] transition-colors hover:bg-[var(--surface-alt)] hover:text-[var(--text)]"
+                    class="ml-0.5 flex h-9 w-9 sm:h-7 sm:w-7 items-center justify-center rounded-full text-[var(--muted)] transition-colors hover:bg-[var(--surface-alt)] hover:text-[var(--text)]"
                     aria-label="Close player"
                 >
                     <Icon name={IconName::X} size={12} />

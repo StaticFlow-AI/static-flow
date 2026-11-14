@@ -648,12 +648,12 @@ pub fn music_player_page(props: &Props) -> Html {
                     type="button"
                     onclick={Callback::from(|_: MouseEvent| {
                         crate::navigation_context::navigate_spa_to(
-                            &crate::config::route_path("/media/audio#music-wish-section")
+                            &crate::config::route_path("/studio#music")
                         );
                     })}
                     class="font-mono text-xs text-[var(--primary)] transition-colors hover:underline"
                 >
-                    {"想听别的歌？前往点歌工坊许愿 →"}
+                    {"想听别的歌？去共建台点歌 →"}
                 </button>
             </div>
 

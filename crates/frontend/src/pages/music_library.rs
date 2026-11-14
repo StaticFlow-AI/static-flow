@@ -1,24 +1,22 @@
-use wasm_bindgen::JsCast;
+use gloo_events::EventListener;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
 use crate::{
     api,
     components::{
-        form::{FormField, TextArea, TextInput},
         icons::{Icon, IconName},
         image_with_loading::ImageWithLoading,
         pagination::Pagination,
         toast::use_toast,
     },
-    i18n::current::music_wish as wish_t,
+    i18n::current::studio_page as st_t,
     music_context::{MusicAction, MusicPlayerContext},
     router::Route,
 };
 
 const PAGE_SIZE: usize = 20;
 const RANDOM_RECOMMEND_LIMIT: usize = 10;
-const WISH_PAGE_SIZE: usize = 10;
 
 #[derive(Debug, Clone, PartialEq, serde::Deserialize)]
 struct MusicLibraryQuery {
@@ -36,25 +34,6 @@ enum LibraryDisplayMode {
 enum TrackLayoutMode {
     AcousticList,
     MinimalGrid,
-}
-
-fn smooth_scroll_to_id(target_id: &str) {
-    let Some(win) = web_sys::window() else {
-        return;
-    };
-    let Some(doc) = win.document() else {
-        return;
-    };
-    let Some(el) = doc.get_element_by_id(target_id) else {
-        return;
-    };
-    let rect = el.get_bounding_client_rect();
-    let scroll_y = win.scroll_y().unwrap_or(0.0);
-    let top = (scroll_y + rect.top() - 76.0).max(0.0);
-    let opts = web_sys::ScrollToOptions::new();
-    opts.set_top(top);
-    opts.set_behavior(web_sys::ScrollBehavior::Smooth);
-    win.scroll_to_with_scroll_to_options(&opts);
 }
 
 #[function_component(MusicLibraryPage)]
@@ -99,24 +78,6 @@ pub fn music_library_page() -> Html {
     let random_request_seq = use_mut_ref(|| 0_u64);
     let inline_play_loading_id = use_state(|| None::<String>);
     let player_ctx = use_context::<MusicPlayerContext>();
-
-    // Wish board state
-    let wishes = use_state(Vec::<api::MusicWishItem>::new);
-    let wish_loading = use_state(|| false);
-    let wish_list_error = use_state(|| None::<String>);
-    let wish_page = use_state(|| 1_usize);
-    let wish_total = use_state(|| 0_usize);
-    let wish_refresh_tick = use_state(|| 0_u64);
-    let wish_request_seq = use_mut_ref(|| 0_u64);
-    let wish_form_song = use_state(String::new);
-    let wish_form_artist = use_state(String::new);
-    let wish_form_message = use_state(String::new);
-    let wish_form_nickname = use_state(String::new);
-    let wish_form_email = use_state(String::new);
-    let wish_submitting = use_state(|| false);
-    let wish_song_error = use_state(|| None::<String>);
-    let wish_message_error = use_state(|| None::<String>);
-    let wish_submit_banner = use_state(|| None::<(bool, String)>);
     let toast = use_toast();
 
     // Search state
@@ -136,48 +97,33 @@ pub fn music_library_page() -> Html {
         });
     }
 
-    // Auto-scroll smoothly when URL hash targets #music-wish-section (on mount and
-    // hashchange)
+    // Redirect legacy #music-wish-section / #music-wish-form bookmarks to
+    // /studio#music
     {
         let query_dep = query_string.clone();
         use_effect_with(query_dep, move |_| {
-            let check_and_scroll = || {
+            let check_legacy_hash = || {
                 let hash = web_sys::window()
                     .and_then(|w| w.location().hash().ok())
                     .unwrap_or_default();
                 if hash == "#music-wish-section" || hash == "#music-wish-form" {
-                    let target = hash.trim_start_matches('#').to_string();
-                    wasm_bindgen_futures::spawn_local(async move {
-                        gloo_timers::future::TimeoutFuture::new(80).await;
-                        smooth_scroll_to_id(&target);
-                    });
+                    let studio_url = crate::config::route_path("/studio#music");
+                    let _ = crate::navigation_context::navigate_spa_to(&studio_url);
                 }
             };
-            check_and_scroll();
+            check_legacy_hash();
 
-            let mut listener_opt: Option<gloo_events::EventListener> = None;
+            let mut listener_opt: Option<EventListener> = None;
             if let Some(win) = web_sys::window() {
-                listener_opt =
-                    Some(gloo_events::EventListener::new(&win, "hashchange", move |_| {
-                        check_and_scroll();
-                    }));
+                listener_opt = Some(EventListener::new(&win, "hashchange", move |_| {
+                    check_legacy_hash();
+                }));
             }
             move || {
                 drop(listener_opt);
             }
         });
     }
-
-    let on_jump_to_wish = Callback::from(|_: MouseEvent| {
-        smooth_scroll_to_id("music-wish-section");
-        if let Some(doc) = web_sys::window().and_then(|w| w.document()) {
-            if let Some(el) = doc.get_element_by_id("wish-song") {
-                if let Ok(input) = el.dyn_into::<web_sys::HtmlElement>() {
-                    let _ = input.focus();
-                }
-            }
-        }
-    });
 
     let on_hero_input = {
         let hero_query = hero_query.clone();
@@ -358,9 +304,6 @@ pub fn music_library_page() -> Html {
         random_songs.len()
     };
     let total_pages = if total_val == 0 { 1 } else { total_val.div_ceil(PAGE_SIZE) };
-    let wish_total_val = *wish_total;
-    let wish_total_pages =
-        if wish_total_val == 0 { 1 } else { wish_total_val.div_ceil(WISH_PAGE_SIZE) };
 
     let on_artist_click = {
         let active_artist = active_artist.clone();
@@ -420,13 +363,6 @@ pub fn music_library_page() -> Html {
         let current_page = current_page.clone();
         Callback::from(move |page: usize| {
             current_page.set(page);
-        })
-    };
-
-    let on_wish_page_change = {
-        let wish_page = wish_page.clone();
-        Callback::from(move |page: usize| {
-            wish_page.set(page);
         })
     };
 
@@ -555,170 +491,23 @@ pub fn music_library_page() -> Html {
         );
     }
 
-    // Fetch wishes when page changes or manual refresh is triggered.
-    {
-        let wishes = wishes.clone();
-        let wish_loading = wish_loading.clone();
-        let wish_list_error = wish_list_error.clone();
-        let wish_total = wish_total.clone();
-        let wish_request_seq = wish_request_seq.clone();
-        let deps = (*wish_page, *wish_refresh_tick);
-        use_effect_with(deps, move |(page, _)| {
-            let request_id = {
-                let mut seq = wish_request_seq.borrow_mut();
-                *seq += 1;
-                *seq
-            };
-            let wishes = wishes.clone();
-            let wish_loading = wish_loading.clone();
-            let wish_list_error = wish_list_error.clone();
-            let wish_total = wish_total.clone();
-            let wish_request_seq = wish_request_seq.clone();
-            let offset = ((*page).saturating_sub(1)) * WISH_PAGE_SIZE;
-            wish_loading.set(true);
-            wasm_bindgen_futures::spawn_local(async move {
-                match api::fetch_music_wishes(Some(WISH_PAGE_SIZE), Some(offset)).await {
-                    Ok(resp) => {
-                        if *wish_request_seq.borrow() != request_id {
-                            return;
-                        }
-                        wishes.set(resp.wishes);
-                        wish_total.set(resp.total);
-                        wish_list_error.set(None);
-                    },
-                    Err(err) => {
-                        if *wish_request_seq.borrow() != request_id {
-                            return;
-                        }
-                        wish_list_error.set(Some(err));
-                    },
-                }
-                if *wish_request_seq.borrow() != request_id {
-                    return;
-                }
-                wish_loading.set(false);
-            });
-            || ()
-        });
-    }
-
-    // Manual refresh wishes callback
-    let on_refresh_wishes = {
-        let wish_refresh_tick = wish_refresh_tick.clone();
-        Callback::from(move |_: MouseEvent| {
-            wish_refresh_tick.set(*wish_refresh_tick + 1);
-        })
-    };
-
-    let on_wish_fill_form = {
-        let wish_form_song = wish_form_song.clone();
-        let wish_form_artist = wish_form_artist.clone();
-        let wish_form_message = wish_form_message.clone();
-        let wish_submit_banner = wish_submit_banner.clone();
-        Callback::from(move |w: api::MusicWishItem| {
-            wish_form_song.set(w.song_name.clone());
-            wish_form_artist.set(w.artist_hint.unwrap_or_default());
-            wish_form_message.set(w.wish_message.clone());
-            wish_submit_banner.set(None);
-            smooth_scroll_to_id("music-wish-form");
-        })
-    };
-
-    let on_wish_submit = {
-        let wish_form_song = wish_form_song.clone();
-        let wish_form_artist = wish_form_artist.clone();
-        let wish_form_message = wish_form_message.clone();
-        let wish_form_nickname = wish_form_nickname.clone();
-        let wish_form_email = wish_form_email.clone();
-        let wish_submitting = wish_submitting.clone();
-        let wish_song_error = wish_song_error.clone();
-        let wish_message_error = wish_message_error.clone();
-        let wish_submit_banner = wish_submit_banner.clone();
-        let toast = toast.clone();
-        let wish_page = wish_page.clone();
-        let wish_refresh_tick = wish_refresh_tick.clone();
-        Callback::from(move |e: SubmitEvent| {
-            e.prevent_default();
-            let song = (*wish_form_song).trim().to_string();
-            let artist = (*wish_form_artist).trim().to_string();
-            let message = (*wish_form_message).trim().to_string();
-            let nickname = (*wish_form_nickname).trim().to_string();
-            let email = (*wish_form_email).trim().to_string();
-            let song_missing = song.is_empty();
-            let message_missing = message.is_empty();
-            wish_song_error.set(song_missing.then(|| wish_t::SONG_NAME_REQUIRED.to_string()));
-            wish_message_error.set(message_missing.then(|| wish_t::MESSAGE_REQUIRED.to_string()));
-            if song_missing || message_missing {
-                return;
-            }
-            let artist_opt = if artist.is_empty() { None } else { Some(artist.clone()) };
-            let nickname_opt = if nickname.is_empty() { None } else { Some(nickname.clone()) };
-            let email_opt = if email.is_empty() { None } else { Some(email.clone()) };
-            let frontend_page_url = web_sys::window().and_then(|w| w.location().href().ok());
-            let wish_submitting = wish_submitting.clone();
-            let wish_submit_banner = wish_submit_banner.clone();
-            let toast = toast.clone();
-            let wish_page = wish_page.clone();
-            let wish_refresh_tick = wish_refresh_tick.clone();
-            let wish_form_song = wish_form_song.clone();
-            let wish_form_artist = wish_form_artist.clone();
-            let wish_form_message = wish_form_message.clone();
-            let wish_form_email = wish_form_email.clone();
-            wish_submitting.set(true);
-            wish_submit_banner.set(None);
-            wasm_bindgen_futures::spawn_local(async move {
-                match api::submit_music_wish(
-                    &song,
-                    artist_opt.as_deref(),
-                    &message,
-                    nickname_opt.as_deref(),
-                    email_opt.as_deref(),
-                    frontend_page_url.as_deref(),
-                )
-                .await
-                {
-                    Ok(resp) => {
-                        toast.success(wish_t::SUBMIT_SUCCESS);
-                        wish_submit_banner.set(Some((
-                            true,
-                            format!(
-                                "{}（#{}）",
-                                wish_t::SUBMIT_SUCCESS,
-                                resp.wish_id.chars().take(8).collect::<String>()
-                            ),
-                        )));
-                        wish_form_song.set(String::new());
-                        wish_form_artist.set(String::new());
-                        wish_form_message.set(String::new());
-                        wish_form_email.set(String::new());
-                        wish_page.set(1);
-                        wish_refresh_tick.set(*wish_refresh_tick + 1);
-                    },
-                    Err(e) => {
-                        toast.error(e.clone());
-                        wish_submit_banner.set(Some((false, e)));
-                    },
-                }
-                wish_submitting.set(false);
-            });
-        })
-    };
-
-    let has_active_wish_runner = wishes
-        .iter()
-        .any(|w| matches!(w.status.as_str(), "running" | "approved"));
     let current_playing_id = player_ctx.as_ref().and_then(|c| c.song_id.clone());
     let is_global_playing = player_ctx.as_ref().map(|c| c.playing).unwrap_or(false);
 
     let tab_class = |active: bool| {
         classes!(
             "inline-flex",
+            "min-h-[40px]",
             "items-center",
             "gap-2",
             "border-b-[1.5px]",
             "pb-2.5",
             "pt-1",
             "text-sm",
+            "bg-transparent",
+            "border-t-0",
+            "border-x-0",
+            "cursor-pointer",
             "transition-colors",
             if active {
                 "border-[var(--primary)] font-medium text-[var(--text)]"
@@ -731,19 +520,20 @@ pub fn music_library_page() -> Html {
     let layout_btn_class = |active: bool| {
         classes!(
             "inline-flex",
-            "h-8",
+            "h-9",
             "items-center",
             "gap-1.5",
             "rounded-[6px]",
             "px-2.5",
             "font-mono",
             "text-xs",
+            "cursor-pointer",
             "transition-colors",
             if active {
-                "bg-[var(--surface)] text-[var(--text)] border \
-                 border-[var(--border-strong,var(--border))]"
+                "bg-[var(--surface)] text-[var(--text)] border border-[var(--border-strong)]"
             } else {
-                "text-[var(--muted)] hover:text-[var(--text)] border border-transparent"
+                "bg-transparent text-[var(--muted)] hover:text-[var(--text)] border \
+                 border-transparent"
             }
         )
     };
@@ -765,285 +555,62 @@ pub fn music_library_page() -> Html {
         (*error).clone()
     };
 
+    let studio_music_href = crate::config::route_path("/studio#music");
+    let on_go_studio = {
+        let target = studio_music_href.clone();
+        Callback::from(move |e: MouseEvent| {
+            if e.meta_key() || e.ctrl_key() || e.shift_key() || e.alt_key() || e.button() != 0 {
+                return;
+            }
+            e.prevent_default();
+            let _ = crate::navigation_context::navigate_spa_to(&target);
+            if let Some(win) = web_sys::window() {
+                if let Ok(ev) = web_sys::Event::new("hashchange") {
+                    let _ = win.dispatch_event(&ev);
+                }
+            }
+        })
+    };
+
     html! {
-        <div class="w-full pb-20">
+        <div class="w-full pb-20 min-w-0">
             // 1. Anthropic Editorial Header
-            <header class="mx-auto max-w-[1200px] px-6 md:px-10 pb-12 pt-16 md:pt-20">
-                <div class="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-                    <div class="max-w-2xl">
-                        <div class="sf-eyebrow mb-4">
-                            {"AUDIO LIBRARY · READER-WISHED ARCHIVE"}
+            <header class="mx-auto max-w-[1200px] px-4 sm:px-6 md:px-10 pt-12 sm:pt-16 pb-8 sm:pb-10">
+                <div class="border-b border-[var(--border)] pb-8 sm:pb-10 flex flex-col justify-between gap-5 md:flex-row md:items-end">
+                    <div class="max-w-2xl min-w-0">
+                        <div class="sf-eyebrow">
+                            {"AUDIO LIBRARY · ACOUSTIC ARCHIVE"}
                         </div>
-                        <h1 class="font-serif text-[clamp(2.125rem,4vw,3.125rem)] font-normal leading-[1.1] tracking-[-0.02em] text-[var(--text)]">
-                            {"声学曲库与点歌工坊"}
+                        <h1 class="m-0 font-serif text-[clamp(2rem,1.5rem+2vw,3rem)] font-normal leading-[1.15] tracking-[-0.015em] text-[var(--text)]">
+                            {"声学曲库"}
                         </h1>
-                        <p class="mt-3 text-[0.975rem] leading-[1.65] text-[var(--text-2,var(--muted))]">
-                            {"收录读者共创的本地无损与高码率曲目。想听的旋律尚未入库？直接在下方点歌工坊许愿，AI 将自动寻源、对齐双语歌词并写入曲库。"}
+                        <p class="mt-3 mb-0 text-[0.95rem] leading-[1.65] text-[var(--muted)]">
+                            {"收录读者共创的本地无损与高码率曲目，支持在线试听、双语同步歌词与按歌手专辑检索。"}
                         </p>
-                        <div class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs tabular-nums text-[var(--muted)]">
-                            <span>{format!("{header_song_count} 首馆藏曲目")}</span>
-                            <span class="text-[var(--border-strong,var(--border))]">{"·"}</span>
-                            <span>{format!("{wish_total_val} 条点歌心愿")}</span>
-                            if has_active_wish_runner {
-                                <span class="text-[var(--border-strong,var(--border))]">{"·"}</span>
-                                <span class="inline-flex items-center gap-1.5 text-[var(--primary)]">
-                                    <span class="sf-status sf-status--running inline-block h-1.5 w-1.5 rounded-full bg-[var(--primary)] animate-pulse" />
-                                    {"AI 正在寻源入库"}
-                                </span>
-                            }
-                        </div>
                     </div>
 
-                    <div class="flex shrink-0 flex-wrap items-center gap-2.5">
-                        <button
-                            type="button"
-                            onclick={on_jump_to_wish}
-                            class="sf-btn sf-btn--primary"
+                    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 shrink-0">
+                        if header_song_count > 0 {
+                            <span class="font-mono text-xs tabular-nums text-[var(--faint)]">
+                                {format!("{header_song_count} 首馆藏曲目")}
+                            </span>
+                        }
+                        <a
+                            href={studio_music_href}
+                            onclick={on_go_studio}
+                            class="sf-link inline-flex min-h-[40px] items-center text-sm text-[var(--muted)] hover:text-[var(--text)]"
                         >
-                            <span>{"许下歌愿 ↓"}</span>
-                        </button>
+                            { st_t::MUSIC_LIBRARY_STUDIO_CTA }
+                        </a>
                     </div>
                 </div>
             </header>
 
-            // 2. Prominent Full-Bleed Self-Service Music Wish Workshop (#music-wish-section)
-            <section
-                id="music-wish-section"
-                class="w-full scroll-mt-16 border-y border-[var(--border)] bg-[var(--surface-alt)] py-10 sm:py-14"
-            >
-                <div class="mx-auto max-w-[1200px] px-6 md:px-10">
-                    <div class="mb-7 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-                        <div>
-                            <div class="sf-eyebrow mb-2.5">
-                                {"SELF-SERVICE JUKEBOX"}
-                            </div>
-                            <h2 class="font-serif text-[clamp(1.5rem,2.6vw,2rem)] font-normal leading-[1.2] tracking-[-0.015em] text-[var(--text)]">
-                                {wish_t::SECTION_TITLE}
-                            </h2>
-                            <p class="mt-1.5 max-w-2xl text-sm leading-relaxed text-[var(--muted)]">
-                                {wish_t::SECTION_SUBTITLE}
-                            </p>
-                        </div>
-                        <div class="font-mono text-[11px] tracking-[0.03em] text-[var(--muted)]">
-                            {"submit → review → AI fetch & LRC → LanceDB"}
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 gap-7 lg:grid-cols-12 lg:items-start">
-                        // Left: Editorial Wish Form Card
-                        <div class="lg:col-span-5">
-                            <form
-                                id="music-wish-form"
-                                onsubmit={on_wish_submit}
-                                class="sf-card scroll-mt-24 rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6"
-                            >
-                                <div class="mb-4 flex items-center justify-between border-b border-[var(--border)] pb-3">
-                                    <span class="font-serif text-base font-normal text-[var(--text)]">
-                                        {"填写歌愿单"}
-                                    </span>
-                                    <span class="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--muted)]">
-                                        {"WISH REQUEST"}
-                                    </span>
-                                </div>
-
-                                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                    <FormField
-                                        label={wish_t::SONG_NAME_LABEL}
-                                        id="wish-song"
-                                        required=true
-                                        error={(*wish_song_error).clone()}
-                                    >
-                                        <TextInput
-                                            id="wish-song"
-                                            value={(*wish_form_song).clone()}
-                                            placeholder={wish_t::SONG_NAME_PLACEHOLDER}
-                                            invalid={wish_song_error.is_some()}
-                                            on_change={let s = wish_form_song.clone(); Callback::from(move |v| s.set(v))}
-                                        />
-                                    </FormField>
-                                    <FormField label={wish_t::ARTIST_LABEL} id="wish-artist">
-                                        <TextInput
-                                            id="wish-artist"
-                                            value={(*wish_form_artist).clone()}
-                                            placeholder={wish_t::ARTIST_PLACEHOLDER}
-                                            on_change={let s = wish_form_artist.clone(); Callback::from(move |v| s.set(v))}
-                                        />
-                                    </FormField>
-                                    <div class="sm:col-span-2">
-                                        <FormField
-                                            label={wish_t::MESSAGE_LABEL}
-                                            id="wish-message"
-                                            required=true
-                                            error={(*wish_message_error).clone()}
-                                        >
-                                            <TextArea
-                                                id="wish-message"
-                                                value={(*wish_form_message).clone()}
-                                                placeholder={wish_t::MESSAGE_PLACEHOLDER}
-                                                rows={3}
-                                                invalid={wish_message_error.is_some()}
-                                                on_change={let s = wish_form_message.clone(); Callback::from(move |v| s.set(v))}
-                                            />
-                                        </FormField>
-                                    </div>
-                                    <FormField label={wish_t::NICKNAME_LABEL} id="wish-nickname">
-                                        <TextInput
-                                            id="wish-nickname"
-                                            value={(*wish_form_nickname).clone()}
-                                            placeholder={wish_t::NICKNAME_PLACEHOLDER}
-                                            on_change={let s = wish_form_nickname.clone(); Callback::from(move |v| s.set(v))}
-                                        />
-                                    </FormField>
-                                    <FormField
-                                        label={wish_t::EMAIL_LABEL}
-                                        id="wish-email"
-                                        hint={wish_t::EMAIL_HELP_TEXT}
-                                    >
-                                        <TextInput
-                                            id="wish-email"
-                                            kind="email"
-                                            value={(*wish_form_email).clone()}
-                                            placeholder={wish_t::EMAIL_PLACEHOLDER}
-                                            on_change={let s = wish_form_email.clone(); Callback::from(move |v| s.set(v))}
-                                        />
-                                    </FormField>
-                                </div>
-
-                                if let Some((ok, ref msg)) = *wish_submit_banner {
-                                    <div class={classes!(
-                                        "mt-4",
-                                        "rounded-[8px]",
-                                        "border",
-                                        "px-3.5",
-                                        "py-2.5",
-                                        "text-xs",
-                                        "leading-relaxed",
-                                        if ok {
-                                            "border-[var(--ok,#4E7A51)]/35 bg-[var(--ok-soft,rgba(78,122,81,0.10))] text-[var(--ok,#4E7A51)]"
-                                        } else {
-                                            "border-[var(--err,#B8443A)]/35 bg-[var(--err-soft,rgba(184,68,58,0.10))] text-[var(--err,#B8443A)]"
-                                        }
-                                    )}>
-                                        {msg}
-                                    </div>
-                                }
-
-                                <div class="mt-5 flex items-center justify-between gap-3 border-t border-[var(--border)] pt-4">
-                                    <span class="font-mono text-[11px] text-[var(--muted)]">
-                                        {"审核通过后自动入库并邮件通知"}
-                                    </span>
-                                    <button
-                                        type="submit"
-                                        disabled={*wish_submitting}
-                                        class="sf-btn sf-btn--primary inline-flex shrink-0 items-center gap-2 rounded-[8px] bg-[var(--primary)] px-4 py-2 text-sm font-medium text-[var(--on-primary,#FAF9F5)] transition-colors hover:bg-[var(--primary-hover,#B85735)] disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        if *wish_submitting {
-                                            <span
-                                                class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[var(--on-primary,#FAF9F5)]/40 border-t-[var(--on-primary,#FAF9F5)] motion-reduce:animate-none"
-                                                aria-hidden="true"
-                                            />
-                                        }
-                                        <span>{if *wish_submitting { wish_t::SUBMITTING } else { wish_t::SUBMIT_BTN }}</span>
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-
-                        // Right: Live Music Wish Queue
-                        <div class="lg:col-span-7">
-                            <div class="sf-card overflow-hidden rounded-[12px] border border-[var(--border)] bg-[var(--surface)]">
-                                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-3.5">
-                                    <div class="flex items-center gap-2.5">
-                                        <span class="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--muted)]">
-                                            {"WISH QUEUE · 实时心愿队列"}
-                                        </span>
-                                        <span class="rounded-full border border-[var(--border)] bg-[var(--surface-alt)] px-2 py-0.5 font-mono text-[11px] tabular-nums text-[var(--muted)]">
-                                            {wish_total_val}
-                                        </span>
-                                        if has_active_wish_runner {
-                                            <span class="inline-flex items-center gap-1.5 rounded-full bg-[var(--primary-soft,rgba(201,100,66,0.12))] px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--primary)]">
-                                                <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--primary)]" />
-                                                {"LIVE"}
-                                            </span>
-                                        }
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onclick={on_refresh_wishes}
-                                        disabled={*wish_loading}
-                                        class="sf-btn sf-btn--ghost sf-btn--sm inline-flex items-center gap-1.5 rounded-[6px] border border-[var(--border)] px-2.5 py-1 font-mono text-xs text-[var(--muted)] transition-colors hover:border-[var(--border-strong,var(--primary))] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        <svg
-                                            class={if *wish_loading { "h-3.5 w-3.5 animate-spin motion-reduce:animate-none" } else { "h-3.5 w-3.5" }}
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke-width="1.8"
-                                            stroke="currentColor"
-                                        >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182"
-                                            />
-                                        </svg>
-                                        <span>{if *wish_loading { wish_t::REFRESHING } else { wish_t::REFRESH_BTN }}</span>
-                                    </button>
-                                </div>
-
-                                if *wish_loading && wishes.is_empty() {
-                                    <div class="space-y-3 p-5">
-                                        { for (0..4).map(|_| html! {
-                                            <div class="h-14 animate-pulse rounded-[8px] bg-[var(--surface-alt)]" />
-                                        }) }
-                                    </div>
-                                } else if let Some(err) = (*wish_list_error).clone() {
-                                    <div class="p-6 text-sm text-[var(--err,#B8443A)]">
-                                        {format!("加载心愿队列失败：{err}")}
-                                    </div>
-                                } else if wishes.is_empty() {
-                                    <div class="px-6 py-12 text-center text-sm text-[var(--muted)]">
-                                        {wish_t::EMPTY_LIST}
-                                    </div>
-                                } else {
-                                    <div class="divide-y divide-[var(--border)]">
-                                        { for wishes.iter().map(|w| {
-                                            let is_wish_song_playing = w.ingested_song_id.as_ref().is_some_and(|sid| {
-                                                current_playing_id.as_deref() == Some(sid.as_str()) && is_global_playing
-                                            });
-                                            html! {
-                                                <WishQueueRow
-                                                    key={w.wish_id.clone()}
-                                                    wish={w.clone()}
-                                                    on_fill_form={on_wish_fill_form.clone()}
-                                                    on_play_song={on_inline_play.clone()}
-                                                    is_playing={is_wish_song_playing}
-                                                />
-                                            }
-                                        }) }
-                                    </div>
-                                }
-
-                                if wish_total_pages > 1 {
-                                    <div class="flex justify-center border-t border-[var(--border)] px-4 py-3.5">
-                                        <Pagination
-                                            current_page={*wish_page}
-                                            total_pages={wish_total_pages}
-                                            on_page_change={on_wish_page_change}
-                                        />
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            // 3. Acoustic Track Archive Section
-            <section class="mx-auto max-w-[1200px] px-4 pt-10 sm:px-6 sm:pt-12 lg:px-8">
+            // 2. Acoustic Track Archive Section
+            <section class="mx-auto max-w-[1200px] px-4 sm:px-6 md:px-10 min-w-0">
                 // Toolbar: Editorial Text Tabs + Search + Layout Switch
                 <div class="flex flex-col justify-between gap-4 border-b border-[var(--border)] pb-3 md:flex-row md:items-end">
-                    <div class="flex flex-wrap items-center gap-5">
+                    <div class="flex flex-wrap items-center gap-4 sm:gap-5">
                         <button
                             type="button"
                             onclick={on_switch_random}
@@ -1068,7 +635,7 @@ pub fn music_library_page() -> Html {
                             <button
                                 type="button"
                                 onclick={on_refresh_random}
-                                class="sf-chip mb-1 inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 font-mono text-xs text-[var(--muted)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
+                                class="sf-chip mb-1 !min-h-[36px] inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 font-mono text-xs text-[var(--muted)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
                             >
                                 <Icon name={IconName::Shuffle} size={12} />
                                 <span>{"换一批"}</span>
@@ -1076,27 +643,27 @@ pub fn music_library_page() -> Html {
                         }
                     </div>
 
-                    <div class="flex flex-wrap items-center gap-2.5">
-                        <div class="relative flex min-w-[220px] flex-1 items-center sm:w-64 sm:flex-initial">
+                    <div class="flex flex-wrap items-center gap-2.5 min-w-0">
+                        <div class="relative flex min-w-0 flex-1 items-center sm:w-64 sm:flex-initial">
                             <input
                                 type="text"
                                 placeholder="搜索歌曲、歌手或专辑..."
                                 value={(*hero_query).clone()}
                                 oninput={on_hero_input}
                                 onkeypress={on_hero_keypress}
-                                class="sf-input h-9 w-full rounded-[8px] border border-[var(--border)] bg-[var(--surface)] pl-3 pr-8 text-sm text-[var(--text)] placeholder-[var(--muted)] transition-colors focus:border-[var(--primary)] focus:outline-none"
+                                class="sf-input !h-10 w-full rounded-[8px] pl-3 pr-9 text-sm"
                             />
                             <button
                                 type="button"
                                 onclick={on_hero_search}
                                 aria-label="Search music"
-                                class="absolute right-2 inline-flex h-6 w-6 items-center justify-center text-[var(--muted)] transition-colors hover:text-[var(--primary)]"
+                                class="absolute right-1 inline-flex h-8 w-8 items-center justify-center bg-transparent border-0 cursor-pointer text-[var(--muted)] transition-colors hover:text-[var(--primary)]"
                             >
                                 <Icon name={IconName::Search} size={14} />
                             </button>
                         </div>
 
-                        <div class="inline-flex items-center rounded-[8px] border border-[var(--border)] bg-[var(--surface-alt)] p-0.5">
+                        <div class="inline-flex shrink-0 items-center rounded-[8px] border border-[var(--border)] bg-[var(--surface-alt)] p-0.5">
                             <button
                                 type="button"
                                 onclick={on_set_list_layout}
@@ -1123,28 +690,28 @@ pub fn music_library_page() -> Html {
                     <div class="mt-4 flex flex-wrap items-center gap-2">
                         <span class="font-mono text-xs text-[var(--muted)]">{"筛选条件："}</span>
                         if let Some(ref artist) = *active_artist {
-                            <span class="sf-chip sf-chip--active inline-flex items-center gap-1.5 rounded-full border border-[var(--primary)]/35 bg-[var(--primary-soft,rgba(201,100,66,0.12))] py-1 pl-3 pr-1.5 text-xs font-medium text-[var(--primary)]">
-                                <span>{format!("歌手：{artist}")}</span>
+                            <span class="sf-chip sf-chip--active !h-auto !py-1 inline-flex items-center gap-1.5 rounded-full pl-3 pr-1.5 text-xs font-medium">
+                                <span class="[overflow-wrap:anywhere]">{format!("歌手：{artist}")}</span>
                                 <button
                                     onclick={clear_artist}
                                     type="button"
                                     aria-label="清除歌手筛选"
-                                    class="inline-flex h-4 w-4 items-center justify-center rounded-full transition-colors hover:bg-[var(--primary)]/20"
+                                    class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-transparent border-0 cursor-pointer text-current transition-colors hover:bg-[var(--primary)]/20"
                                 >
-                                    <Icon name={IconName::X} size={11} />
+                                    <Icon name={IconName::X} size={12} />
                                 </button>
                             </span>
                         }
                         if let Some(ref album) = *active_album {
-                            <span class="sf-chip sf-chip--active inline-flex items-center gap-1.5 rounded-full border border-[var(--primary)]/35 bg-[var(--primary-soft,rgba(201,100,66,0.12))] py-1 pl-3 pr-1.5 text-xs font-medium text-[var(--primary)]">
-                                <span>{format!("专辑：{album}")}</span>
+                            <span class="sf-chip sf-chip--active !h-auto !py-1 inline-flex items-center gap-1.5 rounded-full pl-3 pr-1.5 text-xs font-medium">
+                                <span class="[overflow-wrap:anywhere]">{format!("专辑：{album}")}</span>
                                 <button
                                     onclick={clear_album}
                                     type="button"
                                     aria-label="清除专辑筛选"
-                                    class="inline-flex h-4 w-4 items-center justify-center rounded-full transition-colors hover:bg-[var(--primary)]/20"
+                                    class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-transparent border-0 cursor-pointer text-current transition-colors hover:bg-[var(--primary)]/20"
                                 >
-                                    <Icon name={IconName::X} size={11} />
+                                    <Icon name={IconName::X} size={12} />
                                 </button>
                             </span>
                         }
@@ -1152,29 +719,29 @@ pub fn music_library_page() -> Html {
                 }
 
                 if *display_mode == LibraryDisplayMode::RandomRecommended && !tracks_loading && tracks_error.is_none() && !active_songs.is_empty() {
-                    <p class="mt-4 font-mono text-xs tracking-[0.02em] text-[var(--muted)]">
-                        {"随机甄选 10 首馆藏曲目 · 点击右侧圆形按钮可直接唤起悬浮播放器试听，点击歌名进入歌词阅读页。"}
+                    <p class="mt-4 mb-0 font-mono text-xs leading-relaxed tracking-[0.02em] text-[var(--muted)]">
+                        {"随机甄选 10 首馆藏曲目 · 点击右侧播放按钮试听，点击歌名阅读双语歌词。"}
                     </p>
                 }
 
                 // Track List / Grid Body
-                <div class="mt-4">
+                <div class="mt-4 min-w-0">
                     if tracks_loading {
                         <div class="divide-y divide-[var(--border)] border-y border-[var(--border)]">
                             { for (0..8).map(|_| html! {
-                                <div class="flex h-16 items-center gap-4 px-2">
+                                <div class="flex h-16 items-center gap-3.5 px-2">
                                     <div class="h-12 w-12 shrink-0 animate-pulse rounded-[6px] bg-[var(--surface-alt)]" />
-                                    <div class="flex-1 space-y-2">
-                                        <div class="h-3.5 w-48 animate-pulse rounded bg-[var(--surface-alt)]" />
-                                        <div class="h-3 w-32 animate-pulse rounded bg-[var(--surface-alt)]" />
+                                    <div class="min-w-0 flex-1 space-y-2">
+                                        <div class="h-3.5 w-40 max-w-full animate-pulse rounded bg-[var(--surface-alt)]" />
+                                        <div class="h-3 w-28 max-w-full animate-pulse rounded bg-[var(--surface-alt)]" />
                                     </div>
-                                    <div class="h-3 w-12 animate-pulse rounded bg-[var(--surface-alt)]" />
-                                    <div class="h-8 w-8 shrink-0 animate-pulse rounded-full bg-[var(--surface-alt)]" />
+                                    <div class="h-3 w-12 animate-pulse rounded bg-[var(--surface-alt)] max-sm:hidden" />
+                                    <div class="h-10 w-10 shrink-0 animate-pulse rounded-full bg-[var(--surface-alt)]" />
                                 </div>
                             }) }
                         </div>
                     } else if let Some(err) = tracks_error {
-                        <div class="rounded-[12px] border border-[var(--err,#B8443A)]/30 bg-[var(--err-soft,rgba(184,68,58,0.08))] p-6 text-sm text-[var(--err,#B8443A)]">
+                        <div class="rounded-[12px] border border-[var(--err)]/30 bg-[var(--err-soft)] p-6 text-sm text-[var(--err)] [overflow-wrap:anywhere]">
                             {format!("加载曲目列表失败：{err}")}
                         </div>
                     } else if active_songs.is_empty() {
@@ -1205,7 +772,7 @@ pub fn music_library_page() -> Html {
                             }) }
                         </div>
                     } else {
-                        <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:gap-5 lg:grid-cols-5">
+                        <div class="grid grid-cols-2 gap-3.5 sm:grid-cols-3 md:gap-5 lg:grid-cols-5">
                             { for active_songs.iter().map(|song| {
                                 let is_current = current_playing_id.as_deref() == Some(song.id.as_str());
                                 let is_card_playing = is_current && is_global_playing;
@@ -1273,13 +840,15 @@ fn render_acoustic_track_row(
         "flex",
         "min-h-[64px]",
         "items-center",
-        "gap-3.5",
-        "px-2",
-        "py-2.5",
-        "transition-colors",
+        "gap-3",
+        "sm:gap-3.5",
+        "px-1.5",
         "sm:px-3",
+        "py-2.5",
+        "min-w-0",
+        "transition-colors",
         if is_current {
-            "border-l-2 border-l-[var(--primary)] bg-[var(--primary-soft,rgba(201,100,66,0.08))]"
+            "border-l-2 border-l-[var(--primary)] bg-[var(--primary-soft)]"
         } else {
             "hover:bg-[var(--surface-alt)]/75"
         }
@@ -1287,8 +856,8 @@ fn render_acoustic_track_row(
 
     html! {
         <div class={row_class}>
-            // Index or active marker (static/subtle, zero vinyl spin)
-            <div class="w-6 shrink-0 text-right font-mono text-xs tabular-nums text-[var(--faint,var(--muted))] max-sm:hidden">
+            // Index or active marker (hidden on mobile)
+            <div class="w-6 shrink-0 text-right font-mono text-xs tabular-nums text-[var(--faint)] max-sm:hidden">
                 if is_current {
                     <span class="text-[var(--primary)]">{"◆"}</span>
                 } else {
@@ -1296,7 +865,7 @@ fn render_acoustic_track_row(
                 }
             </div>
 
-            // 48px static square cover (rounded-[6px])
+            // 48px static square cover
             <Link<Route>
                 to={Route::MusicPlayer { id: id.clone() }}
                 classes="relative h-12 w-12 shrink-0 overflow-hidden rounded-[6px] border border-[var(--border)] bg-[var(--surface-alt)]"
@@ -1317,7 +886,7 @@ fn render_acoustic_track_row(
                 }
             </Link<Route>>
 
-            // Serif song title + muted artist / album
+            // Serif song title + muted artist / album (truncates cleanly at 390px)
             <div class="min-w-0 flex-1">
                 <Link<Route>
                     to={Route::MusicPlayer { id }}
@@ -1339,7 +908,7 @@ fn render_acoustic_track_row(
                 >
                     {&song.title}
                 </Link<Route>>
-                <div class="mt-0.5 flex items-center gap-1.5 truncate text-xs text-[var(--muted)]">
+                <div class="mt-0.5 flex items-center gap-1.5 min-w-0 text-xs text-[var(--muted)]">
                     <a
                         href="#"
                         onclick={artist_cb}
@@ -1348,11 +917,11 @@ fn render_acoustic_track_row(
                         {&song.artist}
                     </a>
                     if !song.album.is_empty() {
-                        <span class="text-[var(--border-strong,var(--border))]">{"·"}</span>
+                        <span class="text-[var(--border-strong)] shrink-0 max-sm:hidden">{"·"}</span>
                         <a
                             href="#"
                             onclick={album_cb}
-                            class="cursor-pointer truncate text-[var(--muted)] no-underline transition-colors hover:text-[var(--primary)]"
+                            class="cursor-pointer truncate text-[var(--muted)] no-underline transition-colors hover:text-[var(--primary)] max-sm:hidden"
                         >
                             {&song.album}
                         </a>
@@ -1367,35 +936,38 @@ fn render_acoustic_track_row(
                 </span>
             }
 
-            // Monospace duration
-            <span class="w-12 shrink-0 text-right font-mono text-xs tabular-nums text-[var(--muted)]">
+            // Monospace duration (hidden on mobile so cover + title/artist + play button breathe)
+            <span class="w-12 shrink-0 text-right font-mono text-xs tabular-nums text-[var(--muted)] max-sm:hidden">
                 {&duration}
             </span>
 
-            // 32px hairline circular play button (hover terracotta)
+            // 40px circular hairline play button
             <button
                 type="button"
                 onclick={on_play_click}
                 aria-label={if is_playing { "暂停" } else { "播放" }}
                 class={classes!(
                     "inline-flex",
-                    "h-8",
-                    "w-8",
+                    "h-10",
+                    "w-10",
+                    "sm:h-9",
+                    "sm:w-9",
                     "shrink-0",
                     "items-center",
                     "justify-center",
                     "rounded-full",
                     "border",
+                    "cursor-pointer",
                     "transition-colors",
                     if is_playing {
-                        "border-[var(--primary)] bg-[var(--primary)] text-[var(--on-primary,#FAF9F5)]"
+                        "border-[var(--primary)] bg-[var(--primary)] text-[var(--on-primary)]"
                     } else {
-                        "border-[var(--border-strong,var(--border))] bg-transparent text-[var(--text)] hover:border-[var(--primary)] hover:bg-[var(--primary)] hover:text-[var(--on-primary,#FAF9F5)]"
+                        "border-[var(--border-strong)] bg-transparent text-[var(--text)] hover:border-[var(--primary)] hover:bg-[var(--primary)] hover:text-[var(--on-primary)]"
                     }
                 )}
             >
                 if is_loading {
-                    <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />
                 } else {
                     <Icon name={if is_playing { IconName::Pause } else { IconName::Play }} size={13} />
                 }
@@ -1441,11 +1013,12 @@ fn render_minimal_song_card(
             "rounded-[8px]",
             "border",
             "bg-[var(--surface)]",
+            "min-w-0",
             "transition-colors",
             if is_current {
                 "border-[var(--primary)]"
             } else {
-                "border-[var(--border)] hover:border-[var(--border-strong,var(--primary))]"
+                "border-[var(--border)] hover:border-[var(--border-strong)]"
             }
         )}>
             <Link<Route> to={Route::MusicPlayer { id: id.clone() }} classes="block">
@@ -1469,7 +1042,7 @@ fn render_minimal_song_card(
                     </div>
                 </div>
             </Link<Route>>
-            <div class="flex flex-1 flex-col justify-between gap-2 border-t border-[var(--border)] p-3">
+            <div class="flex flex-1 flex-col justify-between gap-2 border-t border-[var(--border)] p-3 min-w-0">
                 <div class="min-w-0">
                     <Link<Route>
                         to={Route::MusicPlayer { id }}
@@ -1485,12 +1058,12 @@ fn render_minimal_song_card(
                         {&song.artist}
                     </a>
                 </div>
-                <div class="flex items-center justify-between gap-2 pt-1">
+                <div class="flex items-center justify-between gap-2 pt-1 min-w-0">
                     if !song.album.is_empty() {
                         <a
                             href="#"
                             onclick={album_cb}
-                            class="max-w-[75%] truncate text-[11px] text-[var(--muted)] no-underline transition-colors hover:text-[var(--primary)]"
+                            class="min-w-0 flex-1 truncate text-[11px] text-[var(--muted)] no-underline transition-colors hover:text-[var(--primary)]"
                         >
                             {&song.album}
                         </a>
@@ -1503,23 +1076,26 @@ fn render_minimal_song_card(
                         aria-label={if is_playing { "暂停" } else { "播放" }}
                         class={classes!(
                             "inline-flex",
-                            "h-7",
-                            "w-7",
+                            "h-9",
+                            "w-9",
+                            "sm:h-8",
+                            "sm:w-8",
                             "shrink-0",
                             "items-center",
                             "justify-center",
                             "rounded-full",
                             "border",
+                            "cursor-pointer",
                             "transition-colors",
                             if is_playing {
-                                "border-[var(--primary)] bg-[var(--primary)] text-[var(--on-primary,#FAF9F5)]"
+                                "border-[var(--primary)] bg-[var(--primary)] text-[var(--on-primary)]"
                             } else {
-                                "border-[var(--border-strong,var(--border))] text-[var(--text)] hover:border-[var(--primary)] hover:bg-[var(--primary)] hover:text-[var(--on-primary,#FAF9F5)]"
+                                "border-[var(--border-strong)] bg-transparent text-[var(--text)] hover:border-[var(--primary)] hover:bg-[var(--primary)] hover:text-[var(--on-primary)]"
                             }
                         )}
                     >
                         if is_loading {
-                            <span class="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                            <span class="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />
                         } else {
                             <Icon name={if is_playing { IconName::Pause } else { IconName::Play }} size={12} />
                         }
@@ -1535,275 +1111,4 @@ fn format_duration(ms: u64) -> String {
     let minutes = total_seconds / 60;
     let seconds = total_seconds % 60;
     format!("{:02}:{:02}", minutes, seconds)
-}
-
-#[derive(Properties, PartialEq)]
-struct WishQueueRowProps {
-    pub wish: api::MusicWishItem,
-    pub on_fill_form: Callback<api::MusicWishItem>,
-    pub on_play_song: Callback<String>,
-    pub is_playing: bool,
-}
-
-#[function_component(WishQueueRow)]
-fn wish_queue_row(props: &WishQueueRowProps) -> Html {
-    let w = &props.wish;
-    let log_open = use_state(|| false);
-    let ai_log_loading = use_state(|| false);
-    let ai_log_fetched = use_state(|| false);
-    let ai_log_text = use_state(|| None::<String>);
-
-    let (status_dot_class, status_badge_class, status_text) = match w.status.as_str() {
-        "pending" => (
-            "sf-status sf-status--pending bg-[var(--muted)]",
-            "border-[var(--border)] bg-[var(--surface-alt)] text-[var(--muted)]",
-            wish_t::STATUS_PENDING,
-        ),
-        "approved" => (
-            "sf-status sf-status--running animate-pulse bg-[var(--primary)]",
-            "border-[var(--primary)]/30 bg-[var(--primary-soft,rgba(201,100,66,0.12))] \
-             text-[var(--primary)]",
-            wish_t::STATUS_APPROVED,
-        ),
-        "running" => (
-            "sf-status sf-status--running animate-pulse bg-[var(--primary)]",
-            "border-[var(--primary)]/30 bg-[var(--primary-soft,rgba(201,100,66,0.12))] \
-             text-[var(--primary)]",
-            wish_t::STATUS_RUNNING,
-        ),
-        "done" => (
-            "sf-status sf-status--done bg-[var(--ok,#4E7A51)]",
-            "border-[var(--ok,#4E7A51)]/30 bg-[var(--ok-soft,rgba(78,122,81,0.10))] \
-             text-[var(--ok,#4E7A51)]",
-            wish_t::STATUS_DONE,
-        ),
-        "failed" => (
-            "sf-status sf-status--failed bg-[var(--err,#B8443A)]",
-            "border-[var(--err,#B8443A)]/30 bg-[var(--err-soft,rgba(184,68,58,0.10))] \
-             text-[var(--err,#B8443A)]",
-            wish_t::STATUS_FAILED,
-        ),
-        other => (
-            "sf-status bg-[var(--muted)]",
-            "border-[var(--border)] bg-[var(--surface-alt)] text-[var(--muted)]",
-            other,
-        ),
-    };
-
-    let ts = format_ts_ms(w.created_at);
-
-    let on_fill = {
-        let cb = props.on_fill_form.clone();
-        let wish = w.clone();
-        Callback::from(move |_: MouseEvent| cb.emit(wish.clone()))
-    };
-
-    let on_toggle_log = {
-        let log_open = log_open.clone();
-        let ai_log_loading = ai_log_loading.clone();
-        let ai_log_fetched = ai_log_fetched.clone();
-        let ai_log_text = ai_log_text.clone();
-        let wish_id = w.wish_id.clone();
-        Callback::from(move |_: MouseEvent| {
-            let next_open = !*log_open;
-            log_open.set(next_open);
-            if next_open && !*ai_log_fetched && !*ai_log_loading {
-                ai_log_loading.set(true);
-                let ai_log_loading = ai_log_loading.clone();
-                let ai_log_fetched = ai_log_fetched.clone();
-                let ai_log_text = ai_log_text.clone();
-                let wish_id = wish_id.clone();
-                wasm_bindgen_futures::spawn_local(async move {
-                    if let Ok(output) = api::fetch_admin_music_wish_ai_output(&wish_id).await {
-                        let mut buf = String::new();
-                        for run in &output.runs {
-                            buf.push_str(&format!(
-                                "[run {}] status={} runner={} exit={:?}\n",
-                                run.run_id, run.status, run.runner_program, run.exit_code
-                            ));
-                            if let Some(ref reason) = run.failure_reason {
-                                if !reason.trim().is_empty() {
-                                    buf.push_str(&format!("failure: {reason}\n"));
-                                }
-                            }
-                        }
-                        for chunk in &output.chunks {
-                            buf.push_str(&chunk.content);
-                            if !chunk.content.ends_with('\n') {
-                                buf.push('\n');
-                            }
-                        }
-                        if !buf.trim().is_empty() {
-                            ai_log_text.set(Some(buf));
-                        }
-                    }
-                    ai_log_fetched.set(true);
-                    ai_log_loading.set(false);
-                });
-            }
-        })
-    };
-
-    let fallback_log = {
-        let mut lines = Vec::new();
-        lines.push(format!(
-            "wish_id={} · status={} · attempts={}",
-            w.wish_id, w.status, w.attempt_count
-        ));
-        lines.push(format!(
-            "created={} · updated={}",
-            format_ts_ms(w.created_at),
-            format_ts_ms(w.updated_at)
-        ));
-        if let Some(ref sid) = w.ingested_song_id {
-            lines.push(format!("ingested_song_id={sid}"));
-        }
-        if let Some(ref err) = w.failure_reason {
-            if !err.trim().is_empty() {
-                lines.push(format!("failure_reason: {err}"));
-            }
-        }
-        if let Some(ref reply) = w.ai_reply {
-            if !reply.trim().is_empty() {
-                lines.push(String::new());
-                lines.push(reply.clone());
-            }
-        }
-        lines.join("\n")
-    };
-
-    let done_song_actions = if w.status == "done" {
-        if let Some(ref song_id) = w.ingested_song_id {
-            let play_cb = {
-                let cb = props.on_play_song.clone();
-                let sid = song_id.clone();
-                Callback::from(move |_: MouseEvent| cb.emit(sid.clone()))
-            };
-            html! {
-                <button
-                    type="button"
-                    onclick={play_cb}
-                    aria-label={if props.is_playing { "暂停" } else { "播放" }}
-                    title={if props.is_playing { "暂停" } else { "播放" }}
-                    class="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[var(--border-strong)] text-[var(--text-2)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
-                >
-                    <Icon name={if props.is_playing { IconName::Pause } else { IconName::Play }} size={11} />
-                </button>
-            }
-        } else {
-            Html::default()
-        }
-    } else {
-        Html::default()
-    };
-
-    html! {
-        <div class="px-5 py-3.5 transition-colors hover:bg-[var(--surface-alt)]/50">
-            <div class="flex flex-wrap items-start justify-between gap-2">
-                <div class="min-w-0 flex-1">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <span class={classes!(
-                            "inline-flex",
-                            "items-center",
-                            "gap-1.5",
-                            "rounded-full",
-                            "border",
-                            "px-2",
-                            "py-0.5",
-                            "font-mono",
-                            "text-[10px]",
-                            "leading-tight",
-                            status_badge_class
-                        )}>
-                            <span class={classes!("h-1.5", "w-1.5", "rounded-full", status_dot_class)} />
-                            <span>{status_text}</span>
-                        </span>
-
-                        <h3 class="m-0 truncate font-serif text-[1rem] font-normal text-[var(--text)]">
-                            if let (true, Some(song_id)) = (w.status == "done", w.ingested_song_id.as_ref()) {
-                                <Link<Route>
-                                    to={Route::MusicPlayer { id: song_id.clone() }}
-                                    classes="text-inherit no-underline decoration-[var(--primary)] underline-offset-4 hover:underline"
-                                >
-                                    {&w.song_name}
-                                </Link<Route>>
-                            } else {
-                                {&w.song_name}
-                            }
-                        </h3>
-
-                        if let Some(ref artist) = w.artist_hint {
-                            if !artist.trim().is_empty() {
-                                <span class="truncate text-xs text-[var(--muted)]">
-                                    {format!("— {artist}")}
-                                </span>
-                            }
-                        }
-                    </div>
-                </div>
-
-                <div class="flex shrink-0 items-center gap-3">
-                    <button
-                        type="button"
-                        onclick={on_toggle_log}
-                        class="bg-transparent border-0 p-0 cursor-pointer font-mono text-[11px] text-[var(--faint)] transition-colors hover:text-[var(--text)]"
-                    >
-                        {if *log_open { "收起日志" } else { "AI 日志" }}
-                    </button>
-                    <button
-                        type="button"
-                        onclick={on_fill}
-                        title={wish_t::FILL_FORM}
-                        class="bg-transparent border-0 p-0 cursor-pointer font-mono text-[11px] text-[var(--faint)] transition-colors hover:text-[var(--text)]"
-                    >
-                        {wish_t::FILL_FORM}
-                    </button>
-                    {done_song_actions}
-                </div>
-            </div>
-
-            <p class="mt-1.5 line-clamp-2 text-xs leading-relaxed text-[var(--text-2,var(--text))]">
-                {&w.wish_message}
-            </p>
-
-            <div class="mt-2 flex flex-wrap items-center justify-between gap-2 font-mono text-[11px] tabular-nums text-[var(--muted)]">
-                <span class="truncate">
-                    {if w.ip_region.trim().is_empty() {
-                        w.nickname.clone()
-                    } else {
-                        format!("{} · {}", w.nickname, w.ip_region)
-                    }}
-                </span>
-                <span>{&ts}</span>
-            </div>
-
-            if *log_open {
-                <div class="mt-2.5 max-h-64 overflow-auto whitespace-pre-wrap rounded-[8px] border border-[var(--border)] bg-[var(--surface-sunk,var(--bg))] p-3.5 font-mono text-[0.8125rem] leading-[1.6] text-[var(--text-2,var(--text))]">
-                    <div class="mb-1.5 flex items-center justify-between border-b border-[var(--border)] pb-1 text-[10px] uppercase tracking-[0.12em] text-[var(--muted)]">
-                        <span>{"◆ AI EXECUTION LOG"}</span>
-                        if *ai_log_loading {
-                            <span>{"loading..."}</span>
-                        }
-                    </div>
-                    {
-                        if let Some(ref full_log) = *ai_log_text {
-                            full_log.as_str()
-                        } else {
-                            fallback_log.as_str()
-                        }
-                    }
-                </div>
-            }
-        </div>
-    }
-}
-
-fn format_ts_ms(ms: i64) -> String {
-    let date = js_sys::Date::new(&wasm_bindgen::JsValue::from_f64(ms as f64));
-    let y = date.get_full_year();
-    let m = date.get_month() + 1;
-    let d = date.get_date();
-    let h = date.get_hours();
-    let min = date.get_minutes();
-    format!("{y:04}-{m:02}-{d:02} {h:02}:{min:02}")
 }

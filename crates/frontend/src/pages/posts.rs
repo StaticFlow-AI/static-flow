@@ -103,7 +103,13 @@ pub fn posts_page() -> Html {
         (None, None) => String::new(),
     };
 
-    let description = if total_posts == 0 {
+    let description = if *loading || load_error.is_some() {
+        if query.has_filters() {
+            "正在按当前筛选整理归档目录…".to_string()
+        } else {
+            "按年份倒序整理的全部文章归档。".to_string()
+        }
+    } else if total_posts == 0 {
         if query.has_filters() {
             t::DESC_EMPTY_FILTERED.to_string()
         } else {
@@ -234,8 +240,8 @@ pub fn posts_page() -> Html {
 
     html! {
         <main class={classes!("min-h-[65vh]", "pb-24")}>
-            <div class={classes!("max-w-[1200px]", "mx-auto", "px-6", "md:px-10")}>
-                <header class="pt-16 pb-10 border-b border-[var(--border)]">
+            <div class={classes!("max-w-[1200px]", "mx-auto", "px-5", "sm:px-6", "md:px-10")}>
+                <header class="pt-8 sm:pt-12 md:pt-16 pb-8 md:pb-10 border-b border-[var(--border)]">
                     <div class="sf-eyebrow text-xs font-semibold uppercase tracking-[0.08em] text-[var(--faint)]">
                         { "ARCHIVE · CHRONOLOGICAL INDEX" }
                     </div>
@@ -246,22 +252,22 @@ pub fn posts_page() -> Html {
                         { description }
                     </p>
 
-                    <div class="mt-5 flex flex-wrap items-center gap-4 text-xs font-mono tabular-nums text-[var(--faint)]">
-                        <Link<Route> to={Route::Tags} classes="sf-link no-underline hover:underline text-[var(--muted)]">
+                    <div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-mono tabular-nums text-[var(--faint)]">
+                        <Link<Route> to={Route::Tags} classes="sf-link inline-flex items-center py-1.5 no-underline hover:underline text-[var(--muted)]">
                             { "按标签索引 →" }
                         </Link<Route>>
                         <span aria-hidden="true">{ "·" }</span>
-                        <Link<Route> to={Route::Categories} classes="sf-link no-underline hover:underline text-[var(--muted)]">
+                        <Link<Route> to={Route::Categories} classes="sf-link inline-flex items-center py-1.5 no-underline hover:underline text-[var(--muted)]">
                             { "按分类目录 →" }
                         </Link<Route>>
                     </div>
 
                     if query.has_filters() {
-                        <div class={classes!("flex", "flex-wrap", "gap-2.5", "items-center", "mt-5")}>
-                            <span class="sf-chip !bg-[var(--primary-soft)] !text-[var(--primary)]">
+                        <div class={classes!("flex", "flex-wrap", "gap-2.5", "items-center", "mt-4")}>
+                            <span class="sf-chip max-w-full break-all !bg-[var(--primary-soft)] !text-[var(--primary)]">
                                 { filter_label }
                             </span>
-                            <Link<Route> to={Route::Posts} classes="sf-btn sf-btn--ghost sf-btn--sm no-underline">
+                            <Link<Route> to={Route::Posts} classes="sf-btn sf-btn--ghost sf-btn--sm min-h-[2.5rem] no-underline">
                                 { format!("× {}", t::FILTER_CLEAR) }
                             </Link<Route>>
                         </div>
@@ -314,7 +320,7 @@ pub fn posts_page() -> Html {
                                     html! {
                                         <section
                                             key={year_value}
-                                            class="grid grid-cols-1 lg:grid-cols-[120px_1fr] gap-4 lg:gap-12 py-10"
+                                            class="grid grid-cols-1 lg:grid-cols-[120px_1fr] gap-4 lg:gap-12 py-8 md:py-10"
                                             aria-labelledby={heading_id.clone()}
                                         >
                                             <div class="lg:sticky lg:top-24 self-start flex lg:flex-col items-baseline gap-3 lg:gap-1.5 pt-1">
@@ -354,7 +360,7 @@ pub fn posts_page() -> Html {
                                                             <div class="pt-4 border-t border-[var(--border)]">
                                                                 <button
                                                                     type="button"
-                                                                    class="sf-btn sf-btn--ghost sf-btn--sm"
+                                                                    class="sf-btn sf-btn--ghost sf-btn--sm min-h-[2.5rem]"
                                                                     {onclick}
                                                                     aria-expanded={is_expanded.to_string()}
                                                                     aria-label={fill_one(t::YEAR_TOGGLE_ARIA_TEMPLATE, year_value)}
@@ -412,7 +418,7 @@ pub(crate) fn render_archive_years(
                 let heading_id = format!("archive-year-{year}");
                 html! {
                     <section
-                        class="grid grid-cols-1 lg:grid-cols-[120px_1fr] gap-4 lg:gap-12 py-10"
+                        class="grid grid-cols-1 lg:grid-cols-[120px_1fr] gap-4 lg:gap-12 py-8 md:py-10"
                         key={*year}
                         aria-labelledby={heading_id.clone()}
                     >

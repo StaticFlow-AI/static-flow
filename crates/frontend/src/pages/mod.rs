@@ -50,6 +50,7 @@ pub mod categories;
 pub mod category_detail;
 pub mod coming_soon;
 pub mod home;
+pub mod home_hero;
 pub mod image_library;
 pub mod interactive_article;
 pub mod kiro_access;
@@ -64,6 +65,7 @@ pub mod music_player;
 pub mod not_found;
 pub mod posts;
 pub mod search;
+pub mod studio;
 pub mod tag_detail;
 pub mod tags;
 

@@ -2,10 +2,8 @@ use gloo_events::EventListener;
 use gloo_timers::callback::Timeout;
 use gloo_utils::{document, window};
 use serde::Deserialize;
-use wasm_bindgen::{JsCast, JsValue};
-use web_sys::{
-    Element, HtmlElement, HtmlInputElement, KeyboardEvent, Node, ScrollBehavior, ScrollToOptions,
-};
+use wasm_bindgen::JsCast;
+use web_sys::{Element, HtmlElement, HtmlInputElement, KeyboardEvent, Node};
 use yew::prelude::*;
 use yew_router::prelude::*;
 
@@ -16,9 +14,9 @@ use crate::{
 };
 
 const NAV_GALLERY: &str = "图库";
-const CTA_WORKSHOP: &str = "投稿 / 点歌";
-const CTA_SUBMIT_ARTICLE: &str = "提交文章";
-const CTA_SUBMIT_MUSIC: &str = "许个歌愿";
+const NAV_STUDIO: &str = "共建台";
+const CTA_STUDIO_ARTICLE: &str = "投一篇文章";
+const CTA_STUDIO_MUSIC: &str = "点一首歌";
 
 fn is_nav_active(current: Option<&Route>, target: &Route) -> bool {
     let Some(current) = current else {
@@ -73,30 +71,18 @@ fn focus_search_input_in(container: &NodeRef) {
     .forget();
 }
 
-fn trigger_workshop_navigation(is_home: bool, hash: &'static str) {
-    let target_url = crate::config::route_path(&format!("/{hash}"));
-    if is_home {
-        let win = window();
-        if let Ok(history) = win.history() {
-            let _ = history.replace_state_with_url(&JsValue::NULL, "", Some(&target_url));
-        }
-        if let Ok(ev) = web_sys::Event::new("hashchange") {
-            let _ = win.dispatch_event(&ev);
-        }
-        if let Ok(ev) = web_sys::Event::new("popstate") {
-            let _ = win.dispatch_event(&ev);
-        }
-        if let Some(workshop_el) = document().get_element_by_id("workshop") {
-            let top =
-                win.scroll_y().unwrap_or(0.0) + workshop_el.get_bounding_client_rect().top() - 72.0;
-            let opts = ScrollToOptions::new();
-            opts.set_top(top.max(0.0));
-            opts.set_left(0.0);
-            opts.set_behavior(ScrollBehavior::Smooth);
-            win.scroll_with_scroll_to_options(&opts);
-        }
-    } else {
-        let _ = crate::navigation_context::navigate_spa_to(&target_url);
+fn navigate_to_studio(target_subpath: &'static str) {
+    let target_url = crate::config::route_path(target_subpath);
+    if !crate::navigation_context::navigate_spa_to(&target_url) {
+        let _ = window().location().set_href(&target_url);
+        return;
+    }
+    let win = window();
+    if let Ok(ev) = web_sys::Event::new("hashchange") {
+        let _ = win.dispatch_event(&ev);
+    }
+    if !target_subpath.contains('#') {
+        win.scroll_to_with_x_and_y(0.0, 0.0);
     }
 }
 
@@ -124,7 +110,7 @@ pub fn header() -> Html {
         let search_query = search_query.clone();
         let search_expanded = search_expanded.clone();
         let location = location.clone();
-        use_effect_with(location_sync_key, move |_| {
+        use_effect_with(location_sync_key.clone(), move |_| {
             let next = location
                 .as_ref()
                 .and_then(|item| item.query::<HeaderSearchQuery>().ok())
@@ -159,30 +145,52 @@ pub fn header() -> Html {
         });
     }
 
-    // Lock body scroll when full-screen mobile drawer is open
+    // Lock page scroll (both <html> and <body>) while the drawer is open
     {
         use_effect_with(*mobile_menu_open, move |open| {
             let open = *open;
-            let prev = document()
-                .body()
-                .and_then(|b| b.style().get_property_value("overflow").ok())
-                .unwrap_or_default();
+            let doc = document();
+            let targets: Vec<HtmlElement> = [
+                doc.document_element()
+                    .and_then(|el| el.dyn_into::<HtmlElement>().ok()),
+                doc.body(),
+            ]
+            .into_iter()
+            .flatten()
+            .collect();
+            let previous: Vec<String> = targets
+                .iter()
+                .map(|el| {
+                    el.style()
+                        .get_property_value("overflow")
+                        .unwrap_or_default()
+                })
+                .collect();
             if open {
-                if let Some(body) = document().body() {
-                    let _ = body.style().set_property("overflow", "hidden");
+                for el in &targets {
+                    let _ = el.style().set_property("overflow", "hidden");
                 }
             }
             move || {
                 if open {
-                    if let Some(body) = document().body() {
+                    for (el, prev) in targets.iter().zip(previous.iter()) {
                         if prev.is_empty() {
-                            let _ = body.style().remove_property("overflow");
+                            let _ = el.style().remove_property("overflow");
                         } else {
-                            let _ = body.style().set_property("overflow", &prev);
+                            let _ = el.style().set_property("overflow", prev);
                         }
                     }
                 }
             }
+        });
+    }
+
+    // Close the drawer whenever the route changes (back/forward included)
+    {
+        let mobile_menu_open = mobile_menu_open.clone();
+        use_effect_with(location_sync_key.clone(), move |_| {
+            mobile_menu_open.set(false);
+            || ()
         });
     }
 
@@ -317,46 +325,56 @@ pub fn header() -> Html {
         })
     };
 
-    let is_home = matches!(route.as_ref(), Some(Route::Home));
+    let on_studio_route = location.as_ref().is_some_and(|loc| {
+        let path = loc.path();
+        path == "/studio" || path.ends_with("/studio")
+    });
 
-    let go_workshop = {
-        Callback::from(move |_: MouseEvent| {
-            trigger_workshop_navigation(is_home, "#workshop");
-        })
-    };
+    let go_studio = Callback::from(|e: MouseEvent| {
+        if !e.meta_key() && !e.ctrl_key() && !e.shift_key() && !e.alt_key() && e.button() == 0 {
+            e.prevent_default();
+            navigate_to_studio("/studio");
+        }
+    });
 
-    let go_workshop_article_mobile = {
+    let go_studio_article_mobile = {
         let mobile_menu_open = mobile_menu_open.clone();
-        Callback::from(move |_: MouseEvent| {
-            mobile_menu_open.set(false);
-            trigger_workshop_navigation(is_home, "#workshop");
+        Callback::from(move |e: MouseEvent| {
+            if !e.meta_key() && !e.ctrl_key() && !e.shift_key() && !e.alt_key() && e.button() == 0 {
+                e.prevent_default();
+                mobile_menu_open.set(false);
+                navigate_to_studio("/studio#article");
+            }
         })
     };
 
-    let go_workshop_music_mobile = {
+    let go_studio_music_mobile = {
         let mobile_menu_open = mobile_menu_open.clone();
-        Callback::from(move |_: MouseEvent| {
-            mobile_menu_open.set(false);
-            trigger_workshop_navigation(is_home, "#workshop-music");
+        Callback::from(move |e: MouseEvent| {
+            if !e.meta_key() && !e.ctrl_key() && !e.shift_key() && !e.alt_key() && e.button() == 0 {
+                e.prevent_default();
+                mobile_menu_open.set(false);
+                navigate_to_studio("/studio#music");
+            }
         })
     };
 
-    // Desktop center: strictly 5 editorial text links per design system §4
+    // Desktop center: strictly 5 content links (文章 · 最新 · 音乐 · 图库 · 标签)
     let desktop_nav_items = [
         (t::NAV_POSTS, Route::Posts),
         (t::NAV_LATEST, Route::LatestArticles),
-        (t::NAV_TAGS, Route::Tags),
         (t::NAV_MUSIC, Route::MediaAudio),
         (NAV_GALLERY, Route::MediaImage),
+        (t::NAV_TAGS, Route::Tags),
     ];
 
     let mobile_nav_items = [
         (t::NAV_POSTS, Route::Posts),
         (t::NAV_LATEST, Route::LatestArticles),
-        (t::NAV_TAGS, Route::Tags),
-        (t::NAV_CATEGORIES, Route::Categories),
         (t::NAV_MUSIC, Route::MediaAudio),
         (NAV_GALLERY, Route::MediaImage),
+        (t::NAV_TAGS, Route::Tags),
+        (t::NAV_CATEGORIES, Route::Categories),
     ];
 
     let mobile_search_submit = {
@@ -386,15 +404,39 @@ pub fn header() -> Html {
     let show_desktop_search_box =
         !on_search_route && (*search_expanded || !search_query.is_empty());
 
-    let hamburger_line = classes!(
-        "block",
-        "w-4",
-        "h-[1.5px]",
+    let hamburger_line =
+        classes!("block", "w-[18px]", "h-[1.5px]", "rounded-full", "bg-[var(--text)]");
+
+    let mobile_icon_button = classes!(
+        "w-10",
+        "h-10",
+        "shrink-0",
         "rounded-full",
-        "bg-[var(--text)]",
-        "transition-all",
-        "duration-200"
+        "bg-transparent",
+        "text-[var(--muted)]",
+        "inline-flex",
+        "items-center",
+        "justify-center",
+        "cursor-pointer",
+        "hover:text-[var(--text)]",
+        "hover:bg-[var(--surface-alt)]",
+        "transition-colors"
     );
+
+    let open_mobile_search_page = {
+        let search_query = search_query.clone();
+        let route = route.clone();
+        let location = location.clone();
+        Callback::from(move |_: MouseEvent| {
+            let query = (*search_query).trim();
+            let url = if query.is_empty() {
+                crate::config::route_path("/search")
+            } else {
+                build_search_url(route.clone(), location.clone(), &urlencoding::encode(query))
+            };
+            let _ = crate::navigation_context::navigate_spa_to(&url);
+        })
+    };
 
     html! {
         <>
@@ -406,7 +448,7 @@ pub fn header() -> Html {
                 // Desktop header (>= md)
                 <div class={classes!(
                     "desktop-header",
-                    "items-center", "justify-between", "gap-6",
+                    "items-center", "justify-between", "gap-4", "lg:gap-6",
                     "h-16",
                     "max-w-[1200px]", "mx-auto", "px-6", "md:px-10"
                 )}>
@@ -416,7 +458,7 @@ pub fn header() -> Html {
                     </Link<Route>>
 
                     <nav
-                        class={classes!("flex", "items-center", "gap-7")}
+                        class={classes!("flex", "items-center", "gap-5", "lg:gap-7")}
                         aria-label={t::NAV_MAIN_ARIA}
                     >
                         { for desktop_nav_items.iter().map(|(label, target_route)| {
@@ -440,7 +482,7 @@ pub fn header() -> Html {
                             if show_desktop_search_box {
                                 <div class={classes!(
                                     "flex", "items-center", "gap-1",
-                                    "w-[240px]", "h-9", "pl-3", "pr-1.5",
+                                    "w-[180px]", "lg:w-[240px]", "h-9", "pl-3", "pr-1.5",
                                     "rounded-full",
                                     "border", "border-[var(--border-strong)]",
                                     "bg-[var(--surface)]",
@@ -522,106 +564,91 @@ pub fn header() -> Html {
 
                         <ThemeToggle />
 
-                        <button
-                            type="button"
-                            onclick={go_workshop.clone()}
-                            class={classes!("sf-btn", "sf-btn--primary", "sf-btn--sm", "ml-1")}
+                        <a
+                            href={crate::config::route_path("/studio")}
+                            onclick={go_studio}
+                            aria-current={on_studio_route.then_some("page")}
+                            class={classes!(
+                                "sf-btn",
+                                "sf-btn--secondary",
+                                "sf-btn--sm",
+                                "ml-1",
+                                "no-underline",
+                                on_studio_route.then_some("!border-[var(--primary)] !text-[var(--primary)]")
+                            )}
                         >
-                            <span>{ CTA_WORKSHOP }</span>
-                        </button>
+                            <span>{ NAV_STUDIO }</span>
+                        </a>
                     </div>
                 </div>
 
-                // Mobile header (< md)
+                // Mobile header (< md): brand / search / theme / menu.
+                // Studio ingestion actions live at the bottom of the drawer
+                // instead of competing for space in a 390px bar.
                 <div class={classes!(
                     "mobile-header",
-                    "items-center", "justify-between", "gap-2.5",
+                    "items-center", "justify-between", "gap-3",
                     "h-16",
-                    "max-w-[1200px]", "mx-auto", "px-5"
+                    "max-w-[1200px]", "mx-auto", "px-4", "sm:px-5"
                 )}>
-                    <Link<Route> to={Route::Home} classes="brand-logo">
+                    <Link<Route> to={Route::Home} classes="brand-logo min-w-0">
                         <span class="brand-logo-diamond" aria-hidden="true"></span>
                         <span>{"StaticFlow"}</span>
                     </Link<Route>>
 
-                    <div class="flex items-center gap-1.5">
-                        <ThemeToggle />
-
+                    <div class="flex shrink-0 items-center gap-1">
                         <button
                             type="button"
-                            onclick={go_workshop}
-                            class={classes!(
-                                "sf-btn", "sf-btn--primary", "sf-btn--sm",
-                                "!w-8", "!h-8", "!px-0", "justify-center"
-                            )}
-                            aria-label={CTA_WORKSHOP}
-                            title={CTA_WORKSHOP}
+                            onclick={open_mobile_search_page}
+                            class={mobile_icon_button.clone()}
+                            aria-label={t::SEARCH_ARIA}
                         >
-                            <i class="fas fa-plus text-xs" aria-hidden="true"></i>
+                            <i class="fas fa-search text-[15px]" aria-hidden="true"></i>
                         </button>
 
+                        <ThemeToggle class={classes!("!w-10", "!h-10")} />
+
                         <button
                             type="button"
                             class={classes!(
-                                "w-9", "h-9",
-                                "rounded-full",
-                                "bg-transparent",
-                                "text-[var(--text)]",
-                                "flex", "flex-col", "justify-center", "items-center",
-                                "gap-[4px]",
-                                "cursor-pointer",
-                                "hover:bg-[var(--surface-alt)]",
-                                "transition-colors"
+                                mobile_icon_button,
+                                "flex-col", "gap-[4px]"
                             )}
                             aria-label={t::OPEN_MENU_ARIA}
                             aria-expanded={(*mobile_menu_open).to_string()}
+                            aria-controls="sf-mobile-drawer"
                             onclick={toggle_mobile_menu}
                         >
-                            <span
-                                class={classes!(
-                                    hamburger_line.clone(),
-                                    if *mobile_menu_open { "translate-y-[5.5px] rotate-45" } else { "" }
-                                )}
-                            />
-                            <span
-                                class={classes!(
-                                    hamburger_line.clone(),
-                                    if *mobile_menu_open { "opacity-0" } else { "opacity-100" }
-                                )}
-                            />
-                            <span
-                                class={classes!(
-                                    hamburger_line,
-                                    if *mobile_menu_open { "-translate-y-[5.5px] -rotate-45" } else { "" }
-                                )}
-                            />
+                            <span class={hamburger_line.clone()} />
+                            <span class={hamburger_line.clone()} />
+                            <span class={hamburger_line} />
                         </button>
                     </div>
                 </div>
             </header>
 
-            // Full-screen warm editorial mobile sheet
+            // Full-screen opaque editorial drawer (< md only)
             <div
+                id="sf-mobile-drawer"
                 class={classes!(
+                    "sf-mobile-drawer",
+                    "md:hidden",
                     "fixed", "inset-0", "z-[120]",
                     "bg-[var(--bg)]", "text-[var(--text)]",
                     "flex", "flex-col",
-                    "px-6", "pb-8",
-                    "overflow-y-auto",
-                    "transition-opacity", "duration-200",
-                    if *mobile_menu_open {
-                        "opacity-100 pointer-events-auto"
-                    } else {
-                        "opacity-0 pointer-events-none"
-                    }
+                    "overflow-y-auto", "overscroll-contain",
+                    (*mobile_menu_open).then_some("is-open")
                 )}
                 role="dialog"
                 aria-modal="true"
+                aria-label={t::MOBILE_NAV_ARIA}
                 aria-hidden={(!*mobile_menu_open).to_string()}
             >
                 <div class={classes!(
-                    "h-16", "shrink-0",
+                    "sticky", "top-0", "z-[1]",
+                    "h-16", "shrink-0", "px-4", "sm:px-5",
                     "flex", "items-center", "justify-between",
+                    "bg-[var(--bg)]",
                     "border-b", "border-[var(--border)]"
                 )}>
                     <div onclick={close_mobile_menu.clone()}>
@@ -635,7 +662,7 @@ pub fn header() -> Html {
                         onclick={close_mobile_menu.clone()}
                         aria-label={t::CLOSE_TOOLTIP}
                         class={classes!(
-                            "w-9", "h-9", "rounded-full",
+                            "w-10", "h-10", "rounded-full",
                             "border", "border-[var(--border-strong)]",
                             "bg-transparent", "text-[var(--text)]",
                             "inline-flex", "items-center", "justify-center",
@@ -643,91 +670,101 @@ pub fn header() -> Html {
                             "transition-colors", "cursor-pointer"
                         )}
                     >
-                        <i class="fas fa-times text-sm" aria-hidden="true"></i>
+                        <i class="fas fa-times text-[15px]" aria-hidden="true"></i>
                     </button>
                 </div>
 
-                <div class={classes!("mobile-search-suggest", "mt-5", "flex", "gap-2", "items-center")}>
-                    <SearchSuggest
-                        value={(*search_query).clone()}
-                        on_change={{
-                            let search_query = search_query.clone();
-                            Callback::from(move |value: String| search_query.set(value))
-                        }}
-                        on_submit={mobile_search_submit}
-                        input_class={classes!("sf-input", "w-full")}
-                    />
-                    if !search_query.is_empty() {
-                        <button
-                            type="button"
-                            onclick={mobile_clear_search}
-                            aria-label={t::CLEAR_ARIA}
-                            class={classes!(
-                                "w-11", "h-11", "shrink-0",
-                                "rounded-[8px]",
-                                "border", "border-[var(--border-strong)]",
-                                "bg-[var(--surface)]",
-                                "text-[var(--muted)]",
-                                "hover:text-[var(--text)]",
-                                "cursor-pointer"
-                            )}
-                        >
-                            <i class="fas fa-times text-xs" aria-hidden="true"></i>
-                        </button>
-                    }
-                </div>
-
-                <nav
-                    class={classes!("my-auto", "py-8", "flex", "flex-col", "gap-4")}
-                    aria-label={t::MOBILE_NAV_ARIA}
-                >
-                    { for mobile_nav_items.iter().map(|(label, target_route)| {
-                        let active = is_nav_active(route.as_ref(), target_route);
-                        let close_cb = close_mobile_menu.clone();
-                        html! {
-                            <div onclick={close_cb}>
-                                <Link<Route>
-                                    to={target_route.clone()}
-                                    classes={classes!(
-                                        "inline-flex", "items-center", "gap-3",
-                                        "py-1",
-                                        "font-serif", "font-normal",
-                                        "text-[1.75rem]", "leading-[1.2]",
-                                        "tracking-[-0.015em]", "no-underline",
-                                        "transition-colors",
-                                        if active {
-                                            "text-[var(--primary)]"
-                                        } else {
-                                            "text-[var(--text)] hover:text-[var(--primary)]"
-                                        }
-                                    )}
-                                >
-                                    <span>{ *label }</span>
-                                </Link<Route>>
-                            </div>
+                <div class={classes!("flex", "flex-1", "flex-col", "px-6", "sm:px-8")}>
+                    <div class={classes!("mobile-search-suggest", "mt-5", "flex", "gap-2", "items-center")}>
+                        <SearchSuggest
+                            value={(*search_query).clone()}
+                            on_change={{
+                                let search_query = search_query.clone();
+                                Callback::from(move |value: String| search_query.set(value))
+                            }}
+                            on_submit={mobile_search_submit}
+                            input_class={classes!("sf-input", "w-full", "min-w-0")}
+                        />
+                        if !search_query.is_empty() {
+                            <button
+                                type="button"
+                                onclick={mobile_clear_search}
+                                aria-label={t::CLEAR_ARIA}
+                                class={classes!(
+                                    "w-11", "h-11", "shrink-0",
+                                    "rounded-[8px]",
+                                    "border", "border-[var(--border-strong)]",
+                                    "bg-[var(--surface)]",
+                                    "text-[var(--muted)]",
+                                    "hover:text-[var(--text)]",
+                                    "cursor-pointer"
+                                )}
+                            >
+                                <i class="fas fa-times text-xs" aria-hidden="true"></i>
+                            </button>
                         }
-                    }) }
-                </nav>
+                    </div>
 
-                <div class={classes!(
-                    "pt-6",
-                    "border-t", "border-[var(--border)]",
-                    "grid", "grid-cols-2", "gap-3"
-                )}>
-                    <button
-                        type="button"
-                        onclick={go_workshop_article_mobile}
-                        class={classes!("sf-btn", "sf-btn--primary", "w-full", "justify-center")}
+                    <nav
+                        class={classes!("py-6", "flex", "flex-col")}
+                        aria-label={t::MOBILE_NAV_ARIA}
                     >
-                        { CTA_SUBMIT_ARTICLE }
-                    </button>
-                    <button
-                        type="button"
-                        onclick={go_workshop_music_mobile}
-                        class={classes!("sf-btn", "sf-btn--secondary", "w-full", "justify-center")}
-                    >
-                        { CTA_SUBMIT_MUSIC }
-                    </button>
+                        { for mobile_nav_items.iter().map(|(label, target_route)| {
+                            let active = is_nav_active(route.as_ref(), target_route);
+                            let close_cb = close_mobile_menu.clone();
+                            html! {
+                                <div onclick={close_cb} class="border-b border-[var(--border)]">
+                                    <Link<Route>
+                                        to={target_route.clone()}
+                                        classes={classes!(
+                                            "flex", "items-center", "justify-between", "gap-3",
+                                            "min-h-[3.5rem]", "py-2",
+                                            "font-serif", "font-normal",
+                                            "text-[1.5rem]", "leading-[1.2]",
+                                            "tracking-[-0.015em]", "no-underline",
+                                            "hover:no-underline",
+                                            "transition-colors",
+                                            if active {
+                                                "text-[var(--primary)]"
+                                            } else {
+                                                "text-[var(--text)] hover:text-[var(--primary)]"
+                                            }
+                                        )}
+                                    >
+                                        <span>{ *label }</span>
+                                        <i
+                                            class={classes!(
+                                                "fas", "fa-arrow-right", "text-[13px]",
+                                                if active { "text-[var(--primary)]" } else { "text-[var(--faint)]" }
+                                            )}
+                                            aria-hidden="true"
+                                        ></i>
+                                    </Link<Route>>
+                                </div>
+                            }
+                        }) }
+                    </nav>
+
+                    <div class={classes!(
+                        "mt-auto", "pt-4",
+                        "pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]",
+                        "grid", "grid-cols-2", "gap-3"
+                    )}>
+                        <a
+                            href={crate::config::route_path("/studio#article")}
+                            onclick={go_studio_article_mobile}
+                            class={classes!("sf-btn", "sf-btn--primary", "w-full", "!h-12", "justify-center", "no-underline")}
+                        >
+                            { CTA_STUDIO_ARTICLE }
+                        </a>
+                        <a
+                            href={crate::config::route_path("/studio#music")}
+                            onclick={go_studio_music_mobile}
+                            class={classes!("sf-btn", "sf-btn--secondary", "w-full", "!h-12", "justify-center", "no-underline")}
+                        >
+                            { CTA_STUDIO_MUSIC }
+                        </a>
+                    </div>
                 </div>
             </div>
         </>

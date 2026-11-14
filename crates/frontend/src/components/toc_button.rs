@@ -50,28 +50,16 @@ pub fn toc_button() -> Html {
         }
     });
 
+    // Stacked above the scroll-to-top button in the bottom-right corner; the
+    // position is owned by the `.sf-fab` rules in input.css.
     html! {
-        <div class={classes!(
-            "mobile-toc-fab",
-            "fixed", "left-6", "bottom-6", "z-[99]",
-            "items-center", "justify-center"
-        )}>
-            <Tooltip text={t::TOOLTIP.to_string()} position={TooltipPosition::Top}>
+        <div class={classes!("mobile-toc-fab", "sf-fab", "sf-fab--toc")}>
+            <Tooltip text={t::TOOLTIP.to_string()} position={TooltipPosition::Left}>
                 <button
                     type="button"
                     {onclick}
                     aria-label={t::TOOLTIP}
-                    class={classes!(
-                        "w-10", "h-10", "rounded-full",
-                        "border", "border-[var(--border-strong)]",
-                        "bg-[var(--surface)]",
-                        "text-[var(--muted)]",
-                        "inline-flex", "items-center", "justify-center",
-                        "hover:border-[var(--primary)]",
-                        "hover:text-[var(--primary)]",
-                        "transition-colors", "duration-150",
-                        "cursor-pointer"
-                    )}
+                    class="sf-fab__btn"
                 >
                     <Icon name={IconName::List} size={18} />
                 </button>

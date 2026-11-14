@@ -25,6 +25,13 @@ pub enum Route {
     LatestArticles,
 
     #[cfg(not(feature = "mock"))]
+    #[at("/studio")]
+    Studio,
+    #[cfg(feature = "mock")]
+    #[at("/static_flow/studio")]
+    Studio,
+
+    #[cfg(not(feature = "mock"))]
     #[at("/posts")]
     Posts,
     #[cfg(feature = "mock")]
@@ -361,6 +368,7 @@ fn switch(route: Route) -> Html {
     match route {
         Route::Home => html! { <pages::home::HomePage /> },
         Route::LatestArticles => html! { <pages::latest_articles::LatestArticlesPage /> },
+        Route::Studio => html! { <pages::studio::StudioPage /> },
         Route::Posts => html! { <pages::PostsPage /> },
         Route::ArticleDetail {
             id,

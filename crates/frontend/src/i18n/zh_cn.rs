@@ -279,6 +279,7 @@ pub mod latest_articles_page {
     pub const HERO_INDEX: &str = "Latest Articles";
     pub const HERO_TITLE: &str = "最新文章";
     pub const HERO_DESC: &str = "甄选近期发布的内容，持续更新";
+    pub const STUDIO_CTA: &str = "想让我读一篇文章？去共建台 →";
     pub const EMPTY: &str = "暂无文章";
     pub const LOAD_ERROR_TITLE: &str = "Couldn't load articles";
     pub const RETRY: &str = "Retry";
@@ -525,6 +526,24 @@ pub mod article_request {
     pub const LABEL_REGION: &str = "来源";
     pub const NO_ARTICLE_NOTICE: &str =
         "这次请求已处理完成，但没有产出入库文章。请查看下方 AI 回复了解原因。";
+    pub const READ_ARTICLE: &str = "阅读 →";
+}
+
+pub mod studio_page {
+    pub const EYEBROW: &str = "STUDIO · READER-DRIVEN INGESTION";
+    pub const TITLE: &str = "共建台";
+    pub const SUBTITLE: &str = "把想读的文章、想听的歌交给这里——AI \
+                                会去调研、翻译、抓取音源与歌词，审核后入库。全程公开可追踪。";
+    pub const PIPELINE: &str = "submit → review → AI research / fetch → LanceDB";
+    pub const TAB_ARTICLE: &str = "文章入库";
+    pub const TAB_MUSIC: &str = "点歌入库";
+    pub const ARTICLE_DESK_EYEBROW: &str = "01 · ARTICLE INGESTION";
+    pub const ARTICLE_DESK_DESC: &str =
+        "提交外部博客或深度长文链接，AI 将调研原文、双语精译并整理导读后发布入库。";
+    pub const MUSIC_DESK_EYEBROW: &str = "02 · AUDIO WISHLIST";
+    pub const MUSIC_DESK_DESC: &str =
+        "写下想听的歌名与心愿留言，AI 将自动寻源、对齐双语同步歌词并写入声学曲库。";
+    pub const MUSIC_LIBRARY_STUDIO_CTA: &str = "没找到想听的？去共建台点歌 →";
 }
 
 pub mod mock {
