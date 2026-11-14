@@ -277,28 +277,23 @@ pub fn home_page() -> Html {
                                     <i class="fas fa-search" aria-hidden="true"></i>
                                     { t::BTN_SEARCH_STATICFLOW }
                                 </a>
-                                <Link<Route>
-                                    to={Route::MediaAudio}
-                                    classes={classes!("btn-terminal")}
-                                >
-                                    <i class="fas fa-headphones text-xs text-[var(--muted)]" aria-hidden="true"></i>
+                            </div>
+
+                            // Quiet secondary destinations
+                            <nav class="sf-quick-links" aria-label="快捷入口">
+                                <Link<Route> to={Route::MediaAudio} classes="sf-quick-link">
+                                    <i class="fas fa-headphones" aria-hidden="true"></i>
                                     { t::BTN_MEDIA_AUDIO }
                                 </Link<Route>>
-                                <Link<Route>
-                                    to={Route::MediaImage}
-                                    classes={classes!("btn-terminal")}
-                                >
-                                    <i class="fas fa-image text-xs text-[var(--muted)]" aria-hidden="true"></i>
+                                <Link<Route> to={Route::MediaImage} classes="sf-quick-link">
+                                    <i class="fas fa-image" aria-hidden="true"></i>
                                     { t::BTN_IMAGE }
                                 </Link<Route>>
-                                <Link<Route>
-                                    to={Route::Admin}
-                                    classes={classes!("btn-terminal")}
-                                >
-                                    <i class="fas fa-sliders text-xs text-[var(--muted)]" aria-hidden="true"></i>
+                                <Link<Route> to={Route::Admin} classes="sf-quick-link">
+                                    <i class="fas fa-sliders" aria-hidden="true"></i>
                                     { "Admin" }
                                 </Link<Route>>
-                            </div>
+                            </nav>
 
                             // Social & GitHub Wrapped row
                             <div class={classes!(

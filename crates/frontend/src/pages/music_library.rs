@@ -546,57 +546,79 @@ pub fn music_library_page() -> Html {
         })
     };
 
+    // Segmented mode switch: active segment lifts onto the base surface,
+    // inactive segments stay quiet until hovered.
+    let segment_class = |active: bool| {
+        classes!(
+            "inline-flex",
+            "items-center",
+            "rounded-[var(--radius-sm)]",
+            "px-3.5",
+            "py-1.5",
+            "text-sm",
+            "font-medium",
+            "transition-colors",
+            "duration-[var(--motion-fast)]",
+            "ease-[var(--ease-snap)]",
+            if active {
+                "bg-[var(--surface)] text-[var(--text)] shadow-[var(--shadow-sm)]"
+            } else {
+                "text-[var(--muted)] hover:text-[var(--text)]"
+            }
+        )
+    };
+    let filter_chip_class = "inline-flex items-center gap-1.5 rounded-full border \
+                             border-[var(--primary)]/25 bg-[var(--primary)]/10 py-1 pl-3 pr-1 \
+                             text-xs font-medium text-[var(--primary)]";
+    let filter_chip_clear_class = "inline-flex h-5 w-5 items-center justify-center rounded-full \
+                                   transition-colors duration-[var(--motion-fast)] \
+                                   ease-[var(--ease-snap)] hover:bg-[var(--primary)]/15";
+    let song_grid_class =
+        "grid grid-cols-2 gap-4 sm:grid-cols-3 md:gap-5 lg:grid-cols-4 xl:grid-cols-5";
+
     html! {
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-            <header class="sf-page-hero">
-                <div class="sf-eyebrow">{ "AUDIO ARCHIVE" }</div>
-                <h1 class="sf-page-title">
-                    {"Music Library"}
-                </h1>
-                <p class="sf-page-sub">
-                    {"Explore and play the music collection"}
-                </p>
+        <div class="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
+            <header class="sf-page-hero flex flex-wrap items-end justify-between gap-4">
+                <div>
+                    <div class="sf-eyebrow">{ "AUDIO ARCHIVE" }</div>
+                    <h1 class="sf-page-title">
+                        {"Music Library"}
+                    </h1>
+                    <p class="sf-page-sub">
+                        {"Explore and play the music collection"}
+                    </p>
+                </div>
+                <Link<Route>
+                    to={Route::MediaImage}
+                    classes="btn-terminal"
+                >
+                    <i class="fas fa-image text-xs text-[var(--primary)]" aria-hidden="true"></i>
+                    { header_t::IMAGE_LIBRARY_TITLE }
+                </Link<Route>>
             </header>
 
-            <div class="mb-5 flex flex-wrap items-center gap-2">
-                <button type="button"
-                    onclick={on_switch_random}
-                    class={classes!(
-                        "px-4", "py-2", "rounded-lg", "text-sm", "font-medium", "transition-colors",
-                        if *display_mode == LibraryDisplayMode::RandomRecommended {
-                            "bg-[var(--primary)] text-white"
-                        } else {
-                            "bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-alt)]"
-                        }
-                    )}>
-                    {"Random 10 Picks"}
-                </button>
-                <button type="button"
-                    onclick={on_switch_all}
-                    class={classes!(
-                        "px-4", "py-2", "rounded-lg", "text-sm", "font-medium", "transition-colors",
-                        if *display_mode == LibraryDisplayMode::AllSongs {
-                            "bg-[var(--primary)] text-white"
-                        } else {
-                            "bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-alt)]"
-                        }
-                    )}>
-                    {"View All Songs"}
-                </button>
+            <div class="mb-4 flex flex-wrap items-center gap-2">
+                <div class="inline-flex items-center gap-1 rounded-[var(--radius)] border border-[var(--border)] \
+                            bg-[var(--surface-alt)] p-1">
+                    <button type="button"
+                        onclick={on_switch_random}
+                        class={segment_class(*display_mode == LibraryDisplayMode::RandomRecommended)}>
+                        {"Random 10 Picks"}
+                    </button>
+                    <button type="button"
+                        onclick={on_switch_all}
+                        class={segment_class(*display_mode == LibraryDisplayMode::AllSongs)}>
+                        {"View All Songs"}
+                    </button>
+                </div>
                 if *display_mode == LibraryDisplayMode::RandomRecommended {
                     <button type="button"
                         onclick={on_refresh_random}
-                        class="px-3 py-2 rounded-lg text-xs font-medium bg-[var(--surface)] border border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-alt)] transition-colors">
+                        class="sf-chip cursor-pointer">
+                        <i class="fas fa-shuffle text-[10px]" aria-hidden="true"></i>
                         {"Refresh Random"}
                     </button>
                 }
-                <Link<Route>
-                    to={Route::MediaImage}
-                    classes="px-3 py-2 rounded-lg text-xs font-medium bg-[var(--surface)] border border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-alt)] transition-colors no-underline"
-                >
-                    <i class="fas fa-image mr-1"></i>
-                    { header_t::IMAGE_LIBRARY_TITLE }
-                </Link<Route>>
             </div>
 
             // Hero search box
@@ -622,23 +644,21 @@ pub fn music_library_page() -> Html {
             </div>
 
             if *display_mode == LibraryDisplayMode::AllSongs && (active_artist.is_some() || active_album.is_some()) {
-                <div class="flex flex-wrap gap-2 mb-4">
+                <div class="mb-4 flex flex-wrap gap-2">
                     if let Some(ref artist) = *active_artist {
-                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs \
-                                     bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20">
+                        <span class={filter_chip_class}>
                             {format!("Artist: {}", artist)}
                             <button onclick={clear_artist.clone()} type="button"
-                                class="hover:opacity-70 transition-opacity">
+                                class={filter_chip_clear_class}>
                                 <Icon name={IconName::X} size={12} />
                             </button>
                         </span>
                     }
                     if let Some(ref album) = *active_album {
-                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs \
-                                     bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20">
+                        <span class={filter_chip_class}>
                             {format!("Album: {}", album)}
                             <button onclick={clear_album.clone()} type="button"
-                                class="hover:opacity-70 transition-opacity">
+                                class={filter_chip_clear_class}>
                                 <Icon name={IconName::X} size={12} />
                             </button>
                         </span>
@@ -648,22 +668,28 @@ pub fn music_library_page() -> Html {
 
             if *display_mode == LibraryDisplayMode::RandomRecommended {
                 if *random_loading {
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+                    <div class={song_grid_class}>
                         { for (0..RANDOM_RECOMMEND_LIMIT).map(|_| html! { <SkeletonSongCard /> }) }
                     </div>
                 } else if let Some(ref err) = *random_error {
-                    <div class="text-center py-20 text-red-500">
-                        {format!("Failed to load random picks: {}", err)}
+                    <div class="sf-state sf-state--error">
+                        <span class="sf-state__icon">
+                            <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                        </span>
+                        <p class="sf-state__body">{format!("Failed to load random picks: {}", err)}</p>
                     </div>
                 } else if random_songs.is_empty() {
-                    <div class="text-center py-20 text-[var(--muted)]">
-                        {"No random picks available"}
+                    <div class="sf-state">
+                        <span class="sf-state__icon">
+                            <i class="fas fa-compact-disc" aria-hidden="true"></i>
+                        </span>
+                        <p class="sf-state__body">{"No random picks available"}</p>
                     </div>
                 } else {
-                    <p class="text-xs text-[var(--muted)] mb-4">
+                    <p class="mb-4 font-mono text-xs tracking-[0.02em] text-[var(--muted)]">
                         {"Showing 10 random recommendations. Click \"Refresh Random\" for a different set."}
                     </p>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+                    <div class={song_grid_class}>
                         { for random_songs.iter().map(|song| {
                             render_song_card(song, &on_artist_click, &on_album_click)
                         })}
@@ -671,25 +697,31 @@ pub fn music_library_page() -> Html {
                 }
             } else {
                 if *loading {
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+                    <div class={song_grid_class}>
                         { for (0..PAGE_SIZE).map(|_| html! { <SkeletonSongCard /> }) }
                     </div>
                 } else if let Some(ref err) = *error {
-                    <div class="text-center py-20 text-red-500">
-                        {format!("Failed to load: {}", err)}
+                    <div class="sf-state sf-state--error">
+                        <span class="sf-state__icon">
+                            <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                        </span>
+                        <p class="sf-state__body">{format!("Failed to load: {}", err)}</p>
                     </div>
                 } else if page_songs.is_empty() {
-                    <div class="text-center py-20 text-[var(--muted)]">
-                        {"No music found"}
+                    <div class="sf-state">
+                        <span class="sf-state__icon">
+                            <i class="fas fa-music" aria-hidden="true"></i>
+                        </span>
+                        <p class="sf-state__body">{"No music found"}</p>
                     </div>
                 } else {
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+                    <div class={song_grid_class}>
                         { for page_songs.iter().map(|song| {
                             render_song_card(song, &on_artist_click, &on_album_click)
                         })}
                     </div>
                     if total_pages > 1 {
-                        <div class="flex justify-center mt-8">
+                        <div class="mt-10 flex justify-center">
                             <Pagination
                                 current_page={*current_page}
                                 total_pages={total_pages}
@@ -701,15 +733,16 @@ pub fn music_library_page() -> Html {
             }
 
             // Wish board section
-            <div class="mt-16 border-t border-[var(--border)] pt-10">
-                <h2 class="text-2xl font-bold text-[var(--text)] mb-1" style="font-family: var(--font-sans);">
-                    {wish_t::SECTION_TITLE}
-                </h2>
-                <p class="text-[var(--muted)] text-sm mb-6">{wish_t::SECTION_SUBTITLE}</p>
+            <section class="mt-16 border-t border-[var(--border)] pt-10">
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold tracking-[-0.02em] text-[var(--text)] md:text-2xl">
+                        {wish_t::SECTION_TITLE}
+                    </h2>
+                    <p class="mt-1 max-w-2xl text-sm leading-relaxed text-[var(--muted)]">{wish_t::SECTION_SUBTITLE}</p>
+                </div>
 
                 <form id="music-wish-form" onsubmit={on_wish_submit}
-                    class="music-wish-form p-5 mb-8 \
-                           grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    class="music-wish-form mb-8 grid scroll-mt-24 grid-cols-1 gap-4 p-5 sm:grid-cols-2 sm:gap-5 sm:p-6">
                     <FormField
                         label={wish_t::SONG_NAME_LABEL}
                         id="wish-song"
@@ -770,27 +803,28 @@ pub fn music_library_page() -> Html {
                             on_change={let s = wish_form_email.clone(); Callback::from(move |v| s.set(v))}
                         />
                     </FormField>
-                    <div class="flex items-end">
+                    <div class="flex items-end sm:justify-end">
                         <button type="submit" disabled={*wish_submitting}
-                            class="px-5 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-medium \
-                                   hover:opacity-90 transition-opacity disabled:opacity-50">
+                            class="btn-fluent-primary w-full disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">
+                            if *wish_submitting {
+                                <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 \
+                                             border-t-white motion-reduce:animate-none" aria-hidden="true" />
+                            } else {
+                                <i class="fas fa-paper-plane text-xs" aria-hidden="true"></i>
+                            }
                             {if *wish_submitting { wish_t::SUBMITTING } else { wish_t::SUBMIT_BTN }}
                         </button>
                     </div>
                 </form>
 
                 // Refresh button
-                <div class="flex justify-end mb-4">
+                <div class="mb-4 flex justify-end">
                     <button
                         onclick={on_refresh_wishes}
                         disabled={*wish_loading}
-                        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg \
-                               border border-[var(--border)] bg-[var(--surface)] \
-                               text-[var(--text)] text-sm font-medium \
-                               hover:bg-[var(--surface-alt)] transition-colors \
-                               disabled:opacity-50 disabled:cursor-not-allowed"
+                        class="btn-fluent-secondary disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                        <svg class={if *wish_loading { "w-4 h-4 animate-spin" } else { "w-4 h-4" }}
+                        <svg class={if *wish_loading { "h-4 w-4 animate-spin motion-reduce:animate-none" } else { "h-4 w-4" }}
                              xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                              stroke-width="2" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round"
@@ -803,22 +837,34 @@ pub fn music_library_page() -> Html {
                 </div>
 
                 if *wish_loading && wishes.is_empty() {
-                    <div class="flex justify-center py-8">
-                        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--primary)]" />
+                    <div class="flex justify-center py-10">
+                        <div class="h-6 w-6 animate-spin rounded-full border-2 border-[var(--border)] \
+                                    border-t-[var(--primary)] motion-reduce:animate-none" />
                     </div>
                 } else if let Some(err) = (*wish_list_error).clone() {
-                    <p class="text-center text-red-500 py-8">{format!("Failed to load wishes: {err}")}</p>
+                    <div class="sf-state sf-state--error">
+                        <span class="sf-state__icon">
+                            <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                        </span>
+                        <p class="sf-state__body">{format!("Failed to load wishes: {err}")}</p>
+                    </div>
                 } else if wishes.is_empty() {
-                    <p class="text-center text-[var(--muted)] py-8">{wish_t::EMPTY_LIST}</p>
+                    <div class="sf-state">
+                        <span class="sf-state__icon">
+                            <i class="fas fa-compact-disc" aria-hidden="true"></i>
+                        </span>
+                        <p class="sf-state__body">{wish_t::EMPTY_LIST}</p>
+                    </div>
                 } else {
                     <>
                         if *wish_loading {
                             <div class="mb-3 inline-flex items-center gap-2 text-xs text-[var(--muted)]">
-                                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-[var(--primary)]" />
+                                <div class="h-4 w-4 animate-spin rounded-full border-2 border-[var(--border)] \
+                                            border-t-[var(--primary)] motion-reduce:animate-none" />
                                 <span>{"Loading wishes..."}</span>
                             </div>
                         }
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             { for wishes.iter().map(|w| html! {
                                 <WishCard key={w.wish_id.clone()} wish={w.clone()} on_fill_form={on_wish_fill_form.clone()} />
                             }) }
@@ -826,7 +872,7 @@ pub fn music_library_page() -> Html {
                     </>
                 }
                 if wish_total_pages > 1 {
-                    <div class="flex justify-center mt-6">
+                    <div class="mt-8 flex justify-center">
                         <Pagination
                             current_page={*wish_page}
                             total_pages={wish_total_pages}
@@ -834,7 +880,7 @@ pub fn music_library_page() -> Html {
                         />
                     </div>
                 }
-            </div>
+            </section>
         </div>
     }
 }
@@ -853,13 +899,15 @@ fn render_song_card(
     let album_cb = on_album_click(album.clone());
 
     html! {
-        <div class="group bg-[var(--surface)] border border-[var(--border)] rounded-xl \
-                    overflow-hidden flex flex-col transition-all duration-300 ease-out \
-                    hover:shadow-[var(--shadow-8)] hover:border-[var(--primary)] hover:-translate-y-2">
+        <div class="group flex flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] \
+                    bg-[var(--surface)] shadow-[var(--shadow-sm)] \
+                    transition-[transform,box-shadow,border-color] duration-[var(--motion-base)] ease-[var(--ease-spring)] \
+                    hover:-translate-y-1 hover:border-[var(--primary)]/50 hover:shadow-[var(--shadow-8)] \
+                    motion-reduce:transition-none motion-reduce:hover:translate-y-0">
             <Link<Route> to={Route::MusicPlayer { id }}>
-                <div class="aspect-square bg-[var(--surface-alt)] relative overflow-hidden">
+                <div class="relative aspect-square overflow-hidden bg-[var(--surface-alt)]">
                     if cover_url.is_empty() {
-                        <div class="w-full h-full flex items-center justify-center text-[var(--muted)]">
+                        <div class="flex h-full w-full items-center justify-center text-[var(--muted)]">
                             <Icon name={IconName::Music} size={48} class={classes!("opacity-30")} />
                         </div>
                     } else {
@@ -868,35 +916,41 @@ fn render_song_card(
                             alt={song.title.clone()}
                             loading={Some(AttrValue::from("lazy"))}
                             referrerpolicy={Some(AttrValue::from("no-referrer"))}
-                            class="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+                            class="h-full w-full object-cover transition-transform duration-500 ease-[var(--ease-spring)] \
+                                   group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
                             container_class={classes!("w-full", "h-full")}
                         />
                     }
-                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 \
-                                flex items-center justify-center opacity-0 group-hover:opacity-100">
-                        <div class="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                    <div class="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 \
+                                transition-opacity duration-[var(--motion-base)] ease-[var(--ease-snap)] \
+                                group-hover:opacity-100 group-focus-within:opacity-100">
+                        <div class="flex h-12 w-12 scale-90 items-center justify-center rounded-full bg-white/90 \
+                                    shadow-[var(--shadow-8)] transition-transform duration-[var(--motion-base)] \
+                                    ease-[var(--ease-spring)] group-hover:scale-100 motion-reduce:scale-100">
                             <Icon name={IconName::Play} size={20} color="#000" />
                         </div>
                     </div>
-                    <div class="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded">
+                    <div class="absolute bottom-2 right-2 rounded-md bg-black/60 px-1.5 py-0.5 font-mono \
+                                text-[11px] tabular-nums text-white backdrop-blur-sm">
                         {&duration}
                     </div>
                 </div>
             </Link<Route>>
-            <div class="p-3 flex flex-col gap-1">
-                <h3 class="text-sm font-semibold text-[var(--text)] truncate leading-tight"
-                    style="font-family: var(--font-sans);">
+            <div class="flex flex-col gap-1.5 border-t border-[var(--border)] px-3 py-2.5">
+                <h3 class="truncate font-sans text-sm font-semibold leading-tight text-[var(--text)]">
                     {&song.title}
                 </h3>
                 <a href="#" onclick={artist_cb}
-                    class="text-xs text-[var(--muted)] truncate hover:text-[var(--primary)] transition-colors cursor-pointer">
+                    class="cursor-pointer truncate text-xs text-[var(--muted)] no-underline transition-colors \
+                           duration-[var(--motion-fast)] ease-[var(--ease-snap)] hover:text-[var(--primary)]">
                     {&song.artist}
                 </a>
                 if !song.album.is_empty() {
                     <a href="#" onclick={album_cb}
-                        class="inline-flex items-center self-start px-2 py-0.5 rounded-full text-[10px] \
-                               bg-[var(--surface-alt)] border border-[var(--border)] text-[var(--muted)] \
-                               hover:border-[var(--primary)] hover:text-[var(--primary)] transition-all truncate max-w-full">
+                        class="block max-w-full self-start truncate rounded-full border border-[var(--border)] \
+                               bg-[var(--surface-alt)] px-2 py-0.5 text-[10px] text-[var(--muted)] no-underline \
+                               transition-colors duration-[var(--motion-fast)] ease-[var(--ease-snap)] \
+                               hover:border-[var(--primary)]/50 hover:text-[var(--primary)]">
                         {&song.album}
                     </a>
                 }
@@ -947,50 +1001,54 @@ fn wish_card(props: &WishCardProps) -> Html {
     };
 
     html! {
-        <div class="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 \
-                    flex flex-col gap-2 transition-all duration-[var(--motion-base)] \
-                    ease-[var(--ease-spring)] hover:border-[var(--primary)] hover:shadow-[var(--shadow-4)]">
+        <div class="sf-panel flex flex-col gap-2.5 p-4 transition-[transform,box-shadow,border-color] \
+                    duration-[var(--motion-base)] ease-[var(--ease-spring)] \
+                    hover:-translate-y-0.5 hover:border-[var(--primary)]/40 hover:shadow-[var(--shadow-4)] \
+                    motion-reduce:transition-none motion-reduce:hover:translate-y-0">
             <div class="flex items-start justify-between gap-2">
-                <h3 class="text-sm font-semibold text-[var(--text)] truncate">{&w.song_name}</h3>
-                <span class={classes!("text-[10px]", "px-2", "py-0.5", "rounded-full", "border",
-                    "whitespace-nowrap", "shrink-0", status_class)}>
+                <h3 class="truncate text-sm font-semibold text-[var(--text)]">{&w.song_name}</h3>
+                <span class={classes!("text-[10px]", "font-medium", "leading-tight", "px-2", "py-0.5",
+                    "rounded-full", "border", "whitespace-nowrap", "shrink-0", status_class)}>
                     {status_text}
                 </span>
             </div>
             if let Some(ref artist) = w.artist_hint {
                 <p class="text-xs text-[var(--muted)]">{format!("🎤 {}", artist)}</p>
             }
-            <p class="text-xs text-[var(--text)] line-clamp-3">{&w.wish_message}</p>
-            <div class="flex items-center justify-between text-[10px] text-[var(--muted)] mt-auto pt-1 \
-                        border-t border-[var(--border)]">
-                <span>{format!("{} · {}", w.nickname, w.ip_region)}</span>
-                <div class="flex items-center gap-2">
+            <p class="line-clamp-3 text-xs leading-relaxed text-[var(--text)]">{&w.wish_message}</p>
+            <div class="mt-auto flex items-center justify-between gap-2 border-t border-[var(--border)] \
+                        pt-2.5 text-[10px] text-[var(--muted)]">
+                <span class="truncate">{format!("{} · {}", w.nickname, w.ip_region)}</span>
+                <div class="flex shrink-0 items-center gap-2">
                     <button onclick={on_fill}
-                        class="inline-flex items-center gap-1 text-[var(--muted)] \
-                               hover:text-[var(--primary)] transition-colors"
+                        class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[var(--muted)] \
+                               transition-colors duration-[var(--motion-fast)] ease-[var(--ease-snap)] \
+                               hover:bg-[var(--primary)]/10 hover:text-[var(--primary)]"
                         title={wish_t::FILL_FORM}>
-                        <svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none"
+                        <svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none"
                              viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round"
                                   d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                         </svg>
                         <span>{wish_t::FILL_FORM}</span>
                     </button>
-                    <span>{&ts}</span>
+                    <span class="font-mono tabular-nums">{&ts}</span>
                 </div>
             </div>
             if w.status == "done" {
                 if let Some(ref song_id) = w.ingested_song_id {
                     <Link<Route> to={Route::MusicPlayer { id: song_id.clone() }}
-                        classes="text-xs text-[var(--primary)] hover:underline">
+                        classes="inline-flex items-center gap-1 self-start text-xs font-medium \
+                                 text-[var(--primary)] underline-offset-2 hover:underline">
+                        <i class="fas fa-play text-[9px]" aria-hidden="true"></i>
                         {wish_t::LISTEN_NOW}
                     </Link<Route>>
                 }
             }
             if let Some(ref reply) = w.ai_reply {
-                <div class="mt-2 p-2 bg-[var(--surface-alt)] rounded-lg border border-[var(--border)] \
-                            text-xs text-[var(--text)] whitespace-pre-wrap">
-                    <span class="text-[10px] text-[var(--muted)] block mb-1">{"🤖 AI"}</span>
+                <div class="mt-1 whitespace-pre-wrap rounded-[var(--radius)] border border-[var(--border)] \
+                            bg-[var(--surface-alt)] p-2.5 text-xs leading-relaxed text-[var(--text)]">
+                    <span class="mb-1 block text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--muted)]">{"🤖 AI"}</span>
                     {reply}
                 </div>
             }

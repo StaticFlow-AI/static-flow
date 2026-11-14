@@ -23,6 +23,7 @@ pub fn article_card(props: &ArticleCardProps) -> Html {
         id: article.id.clone(),
     };
     let detail_href = detail_route.to_path();
+    let has_image = article.featured_image.is_some();
 
     let navigator = use_navigator();
     let on_before_navigate = props.on_before_navigate.clone();
@@ -131,7 +132,7 @@ pub fn article_card(props: &ArticleCardProps) -> Html {
                         </time>
                     </div>
 
-                    if is_interactive {
+                    if is_interactive && !has_image {
                         <div
                             class="interactive-card-badge"
                             role="note"
@@ -168,15 +169,11 @@ pub fn article_card(props: &ArticleCardProps) -> Html {
                         onclick={handle_title_click}
                     >
                         { &article.title }
+                        if is_interactive && has_image {
+                            <span class="sr-only">{ "（交互式文章，包含可运行演示）" }</span>
+                        }
                     </a>
                 </h3>
-
-                if is_interactive {
-                    <div class="interactive-card-note">
-                        <span class="interactive-card-note__pulse" aria-hidden="true"></span>
-                        <span>{ "文章内可直接打开交互镜像" }</span>
-                    </div>
-                }
 
                 // Summary
                 <p class={classes!(

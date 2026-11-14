@@ -97,10 +97,12 @@ pub fn mini_player() -> Html {
     };
 
     let container_class = format!(
-        "fixed bottom-4 right-4 z-[70] flex items-center gap-3 bg-[var(--surface)] \
-         acrylic-surface border border-[var(--border)] rounded-xl shadow-[var(--shadow-8)] px-3 \
-         py-2 cursor-pointer hover:border-[var(--primary)] transition-all duration-300 \
-         max-w-[280px] max-w-[min(280px,calc(100vw-2rem))] select-none {vis_class}"
+        "fixed bottom-4 right-4 z-[70] flex items-center gap-2 bg-[var(--surface)] \
+         acrylic-surface border border-[var(--border)] rounded-[var(--radius-lg)] \
+         shadow-[var(--shadow-8)] py-2 pl-2 pr-1.5 cursor-pointer \
+         hover:border-[var(--primary)]/50 transition-[transform,opacity,border-color] \
+         duration-[var(--motion-base)] ease-[var(--ease-spring)] motion-reduce:transition-none \
+         max-w-[min(280px,calc(100vw-2rem))] select-none {vis_class}"
     );
 
     html! {
@@ -108,7 +110,8 @@ pub fn mini_player() -> Html {
             class={container_class}
             style="backdrop-filter: blur(12px);">
             // Cover thumbnail
-            <div class="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-[var(--surface-alt)]">
+            <div class="w-10 h-10 rounded-[var(--radius-sm)] overflow-hidden shrink-0 \
+                        bg-[var(--surface-alt)] ring-1 ring-inset ring-[var(--border)]">
                 if cover_url.is_empty() {
                     <div class="w-full h-full flex items-center justify-center text-[var(--muted)]">
                         <Icon name={IconName::Music} size={16} class={classes!("opacity-40")} />
@@ -126,47 +129,51 @@ pub fn mini_player() -> Html {
             </div>
 
             // Song info
-            <div class="flex-1 min-w-0">
+            <div class="flex-1 min-w-0 pl-1">
                 <p class="text-xs font-semibold text-[var(--text)] truncate">
                     {title}
                 </p>
-                <p class="text-[10px] text-[var(--muted)] truncate">
+                <p class="mt-0.5 text-[10px] text-[var(--muted)] truncate">
                     {artist}
                 </p>
             </div>
 
             // Prev button
             <button onclick={on_prev} type="button" disabled={!can_prev}
-                class="w-6 h-6 rounded-full flex items-center justify-center \
-                       text-[var(--muted)] hover:text-[var(--text)] \
-                       transition-all shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                class="w-7 h-7 rounded-full flex items-center justify-center \
+                       text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-alt)] \
+                       transition-colors duration-[var(--motion-fast)] ease-[var(--ease-snap)] shrink-0 \
+                       disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent \
+                       disabled:hover:text-[var(--muted)]"
                 aria-label="Previous song">
                 <Icon name={IconName::SkipBack} size={12} />
             </button>
 
             // Play/Pause button
             <button onclick={on_toggle_play} type="button"
-                class="w-8 h-8 rounded-full bg-[var(--primary)] text-white \
-                       flex items-center justify-center hover:opacity-90 \
-                       transition-opacity shrink-0"
+                class="w-8 h-8 rounded-full bg-[var(--primary)] dark:bg-[#2563eb] text-white \
+                       flex items-center justify-center shadow-[var(--shadow-sm)] hover:scale-105 \
+                       active:scale-95 transition-transform duration-[var(--motion-fast)] \
+                       ease-[var(--ease-snap)] motion-reduce:transition-none \
+                       motion-reduce:hover:scale-100 motion-reduce:active:scale-100 shrink-0"
                 aria-label={if playing { "Pause" } else { "Play" }}>
                 <Icon name={if playing { IconName::Pause } else { IconName::Play }} size={14} color="white" />
             </button>
 
             // Next button
             <button onclick={on_next} type="button"
-                class="w-6 h-6 rounded-full flex items-center justify-center \
-                       text-[var(--muted)] hover:text-[var(--text)] \
-                       transition-all shrink-0"
+                class="w-7 h-7 rounded-full flex items-center justify-center \
+                       text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-alt)] \
+                       transition-colors duration-[var(--motion-fast)] ease-[var(--ease-snap)] shrink-0"
                 aria-label="Next song">
                 <Icon name={IconName::SkipForward} size={12} />
             </button>
 
             // Close button
             <button onclick={on_close} type="button"
-                class="w-6 h-6 rounded-full flex items-center justify-center \
-                       text-[var(--muted)] hover:text-[var(--text)] \
-                       hover:bg-[var(--surface-alt)] transition-all shrink-0"
+                class="w-7 h-7 rounded-full flex items-center justify-center \
+                       text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-alt)] \
+                       transition-colors duration-[var(--motion-fast)] ease-[var(--ease-snap)] shrink-0"
                 aria-label="Close player">
                 <Icon name={IconName::X} size={12} />
             </button>

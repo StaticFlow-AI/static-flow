@@ -190,8 +190,30 @@ pub fn image_library_page() -> Html {
     let query_active = query_label.is_some();
     let should_show_pagination = query_active || *display_mode == LibraryDisplayMode::AllImages;
 
+    // Segmented mode switch: active segment lifts onto the base surface,
+    // inactive segments stay quiet until hovered.
+    let segment_class = |active: bool| {
+        classes!(
+            "inline-flex",
+            "items-center",
+            "rounded-[var(--radius-sm)]",
+            "px-3.5",
+            "py-1.5",
+            "text-sm",
+            "font-medium",
+            "transition-colors",
+            "duration-[var(--motion-fast)]",
+            "ease-[var(--ease-snap)]",
+            if active {
+                "bg-[var(--surface)] text-[var(--text)] shadow-[var(--shadow-sm)]"
+            } else {
+                "text-[var(--muted)] hover:text-[var(--text)]"
+            }
+        )
+    };
+
     html! {
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+        <div class="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
             <header class="sf-page-hero flex flex-wrap items-end justify-between gap-4">
                 <div>
                     <div class="sf-eyebrow">{ "VISUAL ARCHIVE" }</div>
@@ -205,66 +227,46 @@ pub fn image_library_page() -> Html {
                 <div class="flex flex-wrap items-center gap-2">
                     <Link<Route>
                         to={Route::MediaAudio}
-                        classes="px-4 py-2 rounded-lg text-sm font-medium bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-alt)] transition-colors"
+                        classes="btn-terminal"
                     >
-                        <i class="fas fa-music mr-2"></i>
+                        <i class="fas fa-music text-xs text-[var(--primary)]" aria-hidden="true"></i>
                         { t::BTN_AUDIO_LIBRARY }
                     </Link<Route>>
                     <Link<Route>
                         to={Route::MediaVideo}
-                        classes="px-4 py-2 rounded-lg text-sm font-medium bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-alt)] transition-colors"
+                        classes="btn-terminal"
                     >
-                        <i class="fas fa-video mr-2"></i>
+                        <i class="fas fa-video text-xs text-[var(--primary)]" aria-hidden="true"></i>
                         { t::BTN_VIDEO_LIBRARY }
                     </Link<Route>>
                 </div>
             </header>
 
-            <div class="mb-5 flex flex-wrap items-center gap-2">
-                <button
-                    type="button"
-                    onclick={on_switch_random}
-                    class={classes!(
-                        "px-4",
-                        "py-2",
-                        "rounded-lg",
-                        "text-sm",
-                        "font-medium",
-                        "transition-colors",
-                        if *display_mode == LibraryDisplayMode::RandomRecommended {
-                            "bg-[var(--primary)] text-white"
-                        } else {
-                            "bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-alt)]"
-                        }
-                    )}
-                >
-                    { t::MODE_RANDOM }
-                </button>
-                <button
-                    type="button"
-                    onclick={on_switch_all}
-                    class={classes!(
-                        "px-4",
-                        "py-2",
-                        "rounded-lg",
-                        "text-sm",
-                        "font-medium",
-                        "transition-colors",
-                        if *display_mode == LibraryDisplayMode::AllImages {
-                            "bg-[var(--primary)] text-white"
-                        } else {
-                            "bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-alt)]"
-                        }
-                    )}
-                >
-                    { t::MODE_ALL }
-                </button>
+            <div class="mb-4 flex flex-wrap items-center gap-2">
+                <div class="inline-flex items-center gap-1 rounded-[var(--radius)] border border-[var(--border)] \
+                            bg-[var(--surface-alt)] p-1">
+                    <button
+                        type="button"
+                        onclick={on_switch_random}
+                        class={segment_class(*display_mode == LibraryDisplayMode::RandomRecommended)}
+                    >
+                        { t::MODE_RANDOM }
+                    </button>
+                    <button
+                        type="button"
+                        onclick={on_switch_all}
+                        class={segment_class(*display_mode == LibraryDisplayMode::AllImages)}
+                    >
+                        { t::MODE_ALL }
+                    </button>
+                </div>
                 if *display_mode == LibraryDisplayMode::RandomRecommended && !query_active {
                     <button
                         type="button"
                         onclick={on_refresh_random}
-                        class="px-3 py-2 rounded-lg text-xs font-medium bg-[var(--surface)] border border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-alt)] transition-colors"
+                        class="sf-chip cursor-pointer"
                     >
+                        <i class="fas fa-shuffle text-[10px]" aria-hidden="true"></i>
                         { t::BTN_REFRESH_RANDOM }
                     </button>
                 }
@@ -272,8 +274,9 @@ pub fn image_library_page() -> Html {
                     <button
                         type="button"
                         onclick={on_clear_search}
-                        class="px-3 py-2 rounded-lg text-xs font-medium bg-[var(--surface)] border border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-alt)] transition-colors"
+                        class="sf-chip cursor-pointer"
                     >
+                        <i class="fas fa-xmark text-[10px]" aria-hidden="true"></i>
                         { t::BTN_CLEAR_SEARCH }
                     </button>
                 }
@@ -298,7 +301,7 @@ pub fn image_library_page() -> Html {
                 </div>
             </div>
 
-            <div class="mb-4 text-xs text-[var(--muted)]">
+            <div class="mb-4 font-mono text-xs tracking-[0.02em] text-[var(--muted)]">
                 {
                     if let Some(query) = query_label {
                         format!("{}: {}（{}）", t::LABEL_SEARCH_RESULTS, total_value, query)
@@ -312,30 +315,42 @@ pub fn image_library_page() -> Html {
 
             if *loading {
                 <div class="flex justify-center py-20">
-                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]" />
+                    <div class="h-8 w-8 animate-spin rounded-full border-2 border-[var(--border)] \
+                                border-t-[var(--primary)] motion-reduce:animate-none" />
                 </div>
             } else if let Some(ref err) = *error {
-                <div class="text-center py-20 text-red-500">
-                    { format!("{}: {}", t::LOAD_ERROR_PREFIX, err) }
+                <div class="sf-state sf-state--error">
+                    <span class="sf-state__icon">
+                        <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                    </span>
+                    <p class="sf-state__body">{ format!("{}: {}", t::LOAD_ERROR_PREFIX, err) }</p>
                 </div>
             } else if images.is_empty() {
-                <div class="text-center py-20 text-[var(--muted)]">
-                    {
-                        if query_active {
-                            t::EMPTY_SEARCH
-                        } else {
-                            t::EMPTY_LIBRARY
+                <div class="sf-state">
+                    <span class="sf-state__icon">
+                        <i
+                            class={if query_active { "fas fa-magnifying-glass" } else { "fas fa-images" }}
+                            aria-hidden="true"
+                        ></i>
+                    </span>
+                    <p class="sf-state__body">
+                        {
+                            if query_active {
+                                t::EMPTY_SEARCH
+                            } else {
+                                t::EMPTY_LIBRARY
+                            }
                         }
-                    }
+                    </p>
                 </div>
             } else {
-                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+                <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:gap-5 lg:grid-cols-4 xl:grid-cols-5">
                     { for images.iter().map(render_image_card) }
                 </div>
             }
 
             if should_show_pagination && total_pages > 1 {
-                <div class="flex justify-center mt-8">
+                <div class="mt-10 flex justify-center">
                     <Pagination
                         current_page={*current_page}
                         total_pages={total_pages}
@@ -357,21 +372,26 @@ fn render_image_card(image: &api::ImageInfo) -> Html {
             href={src.clone()}
             target="_blank"
             rel="noopener noreferrer"
-            class="group bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden flex flex-col transition-all duration-300 ease-out hover:shadow-[var(--shadow-8)] hover:border-[var(--primary)] hover:-translate-y-1 no-underline"
+            class="group flex flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] \
+                   bg-[var(--surface)] no-underline shadow-[var(--shadow-sm)] \
+                   transition-[transform,box-shadow,border-color] duration-[var(--motion-base)] ease-[var(--ease-spring)] \
+                   hover:-translate-y-1 hover:border-[var(--primary)]/50 hover:shadow-[var(--shadow-8)] \
+                   motion-reduce:transition-none motion-reduce:hover:translate-y-0"
             title={filename.clone()}
         >
-            <div class="aspect-square bg-[var(--surface-alt)] relative overflow-hidden">
+            <div class="relative aspect-square overflow-hidden bg-[var(--surface-alt)]">
                 <ImageWithLoading
                     src={src}
                     alt={filename.clone()}
                     loading={Some(AttrValue::from("lazy"))}
-                    class="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+                    class="h-full w-full object-cover transition-transform duration-500 ease-[var(--ease-spring)] \
+                           group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
                     container_class={classes!("w-full", "h-full")}
                 />
             </div>
-            <div class="p-3 flex flex-col gap-1">
-                <p class="text-xs text-[var(--text)] truncate">{ filename }</p>
-                <p class="text-[10px] text-[var(--muted)] truncate">{ id }</p>
+            <div class="flex flex-col gap-1 border-t border-[var(--border)] px-3 py-2.5">
+                <p class="truncate text-xs font-medium text-[var(--text)]">{ filename }</p>
+                <p class="truncate font-mono text-[10px] text-[var(--muted)]">{ id }</p>
             </div>
         </a>
     }

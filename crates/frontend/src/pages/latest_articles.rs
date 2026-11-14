@@ -45,41 +45,35 @@ fn request_card(props: &RequestCardProps) -> Html {
     let req = &props.req;
     let show_modal = use_state(|| false);
 
+    // Status chips reuse the theme-aware `wish-status--*` palettes from
+    // input.css so the label stays legible on its tint in light and dark mode.
     let (status_class, status_dot) = if article_request_done_without_article(req) {
-        (
-            "bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-500/10 \
-             dark:text-amber-300 dark:ring-amber-500/25",
-            "bg-amber-500",
-        )
+        ("wish-status--pending", "bg-amber-500")
     } else {
         match req.status.as_str() {
-            "done" => (
-                "bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-500/10 \
-                 dark:text-emerald-300 dark:ring-emerald-500/25",
-                "bg-emerald-500",
-            ),
-            "running" => (
-                "bg-sky-50 text-sky-700 ring-sky-600/20 dark:bg-sky-500/10 dark:text-sky-300 \
-                 dark:ring-sky-500/25",
-                "bg-sky-500 animate-pulse",
-            ),
-            "failed" => (
-                "bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-500/10 dark:text-red-300 \
-                 dark:ring-red-500/25",
-                "bg-red-500",
-            ),
-            "rejected" => (
-                "bg-gray-50 text-gray-600 ring-gray-500/20 dark:bg-gray-500/10 dark:text-gray-400 \
-                 dark:ring-gray-500/25",
-                "bg-gray-400",
-            ),
-            _ => (
-                "bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-500/10 \
-                 dark:text-amber-300 dark:ring-amber-500/25",
-                "bg-amber-500",
-            ),
+            "done" => ("wish-status--done", "bg-emerald-500"),
+            "running" => {
+                ("wish-status--running", "bg-sky-500 animate-pulse motion-reduce:animate-none")
+            },
+            "failed" => ("wish-status--failed", "bg-red-500"),
+            "rejected" => ("wish-status--default", "bg-[var(--muted)]"),
+            _ => ("wish-status--pending", "bg-amber-500"),
         }
     };
+    let status_chip_class = format!(
+        "wish-status {status_class} inline-flex items-center gap-1.5 rounded-full border px-2.5 \
+         py-1 text-xs font-medium leading-none"
+    );
+    let status_dot_class = format!("h-1.5 w-1.5 shrink-0 rounded-full {status_dot}");
+    let follow_up_badge_class = "inline-flex items-center rounded-full border \
+                                 border-[var(--primary)]/25 bg-[var(--primary)]/10 px-2 py-0.5 \
+                                 text-[11px] font-medium leading-tight text-[var(--primary)]";
+    let detail_label_class =
+        "mb-1 text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--muted)]";
+    let card_action_class = "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs \
+                             font-medium text-[var(--primary)] transition-colors \
+                             duration-[var(--motion-fast)] ease-[var(--ease-snap)] \
+                             hover:bg-[var(--primary)]/10";
     let status_text = if article_request_done_without_article(req) {
         ar_t::STATUS_DONE_NO_ARTICLE
     } else {
@@ -115,51 +109,48 @@ fn request_card(props: &RequestCardProps) -> Html {
     let modal_html = if *show_modal {
         let ai_rendered = req.ai_reply.as_deref().map(markdown_to_html);
         html! {
-            <div class="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+            <div class="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
                  onclick={close_modal.clone()}>
-                <div class="relative w-full max-w-2xl max-h-[85vh] flex flex-col \
-                            bg-white dark:bg-[var(--surface)] \
-                            rounded-2xl shadow-2xl border border-gray-200 dark:border-[var(--border)] \
-                            overflow-hidden"
+                <div class="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden \
+                            rounded-[var(--radius-lg)] border border-[var(--border)] \
+                            bg-[var(--surface)] shadow-[var(--shadow-16)]"
                      onclick={stop_bubble.clone()}>
                     // Header
-                    <div class="flex items-center justify-between px-5 py-3.5 \
-                                border-b border-gray-100 dark:border-[var(--border)] shrink-0">
-                        <h3 class="text-base font-semibold text-gray-900 dark:text-[var(--text)]">
+                    <div class="flex shrink-0 items-center justify-between gap-4 \
+                                border-b border-[var(--border)] px-5 py-4">
+                        <h3 class="text-base font-semibold tracking-[-0.01em] text-[var(--text)]">
                             {ar_t::DETAIL_MODAL_TITLE}
                         </h3>
                         <button onclick={close_modal.clone()}
-                            class="rounded-lg p-1.5 text-gray-400 hover:text-gray-600 \
-                                   dark:text-[var(--muted)] dark:hover:text-[var(--text)] \
-                                   hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
-                            <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none"
+                            class="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] \
+                                   text-[var(--muted)] transition-colors duration-[var(--motion-fast)] \
+                                   ease-[var(--ease-snap)] hover:bg-[var(--surface-alt)] hover:text-[var(--text)]">
+                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none"
                                  viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
                             </svg>
                         </button>
                     </div>
                     // Body
-                    <div class="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+                    <div class="flex-1 space-y-5 overflow-y-auto px-5 py-5">
                         // Status + nickname row
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <span class={format!("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 \
-                                                   text-xs font-medium ring-1 ring-inset {status_class}")}>
-                                <span class={format!("w-1.5 h-1.5 rounded-full {status_dot}")} />
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class={status_chip_class.clone()}>
+                                <span class={status_dot_class.clone()} />
                                 {status_text}
                             </span>
                             if req.parent_request_id.is_some() {
-                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] \
-                                             font-medium bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-700/10 \
-                                             dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-500/25">
+                                <span class={follow_up_badge_class}>
                                     {ar_t::FOLLOW_UP_BADGE}
                                 </span>
                             }
-                            <span class="text-xs text-gray-500 dark:text-[var(--muted)] ml-auto">{&req.nickname}</span>
+                            <span class="ml-auto text-xs text-[var(--muted)]">{&req.nickname}</span>
                         </div>
                         if let Some(ref summary) = props.parent_summary {
-                            <div class="flex items-center gap-1.5 text-xs text-violet-600 dark:text-violet-400 \
-                                        bg-violet-50 dark:bg-violet-500/5 rounded-lg px-3 py-2">
-                                <svg class="w-3.5 h-3.5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none"
+                            <div class="flex items-center gap-2 rounded-[var(--radius)] border \
+                                        border-[var(--primary)]/20 bg-[var(--primary)]/10 px-3 py-2 \
+                                        text-xs text-[var(--primary)]">
+                                <svg class="h-3.5 w-3.5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none"
                                      viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round"
                                           d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
@@ -168,47 +159,46 @@ fn request_card(props: &RequestCardProps) -> Html {
                             </div>
                         }
                         if article_request_done_without_article(req) {
-                            <div class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm \
-                                        text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 \
-                                        dark:text-amber-200">
+                            <div class="rounded-[var(--radius)] border border-amber-500/30 bg-amber-500/10 \
+                                        px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
                                 {ar_t::NO_ARTICLE_NOTICE}
                             </div>
                         }
                         // URL
                         <div>
-                            <p class="text-[11px] font-medium text-gray-400 dark:text-[var(--muted)] uppercase tracking-wider mb-1">
+                            <p class={detail_label_class}>
                                 {ar_t::LABEL_URL}
                             </p>
                             <a href={req.article_url.clone()} target="_blank" rel="noopener noreferrer"
-                                class="text-sm text-blue-600 dark:text-[var(--primary)] hover:underline break-all">
+                                class="break-all text-sm text-[var(--link)] underline-offset-2 hover:underline">
                                 {&req.article_url}
                             </a>
                         </div>
                         // Title hint
                         if let Some(ref hint) = req.title_hint {
                             <div>
-                                <p class="text-[11px] font-medium text-gray-400 dark:text-[var(--muted)] uppercase tracking-wider mb-1">
+                                <p class={detail_label_class}>
                                     {ar_t::LABEL_TITLE}
                                 </p>
-                                <p class="text-sm text-gray-800 dark:text-[var(--text)]">{hint}</p>
+                                <p class="text-sm text-[var(--text)]">{hint}</p>
                             </div>
                         }
                         // Request message
                         <div>
-                            <p class="text-[11px] font-medium text-gray-400 dark:text-[var(--muted)] uppercase tracking-wider mb-1">
+                            <p class={detail_label_class}>
                                 {ar_t::LABEL_MESSAGE}
                             </p>
-                            <p class="text-sm text-gray-700 dark:text-[var(--text)] whitespace-pre-wrap">{&req.request_message}</p>
+                            <p class="whitespace-pre-wrap text-sm leading-relaxed text-[var(--text)]">{&req.request_message}</p>
                         </div>
                         // AI reply
                         if let Some(ref rendered) = ai_rendered {
                             <div>
-                                <p class="text-[11px] font-medium text-gray-400 dark:text-[var(--muted)] uppercase tracking-wider mb-1">
+                                <p class={detail_label_class}>
                                     {ar_t::LABEL_AI_REPLY}
                                 </p>
-                                <div class="rounded-xl bg-gray-50 dark:bg-[var(--surface-alt)] \
-                                            border border-gray-100 dark:border-[var(--border)] \
-                                            p-4 text-sm prose prose-sm prose-gray dark:prose-invert max-w-none">
+                                <div class="prose prose-sm max-w-none rounded-[var(--radius)] border \
+                                            border-[var(--border)] bg-[var(--surface-alt)] p-4 text-sm \
+                                            text-[var(--text)] dark:prose-invert">
                                     <RawHtml html={AttrValue::from(rendered.clone())} />
                                 </div>
                             </div>
@@ -219,16 +209,17 @@ fn request_card(props: &RequestCardProps) -> Html {
                                 if !aid.trim().is_empty() {
                                     <div>
                                     <Link<Route> to={Route::ArticleDetail { id: aid.clone() }}
-                                        classes="inline-flex items-center gap-1 text-sm text-blue-600 \
-                                                 dark:text-[var(--primary)] hover:underline font-medium">
+                                        classes="inline-flex items-center gap-1.5 text-sm font-medium \
+                                                 text-[var(--primary)] underline-offset-2 hover:underline">
                                         {ar_t::VIEW_ARTICLE}
+                                        <i class="fas fa-arrow-right text-xs" aria-hidden="true"></i>
                                     </Link<Route>>
                                     </div>
                                 }
                             }
                         }
                         // Region
-                        <p class="text-[11px] text-gray-400 dark:text-[var(--muted)]">
+                        <p class="border-t border-[var(--border)] pt-4 font-mono text-[11px] text-[var(--muted)]">
                             {ar_t::LABEL_REGION}{": "}{&req.ip_region}
                         </p>
                     </div>
@@ -242,31 +233,30 @@ fn request_card(props: &RequestCardProps) -> Html {
     // Card body — compact summary
     html! {
         <>
-        <div class="bg-white dark:bg-[var(--surface)] border border-gray-200 dark:border-[var(--border)] \
-                    rounded-xl p-4 flex flex-col gap-2 shadow-sm hover:shadow-md transition-shadow">
+        <div class="sf-panel flex flex-col gap-3 p-4 transition-[transform,box-shadow,border-color] \
+                    duration-[var(--motion-base)] ease-[var(--ease-spring)] \
+                    hover:-translate-y-0.5 hover:border-[var(--primary)]/40 hover:shadow-[var(--shadow-4)] \
+                    motion-reduce:transition-none motion-reduce:hover:translate-y-0">
             // Row 1: status + badges + nickname
             <div class="flex items-center justify-between gap-2">
-                <div class="flex items-center gap-1.5">
-                    <span class={format!("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 \
-                                           text-xs font-medium ring-1 ring-inset {status_class}")}>
-                        <span class={format!("w-1.5 h-1.5 rounded-full {status_dot}")} />
+                <div class="flex min-w-0 flex-wrap items-center gap-1.5">
+                    <span class={status_chip_class}>
+                        <span class={status_dot_class} />
                         {status_text}
                     </span>
                     if req.parent_request_id.is_some() {
-                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] \
-                                     font-medium bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-700/10 \
-                                     dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-500/25">
+                        <span class={follow_up_badge_class}>
                             {ar_t::FOLLOW_UP_BADGE}
                         </span>
                     }
                 </div>
-                <span class="text-xs text-gray-500 dark:text-[var(--muted)]">{&req.nickname}</span>
+                <span class="shrink-0 truncate text-xs text-[var(--muted)]">{&req.nickname}</span>
             </div>
             // Parent reference
             if let Some(ref summary) = props.parent_summary {
-                <div class="flex items-center gap-1 text-[10px] text-violet-600 dark:text-violet-400 \
-                            bg-violet-50 dark:bg-violet-500/5 rounded-md px-2 py-1">
-                    <svg class="w-3 h-3 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none"
+                <div class="flex items-center gap-1.5 rounded-[var(--radius-sm)] bg-[var(--primary)]/10 \
+                            px-2 py-1 text-[11px] text-[var(--primary)]">
+                    <svg class="h-3 w-3 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none"
                          viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round"
                               d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
@@ -276,57 +266,53 @@ fn request_card(props: &RequestCardProps) -> Html {
             }
             // URL — full, no truncation
             <a href={req.article_url.clone()} target="_blank" rel="noopener noreferrer"
-                class="text-sm font-medium text-blue-600 dark:text-[var(--primary)] hover:underline break-all leading-snug">
+                class="break-all text-sm font-medium leading-snug text-[var(--link)] underline-offset-2 hover:underline">
                 {&req.article_url}
             </a>
             // Title hint — full
             if let Some(ref hint) = req.title_hint {
-                <p class="text-xs text-gray-500 dark:text-[var(--muted)]">{hint}</p>
+                <p class="text-xs leading-relaxed text-[var(--muted)]">{hint}</p>
             }
             // Request message — full
-            <p class="text-sm text-gray-700 dark:text-[var(--text)] whitespace-pre-wrap">{&req.request_message}</p>
+            <p class="whitespace-pre-wrap text-sm leading-relaxed text-[var(--text)]">{&req.request_message}</p>
             // Ingested article link
             if req.status == "done" {
                 if let Some(ref aid) = req.ingested_article_id {
                     if !aid.trim().is_empty() {
                         <Link<Route> to={Route::ArticleDetail { id: aid.clone() }}
-                            classes="text-xs text-blue-600 dark:text-[var(--primary)] hover:underline font-medium">
+                            classes="inline-flex items-center gap-1 self-start text-xs font-medium \
+                                     text-[var(--primary)] underline-offset-2 hover:underline">
                             {ar_t::VIEW_ARTICLE}
+                            <i class="fas fa-arrow-right text-[10px]" aria-hidden="true"></i>
                         </Link<Route>>
                     }
                 }
             }
-            // Action row: detail button + follow-up
-            <div class="flex items-center gap-2 mt-1">
-                if has_ai_reply {
-                    <button onclick={open_modal}
-                        class="inline-flex items-center gap-1 text-xs font-medium \
-                               text-blue-600 dark:text-[var(--primary)] \
-                               hover:bg-blue-50 dark:hover:bg-[var(--primary)]/10 \
-                               rounded-md px-2 py-1 transition-colors">
-                        <svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none"
-                             viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                  d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 \
-                                     13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 \
-                                     2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 \
-                                     1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                        </svg>
-                        {ar_t::VIEW_DETAIL_BTN}
-                    </button>
-                }
-                if req.status == "done" {
-                    <button onclick={on_follow_up_click}
-                        class="inline-flex items-center gap-1 text-xs font-medium \
-                               text-blue-600 dark:text-[var(--primary)] \
-                               hover:bg-blue-50 dark:hover:bg-[var(--primary)]/10 \
-                               rounded-md px-2 py-1 transition-colors">
-                        {ar_t::FOLLOW_UP_BTN}
-                    </button>
-                }
+            // Footer: detail button + follow-up + region
+            <div class="mt-auto flex items-center justify-between gap-2 border-t border-[var(--border)] pt-3">
+                <div class="-ml-2 flex items-center gap-1">
+                    if has_ai_reply {
+                        <button onclick={open_modal} class={card_action_class}>
+                            <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none"
+                                 viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 \
+                                         13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 \
+                                         2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 \
+                                         1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                            </svg>
+                            {ar_t::VIEW_DETAIL_BTN}
+                        </button>
+                    }
+                    if req.status == "done" {
+                        <button onclick={on_follow_up_click} class={card_action_class}>
+                            {ar_t::FOLLOW_UP_BTN}
+                        </button>
+                    }
+                </div>
+                // Region
+                <span class="truncate font-mono text-[10px] text-[var(--muted)]">{&req.ip_region}</span>
             </div>
-            // Region
-            <span class="text-[10px] text-gray-400 dark:text-[var(--muted)]">{&req.ip_region}</span>
         </div>
         {modal_html}
         </>
@@ -714,49 +700,31 @@ pub fn latest_articles_page() -> Html {
                             Callback::from(move |_| grid_refresh_tick.set(*grid_refresh_tick + 1))
                         };
                         html! {
-                            <div class={classes!(
-                                "empty-state",
-                                "text-center",
-                                "py-20",
-                                "px-4",
-                                "bg-[var(--surface)]",
-                                "rounded-2xl",
-                                "border",
-                                "border-[var(--border)]"
-                            )}>
-                                <i class={classes!("fas", "fa-triangle-exclamation", "text-6xl", "text-amber-500", "mb-6")}></i>
-                                <p class={classes!("text-xl", "font-bold", "text-[var(--text)]", "mb-3")}>
-                                    { t::LOAD_ERROR_TITLE }
-                                </p>
-                                <p class={classes!("text-base", "text-[var(--muted)]", "mb-6")}>
-                                    { err }
-                                </p>
-                                <button
-                                    type="button"
-                                    class={classes!("btn-fluent-secondary", "!rounded-full")}
-                                    onclick={on_retry}
-                                >
-                                    <i class={classes!("fas", "fa-rotate-right", "mr-2")}></i>
-                                    { t::RETRY }
-                                </button>
+                            <div class="sf-state sf-state--error mb-12">
+                                <span class="sf-state__icon">
+                                    <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                                </span>
+                                <p class="sf-state__title">{ t::LOAD_ERROR_TITLE }</p>
+                                <p class="sf-state__body">{ err }</p>
+                                <div class="sf-state__action">
+                                    <button
+                                        type="button"
+                                        class="btn-fluent-secondary"
+                                        onclick={on_retry}
+                                    >
+                                        <i class="fas fa-rotate-right text-xs" aria-hidden="true"></i>
+                                        { t::RETRY }
+                                    </button>
+                                </div>
                             </div>
                         }
                     } else if articles.is_empty() {
                         html! {
-                            <div class={classes!(
-                                "empty-state",
-                                "text-center",
-                                "py-20",
-                                "px-4",
-                                "bg-[var(--surface)]",
-                                "rounded-2xl",
-                                "border",
-                                "border-[var(--border)]"
-                            )}>
-                                <i class={classes!("fas", "fa-inbox", "text-6xl", "text-[var(--muted)]", "mb-6")}></i>
-                                <p class={classes!("text-xl", "text-[var(--muted)]")}>
-                                    { t::EMPTY }
-                                </p>
+                            <div class="sf-state mb-12">
+                                <span class="sf-state__icon">
+                                    <i class="fas fa-inbox" aria-hidden="true"></i>
+                                </span>
+                                <p class="sf-state__title">{ t::EMPTY }</p>
                             </div>
                         }
                     } else {
@@ -789,108 +757,108 @@ pub fn latest_articles_page() -> Html {
             </div>
 
             // Article request section
-            <div class="container" id="article-request-section">
-                <div class="mt-16 border-t border-[var(--border)] pt-10">
-                    <h2 class="text-2xl font-bold tracking-[-0.02em] text-[var(--text)] mb-1">
-                        {ar_t::SECTION_TITLE}
-                    </h2>
-                    <p class="text-[var(--muted)] text-sm mb-6">{ar_t::SECTION_SUBTITLE}</p>
+            <div class="container scroll-mt-24" id="article-request-section">
+                <section class="mt-16 border-t border-[var(--border)] pt-10">
+                    <div class="mb-6">
+                        <h2 class="text-xl font-bold tracking-[-0.02em] text-[var(--text)] md:text-2xl">
+                            {ar_t::SECTION_TITLE}
+                        </h2>
+                        <p class="mt-1 max-w-2xl text-sm leading-relaxed text-[var(--muted)]">{ar_t::SECTION_SUBTITLE}</p>
+                    </div>
 
                     <form onsubmit={on_ar_submit}
-                        class="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 mb-8 \
-                               grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        class="sf-panel mb-8 grid grid-cols-1 gap-4 p-5 sm:grid-cols-2 sm:gap-5 sm:p-6">
                         if has_parent {
-                            <div class="sm:col-span-2 flex items-center justify-between gap-2 \
-                                        bg-[var(--primary)]/10 rounded-lg px-3 py-2">
-                                <span class="text-xs text-[var(--primary)] font-medium">
+                            <div class="flex items-center justify-between gap-3 rounded-[var(--radius)] border \
+                                        border-[var(--primary)]/20 bg-[var(--primary)]/10 px-3 py-2 sm:col-span-2">
+                                <span class="inline-flex items-center gap-2 text-xs font-medium text-[var(--primary)]">
+                                    <i class="fas fa-reply text-[10px]" aria-hidden="true"></i>
                                     {ar_t::FOLLOW_UP_INDICATOR}
                                 </span>
                                 <button type="button" onclick={on_cancel_follow_up.clone()}
-                                    class="text-xs text-[var(--muted)] hover:text-[var(--text)] transition-colors">
+                                    class="rounded-md px-2 py-1 text-xs text-[var(--muted)] transition-colors \
+                                           duration-[var(--motion-fast)] ease-[var(--ease-snap)] \
+                                           hover:bg-[var(--surface)] hover:text-[var(--text)]">
                                     {ar_t::CANCEL_FOLLOW_UP}
                                 </button>
                             </div>
                         }
-                        <div class="sm:col-span-2">
-                            <label class="block text-xs text-[var(--muted)] mb-1">{ar_t::URL_LABEL}</label>
-                            <input type="url" placeholder={ar_t::URL_PLACEHOLDER}
+                        <div class="flex flex-col gap-1.5 sm:col-span-2">
+                            <label for="ar-url" class="form-label">{ar_t::URL_LABEL}</label>
+                            <input id="ar-url" type="url" placeholder={ar_t::URL_PLACEHOLDER}
                                 value={(*ar_form_url).clone()}
                                 oninput={let s = ar_form_url.clone(); Callback::from(move |e: InputEvent| {
                                     let input: HtmlInputElement = e.target_unchecked_into();
                                     s.set(input.value());
                                 })}
-                                class="w-full px-3 py-2 rounded-lg bg-[var(--surface-alt)] border border-[var(--border)] \
-                                       text-[var(--text)] text-sm focus:outline-none focus:border-[var(--primary)]"
+                                class="form-input"
                                 required={!has_parent} />
                         </div>
-                        <div>
-                            <label class="block text-xs text-[var(--muted)] mb-1">{ar_t::TITLE_HINT_LABEL}</label>
-                            <input type="text" placeholder={ar_t::TITLE_HINT_PLACEHOLDER}
+                        <div class="flex flex-col gap-1.5">
+                            <label for="ar-title" class="form-label">{ar_t::TITLE_HINT_LABEL}</label>
+                            <input id="ar-title" type="text" placeholder={ar_t::TITLE_HINT_PLACEHOLDER}
                                 value={(*ar_form_title).clone()}
                                 oninput={let s = ar_form_title.clone(); Callback::from(move |e: InputEvent| {
                                     let input: HtmlInputElement = e.target_unchecked_into();
                                     s.set(input.value());
                                 })}
-                                class="w-full px-3 py-2 rounded-lg bg-[var(--surface-alt)] border border-[var(--border)] \
-                                       text-[var(--text)] text-sm focus:outline-none focus:border-[var(--primary)]" />
+                                class="form-input" />
                         </div>
-                        <div>
-                            <label class="block text-xs text-[var(--muted)] mb-1">{ar_t::NICKNAME_LABEL}</label>
-                            <input type="text" placeholder={ar_t::NICKNAME_PLACEHOLDER}
+                        <div class="flex flex-col gap-1.5">
+                            <label for="ar-nickname" class="form-label">{ar_t::NICKNAME_LABEL}</label>
+                            <input id="ar-nickname" type="text" placeholder={ar_t::NICKNAME_PLACEHOLDER}
                                 value={(*ar_form_nickname).clone()}
                                 oninput={let s = ar_form_nickname.clone(); Callback::from(move |e: InputEvent| {
                                     let input: HtmlInputElement = e.target_unchecked_into();
                                     s.set(input.value());
                                 })}
-                                class="w-full px-3 py-2 rounded-lg bg-[var(--surface-alt)] border border-[var(--border)] \
-                                       text-[var(--text)] text-sm focus:outline-none focus:border-[var(--primary)]" />
+                                class="form-input" />
                         </div>
-                        <div class="sm:col-span-2">
-                            <label class="block text-xs text-[var(--muted)] mb-1">{ar_t::MESSAGE_LABEL}</label>
-                            <textarea placeholder={ar_t::MESSAGE_PLACEHOLDER}
+                        <div class="flex flex-col gap-1.5 sm:col-span-2">
+                            <label for="ar-message" class="form-label">{ar_t::MESSAGE_LABEL}</label>
+                            <textarea id="ar-message" placeholder={ar_t::MESSAGE_PLACEHOLDER}
                                 value={(*ar_form_message).clone()}
                                 oninput={let s = ar_form_message.clone(); Callback::from(move |e: InputEvent| {
                                     let input: HtmlTextAreaElement = e.target_unchecked_into();
                                     s.set(input.value());
                                 })}
                                 rows="3"
-                                class="w-full px-3 py-2 rounded-lg bg-[var(--surface-alt)] border border-[var(--border)] \
-                                       text-[var(--text)] text-sm focus:outline-none focus:border-[var(--primary)] resize-none"
+                                class="form-input min-h-24 resize-y"
                                 required=true />
                         </div>
-                        <div>
-                            <label class="block text-xs text-[var(--muted)] mb-1">{ar_t::EMAIL_LABEL}</label>
-                            <input type="email" placeholder={ar_t::EMAIL_PLACEHOLDER}
+                        <div class="flex flex-col gap-1.5">
+                            <label for="ar-email" class="form-label">{ar_t::EMAIL_LABEL}</label>
+                            <input id="ar-email" type="email" placeholder={ar_t::EMAIL_PLACEHOLDER}
                                 value={(*ar_form_email).clone()}
                                 oninput={let s = ar_form_email.clone(); Callback::from(move |e: InputEvent| {
                                     let input: HtmlInputElement = e.target_unchecked_into();
                                     s.set(input.value());
                                 })}
-                                class="w-full px-3 py-2 rounded-lg bg-[var(--surface-alt)] border border-[var(--border)] \
-                                       text-[var(--text)] text-sm focus:outline-none focus:border-[var(--primary)]" />
-                            <p class="mt-1 text-[11px] text-[var(--muted)]">{ar_t::EMAIL_HELP_TEXT}</p>
+                                class="form-input" />
+                            <p class="text-[11px] leading-relaxed text-[var(--muted)]">{ar_t::EMAIL_HELP_TEXT}</p>
                         </div>
-                        <div class="flex items-end">
+                        <div class="flex items-end sm:justify-end">
                             <button type="submit" disabled={*ar_submitting}
-                                class="px-5 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-medium \
-                                       hover:opacity-90 transition-opacity disabled:opacity-50">
+                                class="btn-fluent-primary w-full disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">
+                                if *ar_submitting {
+                                    <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 \
+                                                 border-t-white motion-reduce:animate-none" aria-hidden="true" />
+                                } else {
+                                    <i class="fas fa-paper-plane text-xs" aria-hidden="true"></i>
+                                }
                                 {if *ar_submitting { ar_t::SUBMITTING } else { ar_t::SUBMIT_BTN }}
                             </button>
                         </div>
                     </form>
 
                     // Refresh button
-                    <div class="flex justify-end mb-4">
+                    <div class="mb-4 flex justify-end">
                         <button
                             onclick={on_ar_refresh}
                             disabled={*ar_loading}
-                            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg \
-                                   border border-[var(--border)] bg-[var(--surface)] \
-                                   text-[var(--text)] text-sm font-medium \
-                                   hover:bg-[var(--surface-alt)] transition-colors \
-                                   disabled:opacity-50 disabled:cursor-not-allowed"
+                            class="btn-fluent-secondary disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                            <svg class={if *ar_loading { "w-4 h-4 animate-spin" } else { "w-4 h-4" }}
+                            <svg class={if *ar_loading { "h-4 w-4 animate-spin motion-reduce:animate-none" } else { "h-4 w-4" }}
                                  xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                                  stroke-width="2" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round"
@@ -903,22 +871,34 @@ pub fn latest_articles_page() -> Html {
                     </div>
 
                     if *ar_loading && ar_requests.is_empty() {
-                        <div class="flex justify-center py-8">
-                            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--primary)]" />
+                        <div class="flex justify-center py-10">
+                            <div class="h-6 w-6 animate-spin rounded-full border-2 border-[var(--border)] \
+                                        border-t-[var(--primary)] motion-reduce:animate-none" />
                         </div>
                     } else if let Some(err) = (*ar_list_error).clone() {
-                        <p class="text-center text-red-500 py-8">{format!("Failed to load requests: {err}")}</p>
+                        <div class="sf-state sf-state--error">
+                            <span class="sf-state__icon">
+                                <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                            </span>
+                            <p class="sf-state__body">{format!("Failed to load requests: {err}")}</p>
+                        </div>
                     } else if ar_requests.is_empty() {
-                        <p class="text-center text-[var(--muted)] py-8">{ar_t::EMPTY_LIST}</p>
+                        <div class="sf-state">
+                            <span class="sf-state__icon">
+                                <i class="fas fa-inbox" aria-hidden="true"></i>
+                            </span>
+                            <p class="sf-state__body">{ar_t::EMPTY_LIST}</p>
+                        </div>
                     } else {
                         <>
                             if *ar_loading {
                                 <div class="mb-3 inline-flex items-center gap-2 text-xs text-[var(--muted)]">
-                                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-[var(--primary)]" />
+                                    <div class="h-4 w-4 animate-spin rounded-full border-2 border-[var(--border)] \
+                                                border-t-[var(--primary)] motion-reduce:animate-none" />
                                     <span>{"Loading..."}</span>
                                 </div>
                             }
-                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                 { for ar_requests.iter().map(|req| {
                                     let key = req.request_id.clone();
                                     let parent_summary = req.parent_request_id.as_ref().and_then(|pid| {
@@ -947,7 +927,7 @@ pub fn latest_articles_page() -> Html {
                         </>
                     }
                     if ar_total_pages > 1 {
-                        <div class="flex justify-center mt-6">
+                        <div class="mt-8 flex justify-center">
                             <Pagination
                                 current_page={*ar_page}
                                 total_pages={ar_total_pages}
@@ -955,27 +935,29 @@ pub fn latest_articles_page() -> Html {
                             />
                         </div>
                     }
-                </div>
+                </section>
             </div>
 
             // Fixed nav button (left bottom) — icon with tooltip
             <button
                 onclick={scroll_to_request_section}
                 title={ar_t::NAV_BTN}
-                class="group fixed left-4 bottom-20 z-50 w-10 h-10 rounded-full \
-                       bg-[var(--primary)] text-white shadow-lg \
-                       hover:scale-110 hover:shadow-xl active:scale-95 \
-                       transition-all duration-200 flex items-center justify-center"
+                class="group fixed bottom-20 left-4 z-50 flex h-10 w-10 items-center justify-center \
+                       rounded-full bg-[var(--primary)] text-white shadow-[var(--shadow-8)] \
+                       transition-transform duration-[var(--motion-fast)] ease-[var(--ease-snap)] \
+                       hover:scale-105 active:scale-95 dark:bg-[#2563eb] \
+                       motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
             >
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none"
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
                      viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round"
                           d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
-                <span class="pointer-events-none absolute left-full ml-2 px-2 py-1 \
-                             rounded bg-[var(--surface)] text-[var(--text)] text-xs \
-                             border border-[var(--border)] shadow-md whitespace-nowrap \
-                             opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <span class="pointer-events-none absolute left-full ml-2 whitespace-nowrap \
+                             rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] \
+                             px-2 py-1 text-xs text-[var(--text)] shadow-[var(--shadow-4)] opacity-0 \
+                             transition-opacity duration-[var(--motion-fast)] ease-[var(--ease-snap)] \
+                             group-hover:opacity-100 group-focus-visible:opacity-100">
                     {ar_t::NAV_BTN}
                 </span>
             </button>

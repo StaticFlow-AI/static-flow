@@ -2,7 +2,7 @@ use yew::prelude::*;
 use yew_router::prelude::Link;
 
 use crate::{
-    components::{scroll_to_top_button::ScrollToTopButton, skeleton::SkeletonCard},
+    components::scroll_to_top_button::ScrollToTopButton,
     i18n::{current::tags_page as t, fill_one, fill_two},
     router::Route,
 };
@@ -70,161 +70,77 @@ pub fn tags_page() -> Html {
                     </div>
                 </header>
 
-                // Editorial Timeline Section
-                <div class={classes!("editorial-timeline", "mb-16")}>
+                <section class="mb-16" aria-label={t::CLOUD_ARIA}>
                     {
                         if *loading {
                             html! {
-                                <div class={classes!("grid", "grid-cols-1", "md:grid-cols-2", "lg:grid-cols-3", "gap-6")}>
-                                    { for (0..6).map(|_| html! { <SkeletonCard /> }) }
+                                <div class="sf-tag-cloud" aria-hidden="true">
+                                    { for [5.5_f32, 7.0, 4.5, 8.5, 6.0, 5.0, 9.0, 4.0, 6.5, 7.5, 5.0, 8.0, 4.5, 6.0]
+                                        .iter()
+                                        .map(|w| html! {
+                                            <span
+                                                class="skeleton block h-9 rounded-full"
+                                                style={format!("width: {w}rem")}
+                                            />
+                                        })
+                                    }
                                 </div>
                             }
                         } else if let Some(err) = (*load_error).clone() {
                             html! {
-                                <div class={classes!(
-                                    "empty-state",
-                                    "text-center",
-                                    "py-20",
-                                    "px-4",
-                                    "bg-[var(--surface)]",
-                                    "rounded-2xl",
-                                    "border",
-                                    "border-[var(--border)]"
-                                )}>
-                                    <i class={classes!(
-                                        "fas",
-                                        "fa-triangle-exclamation",
-                                        "text-6xl",
-                                        "text-amber-500",
-                                        "mb-6"
-                                    )}></i>
-                                    <p class={classes!(
-                                        "text-xl",
-                                        "font-semibold",
-                                        "text-[var(--text)]",
-                                        "mb-2"
-                                    )}>
-                                        { t::LOAD_ERROR_TITLE }
-                                    </p>
-                                    <p class={classes!("text-sm", "text-[var(--muted)]", "mb-6")}>
-                                        { err }
-                                    </p>
-                                    <button
-                                        onclick={on_retry.clone()}
-                                        class={classes!("btn-fluent-secondary")}
-                                    >
-                                        <i class={classes!("fas", "fa-rotate-right", "mr-1")}></i>
-                                        { t::RETRY }
-                                    </button>
+                                <div class="sf-state sf-state--error" role="alert">
+                                    <span class="sf-state__icon">
+                                        <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                                    </span>
+                                    <p class="sf-state__title">{ t::LOAD_ERROR_TITLE }</p>
+                                    <p class="sf-state__body">{ err }</p>
+                                    <div class="sf-state__action">
+                                        <button
+                                            type="button"
+                                            onclick={on_retry.clone()}
+                                            class="btn-fluent-secondary"
+                                        >
+                                            <i class="fas fa-rotate-right text-xs" aria-hidden="true"></i>
+                                            { t::RETRY }
+                                        </button>
+                                    </div>
                                 </div>
                             }
                         } else if tag_stats.is_empty() {
                             html! {
-                                <div class={classes!(
-                                    "empty-state",
-                                    "text-center",
-                                    "py-20",
-                                    "px-4",
-                                    "bg-[var(--surface)]",
-                                    "rounded-2xl",
-                                    "border",
-                                    "border-[var(--border)]"
-                                )}>
-                                    <i class={classes!(
-                                        "fas",
-                                        "fa-tags",
-                                        "text-6xl",
-                                        "text-[var(--muted)]",
-                                        "mb-6"
-                                    )}></i>
-                                    <p class={classes!("text-xl", "text-[var(--muted)]")}>
-                                        { t::EMPTY }
-                                    </p>
+                                <div class="sf-state">
+                                    <span class="sf-state__icon">
+                                        <i class="fas fa-tags" aria-hidden="true"></i>
+                                    </span>
+                                    <p class="sf-state__title">{ t::EMPTY }</p>
                                 </div>
                             }
                         } else {
                             html! {
-                                <div
-                                    class={classes!(
-                                        "tag-cloud",
-                                        "flex",
-                                        "flex-wrap",
-                                        "justify-center",
-                                        "gap-3",
-                                        "px-4",
-                                        "max-w-5xl",
-                                        "mx-auto"
-                                    )}
-                                    role="list"
-                                    aria-label={t::CLOUD_ARIA}
-                                >
-                                    { for tag_stats.iter().enumerate().map(|(idx, tag_info)| {
-                                        let weight = (tag_info.count as f32 / max_count).max(0.35);
-                                        let style = format!("--tag-weight: {:.2}; animation-delay: {}ms", weight, idx * 50);
+                                <ul class="sf-tag-cloud">
+                                    { for tag_stats.iter().map(|tag_info| {
+                                        let weight = (tag_info.count as f32 / max_count).clamp(0.0, 1.0);
+                                        let style = format!("--tag-weight: {weight:.2}");
                                         html! {
-                                            <div {style}>
+                                            <li class="m-0" {style}>
                                                 <Link<Route>
                                                     to={Route::TagDetail { tag: tag_info.name.clone() }}
-                                                    classes={classes!(
-                                                        "tag-pill",
-                                                        "inline-flex",
-                                                        "items-center",
-                                                        "gap-2",
-                                                        "px-5",
-                                                        "py-3",
-                                                        "border",
-                                                        "border-[var(--border)]",
-                                                        "rounded-full",
-                                                        "bg-[var(--surface)]",
-                                                        "text-[var(--text)]",
-                                                        "font-medium",
-                                                        "transition-all",
-                                                        "duration-300",
-                                                        "ease-[cubic-bezier(0.34,1.56,0.64,1)]",
-                                                        "hover:-translate-y-1",
-                                                        "hover:scale-105",
-                                                        "hover:border-[var(--primary)]",
-                                                        "hover:shadow-[var(--shadow-8)]",
-                                                        "hover:bg-gradient-to-br",
-                                                        "hover:from-[var(--primary)]/10",
-                                                        "hover:to-purple-500/10",
-                                                        "group"
-                                                    )}
+                                                    classes="sf-tag"
                                                 >
-                                                    <span
-                                                        class={classes!(
-                                                            "text-[calc(1rem+var(--tag-weight,0.4)*0.35rem)]",
-                                                            "font-semibold",
-                                                            "transition-colors",
-                                                            "duration-300",
-                                                            "group-hover:text-[var(--primary)]"
-                                                        )}
-                                                    >
-                                                        { format!("#{}", &tag_info.name) }
+                                                    <span class="sf-tag__name">
+                                                        <span class="sf-tag__hash" aria-hidden="true">{ "#" }</span>
+                                                        { &tag_info.name }
                                                     </span>
-                                                    <span class={classes!(
-                                                        "text-sm",
-                                                        "text-[var(--muted)]",
-                                                        "px-2",
-                                                        "py-0.5",
-                                                        "bg-[var(--surface-alt)]",
-                                                        "rounded-full",
-                                                        "transition-all",
-                                                        "duration-300",
-                                                        "group-hover:bg-[var(--primary)]/20",
-                                                        "group-hover:text-[var(--primary)]"
-                                                    )}>
-                                                        { tag_info.count }
-                                                    </span>
+                                                    <span class="sf-tag__count">{ tag_info.count }</span>
                                                 </Link<Route>>
-                                            </div>
+                                            </li>
                                         }
                                     }) }
-                                </div>
+                                </ul>
                             }
                         }
                     }
-                </div>
+                </section>
             </div>
             <ScrollToTopButton />
         </main>

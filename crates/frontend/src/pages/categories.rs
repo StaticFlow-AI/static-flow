@@ -2,7 +2,7 @@ use yew::prelude::*;
 use yew_router::prelude::Link;
 
 use crate::{
-    components::{scroll_to_top_button::ScrollToTopButton, skeleton::SkeletonCard},
+    components::scroll_to_top_button::ScrollToTopButton,
     i18n::{current::categories_page as t, fill_one, fill_two},
     router::Route,
 };
@@ -67,188 +67,76 @@ pub fn categories_page() -> Html {
                     </div>
                 </header>
 
-                // Category Grid with Geometric Style
                 {
                     if *loading {
                         html! {
-                            <div class={classes!("grid", "grid-cols-1", "md:grid-cols-2", "lg:grid-cols-3", "gap-6")}>
-                                    { for (0..6).map(|_| html! { <SkeletonCard /> }) }
-                                </div>
+                            <div class="sf-category-grid" aria-hidden="true">
+                                { for (0..6).map(|_| html! {
+                                    <div class="sf-category-card pointer-events-none">
+                                        <div class="sf-category-card__top">
+                                            <span class="skeleton block h-3 w-6 rounded" />
+                                            <span class="skeleton block h-5 w-16 rounded-full" />
+                                        </div>
+                                        <span class="skeleton block h-5 w-2/5 rounded mt-1" />
+                                        <span class="skeleton block h-3 w-full rounded" />
+                                        <span class="skeleton block h-3 w-4/5 rounded" />
+                                    </div>
+                                }) }
+                            </div>
                         }
                     } else if let Some(err) = (*load_error).clone() {
                         html! {
-                            <div class={classes!(
-                                "empty-state",
-                                "text-center",
-                                "py-20",
-                                "px-4",
-                                "bg-[var(--surface)]",
-                                "rounded-2xl",
-                                "border",
-                                "border-[var(--border)]"
-                            )}>
-                                <i class={classes!(
-                                    "fas",
-                                    "fa-triangle-exclamation",
-                                    "text-6xl",
-                                    "text-amber-500",
-                                    "mb-6"
-                                )}></i>
-                                <p class={classes!(
-                                    "text-xl",
-                                    "font-bold",
-                                    "text-[var(--text)]",
-                                    "mb-2"
-                                )}>
-                                    { "Couldn't load" }
-                                </p>
-                                <p class={classes!("text-base", "text-[var(--muted)]", "mb-6")}>
-                                    { err }
-                                </p>
-                                <button
-                                    onclick={on_retry.clone()}
-                                    class={classes!("btn-fluent-secondary")}
-                                    type="button"
-                                >
-                                    <i class={classes!("fas", "fa-rotate-right", "mr-2")}></i>
-                                    { "Retry" }
-                                </button>
+                            <div class="sf-state sf-state--error" role="alert">
+                                <span class="sf-state__icon">
+                                    <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                                </span>
+                                <p class="sf-state__title">{ "Couldn't load" }</p>
+                                <p class="sf-state__body">{ err }</p>
+                                <div class="sf-state__action">
+                                    <button
+                                        onclick={on_retry.clone()}
+                                        class="btn-fluent-secondary"
+                                        type="button"
+                                    >
+                                        <i class="fas fa-rotate-right text-xs" aria-hidden="true"></i>
+                                        { "Retry" }
+                                    </button>
+                                </div>
                             </div>
                         }
                     } else if categories.is_empty() {
                         html! {
-                            <div class={classes!(
-                                "empty-state",
-                                "text-center",
-                                "py-20",
-                                "px-4",
-                                "bg-[var(--surface)]",
-                                "rounded-2xl",
-                                "border",
-                                "border-[var(--border)]"
-                            )}>
-                                <i class={classes!(
-                                    "fas",
-                                    "fa-th-large",
-                                    "text-6xl",
-                                    "text-[var(--muted)]",
-                                    "mb-6"
-                                )}></i>
-                                <p class={classes!("text-xl", "text-[var(--muted)]")}>
-                                    { t::EMPTY }
-                                </p>
+                            <div class="sf-state">
+                                <span class="sf-state__icon">
+                                    <i class="fas fa-folder-open" aria-hidden="true"></i>
+                                </span>
+                                <p class="sf-state__title">{ t::EMPTY }</p>
                             </div>
                         }
                     } else {
                         html! {
-                            <div class={classes!(
-                                "category-grid",
-                                "grid",
-                                "grid-cols-1",
-                                "md:grid-cols-2",
-                                "lg:grid-cols-3",
-                                "gap-6",
-                                "mt-12"
-                            )}>
-                                { for categories.iter().map(|category| {
+                            <div class="sf-category-grid mb-16">
+                                { for categories.iter().enumerate().map(|(idx, category)| {
                                     html! {
                                         <Link<Route>
                                             to={Route::CategoryDetail { category: category.name.clone() }}
-                                            classes={classes!(
-                                                "category-card",
-                                                "block",
-                                                "group",
-                                                "relative",
-                                                "bg-[var(--surface)]",
-                                                "border",
-                                                "border-[var(--border)]",
-                                                "border-l-[4px]",
-                                                "border-l-[var(--primary)]",
-                                                "rounded-lg",
-                                                "p-6",
-                                                "transition-all",
-                                                "duration-300",
-                                                "hover:border-[var(--primary)]",
-                                                "hover:shadow-[0_4px_12px_rgba(var(--primary-rgb),0.4)]",
-                                                "hover:-translate-y-1",
-                                            )}
+                                            classes="sf-category-card"
                                         >
-                                            <div class={classes!("flex", "flex-col", "gap-3", "h-full")}>
-                                                // Category name with geometric styling
-                                                <h3 class={classes!(
-                                                    "m-0",
-                                                    "text-xl",
-                                                    "font-bold",
-                                                    "tracking-[-0.02em]",
-                                                    "text-[var(--text)]",
-                                                    "transition-colors",
-                                                    "duration-150",
-                                                    "group-hover:text-[var(--primary)]"
-                                                )}>
-                                                    { &category.name }
-                                                </h3>
-
-                                                // Description
-                                                <p class={classes!(
-                                                    "m-0",
-                                                    "text-base",
-                                                    "leading-relaxed",
-                                                    "text-[var(--muted)]",
-                                                    "flex-1"
-                                                )}>
-                                                    { &category.description }
-                                                </p>
-
-                                                // Article count badge with geometric design
-                                                <div class={classes!(
-                                                    "flex",
-                                                    "items-center",
-                                                    "justify-between",
-                                                    "mt-auto",
-                                                    "pt-4",
-                                                    "border-t",
-                                                    "border-[var(--border)]"
-                                                )}>
-                                                    <span class={classes!(
-                                                        "inline-flex",
-                                                        "items-center",
-                                                        "gap-2",
-                                                        "px-3",
-                                                        "py-1.5",
-                                                        "bg-gradient-to-r",
-                                                        "from-[var(--primary)]/10",
-                                                        "to-sky-500/10",
-                                                        "border",
-                                                        "border-[var(--primary)]/30",
-                                                        "rounded-[6px]",
-                                                        "text-sm",
-                                                        "font-bold",
-                                                        "text-[var(--primary)]",
-                                                        "dark:text-sky-400",
-                                                        "transition-all",
-                                                        "duration-200",
-                                                        "group-hover:border-[var(--primary)]/50",
-                                                        "group-hover:bg-gradient-to-r",
-                                                        "group-hover:from-[var(--primary)]/20",
-                                                        "group-hover:to-sky-500/20"
-                                                    )}>
-                                                        <i class={classes!("far", "fa-file-alt")}></i>
-                                                        <span>{ fill_one(t::COUNT_TEMPLATE, category.count) }</span>
-                                                    </span>
-
-                                                    // Arrow icon
-                                                    <i class={classes!(
-                                                        "fas",
-                                                        "fa-arrow-right",
-                                                        "text-[var(--muted)]",
-                                                        "transition-all",
-                                                        "duration-200",
-                                                        "group-hover:text-[var(--primary)]",
-                                                        "dark:group-hover:text-sky-400",
-                                                        "group-hover:translate-x-2"
-                                                    )}></i>
-                                                </div>
+                                            <div class="sf-category-card__top">
+                                                <span class="sf-category-card__index">
+                                                    { format!("{:02}", idx + 1) }
+                                                </span>
+                                                <span class="sf-category-card__count">
+                                                    <i class="far fa-file-alt" aria-hidden="true"></i>
+                                                    { fill_one(t::COUNT_TEMPLATE, category.count) }
+                                                </span>
                                             </div>
+                                            <h3 class="sf-category-card__name">{ &category.name }</h3>
+                                            <p class="sf-category-card__desc">{ &category.description }</p>
+                                            <span class="sf-category-card__foot" aria-hidden="true">
+                                                { "浏览分类" }
+                                                <i class="fas fa-arrow-right"></i>
+                                            </span>
                                         </Link<Route>>
                                     }
                                 }) }
