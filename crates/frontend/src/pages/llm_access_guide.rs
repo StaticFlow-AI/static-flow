@@ -290,14 +290,19 @@ mod tests {
 #[function_component(GuideCodePanel)]
 fn guide_code_panel(props: &GuideCodePanelProps) -> Html {
     html! {
-        <section class={classes!("rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-4")}>
-            <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
+        <section class="rounded-[10px] border border-[var(--border)] bg-[var(--surface-alt)] p-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <span class={classes!("text-xs", "uppercase", "tracking-widest", "text-[var(--muted)]")}>{ props.eyebrow.clone() }</span>
-                    <h4 class={classes!("m-0", "mt-1", "text-sm", "font-bold", "text-[var(--text)]")}>{ props.title.clone() }</h4>
+                    <span class="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--muted)]">
+                        { props.eyebrow.clone() }
+                    </span>
+                    <h4 class="m-0 mt-1 font-serif text-base font-normal text-[var(--text)]">
+                        { props.title.clone() }
+                    </h4>
                 </div>
                 <button
-                    class={classes!("btn-terminal", "btn-terminal-primary", "!text-xs")}
+                    type="button"
+                    class="sf-btn sf-btn--secondary inline-flex items-center gap-1.5 rounded-[6px] border border-[var(--border-strong,var(--border))] bg-[var(--surface)] px-3 py-1 font-mono text-xs text-[var(--text)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
                     onclick={{
                         let label = props.copy_label.to_string();
                         let code = props.code.clone();
@@ -305,10 +310,11 @@ fn guide_code_panel(props: &GuideCodePanelProps) -> Html {
                         Callback::from(move |_| on_copy.emit((label.clone(), code.clone())))
                     }}
                 >
-                    { props.button_label.clone() }
+                    <i class="fas fa-copy text-[11px]" />
+                    <span>{ props.button_label.clone() }</span>
                 </button>
             </div>
-            <pre class={classes!("mt-3", "overflow-x-auto", "rounded-lg", "bg-slate-950", "p-3", "text-xs", "leading-6", "text-emerald-200")}>
+            <pre class="mt-3 overflow-x-auto rounded-[8px] border border-[var(--border)] bg-[var(--surface-sunk,var(--bg))] p-3.5 font-mono text-xs leading-6 text-[var(--text)]">
                 { props.code.clone() }
             </pre>
         </section>
@@ -384,13 +390,13 @@ pub fn llm_access_guide_page() -> Html {
 
     let content = if *loading {
         html! {
-            <div class={classes!("mt-10", "rounded-xl", "border", "border-dashed", "border-[var(--border)]", "px-5", "py-12", "text-center", "text-[var(--muted)]")}>
-                { "正在读取接入信息" }
+            <div class="mt-10 rounded-[12px] border border-[var(--border)] bg-[var(--surface)] px-5 py-12 text-center font-mono text-sm text-[var(--muted)]">
+                { "正在读取接入信息..." }
             </div>
         }
     } else if let Some(err) = (*error).clone() {
         html! {
-            <div class={classes!("mt-10", "rounded-xl", "border", "border-red-400/35", "bg-red-500/8", "px-5", "py-5", "text-sm", "text-red-700", "dark:text-red-200")}>
+            <div class="mt-10 rounded-[12px] border border-[var(--err,#B8443A)]/35 bg-[var(--err-soft,rgba(184,68,58,0.10))] px-5 py-5 text-sm text-[var(--err,#B8443A)]">
                 { err }
             </div>
         }
@@ -434,58 +440,65 @@ pub fn llm_access_guide_page() -> Html {
 
         html! {
             <>
-                // Page header
-                <section class={classes!("mt-8", "rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                    <div class={classes!("flex", "items-start", "justify-between", "gap-4", "flex-wrap")}>
+                // Editorial Page Header
+                <section class="sf-card rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-6 sm:p-7">
+                    <div class="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                            <h1 class={classes!("m-0", "text-2xl", "font-bold", "text-[var(--text)]")}>
+                            <div class="sf-eyebrow mb-2 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--primary)]">
+                                { "CODEX INTEGRATION GUIDE · 接入指南" }
+                            </div>
+                            <h1 class="m-0 font-serif text-[clamp(1.75rem,3vw,2.375rem)] font-normal leading-[1.15] tracking-[-0.02em] text-[var(--text)]">
                                 { "接入 Codex / 养龙虾🦞" }
                             </h1>
-                            <p class={classes!("mt-2", "m-0", "text-sm", "text-[var(--muted)]")}>
+                            <p class="m-0 mt-2 font-mono text-xs text-[var(--muted)]">
                                 { format!("示例 Key: {} · Codex feature snapshot {}", example_key_name, CODEX_FEATURE_SNAPSHOT_VERSION) }
                             </p>
                         </div>
-                        <div class={classes!("flex", "items-center", "gap-2")}>
-                            <Link<Route> to={Route::LlmAccess} classes={classes!("btn-terminal")}>
-                                <i class="fas fa-arrow-left"></i>
-                                { "Key 大厅" }
+                        <div class="flex flex-wrap items-center gap-2">
+                            <Link<Route>
+                                to={Route::LlmAccess}
+                                classes="sf-btn sf-btn--secondary inline-flex items-center gap-1.5 rounded-[8px] border border-[var(--border-strong,var(--border))] bg-transparent px-3.5 py-2 text-xs font-medium text-[var(--text)] no-underline transition-colors hover:bg-[var(--surface-alt)]"
+                            >
+                                <i class="fas fa-arrow-left text-[11px]" />
+                                <span>{ "Key 大厅" }</span>
                             </Link<Route>>
                             <button
-                                class={classes!("btn-terminal", "btn-terminal-primary")}
+                                type="button"
+                                class="sf-btn sf-btn--primary inline-flex items-center gap-1.5 rounded-[8px] bg-[var(--primary)] px-3.5 py-2 text-xs font-medium text-[var(--on-primary,#FAF9F5)] transition-colors hover:bg-[var(--primary-hover,#B85735)]"
                                 onclick={{
                                     let on_copy = on_copy.clone();
                                     let base_url = base_url.clone();
                                     Callback::from(move |_| on_copy.emit(("Base URL".to_string(), base_url.clone())))
                                 }}
                             >
-                                <i class="fas fa-copy"></i>
-                                { "复制 URL" }
+                                <i class="fas fa-copy text-[11px]" />
+                                <span>{ "复制 URL" }</span>
                             </button>
                         </div>
                     </div>
                 </section>
 
-                // Notice bar
-                <div class={classes!("mt-4", "llm-access-notice")}>
+                // Warm terracotta hairline callout
+                <div class="mt-4 rounded-[10px] border border-[var(--border)] border-l-2 border-l-[var(--primary)] bg-[var(--surface-alt)] px-4 py-3 text-sm text-[var(--text-2,var(--text))]">
                     { "保住 remote compact 是接 Codex 的前提 — " }
                     <Link<Route>
                         to={Route::ArticleDetail { id: REMOTE_COMPACT_ARTICLE_ID.to_string() }}
-                        classes={classes!("underline", "text-[var(--primary)]")}
+                        classes="font-medium text-[var(--primary)] underline underline-offset-4"
                     >
-                        { "深潜文章" }
+                        { "阅读深潜文章 →" }
                     </Link<Route>>
                 </div>
 
                 // Step 01: model_catalog.json
-                <section class={classes!("mt-6", "rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                    <div class={classes!("flex", "items-center", "gap-2")}>
-                        <span class={classes!("text-xs", "font-semibold", "uppercase", "tracking-widest", "text-[var(--primary)]")}>{ "Step 01" }</span>
-                        <h2 class={classes!("m-0", "text-lg", "font-bold", "text-[var(--text)]")}>{ "写入 model_catalog.json" }</h2>
+                <section class="sf-card mt-6 rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6">
+                    <div class="flex items-baseline gap-2.5">
+                        <span class="font-mono text-xs uppercase tracking-[0.14em] text-[var(--primary)]">{ "Step 01" }</span>
+                        <h2 class="m-0 font-serif text-xl font-normal text-[var(--text)]">{ "写入 model_catalog.json" }</h2>
                     </div>
-                    <p class={classes!("mt-3", "mb-0", "text-sm", "text-[var(--muted)]")}>
+                    <p class="mb-0 mt-2.5 text-sm leading-relaxed text-[var(--muted)]">
                         { "先执行下面这条命令，它会把后端当前可用模型直接写到 ~/.codex/model_catalog.json。" }
                     </p>
-                    <div class={classes!("mt-4")}>
+                    <div class="mt-4">
                         <GuideCodePanel
                             eyebrow={"推荐"}
                             title={"一键下载命令"}
@@ -496,22 +509,22 @@ pub fn llm_access_guide_page() -> Html {
                         />
                     </div>
                     if let Some(err) = (*model_catalog_error).clone() {
-                        <p class={classes!("mt-3", "mb-0", "text-sm", "text-red-600", "dark:text-red-300")}>
+                        <p class="mb-0 mt-3 text-xs text-[var(--err,#B8443A)]">
                             { format!("model_catalog.json 拉取失败：{err}") }
                         </p>
                     }
                 </section>
 
                 // Step 02: Provider config
-                <section class={classes!("mt-4", "rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                    <div class={classes!("flex", "items-center", "gap-2")}>
-                        <span class={classes!("text-xs", "font-semibold", "uppercase", "tracking-widest", "text-[var(--primary)]")}>{ "Step 02" }</span>
-                        <h2 class={classes!("m-0", "text-lg", "font-bold", "text-[var(--text)]")}>{ "配置 Provider" }</h2>
+                <section class="sf-card mt-5 rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6">
+                    <div class="flex items-baseline gap-2.5">
+                        <span class="font-mono text-xs uppercase tracking-[0.14em] text-[var(--primary)]">{ "Step 02" }</span>
+                        <h2 class="m-0 font-serif text-xl font-normal text-[var(--text)]">{ "配置 Provider" }</h2>
                     </div>
-                    <p class={classes!("mt-3", "mb-0", "text-sm", "text-[var(--muted)]")}>
+                    <p class="mb-0 mt-2.5 text-sm text-[var(--muted)]">
                         { format!("当前推荐默认模型：{}", default_model) }
                     </p>
-                    <div class={classes!("mt-4")}>
+                    <div class="mt-4">
                         <GuideCodePanel
                             eyebrow={"~/.codex/config.toml"}
                             title={"Provider 配置"}
@@ -524,50 +537,50 @@ pub fn llm_access_guide_page() -> Html {
                 </section>
 
                 // Step 03: Codex features
-                <section class={classes!("mt-4", "rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                    <div class={classes!("flex", "items-start", "justify-between", "gap-4", "flex-wrap")}>
+                <section class="sf-card mt-5 rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6">
+                    <div class="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                            <div class={classes!("flex", "items-center", "gap-2")}>
-                                <span class={classes!("text-xs", "font-semibold", "uppercase", "tracking-widest", "text-[var(--primary)]")}>{ "Step 03" }</span>
-                                <h2 class={classes!("m-0", "text-lg", "font-bold", "text-[var(--text)]")}>{ "选择 Codex Feature" }</h2>
+                            <div class="flex items-baseline gap-2.5">
+                                <span class="font-mono text-xs uppercase tracking-[0.14em] text-[var(--primary)]">{ "Step 03" }</span>
+                                <h2 class="m-0 font-serif text-xl font-normal text-[var(--text)]">{ "选择 Codex Feature" }</h2>
                             </div>
-                            <p class={classes!("mt-3", "mb-0", "max-w-3xl", "text-sm", "leading-6", "text-[var(--muted)]")}>
+                            <p class="mb-0 mt-2.5 max-w-3xl text-sm leading-6 text-[var(--muted)]">
                                 { format!("清单基于 Codex {} 的 features registry，最近核对于 {}。选择后复制 config.toml 片段；页面不会直接写你的本机配置。", CODEX_FEATURE_SNAPSHOT_VERSION, CODEX_FEATURE_SNAPSHOT_DATE) }
                             </p>
                         </div>
-                        <div class={classes!("flex", "items-center", "gap-2", "flex-wrap")}>
-                            <span class={classes!("rounded-full", "border", "border-[var(--border)]", "px-3", "py-1.5", "font-mono", "text-xs", "text-[var(--muted)]")}>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="rounded-full border border-[var(--border)] bg-[var(--surface-alt)] px-3 py-1 font-mono text-xs tabular-nums text-[var(--muted)]">
                                 { format!("selected {selected_feature_count}/{}", CODEX_FEATURE_CATALOG.len()) }
                             </span>
                             <button
                                 type="button"
-                                class={classes!("btn-terminal", "btn-terminal-primary")}
+                                class="sf-btn sf-btn--primary inline-flex items-center gap-1.5 rounded-[8px] bg-[var(--primary)] px-3.5 py-1.5 text-xs font-medium text-[var(--on-primary,#FAF9F5)] transition-colors hover:bg-[var(--primary-hover,#B85735)]"
                                 aria-expanded={feature_section_is_expanded.to_string()}
                                 onclick={on_toggle_feature_section}
                             >
-                                <i class={classes!("fas", if feature_section_is_expanded { "fa-chevron-up" } else { "fa-chevron-down" })}></i>
-                                { feature_toggle_label }
+                                <i class={classes!("fas", "text-[11px]", if feature_section_is_expanded { "fa-chevron-up" } else { "fa-chevron-down" })} />
+                                <span>{ feature_toggle_label }</span>
                             </button>
                         </div>
                     </div>
 
-                    <div class={classes!("mt-4", "rounded-lg", "border", "border-dashed", "border-[var(--border)]", "bg-[var(--surface-alt)]", "p-3")}>
-                        <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
-                            <span class={classes!("text-xs", "font-semibold", "uppercase", "tracking-widest", "text-[var(--muted)]")}>
+                    <div class="mt-4 rounded-[10px] border border-[var(--border)] bg-[var(--surface-alt)] p-3.5">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <span class="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--muted)]">
                                 { "当前推荐组合" }
                             </span>
                             if !feature_section_is_expanded {
-                                <span class={classes!("text-xs", "text-[var(--muted)]")}>{ "展开后可逐项勾选并复制配置。" }</span>
+                                <span class="text-xs text-[var(--muted)]">{ "展开后可逐项勾选并复制配置。" }</span>
                             }
                         </div>
-                        <div class={classes!("mt-3", "flex", "items-center", "gap-2", "flex-wrap")}>
+                        <div class="mt-3 flex flex-wrap items-center gap-2">
                             { for selected_feature_preview.iter().map(|key| html! {
-                                <span class={classes!("rounded-full", "border", "border-emerald-400/45", "bg-emerald-500/8", "px-2.5", "py-1", "font-mono", "text-[11px]", "text-[var(--text)]")}>
+                                <span class="sf-chip sf-chip--active rounded-full border border-[var(--primary)]/35 bg-[var(--primary-soft,rgba(201,100,66,0.12))] px-2.5 py-0.5 font-mono text-[11px] text-[var(--primary)]">
                                     { key }
                                 </span>
                             }) }
                             if hidden_selected_feature_count > 0 {
-                                <span class={classes!("rounded-full", "border", "border-[var(--border)]", "px-2.5", "py-1", "font-mono", "text-[11px]", "text-[var(--muted)]")}>
+                                <span class="rounded-full border border-[var(--border)] px-2.5 py-0.5 font-mono text-[11px] tabular-nums text-[var(--muted)]">
                                     { format!("+{hidden_selected_feature_count}") }
                                 </span>
                             }
@@ -576,24 +589,32 @@ pub fn llm_access_guide_page() -> Html {
 
                     if feature_section_is_expanded {
                         <>
-                            <div class={classes!("mt-5", "grid", "gap-3", "md:grid-cols-2")}>
+                            <div class="mt-5 grid gap-3 md:grid-cols-2">
                                 { for CODEX_FEATURE_CATALOG.iter().map(|feature| {
                                     let enabled = selected_feature_values.iter().any(|key| key == feature.key);
                                     let feature_key = feature.key.to_string();
                                     let selected_features = selected_features.clone();
                                     html! {
                                         <label class={classes!(
-                                            "flex", "h-full", "cursor-pointer", "items-start", "gap-3",
-                                            "rounded-lg", "border", "p-4", "transition-colors", "duration-150",
+                                            "flex",
+                                            "h-full",
+                                            "cursor-pointer",
+                                            "items-start",
+                                            "gap-3",
+                                            "rounded-[10px]",
+                                            "border",
+                                            "p-4",
+                                            "transition-colors",
+                                            "duration-150",
                                             if enabled {
-                                                classes!("border-emerald-400/60", "bg-emerald-500/8")
+                                                "border-[var(--primary)]/45 bg-[var(--primary-soft,rgba(201,100,66,0.08))]"
                                             } else {
-                                                classes!("border-[var(--border)]", "bg-[var(--surface-alt)]", "hover:border-[var(--primary)]/45")
+                                                "border-[var(--border)] bg-[var(--surface-alt)] hover:border-[var(--border-strong,var(--primary))]"
                                             }
                                         )}>
                                             <input
                                                 type="checkbox"
-                                                class={classes!("mt-1", "h-4", "w-4", "shrink-0", "accent-emerald-500")}
+                                                class="mt-1 h-4 w-4 shrink-0 accent-[var(--primary)]"
                                                 checked={enabled}
                                                 onchange={{
                                                     Callback::from(move |_| {
@@ -607,26 +628,26 @@ pub fn llm_access_guide_page() -> Html {
                                                     })
                                                 }}
                                             />
-                                            <span class={classes!("min-w-0", "flex-1")}>
-                                                <span class={classes!("flex", "items-center", "justify-between", "gap-2", "flex-wrap")}>
-                                                    <span class={classes!("font-mono", "text-sm", "font-bold", "text-[var(--text)]")}>{ feature.key }</span>
-                                                    <span class={classes!("flex", "items-center", "gap-1.5", "text-[10px]", "uppercase", "tracking-wide", "text-[var(--muted)]")}>
-                                                        <span class={classes!("rounded-full", "border", "border-[var(--border)]", "px-2", "py-0.5")}>{ feature.stage }</span>
-                                                        <span class={classes!("rounded-full", "border", "border-[var(--border)]", "px-2", "py-0.5")}>
+                                            <span class="min-w-0 flex-1">
+                                                <span class="flex flex-wrap items-center justify-between gap-2">
+                                                    <span class="font-mono text-sm font-medium text-[var(--text)]">{ feature.key }</span>
+                                                    <span class="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wide text-[var(--muted)]">
+                                                        <span class="rounded-full border border-[var(--border)] px-2 py-0.5">{ feature.stage }</span>
+                                                        <span class="rounded-full border border-[var(--border)] px-2 py-0.5">
                                                             { if feature.default_enabled { "default on" } else { "default off" } }
                                                         </span>
                                                     </span>
                                                 </span>
-                                                <span class={classes!("mt-1", "block", "text-sm", "font-semibold", "text-[var(--text)]")}>{ feature.label }</span>
-                                                <span class={classes!("mt-2", "block", "text-xs", "leading-5", "text-[var(--muted)]")}>{ feature.summary }</span>
-                                                <span class={classes!("mt-2", "block", "text-[11px]", "leading-5", "text-[var(--muted)]")}>{ feature.config_note }</span>
+                                                <span class="mt-1 block font-serif text-base font-normal text-[var(--text)]">{ feature.label }</span>
+                                                <span class="mt-1.5 block text-xs leading-5 text-[var(--text-2,var(--muted))]">{ feature.summary }</span>
+                                                <span class="mt-1.5 block text-[11px] leading-5 text-[var(--muted)]">{ feature.config_note }</span>
                                             </span>
                                         </label>
                                     }
                                 }) }
                             </div>
 
-                            <div class={classes!("mt-5", "grid", "gap-3", "xl:grid-cols-2")}>
+                            <div class="mt-5 grid gap-3 xl:grid-cols-2">
                                 <GuideCodePanel
                                     eyebrow={"~/.codex/config.toml"}
                                     title={"Feature 配置片段"}
@@ -649,12 +670,12 @@ pub fn llm_access_guide_page() -> Html {
                 </section>
 
                 // Step 04: Auth
-                <section class={classes!("mt-4", "rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                    <div class={classes!("flex", "items-center", "gap-2")}>
-                        <span class={classes!("text-xs", "font-semibold", "uppercase", "tracking-widest", "text-[var(--primary)]")}>{ "Step 04" }</span>
-                        <h2 class={classes!("m-0", "text-lg", "font-bold", "text-[var(--text)]")}>{ "写入 Key" }</h2>
+                <section class="sf-card mt-5 rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6">
+                    <div class="flex items-baseline gap-2.5">
+                        <span class="font-mono text-xs uppercase tracking-[0.14em] text-[var(--primary)]">{ "Step 04" }</span>
+                        <h2 class="m-0 font-serif text-xl font-normal text-[var(--text)]">{ "写入 Key" }</h2>
                     </div>
-                    <div class={classes!("mt-4", "grid", "gap-3", "xl:grid-cols-2")}>
+                    <div class="mt-4 grid gap-3 xl:grid-cols-2">
                         <GuideCodePanel
                             eyebrow={"推荐"}
                             title={"codex login --with-api-key"}
@@ -675,12 +696,12 @@ pub fn llm_access_guide_page() -> Html {
                 </section>
 
                 // Step 05: Usage
-                <section class={classes!("mt-4", "rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5")}>
-                    <div class={classes!("flex", "items-center", "gap-2")}>
-                        <span class={classes!("text-xs", "font-semibold", "uppercase", "tracking-widest", "text-[var(--primary)]")}>{ "Step 05" }</span>
-                        <h2 class={classes!("m-0", "text-lg", "font-bold", "text-[var(--text)]")}>{ "开始使用" }</h2>
+                <section class="sf-card mt-5 rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6">
+                    <div class="flex items-baseline gap-2.5">
+                        <span class="font-mono text-xs uppercase tracking-[0.14em] text-[var(--primary)]">{ "Step 05" }</span>
+                        <h2 class="m-0 font-serif text-xl font-normal text-[var(--text)]">{ "开始使用" }</h2>
                     </div>
-                    <div class={classes!("mt-4", "grid", "gap-3", "xl:grid-cols-2")}>
+                    <div class="mt-4 grid gap-3 xl:grid-cols-2">
                         <GuideCodePanel
                             eyebrow={"curl"}
                             title={"最小请求示例"}
@@ -700,14 +721,17 @@ pub fn llm_access_guide_page() -> Html {
                     </div>
                 </section>
 
-                // Back to keys
-                <section class={classes!("mt-4", "flex", "items-center", "justify-between", "gap-4", "rounded-xl", "border", "border-[var(--border)]", "bg-[var(--surface)]", "p-5", "flex-wrap")}>
-                    <h2 class={classes!("m-0", "text-lg", "font-bold", "text-[var(--text)]")}>
+                // Back to keys CTA
+                <section class="sf-card mt-5 flex flex-wrap items-center justify-between gap-4 rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6">
+                    <h2 class="m-0 font-serif text-xl font-normal text-[var(--text)]">
                         { "配好了，回去复制 Key" }
                     </h2>
-                    <Link<Route> to={Route::LlmAccess} classes={classes!("btn-terminal", "btn-terminal-primary")}>
-                        <i class="fas fa-key"></i>
-                        { "Key 大厅" }
+                    <Link<Route>
+                        to={Route::LlmAccess}
+                        classes="sf-btn sf-btn--primary inline-flex items-center gap-2 rounded-[8px] bg-[var(--primary)] px-4 py-2 text-xs font-medium text-[var(--on-primary,#FAF9F5)] no-underline transition-colors hover:bg-[var(--primary-hover,#B85735)]"
+                    >
+                        <i class="fas fa-key text-[11px]" />
+                        <span>{ "前往 Key 大厅" }</span>
                     </Link<Route>>
                 </section>
             </>
@@ -717,24 +741,41 @@ pub fn llm_access_guide_page() -> Html {
     };
 
     html! {
-        <main class={classes!("relative", "min-h-screen", "bg-[var(--bg)]")}>
-            <div class={classes!("relative", "mx-auto", "max-w-5xl", "px-4", "pb-16", "pt-8", "lg:px-6")}>
+        <main class="relative min-h-screen bg-[var(--bg)]">
+            <div class="relative mx-auto max-w-[960px] px-4 pb-20 pt-10 sm:px-6 md:pt-14">
                 { content }
             </div>
 
             if let Some((message, is_error)) = (*toast).clone() {
                 <div class={classes!(
-                    "fixed", "bottom-5", "right-5", "z-[90]",
-                    "rounded-full", "border", "px-4", "py-3",
-                    "text-sm", "font-semibold",
-                    "shadow-[0_8px_24px_rgba(0,0,0,0.15)]",
+                    "fixed",
+                    "bottom-5",
+                    "right-5",
+                    "z-[90]",
+                    "inline-flex",
+                    "items-center",
+                    "gap-2",
+                    "rounded-[10px]",
+                    "border",
+                    "bg-[var(--surface)]",
+                    "px-4",
+                    "py-2.5",
+                    "font-mono",
+                    "text-xs",
+                    "shadow-[var(--shadow-lg)]",
                     if is_error {
-                        classes!("border-red-400/35", "bg-red-500/92", "text-white")
+                        "border-[var(--err,#B8443A)]/40 text-[var(--err,#B8443A)]"
                     } else {
-                        classes!("border-emerald-400/35", "bg-emerald-500/92", "text-white")
+                        "border-[var(--border-strong,var(--border))] text-[var(--text)]"
                     }
                 )}>
-                    { message }
+                    <span class={classes!(
+                        "h-2",
+                        "w-2",
+                        "rounded-full",
+                        if is_error { "bg-[var(--err,#B8443A)]" } else { "bg-[var(--ok,#4E7A51)]" }
+                    )} />
+                    <span>{ message }</span>
                 </div>
             }
         </main>

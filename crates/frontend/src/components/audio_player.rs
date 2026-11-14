@@ -194,63 +194,79 @@ pub fn audio_player(props: &AudioPlayerProps) -> Html {
     let dur = *duration;
     let ct = *current_time;
     let buf = *buffered_end;
-    let progress_pct = if dur > 0.0 { (ct / dur) * 100.0 } else { 0.0 };
-    let buffered_pct = if dur > 0.0 { (buf / dur) * 100.0 } else { 0.0 };
+    let progress_pct =
+        if dur > 0.0 && dur.is_finite() { ((ct / dur) * 100.0).clamp(0.0, 100.0) } else { 0.0 };
+    let buffered_pct =
+        if dur > 0.0 && dur.is_finite() { ((buf / dur) * 100.0).clamp(0.0, 100.0) } else { 0.0 };
 
     html! {
         <div class="w-full">
             <audio ref={audio_ref.clone()} preload="metadata" src={props.src.clone()} />
 
-            // Progress bar
-            <div class="relative w-full h-2 group mb-3">
-                // Buffered track
-                <div class="absolute inset-0 rounded-full bg-[var(--border)] overflow-hidden">
-                    <div class="h-full bg-[var(--muted)]/30 transition-all duration-300"
-                        style={format!("width: {}%", buffered_pct)} />
+            // Slim 2px (hover 4px + 10px terracotta thumb) progress bar
+            <div class="group relative mb-3 flex h-4 w-full items-center">
+                <div class="relative h-[2px] w-full overflow-hidden rounded-full bg-[var(--border-strong,var(--border))] transition-[height] duration-150 group-hover:h-1">
+                    <div
+                        class="h-full bg-[var(--muted)]/25 transition-[width] duration-300"
+                        style={format!("width: {buffered_pct:.2}%")}
+                    />
+                    <div
+                        class="pointer-events-none absolute inset-y-0 left-0 bg-[var(--primary)]"
+                        style={format!("width: {progress_pct:.2}%")}
+                    />
                 </div>
-                // Played track
-                <div class="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
-                    <div class="h-full bg-[var(--primary)] transition-all"
-                        style={format!("width: {}%", progress_pct)} />
-                </div>
-                // Range input
-                <input type="range"
-                    min="0" max={dur.to_string()} step="0.1"
+                <div
+                    class="pointer-events-none absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--primary)] opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                    style={format!("left: {progress_pct:.2}%")}
+                    aria-hidden="true"
+                />
+                <input
+                    type="range"
+                    min="0"
+                    max={if dur.is_finite() && dur > 0.0 { dur.to_string() } else { "0".to_string() }}
+                    step="0.1"
                     value={ct.to_string()}
                     oninput={on_seek}
                     onmousedown={on_seek_start}
-                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                     aria-label="Seek"
                 />
             </div>
 
             // Controls row
             <div class="flex items-center gap-3">
-                // Play/Pause
-                <button onclick={toggle_play} type="button"
-                    class="w-10 h-10 rounded-full bg-[var(--primary)] text-white flex items-center justify-center hover:opacity-90 transition-opacity shrink-0"
-                    aria-label={if *playing { "Pause" } else { "Play" }}>
-                    <Icon name={if *playing { IconName::Pause } else { IconName::Play }} size={18} color="white" />
+                <button
+                    onclick={toggle_play}
+                    type="button"
+                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--primary)] text-[var(--on-primary,#FAF9F5)] transition-colors hover:bg-[var(--primary-hover,#B85735)]"
+                    aria-label={if *playing { "Pause" } else { "Play" }}
+                >
+                    <Icon name={if *playing { IconName::Pause } else { IconName::Play }} size={16} />
                 </button>
 
-                // Time display
-                <span class="text-xs text-[var(--muted)] tabular-nums whitespace-nowrap min-w-[80px]">
+                <span class="min-w-[88px] whitespace-nowrap font-mono text-xs tabular-nums text-[var(--muted)]">
                     {format!("{} / {}", format_time(ct), format_time(dur))}
                 </span>
 
                 <div class="flex-1" />
 
-                // Volume
-                <button onclick={toggle_mute} type="button"
-                    class="text-[var(--muted)] hover:text-[var(--text)] transition-colors"
-                    aria-label="Toggle mute">
-                    <Icon name={if *volume > 0.0 { IconName::Volume2 } else { IconName::VolumeX }} size={18} />
+                <button
+                    onclick={toggle_mute}
+                    type="button"
+                    class="text-[var(--muted)] transition-colors hover:text-[var(--text)]"
+                    aria-label="Toggle mute"
+                >
+                    <Icon name={if *volume > 0.0 { IconName::Volume2 } else { IconName::VolumeX }} size={16} />
                 </button>
-                <div class="w-20 hidden sm:block">
-                    <input type="range" min="0" max="1" step="0.01"
+                <div class="hidden w-20 sm:block">
+                    <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
                         value={volume.to_string()}
                         oninput={on_volume}
-                        class="w-full h-1 rounded-full appearance-none bg-[var(--border)] accent-[var(--primary)] cursor-pointer"
+                        class="h-[2px] w-full cursor-pointer appearance-none rounded-full bg-[var(--border-strong,var(--border))] accent-[var(--primary)]"
                         aria-label="Volume"
                     />
                 </div>

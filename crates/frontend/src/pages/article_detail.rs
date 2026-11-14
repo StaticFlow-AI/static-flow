@@ -10,9 +10,9 @@ use yew_router::prelude::{use_navigator, use_route, Link};
 
 use crate::{
     api::{
-        fetch_article_comment_stats, fetch_article_comments, fetch_article_view_trend,
-        fetch_related_articles, submit_article_comment, track_article_view, ArticleComment,
-        ArticleViewPoint, SubmitCommentRequest,
+        fetch_all_articles, fetch_article_comment_stats, fetch_article_comments,
+        fetch_article_view_trend, fetch_related_articles, submit_article_comment,
+        track_article_view, ArticleComment, ArticleViewPoint, SubmitCommentRequest,
     },
     components::{
         article_card::ArticleCard,
@@ -355,13 +355,13 @@ fn comment_avatar_initials(author_name: &str, avatar_seed: &str) -> String {
 }
 
 fn comment_avatar_style(seed: &str) -> String {
-    let base = avatar_hue(seed);
-    let accent = (base + 38) % 360;
-    let ring = (base + 184) % 360;
+    // Warm editorial earth & terracotta hues (12°..46°) so avatars stay calm on
+    // parchment/obsidian.
+    let warm_hue = 12 + (avatar_hue(seed) % 35);
+    let lightness = 36 + (avatar_hue(seed) % 10);
     format!(
-        "background: linear-gradient(136deg, hsl({base} 72% 38%), hsl({accent} 72% 52%)); \
-         box-shadow: inset 0 0 0 1px rgba(255,255,255,0.24), 0 0 0 1px hsl({ring} 46% 56% / \
-         0.28), 0 8px 16px rgba(10, 16, 30, 0.16);"
+        "background-color: hsl({warm_hue} 34% {lightness}%); border: 1px solid \
+         var(--border-strong);"
     )
 }
 
@@ -413,6 +413,7 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
     let loading = use_state(|| true);
     let related_articles = use_state(Vec::<ArticleListItem>::new);
     let related_loading = use_state(|| false);
+    let adjacent_articles = use_state(|| (None::<ArticleListItem>, None::<ArticleListItem>));
     let view_total = use_state(|| None::<usize>);
     let view_today = use_state(|| None::<u32>);
     let trend_points = use_state(Vec::<ArticleViewPoint>::new);
@@ -562,6 +563,28 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                         );
                         related_loading.set(false);
                     },
+                }
+            });
+            || ()
+        });
+    }
+
+    {
+        let adjacent_articles = adjacent_articles.clone();
+        let article_id = article_id.clone();
+        use_effect_with(article_id.clone(), move |id| {
+            let id = id.clone();
+            let adjacent_articles = adjacent_articles.clone();
+            adjacent_articles.set((None, None));
+            wasm_bindgen_futures::spawn_local(async move {
+                if let Ok(all) = fetch_all_articles(None, None).await {
+                    if let Some(pos) = all.iter().position(|item| item.id == id) {
+                        // `fetch_all_articles` is newest-first: `pos + 1` is older (previous),
+                        // `pos - 1` is newer (next).
+                        let prev_item = all.get(pos + 1).cloned();
+                        let next_item = pos.checked_sub(1).and_then(|idx| all.get(idx).cloned());
+                        adjacent_articles.set((prev_item, next_item));
+                    }
                 }
             });
             || ()
@@ -1543,13 +1566,23 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
     }
 
     let loading_view = html! {
-        <div class={classes!("mx-auto", "w-full", "max-w-[850px]", "px-4", "py-8")}>
+        <div class={classes!("mx-auto", "w-full", "max-w-[760px]", "px-6", "py-14")}>
             <SkeletonArticle />
         </div>
     };
 
     let is_overlay_open =
         *is_lightbox_open || *is_brief_open || *is_trend_open || *selection_modal_open;
+
+    let navigate_to_workshop = Callback::from(move |e: MouseEvent| {
+        e.prevent_default();
+        let workshop_url = crate::config::route_path("/#workshop");
+        if !crate::navigation_context::navigate_spa_to(&workshop_url) {
+            if let Some(win) = window() {
+                let _ = win.location().set_href(&workshop_url);
+            }
+        }
+    });
 
     let body = if *loading {
         loading_view
@@ -1590,63 +1623,59 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
         let zh_button_class = if *content_language == ArticleContentLanguage::Zh {
             classes!(
                 "rounded-full",
-                "border",
-                "border-[var(--primary)]",
                 "bg-[var(--primary)]",
-                "px-3",
+                "px-2.5",
                 "py-1",
-                "text-xs",
-                "font-semibold",
+                "font-mono",
+                "text-[0.6875rem]",
+                "font-medium",
                 "uppercase",
-                "tracking-[0.08em]",
-                "text-white"
+                "tracking-[0.06em]",
+                "text-[var(--on-primary)]",
+                "transition-colors"
             )
         } else {
             classes!(
                 "rounded-full",
-                "border",
-                "border-[var(--border)]",
-                "bg-[var(--surface)]",
-                "px-3",
+                "px-2.5",
                 "py-1",
-                "text-xs",
-                "font-semibold",
+                "font-mono",
+                "text-[0.6875rem]",
+                "font-medium",
                 "uppercase",
-                "tracking-[0.08em]",
+                "tracking-[0.06em]",
                 "text-[var(--muted)]",
-                "hover:border-[var(--primary)]",
-                "hover:text-[var(--primary)]"
+                "transition-colors",
+                "hover:text-[var(--text)]"
             )
         };
         let en_button_class = if *content_language == ArticleContentLanguage::En {
             classes!(
                 "rounded-full",
-                "border",
-                "border-[var(--primary)]",
                 "bg-[var(--primary)]",
-                "px-3",
+                "px-2.5",
                 "py-1",
-                "text-xs",
-                "font-semibold",
+                "font-mono",
+                "text-[0.6875rem]",
+                "font-medium",
                 "uppercase",
-                "tracking-[0.08em]",
-                "text-white"
+                "tracking-[0.06em]",
+                "text-[var(--on-primary)]",
+                "transition-colors"
             )
         } else {
             classes!(
                 "rounded-full",
-                "border",
-                "border-[var(--border)]",
-                "bg-[var(--surface)]",
-                "px-3",
+                "px-2.5",
                 "py-1",
-                "text-xs",
-                "font-semibold",
+                "font-mono",
+                "text-[0.6875rem]",
+                "font-medium",
                 "uppercase",
-                "tracking-[0.08em]",
+                "tracking-[0.06em]",
                 "text-[var(--muted)]",
-                "hover:border-[var(--primary)]",
-                "hover:text-[var(--primary)]"
+                "transition-colors",
+                "hover:text-[var(--text)]"
             )
         };
         let summary_title = if *content_language == ArticleContentLanguage::En {
@@ -1703,7 +1732,6 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
             || has_detailed_summary
             || can_export_markdown
             || has_interactive_mirror;
-        let show_side_actions_rail = show_article_actions && !is_overlay_open;
         let export_button_label = if *markdown_copied {
             if *content_language == ArticleContentLanguage::En {
                 "Copied"
@@ -1719,47 +1747,15 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
             if *markdown_copied { classes!("fas", "fa-check") } else { classes!("far", "fa-copy") };
         let export_button_class = if *markdown_copied {
             classes!(
-                "article-action-btn",
-                "inline-flex",
-                "items-center",
-                "justify-center",
-                "gap-2",
-                "rounded-full",
+                "sf-btn",
+                "sf-btn--sm",
                 "border",
-                "border-emerald-500/55",
-                "bg-emerald-500/14",
-                "px-3",
-                "py-2",
-                "text-xs",
-                "font-semibold",
-                "uppercase",
-                "tracking-[0.08em]",
-                "text-emerald-700",
-                "transition-[var(--transition-base)]",
-                "dark:text-emerald-200"
+                "border-[var(--ok)]/40",
+                "bg-[var(--ok-soft)]",
+                "text-[var(--ok)]"
             )
         } else {
-            classes!(
-                "article-action-btn",
-                "inline-flex",
-                "items-center",
-                "justify-center",
-                "gap-2",
-                "rounded-full",
-                "border",
-                "border-[var(--border)]",
-                "bg-[var(--surface)]",
-                "px-3",
-                "py-2",
-                "text-xs",
-                "font-semibold",
-                "uppercase",
-                "tracking-[0.08em]",
-                "text-[var(--muted)]",
-                "transition-[var(--transition-base)]",
-                "hover:border-[var(--primary)]",
-                "hover:text-[var(--primary)]"
-            )
+            classes!("sf-btn", "sf-btn--secondary", "sf-btn--sm")
         };
         let copy_markdown_click = {
             let markdown_copied = markdown_copied.clone();
@@ -1857,57 +1853,31 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
             let interactive_callout_dismissed = interactive_callout_dismissed.clone();
             Callback::from(move |_: MouseEvent| interactive_callout_dismissed.set(true))
         };
-        let render_article_actions = |side_rail: bool| -> Html {
-            let stack_class = if side_rail {
-                classes!(
-                    "article-actions-stack",
-                    "article-actions-stack-rail",
-                    "flex",
-                    "flex-col",
-                    "gap-2"
-                )
-            } else {
-                classes!(
-                    "article-actions-stack",
-                    "article-actions-stack-inline",
+        let render_article_actions = || -> Html {
+            html! {
+                <div class={classes!(
                     "flex",
                     "flex-wrap",
                     "items-center",
                     "gap-2"
-                )
-            };
-            let cta_row_class = if side_rail {
-                classes!("article-actions-cta-row", "flex", "flex-col", "gap-2")
-            } else {
-                classes!("article-actions-cta-row", "flex", "flex-wrap", "items-center", "gap-2")
-            };
-
-            html! {
-                <div class={stack_class}>
+                )}>
                     {
                         if show_language_toggle {
                             html! {
-                                <div class={classes!(
-                                    "article-language-toggle",
-                                    "inline-flex",
-                                    "items-center",
-                                    "gap-2",
-                                    "self-start",
-                                    "rounded-full",
-                                    "border",
-                                    "border-[var(--border)]",
-                                    "bg-[var(--surface)]",
-                                    "px-2",
-                                    "py-2"
-                                )}>
-                                    <span class={classes!(
-                                        "px-2",
-                                        "text-[0.72rem]",
-                                        "font-semibold",
-                                        "uppercase",
-                                        "tracking-[0.12em]",
-                                        "text-[var(--muted)]"
-                                    )}>{ t::LANG_SWITCH_LABEL }</span>
+                                <div
+                                    class={classes!(
+                                        "inline-flex",
+                                        "items-center",
+                                        "gap-0.5",
+                                        "rounded-full",
+                                        "border",
+                                        "border-[var(--border-strong)]",
+                                        "bg-[var(--surface)]",
+                                        "p-0.5"
+                                    )}
+                                    role="group"
+                                    aria-label={t::LANG_SWITCH_LABEL}
+                                >
                                     <button
                                         type="button"
                                         class={zh_button_class.clone()}
@@ -1938,166 +1908,318 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                             html! {}
                         }
                     }
-                    <div class={cta_row_class}>
-                        {
-                            if has_detailed_summary {
-                                html! {
-                                    <button
-                                        type="button"
-                                        class={classes!(
-                                            "article-action-btn",
-                                            "inline-flex",
-                                            "items-center",
-                                            "justify-center",
-                                            "gap-2",
-                                            "rounded-full",
-                                            "border",
-                                            "border-[var(--primary)]/45",
-                                            "bg-[var(--surface)]",
-                                            "px-3",
-                                            "py-2",
-                                            "text-xs",
-                                            "font-semibold",
-                                            "uppercase",
-                                            "tracking-[0.1em]",
-                                            "text-[var(--primary)]",
-                                            "transition-[var(--transition-base)]",
-                                            "hover:bg-[var(--primary)]",
-                                            "hover:text-white"
-                                        )}
-                                        onclick={open_brief_click.clone()}
-                                    >
-                                        <i class={classes!("fas", "fa-list-check")} aria-hidden="true"></i>
-                                        { brief_button_text }
-                                    </button>
-                                }
-                            } else {
-                                html! {}
+                    {
+                        if has_detailed_summary {
+                            html! {
+                                <button
+                                    type="button"
+                                    class={classes!("sf-btn", "sf-btn--secondary", "sf-btn--sm")}
+                                    onclick={open_brief_click.clone()}
+                                >
+                                    <i class={classes!("fas", "fa-list-check", "text-[11px]", "text-[var(--primary)]")} aria-hidden="true"></i>
+                                    { brief_button_text }
+                                </button>
                             }
+                        } else {
+                            html! {}
                         }
-                        {
-                            if has_interactive_mirror {
-                                html! {
-                                    <button
-                                        type="button"
-                                        class={classes!(
-                                            "article-action-btn",
-                                            "inline-flex",
-                                            "items-center",
-                                            "justify-center",
-                                            "gap-2",
-                                            "rounded-full",
-                                            "border",
-                                            "border-[var(--primary)]/35",
-                                            "bg-[var(--primary)]/10",
-                                            "px-3",
-                                            "py-2",
-                                            "text-xs",
-                                            "font-semibold",
-                                            "uppercase",
-                                            "tracking-[0.08em]",
-                                            "text-[var(--primary)]",
-                                            "transition-[var(--transition-base)]",
-                                            "hover:bg-[var(--primary)]",
-                                            "hover:text-white"
-                                        )}
-                                        onclick={open_interactive_click.clone()}
-                                    >
-                                        <i class={classes!("fas", "fa-laptop-code")} aria-hidden="true"></i>
-                                        { interactive_button_text }
-                                    </button>
-                                }
-                            } else {
-                                html! {}
+                    }
+                    {
+                        if has_interactive_mirror {
+                            html! {
+                                <button
+                                    type="button"
+                                    class={classes!(
+                                        "sf-btn",
+                                        "sf-btn--sm",
+                                        "border",
+                                        "border-[var(--primary)]/35",
+                                        "bg-[var(--primary-soft)]",
+                                        "text-[var(--primary)]",
+                                        "hover:bg-[var(--primary)]",
+                                        "hover:text-[var(--on-primary)]"
+                                    )}
+                                    onclick={open_interactive_click.clone()}
+                                >
+                                    <span class="font-mono text-[10px]" aria-hidden="true">{ "◆" }</span>
+                                    { interactive_button_text }
+                                </button>
                             }
+                        } else {
+                            html! {}
                         }
-                        {
-                            if can_export_markdown {
-                                html! {
-                                    <button
-                                        type="button"
-                                        class={classes!(
-                                            "article-action-btn",
-                                            "inline-flex",
-                                            "items-center",
-                                            "justify-center",
-                                            "gap-2",
-                                            "rounded-full",
-                                            "border",
-                                            "border-[var(--border)]",
-                                            "bg-[var(--surface)]",
-                                            "px-3",
-                                            "py-2",
-                                            "text-xs",
-                                            "font-semibold",
-                                            "uppercase",
-                                            "tracking-[0.08em]",
-                                            "text-[var(--muted)]",
-                                            "transition-[var(--transition-base)]",
-                                            "hover:border-[var(--primary)]",
-                                            "hover:text-[var(--primary)]"
-                                        )}
-                                        onclick={open_raw_markdown_click.clone()}
-                                    >
-                                        <i class={classes!("far", "fa-file-lines")} aria-hidden="true"></i>
-                                        { raw_markdown_button_text }
-                                    </button>
-                                }
-                            } else {
-                                html! {}
+                    }
+                    {
+                        if can_export_markdown {
+                            html! {
+                                <button
+                                    type="button"
+                                    class={classes!("sf-btn", "sf-btn--secondary", "sf-btn--sm")}
+                                    onclick={open_raw_markdown_click.clone()}
+                                >
+                                    <i class={classes!("far", "fa-file-lines", "text-[11px]")} aria-hidden="true"></i>
+                                    { raw_markdown_button_text }
+                                </button>
                             }
+                        } else {
+                            html! {}
                         }
-                        {
-                            if can_export_markdown {
-                                html! {
-                                    <button
-                                        type="button"
-                                        class={export_button_class.clone()}
-                                        onclick={copy_markdown_click.clone()}
-                                    >
-                                        <i class={export_button_icon.clone()} aria-hidden="true"></i>
-                                        { export_button_label }
-                                    </button>
-                                }
-                            } else {
-                                html! {}
+                    }
+                    {
+                        if can_export_markdown {
+                            html! {
+                                <button
+                                    type="button"
+                                    class={export_button_class.clone()}
+                                    onclick={copy_markdown_click.clone()}
+                                >
+                                    <i class={classes!(export_button_icon.clone(), "text-[11px]")} aria-hidden="true"></i>
+                                    { export_button_label }
+                                </button>
                             }
+                        } else {
+                            html! {}
                         }
-                    </div>
+                    }
                 </div>
             }
         };
 
+        let (prev_article, next_article) = (*adjacent_articles).clone();
+        let has_summary_lead = !article.summary.trim().is_empty();
+
         html! {
-            <section class={classes!(
-                "article-layout-shell",
-                show_side_actions_rail.then_some("article-layout-shell--with-side-actions")
-            )}>
-                {
-                    if show_side_actions_rail {
-                        html! {
-                            <aside class={classes!("article-side-actions-rail")} aria-label="Article Actions">
-                                { render_article_actions(true) }
-                            </aside>
-                        }
-                    } else {
-                        html! {}
-                    }
-                }
+            <section class={classes!("article-layout-shell")}>
                 <div class={classes!("article-main-column")}>
                     <article class={classes!(
                         "article-detail",
-                        "bg-[var(--surface)]",
-                        "border",
-                        "border-[var(--border)]",
-                        "rounded-[var(--radius)]",
-                        "shadow-[var(--shadow)]",
-                        "p-8",
-                        "my-8",
                         "mx-auto",
-                        "sm:p-4",
-                        "sm:my-5"
+                        "w-full",
+                        "pb-16",
+                        "pt-10",
+                        "md:pt-16"
                     )}>
+                        // Anthropic Research Paper / Long-form Header
+                        <header class={classes!(
+                            "mx-auto",
+                            "w-full",
+                            "max-w-[760px]",
+                            "fade-in"
+                        )}>
+                            <div
+                                class={classes!(
+                                    "flex",
+                                    "flex-wrap",
+                                    "items-center",
+                                    "gap-x-2.5",
+                                    "gap-y-1.5",
+                                    "font-mono",
+                                    "text-[0.75rem]",
+                                    "tabular-nums",
+                                    "uppercase",
+                                    "tracking-[0.08em]",
+                                    "text-[var(--faint)]"
+                                )}
+                                aria-label={t::ARTICLE_META_ARIA}
+                            >
+                                <Link<Route>
+                                    to={Route::CategoryDetail { category: article.category.clone() }}
+                                    classes={classes!(
+                                        "font-semibold",
+                                        "text-[var(--muted)]",
+                                        "no-underline",
+                                        "transition-colors",
+                                        "hover:text-[var(--primary)]"
+                                    )}
+                                >
+                                    { article.category.clone() }
+                                </Link<Route>>
+                                <span aria-hidden="true">{ "·" }</span>
+                                <time>{ article.date.clone() }</time>
+                                <span aria-hidden="true">{ "·" }</span>
+                                <span>{ fill_one(t::READ_TIME_TEMPLATE, article.read_time) }</span>
+                                <span aria-hidden="true">{ "·" }</span>
+                                <span>{ fill_one(t::WORD_COUNT_TEMPLATE, word_count) }</span>
+                                <span aria-hidden="true">{ "·" }</span>
+                                <span>
+                                    {
+                                        if let Some(total) = *view_total {
+                                            fill_one(t::VIEW_COUNT_TEMPLATE, total)
+                                        } else {
+                                            t::VIEW_COUNT_LOADING.to_string()
+                                        }
+                                    }
+                                </span>
+                                {
+                                    if has_interactive_mirror {
+                                        html! {
+                                            <span class={classes!(
+                                                "inline-flex",
+                                                "items-center",
+                                                "gap-1",
+                                                "rounded-full",
+                                                "bg-[var(--primary-soft)]",
+                                                "px-2.5",
+                                                "py-0.5",
+                                                "font-mono",
+                                                "text-[0.6875rem]",
+                                                "font-medium",
+                                                "uppercase",
+                                                "tracking-[0.06em]",
+                                                "text-[var(--primary)]"
+                                            )}>
+                                                { "◆ Interactive" }
+                                            </span>
+                                        }
+                                    } else {
+                                        html! {}
+                                    }
+                                }
+                            </div>
+
+                            <h1 class={classes!(
+                                "m-0",
+                                "mt-4",
+                                "font-serif",
+                                "font-normal",
+                                "text-[clamp(2rem,1.45rem+2.3vw,3.35rem)]",
+                                "leading-[1.12]",
+                                "tracking-[-0.02em]",
+                                "text-[var(--text)]",
+                                "[text-wrap:balance]"
+                            )}>
+                                { article.title.clone() }
+                            </h1>
+
+                            {
+                                if has_summary_lead {
+                                    html! {
+                                        <p class={classes!(
+                                            "m-0",
+                                            "mt-5",
+                                            "font-serif",
+                                            "italic",
+                                            "text-[1.125rem]",
+                                            "sm:text-[1.25rem]",
+                                            "leading-[1.62]",
+                                            "text-[var(--muted)]"
+                                        )}>
+                                            { article.summary.clone() }
+                                        </p>
+                                    }
+                                } else {
+                                    html! {}
+                                }
+                            }
+
+                            <div class={classes!(
+                                "mt-6",
+                                "flex",
+                                "flex-wrap",
+                                "items-center",
+                                "justify-between",
+                                "gap-x-6",
+                                "gap-y-3"
+                            )}>
+                                <div class={classes!(
+                                    "flex",
+                                    "flex-wrap",
+                                    "items-center",
+                                    "gap-x-3",
+                                    "gap-y-1.5",
+                                    "text-[0.875rem]",
+                                    "text-[var(--muted)]"
+                                )}>
+                                    <span class={classes!("font-medium", "text-[var(--text-2)]")}>
+                                        { article.author.clone() }
+                                    </span>
+                                    {
+                                        if let Some(source_url) = article
+                                            .source_url
+                                            .clone()
+                                            .filter(|value| !value.trim().is_empty())
+                                        {
+                                            html! {
+                                                <>
+                                                    <span class="text-[var(--faint)]" aria-hidden="true">{ "·" }</span>
+                                                    <a
+                                                        href={source_url}
+                                                        target="_blank"
+                                                        rel="noreferrer noopener"
+                                                        class={classes!(
+                                                            "sf-link",
+                                                            "inline-flex",
+                                                            "items-center",
+                                                            "gap-1.5",
+                                                            "font-mono",
+                                                            "text-[0.75rem]",
+                                                            "text-[var(--muted)]",
+                                                            "hover:text-[var(--primary)]"
+                                                        )}
+                                                    >
+                                                        { t::SOURCE_LINK_TEXT }
+                                                        <i class={classes!("fas", "fa-arrow-up-right-from-square", "text-[10px]")} aria-hidden="true"></i>
+                                                    </a>
+                                                </>
+                                            }
+                                        } else {
+                                            html! {}
+                                        }
+                                    }
+                                    {
+                                        if !article.tags.is_empty() {
+                                            html! {
+                                                <div class={classes!("flex", "flex-wrap", "items-center", "gap-2")}>
+                                                    <span class="text-[var(--faint)]" aria-hidden="true">{ "·" }</span>
+                                                    { for article.tags.iter().take(4).map(|tag| {
+                                                        html! {
+                                                            <Link<Route>
+                                                                to={Route::TagDetail { tag: tag.to_string() }}
+                                                                classes={classes!(
+                                                                    "font-mono",
+                                                                    "text-[0.75rem]",
+                                                                    "text-[var(--faint)]",
+                                                                    "no-underline",
+                                                                    "transition-colors",
+                                                                    "hover:text-[var(--primary)]"
+                                                                )}
+                                                            >
+                                                                { format!("#{}", tag) }
+                                                            </Link<Route>>
+                                                        }
+                                                    }) }
+                                                </div>
+                                            }
+                                        } else {
+                                            html! {}
+                                        }
+                                    }
+                                </div>
+
+                                {
+                                    if show_article_actions {
+                                        html! {
+                                            <div class={classes!("flex", "items-center")}>
+                                                { render_article_actions() }
+                                            </div>
+                                        }
+                                    } else {
+                                        html! {}
+                                    }
+                                }
+                            </div>
+
+                            <hr class={classes!(
+                                "sf-rule",
+                                "my-8",
+                                "md:my-10",
+                                "border-0",
+                                "border-t",
+                                "border-[var(--border)]"
+                            )} />
+                        </header>
+
+                        // Cover image placed cleanly below the 1px divider
                         {
                             if let Some(image) = article.featured_image.clone() {
                                 let image_src = image_url(&image);
@@ -2109,18 +2231,20 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                     })
                                 };
                                 html! {
-                                    <div class={classes!(
-                                        "-mx-8",
-                                        "-mt-8",
-                                        "mb-6",
-                                        "rounded-t-[calc(var(--radius)-2px)]",
+                                    <figure class={classes!(
+                                        "mx-0",
+                                        "mb-10",
+                                        "md:mb-12",
+                                        "mx-auto",
+                                        "w-full",
+                                        "max-w-[960px]",
                                         "overflow-hidden",
-                                        "max-h-[420px]",
+                                        "rounded-[12px]",
+                                        "border",
+                                        "border-[var(--border)]",
+                                        "bg-[var(--surface-alt)]",
                                         "relative",
-                                        "group",
-                                        "sm:-mx-4",
-                                        "sm:-mt-4",
-                                        "sm:mb-4"
+                                        "group"
                                     )}>
                                         <ImageWithLoading
                                             src={image_src.clone()}
@@ -2129,700 +2253,800 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                             onclick={Some(open_featured_preview.clone())}
                                             class={classes!(
                                                 "w-full",
-                                                "h-full",
+                                                "max-h-[520px]",
                                                 "object-cover",
                                                 "block",
                                                 "cursor-zoom-in"
                                             )}
-                                            container_class={classes!("w-full", "h-full")}
+                                            container_class={classes!("w-full")}
                                         />
                                         <button
                                             type="button"
                                             class={classes!(
                                                 "hidden",
                                                 "md:inline-flex",
+                                                "items-center",
+                                                "gap-1.5",
                                                 "absolute",
-                                                "bottom-4",
-                                                "right-4",
+                                                "bottom-3.5",
+                                                "right-3.5",
                                                 "rounded-full",
-                                                "bg-black/70",
-                                                "px-4",
-                                                "py-2",
-                                                "text-sm",
-                                                "text-white",
-                                                "backdrop-blur",
-                                                "hover:bg-black/80",
-                                                "dark:bg-white/20",
-                                                "dark:text-white"
+                                                "border",
+                                                "border-[var(--border-strong)]",
+                                                "bg-[var(--surface)]/92",
+                                                "px-3.5",
+                                                "py-1.5",
+                                                "font-mono",
+                                                "text-[0.75rem]",
+                                                "text-[var(--text)]",
+                                                "opacity-0",
+                                                "backdrop-blur-sm",
+                                                "transition-opacity",
+                                                "duration-150",
+                                                "group-hover:opacity-100",
+                                                "hover:border-[var(--primary)]",
+                                                "hover:text-[var(--primary)]"
                                             )}
                                             onclick={open_featured_preview}
                                         >
                                             { t::VIEW_ORIGINAL_IMAGE }
                                         </button>
-                                    </div>
+                                    </figure>
                                 }
                             } else {
                                 html! {}
                             }
                         }
 
-                        {
-                            if show_article_actions {
-                                html! {
-                                    <div class={classes!("article-inline-actions")}>
-                                        { render_article_actions(false) }
-                                    </div>
-                                }
-                            } else {
-                                html! {}
-                            }
-                        }
-
-                        <header class={classes!(
-                            "flex",
-                            "flex-col",
-                            "gap-3",
-                            "mb-7",
-                            "pb-6",
-                            "border-b",
-                            "border-[color-mix(in_srgb,var(--border)_70%,transparent)]",
-                            "fade-in"
-                        )}>
-                            <Link<Route>
-                                to={Route::CategoryDetail { category: article.category.clone() }}
-                                classes={classes!(
-                                    "m-0",
-                                    "self-start",
-                                    "inline-flex",
-                                    "items-center",
-                                    "gap-[0.4rem]",
-                                    "uppercase",
-                                    "font-mono",
-                                    "text-[0.72rem]",
-                                    "font-semibold",
-                                    "tracking-[0.14em]",
-                                    "text-[var(--primary)]",
-                                    "no-underline",
-                                    "cursor-pointer",
-                                    "transition-colors",
-                                    "hover:text-[var(--link)]"
-                                )}
-                            >
-                                <span class="w-1.5 h-1.5 rounded-full bg-[var(--primary)]" aria-hidden="true"></span>
-                                { article.category.clone() }
-                            </Link<Route>>
-                            <h1 class={classes!(
-                                "m-0",
-                                "text-[1.7rem]",
-                                "sm:text-[2.05rem]",
-                                "lg:text-[2.35rem]",
-                                "font-bold",
-                                "leading-[1.2]",
-                                "tracking-[-0.028em]",
-                                "text-[var(--text)]",
-                                "[text-wrap:balance]"
-                            )}>
-                                { article.title.clone() }
-                            </h1>
-                            <div class={classes!(
-                                "flex",
-                                "flex-wrap",
-                                "gap-x-4",
-                                "gap-y-1.5",
-                                "text-[0.85rem]",
-                                "text-[var(--muted)]"
-                            )} aria-label={t::ARTICLE_META_ARIA}>
-                                <span class={classes!(
-                                    "inline-flex",
-                                    "items-center",
-                                    "gap-[0.35rem]"
-                                )}>
-                                    <i class={classes!("fas", "fa-user-circle")} aria-hidden="true"></i>
-                                    { article.author.clone() }
-                                </span>
-                                <span class={classes!(
-                                    "inline-flex",
-                                    "items-center",
-                                    "gap-[0.35rem]"
-                                )}>
-                                    <i class={classes!("far", "fa-calendar-alt")} aria-hidden="true"></i>
-                                    { article.date.clone() }
-                                </span>
-                                <Link<Route>
-                                    to={Route::CategoryDetail { category: article.category.clone() }}
-                                    classes={classes!(
-                                        "inline-flex",
-                                        "items-center",
-                                        "gap-[0.35rem]"
-                                    )}
-                                >
-                                    <i class={classes!("far", "fa-folder-open")} aria-hidden="true"></i>
-                                    { article.category.clone() }
-                                </Link<Route>>
-                                <span class={classes!(
-                                    "inline-flex",
-                                    "items-center",
-                                    "gap-[0.35rem]"
-                                )}>
-                                    <i class={classes!("far", "fa-file-alt")} aria-hidden="true"></i>
-                                    { fill_one(t::WORD_COUNT_TEMPLATE, word_count) }
-                                </span>
-                                <span class={classes!(
-                                    "inline-flex",
-                                    "items-center",
-                                    "gap-[0.35rem]"
-                                )}>
-                                    <i class={classes!("far", "fa-clock")} aria-hidden="true"></i>
-                                    { fill_one(t::READ_TIME_TEMPLATE, article.read_time) }
-                                </span>
-                                <span class={classes!(
-                                    "inline-flex",
-                                    "items-center",
-                                    "gap-[0.35rem]"
-                                )}>
-                                    <i class={classes!("far", "fa-eye")} aria-hidden="true"></i>
-                                    {
-                                        if let Some(total) = *view_total {
-                                            fill_one(t::VIEW_COUNT_TEMPLATE, total)
-                                        } else {
-                                            t::VIEW_COUNT_LOADING.to_string()
-                                        }
-                                    }
-                                </span>
-                                {
-                                    if let Some(source_url) = article
-                                        .source_url
-                                        .clone()
-                                        .filter(|value| !value.trim().is_empty())
-                                    {
-                                        html! {
-                                            <a
-                                                href={source_url}
-                                                target="_blank"
-                                                rel="noreferrer noopener"
-                                                class={classes!(
+                        // Reading Column: Inline Interactive Banner + Prose Body
+                        <div class={classes!("mx-auto", "w-full", "max-w-[720px]")}>
+                            {
+                                if show_interactive_callout {
+                                    html! {
+                                        <aside
+                                            class={classes!(
+                                                "mb-8",
+                                                "flex",
+                                                "flex-wrap",
+                                                "items-center",
+                                                "justify-between",
+                                                "gap-3",
+                                                "rounded-[10px]",
+                                                "border",
+                                                "border-[var(--border-strong)]",
+                                                "border-l-2",
+                                                "border-l-[var(--primary)]",
+                                                "bg-[var(--surface-alt)]",
+                                                "px-4",
+                                                "py-3.5"
+                                            )}
+                                            role="note"
+                                        >
+                                            <div class={classes!("flex", "flex-1", "flex-wrap", "items-center", "gap-2.5", "min-w-[220px]")}>
+                                                <span class={classes!(
                                                     "inline-flex",
                                                     "items-center",
-                                                    "gap-[0.35rem]"
-                                                )}
-                                            >
-                                                <i class={classes!("fas", "fa-arrow-up-right-from-square")} aria-hidden="true"></i>
-                                                { t::SOURCE_LINK_TEXT }
-                                            </a>
-                                        }
-                                    } else {
-                                        html! {}
-                                    }
-                                }
-                            </div>
-                        </header>
-
-                        {
-                            if show_interactive_callout {
-                                html! {
-                                    <aside class="sf-interactive-callout" role="note">
-                                        <span class="sf-interactive-callout__icon" aria-hidden="true">
-                                            <i class="fas fa-wand-magic-sparkles"></i>
-                                        </span>
-                                        <p class="sf-interactive-callout__text">
-                                            <span class="sf-interactive-callout__badge">{ t::INTERACTIVE_ALERT_BADGE }</span>
-                                            <span class="sf-interactive-callout__hint">{ interactive_callout_hint }</span>
-                                        </p>
-                                        {
-                                            if let Some(href) = interactive_callout_href.clone() {
-                                                html! {
-                                                    <a class="sf-interactive-callout__cta" href={href}>
-                                                        { interactive_callout_cta }
-                                                        <i class="fas fa-arrow-right" aria-hidden="true"></i>
-                                                    </a>
+                                                    "gap-1",
+                                                    "rounded-full",
+                                                    "bg-[var(--primary-soft)]",
+                                                    "px-2.5",
+                                                    "py-0.5",
+                                                    "font-mono",
+                                                    "text-[0.6875rem]",
+                                                    "font-medium",
+                                                    "uppercase",
+                                                    "tracking-[0.06em]",
+                                                    "text-[var(--primary)]"
+                                                )}>
+                                                    { format!("◆ {}", t::INTERACTIVE_ALERT_BADGE) }
+                                                </span>
+                                                <span class={classes!("text-[0.875rem]", "leading-relaxed", "text-[var(--text-2)]")}>
+                                                    { interactive_callout_hint }
+                                                </span>
+                                            </div>
+                                            <div class={classes!("flex", "items-center", "gap-2")}>
+                                                {
+                                                    if let Some(href) = interactive_callout_href.clone() {
+                                                        html! {
+                                                            <a
+                                                                class={classes!("sf-btn", "sf-btn--primary", "sf-btn--sm", "no-underline")}
+                                                                href={href}
+                                                            >
+                                                                { interactive_callout_cta }
+                                                                <span aria-hidden="true">{ "→" }</span>
+                                                            </a>
+                                                        }
+                                                    } else {
+                                                        html! {}
+                                                    }
                                                 }
-                                            } else {
-                                                html! {}
-                                            }
-                                        }
-                                        <button
-                                            type="button"
-                                            class="sf-interactive-callout__close"
-                                            aria-label={interactive_callout_dismiss}
-                                            title={interactive_callout_dismiss}
-                                            onclick={dismiss_interactive_callout_click.clone()}
-                                        >
-                                            <i class="fas fa-xmark" aria-hidden="true"></i>
-                                        </button>
-                                    </aside>
-                                }
-                            } else {
-                                html! {}
-                            }
-                        }
-
-                        <section
-                            key={markdown_render_key.clone()}
-                            ref={article_content_ref.clone()}
-                            class={classes!("article-content")}
-                            aria-label={t::ARTICLE_BODY_ARIA}
-                            onmouseup={on_article_mouseup.clone()}
-                        />
-
-                        <footer class={classes!(
-                            "mt-8",
-                            "border-t",
-                            "border-[var(--border)]",
-                            "pt-5"
-                        )}>
-                            <h2 class={classes!(
-                                "m-0",
-                                "mb-3",
-                                "text-[1rem]",
-                                "text-[var(--muted)]",
-                                "tracking-[0.15em]",
-                                "uppercase"
-                            )}>{ t::TAGS_TITLE }</h2>
-                            <ul class={classes!(
-                                "list-none",
-                                "flex",
-                                "flex-wrap",
-                                "gap-2",
-                                "m-0",
-                                "p-0"
-                            )}>
-                                { for article.tags.iter().map(|tag| {
-                                    html! {
-                                        <li>
-                                            <Link<Route>
-                                                to={Route::TagDetail { tag: tag.to_string() }}
-                                                classes={classes!(
-                                                    "py-[0.4rem]",
-                                                    "px-[1.1rem]",
-                                                    "border",
-                                                    "border-[var(--border)]",
-                                                    "rounded-[6px]",
-                                                    "text-[0.9rem]",
-                                                    "text-[var(--muted)]",
-                                                    "bg-[var(--surface)]",
-                                                    "transition-[background-color_0.2s_var(--ease-spring),color_0.2s_var(--ease-spring),border-color_0.2s_var(--ease-spring)]",
-                                                    "hover:bg-[var(--primary)]",
-                                                    "hover:border-[var(--primary)]",
-                                                    "hover:text-white"
-                                                )}
-                                            >
-                                                { format!("#{}", tag) }
-                                            </Link<Route>>
-                                        </li>
-                                    }
-                                }) }
-                            </ul>
-                        </footer>
-
-                        <section class={classes!(
-                            "mt-10",
-                            "pt-6",
-                            "border-t",
-                            "border-[var(--border)]"
-                        )}>
-                            <h2 class={classes!(
-                                "m-0",
-                                "mb-4",
-                                "text-[1.1rem]",
-                                "text-[var(--muted)]",
-                                "tracking-[0.15em]",
-                                "uppercase"
-                            )}>{ t::RELATED_TITLE }</h2>
-                            if *related_loading {
-                                <div class={classes!(
-                                    "flex",
-                                    "items-center",
-                                    "gap-2",
-                                    "text-[var(--muted)]"
-                                )}>
-                                    <LoadingSpinner size={SpinnerSize::Small} />
-                                    <span>{ t::RELATED_LOADING }</span>
-                                </div>
-                            } else if related_articles.is_empty() {
-                                <p class={classes!("text-[var(--muted)]", "m-0")}>
-                                    { t::NO_RELATED }
-                                </p>
-                            } else {
-                                <div class={classes!(
-                                    "grid",
-                                    "gap-5",
-                                    "md:grid-cols-2"
-                                )}>
-                                    { for related_articles.iter().map(|article| {
-                                        html! { <ArticleCard key={article.id.clone()} article={article.clone()} /> }
-                                    }) }
-                                </div>
-                            }
-                        </section>
-
-                        <section
-                            id={COMMENT_SECTION_ID}
-                            class={classes!(
-                                "mt-10",
-                                "pt-6",
-                                "border-t",
-                                "border-[var(--border)]",
-                                "flex",
-                                "flex-col",
-                                "gap-4"
-                            )}
-                        >
-                            <div class={classes!("flex", "items-start", "justify-between", "gap-3", "flex-wrap")}>
-                                <div>
-                                    <h2 class={classes!(
-                                        "m-0",
-                                        "text-[1.1rem]",
-                                        "text-[var(--muted)]",
-                                        "tracking-[0.15em]",
-                                        "uppercase"
-                                    )}>{ "评论区" }</h2>
-                                    <p class={classes!("m-0", "mt-1", "text-sm", "text-[var(--muted)]")}>
-                                        { format!("当前评论 {} 条", *comments_total) }
-                                    </p>
-                                </div>
-                                <button
-                                    type="button"
-                                    class={classes!(
-                                        "article-action-btn",
-                                        "inline-flex",
-                                        "items-center",
-                                        "justify-center",
-                                        "gap-2",
-                                        "rounded-full",
-                                        "border",
-                                        "border-[var(--border)]",
-                                        "bg-[var(--surface)]",
-                                        "px-3",
-                                        "py-2",
-                                        "text-xs",
-                                        "font-semibold",
-                                        "uppercase",
-                                        "tracking-[0.08em]",
-                                        "text-[var(--muted)]",
-                                        "transition-[var(--transition-base)]",
-                                        "hover:border-[var(--primary)]",
-                                        "hover:text-[var(--primary)]"
-                                    )}
-                                    onclick={refresh_comments_click}
-                                >
-                                    <i class={classes!("fas", "fa-rotate-right")} aria-hidden="true"></i>
-                                    { "刷新评论" }
-                                </button>
-                            </div>
-
-                            {
-                                if let Some((is_success, message)) = (*selection_submit_feedback).clone() {
-                                    let status_class = if is_success {
-                                        classes!(
-                                            "rounded-[var(--radius)]",
-                                            "border",
-                                            "border-emerald-500/35",
-                                            "bg-emerald-500/10",
-                                            "px-3",
-                                            "py-2",
-                                            "text-sm",
-                                            "text-emerald-700",
-                                            "dark:text-emerald-200"
-                                        )
-                                    } else {
-                                        classes!(
-                                            "rounded-[var(--radius)]",
-                                            "border",
-                                            "border-red-400/45",
-                                            "bg-red-500/10",
-                                            "px-3",
-                                            "py-2",
-                                            "text-sm",
-                                            "text-red-700",
-                                            "dark:text-red-200"
-                                        )
-                                    };
-                                    html! {
-                                        <p class={status_class}>{ message }</p>
+                                                <button
+                                                    type="button"
+                                                    class={classes!(
+                                                        "inline-flex",
+                                                        "h-7",
+                                                        "w-7",
+                                                        "items-center",
+                                                        "justify-center",
+                                                        "rounded-full",
+                                                        "text-[var(--faint)]",
+                                                        "transition-colors",
+                                                        "hover:bg-[var(--surface)]",
+                                                        "hover:text-[var(--text)]"
+                                                    )}
+                                                    aria-label={interactive_callout_dismiss}
+                                                    title={interactive_callout_dismiss}
+                                                    onclick={dismiss_interactive_callout_click.clone()}
+                                                >
+                                                    <i class="fas fa-xmark text-xs" aria-hidden="true"></i>
+                                                </button>
+                                            </div>
+                                        </aside>
                                     }
                                 } else {
                                     html! {}
                                 }
                             }
 
-                            <div class={classes!(
-                                "rounded-[var(--radius)]",
-                                "border",
-                                "border-[var(--border)]",
-                                "bg-[var(--surface-alt)]",
-                                "p-4",
-                                "flex",
-                                "flex-col",
-                                "gap-3"
-                            )}>
-                                <label class={classes!(
-                                    "text-sm",
-                                    "font-semibold",
-                                    "text-[var(--text)]"
-                                )}>
-                                    { "发表评论（文末入口）" }
-                                </label>
-                                if let Some(reply_target) = (*footer_reply_target).clone() {
-                                    <div class={classes!(
-                                        "rounded-[var(--radius)]",
-                                        "border",
-                                        "border-[var(--border)]",
-                                        "bg-[var(--surface)]",
-                                        "px-3",
-                                        "py-2",
-                                        "text-sm",
-                                        "flex",
-                                        "flex-col",
-                                        "gap-2"
-                                    )}>
-                                        <div class={classes!("flex", "items-center", "justify-between", "gap-2", "flex-wrap")}>
-                                            <p class={classes!("m-0", "text-xs", "uppercase", "tracking-[0.08em]", "text-[var(--muted)]")}>
-                                                { format!("正在引用：{}", reply_target.author_name) }
-                                            </p>
-                                            <button
-                                                type="button"
-                                                class={classes!("btn-fluent-secondary", "!px-2", "!py-1", "!text-xs")}
-                                                onclick={clear_footer_reply_target.clone()}
-                                            >
-                                                { "取消引用" }
-                                            </button>
-                                        </div>
-                                        <p class={classes!("m-0", "text-sm", "text-[var(--text)]")}>{ reply_target.comment_text.clone() }</p>
-                                        if let Some(ai_reply) = reply_target.ai_reply_markdown {
-                                            <p class={classes!("m-0", "text-xs", "text-[var(--muted)]")}>
-                                                { format!("引用 AI 回复：{}", ai_reply.chars().take(140).collect::<String>()) }
-                                            </p>
-                                        }
-                                    </div>
-                                }
-                                <textarea
-                                    class={classes!(
-                                        "comment-compose-textarea"
-                                    )}
-                                    placeholder={"写下你对本文的疑问、勘误或补充建议..."}
-                                    value={(*footer_comment_input).clone()}
-                                    oninput={on_footer_comment_input}
-                                />
-                                <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
-                                    {
-                                        if let Some((is_success, message)) = (*footer_submit_feedback).clone() {
-                                            let status_class = if is_success {
-                                                classes!("text-sm", "text-emerald-700", "dark:text-emerald-200")
-                                            } else {
-                                                classes!("text-sm", "text-red-700", "dark:text-red-200")
-                                            };
-                                            html! { <span class={status_class}>{ message }</span> }
-                                        } else {
-                                            html! { <span class={classes!("text-sm", "text-[var(--muted)]")}>{ "每个用户每分钟最多提交 1 条评论。" }</span> }
-                                        }
-                                    }
-                                    <button
-                                        type="button"
-                                        class={classes!(
-                                            "btn-fluent-primary",
-                                            "px-4",
-                                            "py-2"
-                                        )}
-                                        onclick={submit_footer_comment_click}
-                                        disabled={*footer_submit_loading}
-                                    >
-                                        {
-                                            if *footer_submit_loading {
-                                                "提交中..."
-                                            } else {
-                                                "提交评论"
-                                            }
-                                        }
-                                    </button>
-                                </div>
-                            </div>
+                            <section
+                                key={markdown_render_key.clone()}
+                                ref={article_content_ref.clone()}
+                                class={classes!("article-content", "prose")}
+                                aria-label={t::ARTICLE_BODY_ARIA}
+                                onmouseup={on_article_mouseup.clone()}
+                            />
+                        </div>
 
+                        // End-of-article Footer, Prev/Next, Related, Comments & Workshop Link
+                        <div class={classes!("mx-auto", "mt-14", "w-full", "max-w-[760px]")}>
                             {
-                                if *comments_loading {
+                                if !article.tags.is_empty() {
                                     html! {
-                                        <div class={classes!(
-                                            "rounded-[var(--radius)]",
-                                            "border",
-                                            "border-[var(--border)]",
-                                            "bg-[var(--surface)]",
-                                            "px-4",
-                                            "py-6",
-                                            "text-sm",
-                                            "text-[var(--muted)]",
-                                            "inline-flex",
-                                            "items-center",
-                                            "gap-2"
-                                        )}>
-                                            <LoadingSpinner size={SpinnerSize::Small} />
-                                            <span>{ "评论加载中..." }</span>
-                                        </div>
-                                    }
-                                } else if let Some(error) = (*comments_error).clone() {
-                                    html! {
-                                        <p class={classes!(
-                                            "m-0",
-                                            "rounded-[var(--radius)]",
-                                            "border",
-                                            "border-red-400/45",
-                                            "bg-red-500/10",
-                                            "px-3",
-                                            "py-2",
-                                            "text-sm",
-                                            "text-red-700",
-                                            "dark:text-red-200"
-                                        )}>
-                                            { error }
-                                        </p>
-                                    }
-                                } else if comments.is_empty() {
-                                    html! {
-                                        <p class={classes!("m-0", "text-sm", "text-[var(--muted)]")}>
-                                            { "暂无评论，欢迎成为第一个留言的人。" }
-                                        </p>
+                                        <footer class={classes!("border-t", "border-[var(--border)]", "pt-6")}>
+                                            <div class={classes!("flex", "flex-wrap", "items-center", "gap-2")}>
+                                                <span class={classes!(
+                                                    "mr-1",
+                                                    "font-mono",
+                                                    "text-[0.6875rem]",
+                                                    "uppercase",
+                                                    "tracking-[0.08em]",
+                                                    "text-[var(--faint)]"
+                                                )}>
+                                                    { t::TAGS_TITLE }
+                                                </span>
+                                                { for article.tags.iter().map(|tag| {
+                                                    html! {
+                                                        <Link<Route>
+                                                            to={Route::TagDetail { tag: tag.to_string() }}
+                                                            classes={classes!("sf-chip", "no-underline")}
+                                                        >
+                                                            { format!("#{}", tag) }
+                                                        </Link<Route>>
+                                                    }
+                                                }) }
+                                            </div>
+                                        </footer>
                                     }
                                 } else {
-                                    html! {
-                                        <div class={classes!("comment-thread-list")}>
-                                            { for comments.iter().map(|comment| {
-                                                let anchor_block_id = comment.anchor_block_id.clone();
-                                                let selected_text = comment.selected_text.clone();
-                                                let reply_to_comment_id = comment.reply_to_comment_id.clone();
-                                                let reply_to_comment_text = comment.reply_to_comment_text.clone();
-                                                let reply_to_ai_reply_markdown = comment.reply_to_ai_reply_markdown.clone();
-                                                let jump_quote_click = {
-                                                    let anchor_block_id = anchor_block_id.clone();
-                                                    Callback::from(move |_| {
-                                                        if let Some(block_id) = anchor_block_id.clone() {
-                                                            scroll_to_anchor_block(&block_id);
-                                                        }
-                                                    })
-                                                };
-                                                let jump_reply_comment_click = {
-                                                    let reply_to_comment_id = reply_to_comment_id.clone();
-                                                    Callback::from(move |_| {
-                                                        if let Some(comment_id) = reply_to_comment_id.clone() {
-                                                            scroll_to_comment_card(&comment_id);
-                                                        }
-                                                    })
-                                                };
-                                                let quote_reply_click = {
-                                                    let footer_reply_target = footer_reply_target.clone();
-                                                    let comment_id = comment.comment_id.clone();
-                                                    let author_name = comment.author_name.clone();
-                                                    let comment_text = comment.comment_text.clone();
-                                                    let ai_reply_markdown = comment.ai_reply_markdown.clone();
-                                                    Callback::from(move |_| {
-                                                        footer_reply_target.set(Some(CommentReplyDraft {
-                                                            comment_id: comment_id.clone(),
-                                                            author_name: author_name.clone(),
-                                                            comment_text: comment_text.clone(),
-                                                            ai_reply_markdown: ai_reply_markdown.clone(),
-                                                        }));
-                                                        scroll_to_element_id(COMMENT_SECTION_ID);
-                                                    })
-                                                };
-                                                let avatar_initial =
-                                                    comment_avatar_initials(
-                                                        &comment.author_name,
-                                                        &comment.author_avatar_seed,
-                                                    );
-                                                let avatar_style =
-                                                    comment_avatar_style(&comment.author_avatar_seed);
-                                                let region_label = display_comment_region(&comment.ip_region);
-                                                let ai_reply_html = comment
-                                                    .ai_reply_markdown
-                                                    .clone()
-                                                    .filter(|value| !value.trim().is_empty())
-                                                    .map(|value| {
-                                                        AttrValue::from(markdown_to_html(&value))
-                                                    });
-
-                                                html! {
-                                                    <article id={format!("comment-item-{}", comment.comment_id)} class={classes!("comment-thread-item")}>
-                                                        <header class={classes!("comment-thread-head")}>
-                                                            <div class={classes!("comment-avatar")} style={avatar_style}>
-                                                                { avatar_initial }
-                                                            </div>
-                                                            <div class={classes!("comment-head-meta")}>
-                                                                <p class={classes!("comment-author-name")}>{ comment.author_name.clone() }</p>
-                                                                <p class={classes!("comment-meta-line")}>
-                                                                    { format!("{} · {}", region_label, format_published_time(comment.published_at)) }
-                                                                </p>
-                                                            </div>
-                                                            <button
-                                                                type="button"
-                                                                class={classes!("comment-jump-btn")}
-                                                                onclick={quote_reply_click}
-                                                            >
-                                                                { "引用并回复" }
-                                                            </button>
-                                                        </header>
-
-                                                        if let Some(quote_text) = selected_text {
-                                                            <div class={classes!("comment-quote-card")}>
-                                                                <p class={classes!("comment-quote-label")}>{ "选中段落" }</p>
-                                                                <p class={classes!("comment-quote-text")}>{ quote_text }</p>
-                                                                {
-                                                                    if anchor_block_id.is_some() {
-                                                                        html! {
-                                                                            <button
-                                                                                type="button"
-                                                                                class={classes!("comment-jump-btn")}
-                                                                                onclick={jump_quote_click}
-                                                                            >
-                                                                                { "定位到正文" }
-                                                                            </button>
-                                                                        }
-                                                                    } else {
-                                                                        html! {}
-                                                                    }
-                                                                }
-                                                            </div>
-                                                        }
-
-                                                        if let Some(reply_text) = reply_to_comment_text {
-                                                            <div class={classes!("comment-quote-card")}>
-                                                                <p class={classes!("comment-quote-label")}>{ "引用评论" }</p>
-                                                                <p class={classes!("comment-quote-text")}>{ reply_text }</p>
-                                                                if let Some(ai_reply) = reply_to_ai_reply_markdown {
-                                                                    <p class={classes!("comment-meta-line")}>
-                                                                        { format!("被引用 AI 回复：{}", ai_reply.chars().take(140).collect::<String>()) }
-                                                                    </p>
-                                                                }
-                                                                if reply_to_comment_id.is_some() {
-                                                                    <button
-                                                                        type="button"
-                                                                        class={classes!("comment-jump-btn")}
-                                                                        onclick={jump_reply_comment_click}
-                                                                    >
-                                                                        { "定位到被引用评论" }
-                                                                    </button>
-                                                                }
-                                                            </div>
-                                                        }
-
-                                                        <section class={classes!("comment-user-card")}>
-                                                            <p class={classes!("comment-section-label")}>{ "用户评论" }</p>
-                                                            <p class={classes!("comment-user-text")}>{ comment.comment_text.clone() }</p>
-                                                        </section>
-
-                                                        if let Some(ai_reply_html) = ai_reply_html {
-                                                            <section class={classes!("comment-ai-card")}>
-                                                                <p class={classes!("comment-section-label")}>{ "AI 回复" }</p>
-                                                                <RawHtml
-                                                                    class={classes!("article-content", "comment-ai-markdown")}
-                                                                    html={ai_reply_html}
-                                                                />
-                                                            </section>
-                                                        }
-                                                    </article>
-                                                }
-                                            }) }
-                                        </div>
-                                    }
+                                    html! {}
                                 }
                             }
-                        </section>
+
+                            // Clean 1px Hairline Two-Column Previous / Next Navigation
+                            {
+                                if prev_article.is_some() || next_article.is_some() {
+                                    html! {
+                                        <nav
+                                            class={classes!(
+                                                "mt-8",
+                                                "grid",
+                                                "grid-cols-1",
+                                                "gap-6",
+                                                "border-t",
+                                                "border-[var(--border)]",
+                                                "pt-7",
+                                                "sm:grid-cols-2"
+                                            )}
+                                            aria-label="Adjacent Articles"
+                                        >
+                                            <div>
+                                                {
+                                                    if let Some(prev) = prev_article {
+                                                        html! {
+                                                            <Link<Route>
+                                                                to={Route::ArticleDetail { id: prev.id }}
+                                                                classes={classes!(
+                                                                    "group",
+                                                                    "flex",
+                                                                    "flex-col",
+                                                                    "gap-1.5",
+                                                                    "no-underline"
+                                                                )}
+                                                            >
+                                                                <span class={classes!(
+                                                                    "font-mono",
+                                                                    "text-[0.6875rem]",
+                                                                    "uppercase",
+                                                                    "tracking-[0.08em]",
+                                                                    "text-[var(--faint)]"
+                                                                )}>
+                                                                    { "← 上一篇 · PREVIOUS" }
+                                                                </span>
+                                                                <span class={classes!(
+                                                                    "font-serif",
+                                                                    "font-normal",
+                                                                    "text-[1.125rem]",
+                                                                    "leading-[1.35]",
+                                                                    "text-[var(--text)]",
+                                                                    "decoration-[var(--primary)]",
+                                                                    "decoration-1",
+                                                                    "underline-offset-4",
+                                                                    "group-hover:underline"
+                                                                )}>
+                                                                    { prev.title }
+                                                                </span>
+                                                            </Link<Route>>
+                                                        }
+                                                    } else {
+                                                        html! {}
+                                                    }
+                                                }
+                                            </div>
+                                            <div class={classes!("sm:text-right")}>
+                                                {
+                                                    if let Some(next) = next_article {
+                                                        html! {
+                                                            <Link<Route>
+                                                                to={Route::ArticleDetail { id: next.id }}
+                                                                classes={classes!(
+                                                                    "group",
+                                                                    "flex",
+                                                                    "flex-col",
+                                                                    "gap-1.5",
+                                                                    "no-underline",
+                                                                    "sm:items-end"
+                                                                )}
+                                                            >
+                                                                <span class={classes!(
+                                                                    "font-mono",
+                                                                    "text-[0.6875rem]",
+                                                                    "uppercase",
+                                                                    "tracking-[0.08em]",
+                                                                    "text-[var(--faint)]"
+                                                                )}>
+                                                                    { "下一篇 · NEXT →" }
+                                                                </span>
+                                                                <span class={classes!(
+                                                                    "font-serif",
+                                                                    "font-normal",
+                                                                    "text-[1.125rem]",
+                                                                    "leading-[1.35]",
+                                                                    "text-[var(--text)]",
+                                                                    "decoration-[var(--primary)]",
+                                                                    "decoration-1",
+                                                                    "underline-offset-4",
+                                                                    "group-hover:underline"
+                                                                )}>
+                                                                    { next.title }
+                                                                </span>
+                                                            </Link<Route>>
+                                                        }
+                                                    } else {
+                                                        html! {}
+                                                    }
+                                                }
+                                            </div>
+                                        </nav>
+                                    }
+                                } else {
+                                    html! {}
+                                }
+                            }
+
+                            // Further Reading / Related Articles
+                            <section class={classes!(
+                                "mt-10",
+                                "border-t",
+                                "border-[var(--border)]",
+                                "pt-8"
+                            )}>
+                                <div class="mb-5">
+                                    <div class="sf-eyebrow">{ "FURTHER READING" }</div>
+                                    <h2 class={classes!(
+                                        "m-0",
+                                        "font-serif",
+                                        "font-normal",
+                                        "text-[1.5rem]",
+                                        "leading-[1.25]",
+                                        "text-[var(--text)]"
+                                    )}>{ t::RELATED_TITLE }</h2>
+                                </div>
+                                if *related_loading {
+                                    <div class={classes!(
+                                        "flex",
+                                        "items-center",
+                                        "gap-2",
+                                        "text-sm",
+                                        "text-[var(--muted)]"
+                                    )}>
+                                        <LoadingSpinner size={SpinnerSize::Small} />
+                                        <span>{ t::RELATED_LOADING }</span>
+                                    </div>
+                                } else if related_articles.is_empty() {
+                                    <p class={classes!("m-0", "font-serif", "italic", "text-[var(--muted)]")}>
+                                        { t::NO_RELATED }
+                                    </p>
+                                } else {
+                                    <div class={classes!(
+                                        "grid",
+                                        "gap-8",
+                                        "md:grid-cols-2"
+                                    )}>
+                                        { for related_articles.iter().map(|article| {
+                                            html! { <ArticleCard key={article.id.clone()} article={article.clone()} /> }
+                                        }) }
+                                    </div>
+                                }
+                            </section>
+
+                            // Restrained `.sf-card` Comments Section with `◆ AI` Terracotta Chip
+                            <section
+                                id={COMMENT_SECTION_ID}
+                                class={classes!(
+                                    "sf-card",
+                                    "mt-12",
+                                    "p-6",
+                                    "sm:p-8",
+                                    "flex",
+                                    "flex-col",
+                                    "gap-6"
+                                )}
+                            >
+                                <div class={classes!("flex", "items-start", "justify-between", "gap-3", "flex-wrap")}>
+                                    <div>
+                                        <div class="sf-eyebrow">{ "READER DISCUSSION" }</div>
+                                        <h2 class={classes!(
+                                            "m-0",
+                                            "font-serif",
+                                            "font-normal",
+                                            "text-[1.5rem]",
+                                            "leading-[1.25]",
+                                            "text-[var(--text)]"
+                                        )}>{ "评论区" }</h2>
+                                        <p class={classes!("m-0", "mt-1", "font-mono", "text-xs", "tabular-nums", "text-[var(--faint)]")}>
+                                            { format!("当前评论 {} 条", *comments_total) }
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class={classes!("sf-btn", "sf-btn--secondary", "sf-btn--sm")}
+                                        onclick={refresh_comments_click}
+                                    >
+                                        <i class={classes!("fas", "fa-rotate-right", "text-[11px]")} aria-hidden="true"></i>
+                                        { "刷新评论" }
+                                    </button>
+                                </div>
+
+                                {
+                                    if let Some((is_success, message)) = (*selection_submit_feedback).clone() {
+                                        let status_class = if is_success {
+                                            classes!(
+                                                "m-0",
+                                                "rounded-[8px]",
+                                                "border",
+                                                "border-[var(--ok)]/35",
+                                                "bg-[var(--ok-soft)]",
+                                                "px-3.5",
+                                                "py-2.5",
+                                                "text-sm",
+                                                "text-[var(--ok)]"
+                                            )
+                                        } else {
+                                            classes!(
+                                                "m-0",
+                                                "rounded-[8px]",
+                                                "border",
+                                                "border-[var(--err)]/35",
+                                                "bg-[var(--err-soft)]",
+                                                "px-3.5",
+                                                "py-2.5",
+                                                "text-sm",
+                                                "text-[var(--err)]"
+                                            )
+                                        };
+                                        html! {
+                                            <p class={status_class}>{ message }</p>
+                                        }
+                                    } else {
+                                        html! {}
+                                    }
+                                }
+
+                                <div class={classes!(
+                                    "rounded-[10px]",
+                                    "border",
+                                    "border-[var(--border)]",
+                                    "bg-[var(--surface-alt)]",
+                                    "p-4",
+                                    "sm:p-5",
+                                    "flex",
+                                    "flex-col",
+                                    "gap-3"
+                                )}>
+                                    <label class={classes!(
+                                        "text-sm",
+                                        "font-medium",
+                                        "text-[var(--text)]"
+                                    )}>
+                                        { "发表评论" }
+                                    </label>
+                                    if let Some(reply_target) = (*footer_reply_target).clone() {
+                                        <div class={classes!(
+                                            "rounded-[8px]",
+                                            "border",
+                                            "border-[var(--border-strong)]",
+                                            "border-l-2",
+                                            "border-l-[var(--primary)]",
+                                            "bg-[var(--surface)]",
+                                            "px-3.5",
+                                            "py-2.5",
+                                            "text-sm",
+                                            "flex",
+                                            "flex-col",
+                                            "gap-1.5"
+                                        )}>
+                                            <div class={classes!("flex", "items-center", "justify-between", "gap-2", "flex-wrap")}>
+                                                <p class={classes!("m-0", "font-mono", "text-[0.6875rem]", "uppercase", "tracking-[0.08em]", "text-[var(--faint)]")}>
+                                                    { format!("正在引用：{}", reply_target.author_name) }
+                                                </p>
+                                                <button
+                                                    type="button"
+                                                    class={classes!("sf-btn", "sf-btn--ghost", "sf-btn--sm")}
+                                                    onclick={clear_footer_reply_target.clone()}
+                                                >
+                                                    { "取消引用" }
+                                                </button>
+                                            </div>
+                                            <p class={classes!("m-0", "text-sm", "text-[var(--text-2)]")}>{ reply_target.comment_text.clone() }</p>
+                                            if let Some(ai_reply) = reply_target.ai_reply_markdown {
+                                                <p class={classes!("m-0", "text-xs", "text-[var(--muted)]")}>
+                                                    { format!("引用 AI 回复：{}", ai_reply.chars().take(140).collect::<String>()) }
+                                                </p>
+                                            }
+                                        </div>
+                                    }
+                                    <textarea
+                                        class={classes!(
+                                            "sf-textarea",
+                                            "comment-compose-textarea",
+                                            "min-h-[108px]",
+                                            "w-full",
+                                            "py-3"
+                                        )}
+                                        placeholder={"写下你对本文的疑问、勘误或补充建议..."}
+                                        value={(*footer_comment_input).clone()}
+                                        oninput={on_footer_comment_input}
+                                    />
+                                    <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
+                                        {
+                                            if let Some((is_success, message)) = (*footer_submit_feedback).clone() {
+                                                let status_class = if is_success {
+                                                    classes!("text-sm", "text-[var(--ok)]")
+                                                } else {
+                                                    classes!("text-sm", "text-[var(--err)]")
+                                                };
+                                                html! { <span class={status_class}>{ message }</span> }
+                                            } else {
+                                                html! { <span class={classes!("font-mono", "text-xs", "text-[var(--faint)]")}>{ "每个用户每分钟最多提交 1 条评论 · 支持选中正文段落直接提问" }</span> }
+                                            }
+                                        }
+                                        <button
+                                            type="button"
+                                            class={classes!("sf-btn", "sf-btn--primary")}
+                                            onclick={submit_footer_comment_click}
+                                            disabled={*footer_submit_loading}
+                                        >
+                                            {
+                                                if *footer_submit_loading {
+                                                    "提交中..."
+                                                } else {
+                                                    "提交评论"
+                                                }
+                                            }
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {
+                                    if *comments_loading {
+                                        html! {
+                                            <div class={classes!(
+                                                "py-6",
+                                                "text-sm",
+                                                "text-[var(--muted)]",
+                                                "inline-flex",
+                                                "items-center",
+                                                "gap-2"
+                                            )}>
+                                                <LoadingSpinner size={SpinnerSize::Small} />
+                                                <span>{ "评论加载中..." }</span>
+                                            </div>
+                                        }
+                                    } else if let Some(error) = (*comments_error).clone() {
+                                        html! {
+                                            <p class={classes!(
+                                                "m-0",
+                                                "rounded-[8px]",
+                                                "border",
+                                                "border-[var(--err)]/35",
+                                                "bg-[var(--err-soft)]",
+                                                "px-3.5",
+                                                "py-2.5",
+                                                "text-sm",
+                                                "text-[var(--err)]"
+                                            )}>
+                                                { error }
+                                            </p>
+                                        }
+                                    } else if comments.is_empty() {
+                                        html! {
+                                            <p class={classes!("m-0", "font-serif", "italic", "text-[0.95rem]", "text-[var(--muted)]")}>
+                                                { "暂无评论，欢迎成为第一个留言的人。" }
+                                            </p>
+                                        }
+                                    } else {
+                                        html! {
+                                            <div class={classes!("flex", "flex-col", "divide-y", "divide-[var(--border)]")}>
+                                                { for comments.iter().map(|comment| {
+                                                    let anchor_block_id = comment.anchor_block_id.clone();
+                                                    let selected_text = comment.selected_text.clone();
+                                                    let reply_to_comment_id = comment.reply_to_comment_id.clone();
+                                                    let reply_to_comment_text = comment.reply_to_comment_text.clone();
+                                                    let reply_to_ai_reply_markdown = comment.reply_to_ai_reply_markdown.clone();
+                                                    let jump_quote_click = {
+                                                        let anchor_block_id = anchor_block_id.clone();
+                                                        Callback::from(move |_| {
+                                                            if let Some(block_id) = anchor_block_id.clone() {
+                                                                scroll_to_anchor_block(&block_id);
+                                                            }
+                                                        })
+                                                    };
+                                                    let jump_reply_comment_click = {
+                                                        let reply_to_comment_id = reply_to_comment_id.clone();
+                                                        Callback::from(move |_| {
+                                                            if let Some(comment_id) = reply_to_comment_id.clone() {
+                                                                scroll_to_comment_card(&comment_id);
+                                                            }
+                                                        })
+                                                    };
+                                                    let quote_reply_click = {
+                                                        let footer_reply_target = footer_reply_target.clone();
+                                                        let comment_id = comment.comment_id.clone();
+                                                        let author_name = comment.author_name.clone();
+                                                        let comment_text = comment.comment_text.clone();
+                                                        let ai_reply_markdown = comment.ai_reply_markdown.clone();
+                                                        Callback::from(move |_| {
+                                                            footer_reply_target.set(Some(CommentReplyDraft {
+                                                                comment_id: comment_id.clone(),
+                                                                author_name: author_name.clone(),
+                                                                comment_text: comment_text.clone(),
+                                                                ai_reply_markdown: ai_reply_markdown.clone(),
+                                                            }));
+                                                            scroll_to_element_id(COMMENT_SECTION_ID);
+                                                        })
+                                                    };
+                                                    let avatar_initial =
+                                                        comment_avatar_initials(
+                                                            &comment.author_name,
+                                                            &comment.author_avatar_seed,
+                                                        );
+                                                    let avatar_style =
+                                                        comment_avatar_style(&comment.author_avatar_seed);
+                                                    let region_label = display_comment_region(&comment.ip_region);
+                                                    let ai_reply_html = comment
+                                                        .ai_reply_markdown
+                                                        .clone()
+                                                        .filter(|value| !value.trim().is_empty())
+                                                        .map(|value| {
+                                                            AttrValue::from(markdown_to_html(&value))
+                                                        });
+
+                                                    html! {
+                                                        <article
+                                                            id={format!("comment-item-{}", comment.comment_id)}
+                                                            class={classes!("py-6", "first:pt-2", "last:pb-1", "flex", "flex-col", "gap-3.5")}
+                                                        >
+                                                            <header class={classes!("flex", "items-center", "justify-between", "gap-3")}>
+                                                                <div class={classes!("flex", "items-center", "gap-3", "min-w-0")}>
+                                                                    <div
+                                                                        class={classes!(
+                                                                            "inline-flex",
+                                                                            "h-8",
+                                                                            "w-8",
+                                                                            "shrink-0",
+                                                                            "items-center",
+                                                                            "justify-center",
+                                                                            "rounded-full",
+                                                                            "font-mono",
+                                                                            "text-[0.7rem]",
+                                                                            "font-semibold",
+                                                                            "uppercase",
+                                                                            "text-white"
+                                                                        )}
+                                                                        style={avatar_style}
+                                                                    >
+                                                                        { avatar_initial }
+                                                                    </div>
+                                                                    <div class={classes!("min-w-0")}>
+                                                                        <p class={classes!("m-0", "truncate", "text-sm", "font-medium", "text-[var(--text)]")}>
+                                                                            { comment.author_name.clone() }
+                                                                        </p>
+                                                                        <p class={classes!("m-0", "mt-0.5", "font-mono", "text-[0.7rem]", "tabular-nums", "text-[var(--faint)]")}>
+                                                                            { format!("{} · {}", region_label, format_published_time(comment.published_at)) }
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    class={classes!("sf-btn", "sf-btn--ghost", "sf-btn--sm")}
+                                                                    onclick={quote_reply_click}
+                                                                >
+                                                                    { "引用并回复" }
+                                                                </button>
+                                                            </header>
+
+                                                            if let Some(quote_text) = selected_text {
+                                                                <div class={classes!(
+                                                                    "rounded-r-[8px]",
+                                                                    "border-l-2",
+                                                                    "border-l-[var(--primary)]",
+                                                                    "bg-[var(--surface-alt)]",
+                                                                    "px-3.5",
+                                                                    "py-2.5"
+                                                                )}>
+                                                                    <div class={classes!("flex", "items-center", "justify-between", "gap-2", "flex-wrap")}>
+                                                                        <span class={classes!("font-mono", "text-[0.6875rem]", "uppercase", "tracking-[0.08em]", "text-[var(--faint)]")}>
+                                                                            { "选中段落" }
+                                                                        </span>
+                                                                        {
+                                                                            if anchor_block_id.is_some() {
+                                                                                html! {
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        class={classes!(
+                                                                                            "font-mono",
+                                                                                            "text-[0.7rem]",
+                                                                                            "text-[var(--primary)]",
+                                                                                            "hover:underline"
+                                                                                        )}
+                                                                                        onclick={jump_quote_click}
+                                                                                    >
+                                                                                        { "定位到正文 →" }
+                                                                                    </button>
+                                                                                }
+                                                                            } else {
+                                                                                html! {}
+                                                                            }
+                                                                        }
+                                                                    </div>
+                                                                    <p class={classes!("m-0", "mt-1.5", "font-serif", "italic", "text-[0.9375rem]", "leading-relaxed", "text-[var(--muted)]", "whitespace-pre-wrap")}>
+                                                                        { quote_text }
+                                                                    </p>
+                                                                </div>
+                                                            }
+
+                                                            if let Some(reply_text) = reply_to_comment_text {
+                                                                <div class={classes!(
+                                                                    "rounded-[8px]",
+                                                                    "border",
+                                                                    "border-[var(--border)]",
+                                                                    "bg-[var(--surface-alt)]",
+                                                                    "px-3.5",
+                                                                    "py-2.5"
+                                                                )}>
+                                                                    <div class={classes!("flex", "items-center", "justify-between", "gap-2", "flex-wrap")}>
+                                                                        <span class={classes!("font-mono", "text-[0.6875rem]", "uppercase", "tracking-[0.08em]", "text-[var(--faint)]")}>
+                                                                            { "引用评论" }
+                                                                        </span>
+                                                                        if reply_to_comment_id.is_some() {
+                                                                            <button
+                                                                                type="button"
+                                                                                class={classes!("font-mono", "text-[0.7rem]", "text-[var(--primary)]", "hover:underline")}
+                                                                                onclick={jump_reply_comment_click}
+                                                                            >
+                                                                                { "定位原评论 →" }
+                                                                            </button>
+                                                                        }
+                                                                    </div>
+                                                                    <p class={classes!("m-0", "mt-1", "text-sm", "leading-relaxed", "text-[var(--text-2)]", "whitespace-pre-wrap")}>
+                                                                        { reply_text }
+                                                                    </p>
+                                                                    if let Some(ai_reply) = reply_to_ai_reply_markdown {
+                                                                        <p class={classes!("m-0", "mt-1", "text-xs", "text-[var(--muted)]")}>
+                                                                            { format!("被引用 AI 回复：{}", ai_reply.chars().take(140).collect::<String>()) }
+                                                                        </p>
+                                                                    }
+                                                                </div>
+                                                            }
+
+                                                            <p class={classes!("m-0", "text-[0.95rem]", "leading-[1.7]", "text-[var(--text-2)]", "whitespace-pre-wrap")}>
+                                                                { comment.comment_text.clone() }
+                                                            </p>
+
+                                                            if let Some(ai_reply_html) = ai_reply_html {
+                                                                <section class={classes!(
+                                                                    "rounded-[10px]",
+                                                                    "border",
+                                                                    "border-[var(--border)]",
+                                                                    "bg-[var(--surface-alt)]",
+                                                                    "p-4"
+                                                                )}>
+                                                                    <div class="mb-2 flex items-center gap-2">
+                                                                        <span class={classes!(
+                                                                            "inline-flex",
+                                                                            "items-center",
+                                                                            "gap-1",
+                                                                            "rounded-full",
+                                                                            "bg-[var(--primary-soft)]",
+                                                                            "px-2.5",
+                                                                            "py-0.5",
+                                                                            "font-mono",
+                                                                            "text-[0.6875rem]",
+                                                                            "font-medium",
+                                                                            "uppercase",
+                                                                            "tracking-[0.06em]",
+                                                                            "text-[var(--primary)]"
+                                                                        )}>
+                                                                            { "◆ AI" }
+                                                                        </span>
+                                                                        <span class={classes!("font-mono", "text-[0.7rem]", "text-[var(--faint)]")}>
+                                                                            { "研究与技术解答" }
+                                                                        </span>
+                                                                    </div>
+                                                                    <RawHtml
+                                                                        class={classes!("article-content", "comment-ai-markdown")}
+                                                                        html={ai_reply_html}
+                                                                    />
+                                                                </section>
+                                                            }
+                                                        </article>
+                                                    }
+                                                }) }
+                                            </div>
+                                        }
+                                    }
+                                }
+                            </section>
+
+                            // Reader-driven ingestion workshop prompt
+                            <div class={classes!(
+                                "mt-10",
+                                "flex",
+                                "flex-wrap",
+                                "items-center",
+                                "justify-between",
+                                "gap-4",
+                                "border-t",
+                                "border-[var(--border)]",
+                                "pt-7"
+                            )}>
+                                <a
+                                    href={crate::config::route_path("/#workshop")}
+                                    onclick={navigate_to_workshop}
+                                    class={classes!(
+                                        "sf-link",
+                                        "font-serif",
+                                        "italic",
+                                        "text-[1.0625rem]",
+                                        "text-[var(--text-2)]",
+                                        "hover:text-[var(--primary)]"
+                                    )}
+                                >
+                                    { "想读相关的技术深潜？前往自助入库工坊提交 →" }
+                                </a>
+                            </div>
+                        </div>
+
                         {
                             if *is_brief_open {
                                 html! {
@@ -2834,9 +3058,10 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                             "flex",
                                             "items-center",
                                             "justify-center",
-                                            "bg-black/55",
+                                            "bg-[rgba(20,20,19,0.45)]",
+                                            "dark:bg-[rgba(0,0,0,0.65)]",
                                             "p-4",
-                                            "backdrop-blur-sm"
+                                            "backdrop-blur-[4px]"
                                         )}
                                         role="dialog"
                                         aria-modal="true"
@@ -2849,9 +3074,9 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                                 "max-w-[760px]",
                                                 "max-h-[85vh]",
                                                 "overflow-auto",
-                                                "rounded-[var(--radius)]",
+                                                "rounded-[12px]",
                                                 "border",
-                                                "border-[var(--border)]",
+                                                "border-[var(--border-strong)]",
                                                 "bg-[var(--surface)]",
                                                 "px-6",
                                                 "py-5",
@@ -2866,38 +3091,27 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                                 "flex",
                                                 "items-center",
                                                 "justify-between",
-                                                "gap-3"
+                                                "gap-3",
+                                                "border-b",
+                                                "border-[var(--border)]",
+                                                "pb-3"
                                             )}>
                                                 <p class={classes!(
                                                     "m-0",
                                                     "inline-flex",
                                                     "items-center",
                                                     "gap-2",
-                                                    "text-sm",
-                                                    "font-semibold",
-                                                    "uppercase",
-                                                    "tracking-[0.12em]",
-                                                    "text-[var(--primary)]"
+                                                    "font-serif",
+                                                    "font-normal",
+                                                    "text-[1.2rem]",
+                                                    "text-[var(--text)]"
                                                 )}>
-                                                    <i class={classes!("fas", "fa-list-check")} aria-hidden="true"></i>
+                                                    <span class="font-mono text-xs text-[var(--primary)]" aria-hidden="true">{ "◆" }</span>
                                                     { summary_title }
                                                 </p>
                                                 <button
                                                     type="button"
-                                                    class={classes!(
-                                                        "rounded-full",
-                                                        "border",
-                                                        "border-[var(--border)]",
-                                                        "bg-[var(--surface)]",
-                                                        "px-3",
-                                                        "py-1",
-                                                        "text-xs",
-                                                        "font-semibold",
-                                                        "tracking-[0.08em]",
-                                                        "text-[var(--muted)]",
-                                                        "hover:border-[var(--primary)]",
-                                                        "hover:text-[var(--primary)]"
-                                                    )}
+                                                    class={classes!("sf-btn", "sf-btn--secondary", "sf-btn--sm")}
                                                     aria-label={t::CLOSE_BRIEF_ARIA}
                                                     onclick={close_brief_click.clone()}
                                                 >
@@ -2909,6 +3123,7 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                                     html! {
                                                         <RawHtml class={classes!(
                                                             "article-content",
+                                                            "prose",
                                                             "text-[0.97rem]",
                                                             "leading-[1.8]"
                                                         )}
@@ -2937,47 +3152,28 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
     } else {
         html! {
             <section class={classes!(
-                "bg-[var(--surface)]",
-                "border",
-                "border-[var(--border)]",
-                "rounded-[var(--radius)]",
-                "shadow-[var(--shadow)]",
+                "sf-card",
                 "p-10",
-                "my-10",
+                "my-14",
                 "mx-auto",
-                "max-w-[820px]",
+                "max-w-[760px]",
                 "flex",
                 "flex-col",
-                "gap-[0.9rem]",
-                "sm:p-5",
-                "sm:my-6"
+                "gap-4",
+                "sm:p-6"
             )}>
-                <div class={classes!(
-                    "flex",
-                    "flex-col",
-                    "gap-3",
-                    "fade-in"
-                )}>
-                    <p class={classes!(
-                        "m-0",
-                        "inline-flex",
-                        "items-center",
-                        "gap-[0.35rem]",
-                        "uppercase",
-                        "text-[0.85rem]",
-                        "tracking-[0.2em]",
-                        "text-[var(--primary)]"
-                    )}>{ "404" }</p>
+                <div class={classes!("flex", "flex-col", "gap-3", "fade-in")}>
+                    <p class={classes!("sf-eyebrow", "m-0")}>{ "404 · NOT FOUND" }</p>
                     <h1 class={classes!(
                         "m-0",
-                        "text-[2.25rem]",
-                        "leading-[1.25]",
-                        "sm:text-[1.65rem]"
+                        "font-serif",
+                        "font-normal",
+                        "text-[2rem]",
+                        "leading-[1.2]",
+                        "text-[var(--text)]",
+                        "sm:text-[1.6rem]"
                     )}>{ t::NOT_FOUND_TITLE }</h1>
-                    <p class={classes!(
-                        "m-0",
-                        "text-[var(--muted)]"
-                    )}>{ t::NOT_FOUND_DESC }</p>
+                    <p class={classes!("m-0", "text-[var(--muted)]")}>{ t::NOT_FOUND_DESC }</p>
                 </div>
             </section>
         }
@@ -3083,9 +3279,10 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                 "flex",
                                 "items-center",
                                 "justify-center",
-                                "bg-black/55",
+                                "bg-[rgba(20,20,19,0.45)]",
+                                "dark:bg-[rgba(0,0,0,0.65)]",
                                 "p-4",
-                                "backdrop-blur-sm"
+                                "backdrop-blur-[4px]"
                             )}
                             role="dialog"
                             aria-modal="true"
@@ -3093,19 +3290,40 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                             onclick={close_selection_modal_click.clone()}
                         >
                             <section
-                                class={classes!("selection-comment-modal")}
+                                class={classes!(
+                                    "w-full",
+                                    "max-w-[580px]",
+                                    "rounded-[12px]",
+                                    "border",
+                                    "border-[var(--border-strong)]",
+                                    "bg-[var(--surface)]",
+                                    "p-6",
+                                    "shadow-[var(--shadow-lg)]",
+                                    "flex",
+                                    "flex-col",
+                                    "gap-4",
+                                    "sm:p-5"
+                                )}
                                 onclick={stop_selection_modal_bubble.clone()}
                             >
-                                <header class={classes!("selection-comment-modal-header")}>
+                                <header class={classes!("flex", "items-start", "justify-between", "gap-3")}>
                                     <div>
-                                        <h3 class={classes!("selection-comment-modal-title")}>{ "评论所选内容" }</h3>
-                                        <p class={classes!("selection-comment-modal-subtitle")}>
+                                        <div class="sf-eyebrow">{ "INLINE QUOTE COMMENT" }</div>
+                                        <h3 class={classes!(
+                                            "m-0",
+                                            "font-serif",
+                                            "font-normal",
+                                            "text-[1.35rem]",
+                                            "leading-[1.25]",
+                                            "text-[var(--text)]"
+                                        )}>{ "评论所选内容" }</h3>
+                                        <p class={classes!("m-0", "mt-1", "text-xs", "text-[var(--muted)]")}>
                                             { "你可以基于选中的段落提交疑问、勘误或补充观点。" }
                                         </p>
                                     </div>
                                     <button
                                         type="button"
-                                        class={classes!("selection-comment-close")}
+                                        class={classes!("sf-btn", "sf-btn--secondary", "sf-btn--sm")}
                                         aria-label={"关闭评论弹窗"}
                                         onclick={close_selection_modal_click.clone()}
                                     >
@@ -3113,9 +3331,16 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                     </button>
                                 </header>
 
-                                <div class={classes!("selection-comment-quote")}>
-                                    <p class={classes!("selection-comment-quote-label")}>{ "选中内容" }</p>
-                                    <p class={classes!("selection-comment-quote-text")}>
+                                <div class={classes!(
+                                    "rounded-r-[8px]",
+                                    "border-l-2",
+                                    "border-l-[var(--primary)]",
+                                    "bg-[var(--surface-alt)]",
+                                    "px-3.5",
+                                    "py-3"
+                                )}>
+                                    <p class={classes!("m-0", "font-mono", "text-[0.6875rem]", "uppercase", "tracking-[0.08em]", "text-[var(--faint)]")}>{ "选中内容" }</p>
+                                    <p class={classes!("m-0", "mt-1.5", "font-serif", "italic", "text-[0.9375rem]", "leading-relaxed", "text-[var(--muted)]", "whitespace-pre-wrap")}>
                                         {
                                             if has_ellipsis {
                                                 format!("{selected_excerpt}...")
@@ -3127,7 +3352,7 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                 </div>
 
                                 <textarea
-                                    class={classes!("comment-compose-textarea")}
+                                    class={classes!("sf-textarea", "comment-compose-textarea", "min-h-[112px]", "w-full", "py-3")}
                                     placeholder={"请输入你的疑问或评论..."}
                                     value={(*selection_comment_input).clone()}
                                     oninput={on_selection_comment_input}
@@ -3136,9 +3361,9 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                 {
                                     if let Some((is_success, message)) = (*selection_submit_feedback).clone() {
                                         let feedback_class = if is_success {
-                                            classes!("text-sm", "text-emerald-700", "dark:text-emerald-200")
+                                            classes!("m-0", "text-sm", "text-[var(--ok)]")
                                         } else {
-                                            classes!("text-sm", "text-red-700", "dark:text-red-200")
+                                            classes!("m-0", "text-sm", "text-[var(--err)]")
                                         };
                                         html! {
                                             <p class={feedback_class}>{ message }</p>
@@ -3148,17 +3373,17 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                     }
                                 }
 
-                                <div class={classes!("selection-comment-modal-actions")}>
+                                <div class={classes!("flex", "items-center", "justify-end", "gap-2.5")}>
                                     <button
                                         type="button"
-                                        class={classes!("btn-fluent-secondary", "px-4", "py-2")}
+                                        class={classes!("sf-btn", "sf-btn--secondary")}
                                         onclick={close_selection_modal_click}
                                     >
                                         { "取消" }
                                     </button>
                                     <button
                                         type="button"
-                                        class={classes!("btn-fluent-primary", "px-4", "py-2")}
+                                        class={classes!("sf-btn", "sf-btn--primary")}
                                         onclick={submit_selection_comment_click}
                                         disabled={*selection_submit_loading}
                                     >
@@ -3189,12 +3414,12 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                 "flex",
                                 "items-center",
                                 "justify-center",
-                                "bg-black/80",
+                                "bg-[rgba(250,249,245,0.96)]",
+                                "dark:bg-[rgba(20,20,19,0.96)]",
                                 "p-4",
-                                "text-white",
-                                "backdrop-blur-sm",
-                                "transition",
-                                "dark:bg-black/80"
+                                "text-[var(--text)]",
+                                "backdrop-blur-[6px]",
+                                "transition-opacity"
                             )}
                             role="dialog"
                             aria-modal="true"
@@ -3208,39 +3433,21 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                     "z-[101]",
                                     "flex",
                                     "items-center",
-                                    "gap-2"
+                                    "gap-1.5"
                                 )}
                                 onclick={stop_lightbox_bubble.clone()}
                             >
                                 <button
                                     type="button"
-                                    class={classes!(
-                                        "rounded-full",
-                                        "bg-black/70",
-                                        "px-3",
-                                        "py-1",
-                                        "text-sm",
-                                        "font-semibold",
-                                        "text-white",
-                                        "hover:bg-black"
-                                    )}
+                                    class={classes!("sf-btn", "sf-btn--secondary", "sf-btn--sm", "font-mono")}
                                     aria-label={t::LIGHTBOX_ZOOM_OUT_ARIA}
                                     onclick={zoom_out_click.clone()}
                                 >
-                                    { "-" }
+                                    { "−" }
                                 </button>
                                 <button
                                     type="button"
-                                    class={classes!(
-                                        "rounded-full",
-                                        "bg-black/70",
-                                        "px-3",
-                                        "py-1",
-                                        "text-sm",
-                                        "font-semibold",
-                                        "text-white",
-                                        "hover:bg-black"
-                                    )}
+                                    class={classes!("sf-btn", "sf-btn--secondary", "sf-btn--sm", "font-mono", "tabular-nums")}
                                     aria-label={t::LIGHTBOX_ZOOM_RESET_ARIA}
                                     onclick={zoom_reset_click.clone()}
                                 >
@@ -3248,16 +3455,7 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                 </button>
                                 <button
                                     type="button"
-                                    class={classes!(
-                                        "rounded-full",
-                                        "bg-black/70",
-                                        "px-3",
-                                        "py-1",
-                                        "text-sm",
-                                        "font-semibold",
-                                        "text-white",
-                                        "hover:bg-black"
-                                    )}
+                                    class={classes!("sf-btn", "sf-btn--secondary", "sf-btn--sm", "font-mono")}
                                     aria-label={t::LIGHTBOX_ZOOM_IN_ARIA}
                                     onclick={zoom_in_click.clone()}
                                 >
@@ -3267,30 +3465,27 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                             <button
                                 type="button"
                                 class={classes!(
+                                    "sf-btn",
+                                    "sf-btn--secondary",
+                                    "sf-btn--sm",
                                     "absolute",
                                     "right-4",
                                     "top-4",
-                                    "z-[101]",
-                                    "rounded-full",
-                                    "bg-black/70",
-                                    "px-3",
-                                    "py-1",
-                                    "text-lg",
-                                    "leading-none",
-                                    "text-white",
-                                    "hover:bg-black"
+                                    "z-[101]"
                                 )}
                                 aria-label={t::CLOSE_IMAGE_ARIA}
                                 onclick={close_lightbox_click.clone()}
                             >
-                                { "X" }
+                                <i class="fas fa-xmark text-xs" aria-hidden="true"></i>
                             </button>
                             <div
                                 class={classes!(
                                     "max-h-full",
                                     "max-w-full",
-                                    "rounded-[var(--radius)]",
-                                    "bg-black/35",
+                                    "rounded-[12px]",
+                                    "border",
+                                    "border-[var(--border)]",
+                                    "bg-[var(--surface)]",
                                     "p-2",
                                     "overflow-auto",
                                     "shadow-[var(--shadow-lg)]"
@@ -3314,7 +3509,7 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                                     alt={alt_text}
                                                     class={classes!(
                                                         "block",
-                                                        "max-h-[90vh]",
+                                                        "max-h-[88vh]",
                                                         "max-w-[90vw]",
                                                         "h-auto",
                                                         "w-auto",
@@ -3334,14 +3529,14 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                                             <div class={classes!(
                                                                 "mt-3",
                                                                 "max-w-[90vw]",
-                                                                "rounded-[var(--radius)]",
+                                                                "rounded-[8px]",
                                                                 "border",
-                                                                "border-red-400/50",
-                                                                "bg-black/70",
-                                                                "px-3",
-                                                                "py-2",
+                                                                "border-[var(--err)]/35",
+                                                                "bg-[var(--err-soft)]",
+                                                                "px-3.5",
+                                                                "py-2.5",
                                                                 "text-sm",
-                                                                "text-red-100"
+                                                                "text-[var(--err)]"
                                                             )}>
                                                                 { fill_one(t::IMAGE_PREVIEW_FAILED, &src) }
                                                             </div>
@@ -3374,9 +3569,10 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                 "flex",
                                 "items-center",
                                 "justify-center",
-                                "bg-black/55",
+                                "bg-[rgba(20,20,19,0.45)]",
+                                "dark:bg-[rgba(0,0,0,0.65)]",
                                 "p-4",
-                                "backdrop-blur-sm"
+                                "backdrop-blur-[4px]"
                             )}
                             role="dialog"
                             aria-modal="true"
@@ -3389,11 +3585,11 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                     "max-w-[920px]",
                                     "max-h-[88vh]",
                                     "overflow-auto",
-                                    "rounded-[var(--radius)]",
+                                    "rounded-[12px]",
                                     "border",
-                                    "border-[var(--border)]",
+                                    "border-[var(--border-strong)]",
                                     "bg-[var(--surface)]",
-                                    "px-5",
+                                    "px-6",
                                     "py-5",
                                     "shadow-[var(--shadow-lg)]",
                                     "sm:px-4",
@@ -3406,12 +3602,16 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                     "flex",
                                     "items-start",
                                     "justify-between",
-                                    "gap-3"
+                                    "gap-3",
+                                    "border-b",
+                                    "border-[var(--border)]",
+                                    "pb-3.5"
                                 )}>
                                     <div class={classes!("flex", "flex-col", "gap-1")}>
-                                        <h2 class={classes!("m-0", "text-[1.1rem]", "font-semibold")}>{ t::TREND_TITLE }</h2>
+                                        <div class="sf-eyebrow">{ "READERSHIP ANALYTICS" }</div>
+                                        <h2 class={classes!("m-0", "font-serif", "font-normal", "text-[1.35rem]", "text-[var(--text)]")}>{ t::TREND_TITLE }</h2>
                                         <p class={classes!("m-0", "text-sm", "text-[var(--muted)]")}>{ t::TREND_SUBTITLE }</p>
-                                        <p class={classes!("m-0", "text-xs", "text-[var(--muted)]")}>
+                                        <p class={classes!("m-0", "font-mono", "text-xs", "tabular-nums", "text-[var(--faint)]")}>
                                             {
                                                 if let Some(total) = *view_total {
                                                     fill_one(t::TREND_TOTAL_TEMPLATE, total)
@@ -3430,20 +3630,7 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                     </div>
                                     <button
                                         type="button"
-                                        class={classes!(
-                                            "rounded-full",
-                                            "border",
-                                            "border-[var(--border)]",
-                                            "bg-[var(--surface)]",
-                                            "px-3",
-                                            "py-1",
-                                            "text-xs",
-                                            "font-semibold",
-                                            "tracking-[0.08em]",
-                                            "text-[var(--muted)]",
-                                            "hover:border-[var(--primary)]",
-                                            "hover:text-[var(--primary)]"
-                                        )}
+                                        class={classes!("sf-btn", "sf-btn--secondary", "sf-btn--sm")}
                                         aria-label={t::TREND_CLOSE_ARIA}
                                         onclick={close_trend_click.clone()}
                                     >
@@ -3455,17 +3642,12 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                     <button
                                         type="button"
                                         class={classes!(
-                                            "rounded-full",
-                                            "border",
-                                            "px-3",
-                                            "py-1.5",
-                                            "text-xs",
-                                            "font-semibold",
-                                            "tracking-[0.08em]",
+                                            "sf-btn",
+                                            "sf-btn--sm",
                                             if *trend_granularity == TrendGranularity::Day {
-                                                classes!("border-[var(--primary)]", "bg-[var(--primary)]", "text-white")
+                                                classes!("sf-btn--primary")
                                             } else {
-                                                classes!("border-[var(--border)]", "text-[var(--muted)]", "hover:border-[var(--primary)]", "hover:text-[var(--primary)]")
+                                                classes!("sf-btn--secondary")
                                             }
                                         )}
                                         onclick={switch_trend_to_day}
@@ -3475,17 +3657,12 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                     <button
                                         type="button"
                                         class={classes!(
-                                            "rounded-full",
-                                            "border",
-                                            "px-3",
-                                            "py-1.5",
-                                            "text-xs",
-                                            "font-semibold",
-                                            "tracking-[0.08em]",
+                                            "sf-btn",
+                                            "sf-btn--sm",
                                             if *trend_granularity == TrendGranularity::Hour {
-                                                classes!("border-[var(--primary)]", "bg-[var(--primary)]", "text-white")
+                                                classes!("sf-btn--primary")
                                             } else {
-                                                classes!("border-[var(--border)]", "text-[var(--muted)]", "hover:border-[var(--primary)]", "hover:text-[var(--primary)]")
+                                                classes!("sf-btn--secondary")
                                             }
                                         )}
                                         onclick={switch_trend_to_hour}
@@ -3495,20 +3672,15 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                 </div>
 
                                 if *trend_granularity == TrendGranularity::Hour {
-                                    <div class={classes!("mb-4", "flex", "items-center", "gap-2")}>
+                                    <div class={classes!("mb-4", "flex", "items-center", "gap-2.5")}>
                                         <label class={classes!("text-sm", "text-[var(--muted)]")}>{ t::TREND_SELECT_DAY }</label>
                                         <select
                                             class={classes!(
-                                                "rounded-lg",
-                                                "border",
-                                                "border-[var(--border)]",
-                                                "bg-[var(--surface)]",
-                                                "px-3",
-                                                "py-1.5",
-                                                "text-sm",
-                                                "text-[var(--text)]",
-                                                "outline-none",
-                                                "focus:border-[var(--primary)]"
+                                                "sf-input",
+                                                "!h-9",
+                                                "w-auto",
+                                                "font-mono",
+                                                "text-xs"
                                             )}
                                             onchange={on_trend_day_change}
                                             value={(*trend_selected_day).clone().unwrap_or_default()}
@@ -3524,10 +3696,10 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                     if *trend_loading {
                                         html! {
                                             <div class={classes!(
-                                                "rounded-xl",
+                                                "rounded-[10px]",
                                                 "border",
                                                 "border-[var(--border)]",
-                                                "bg-[var(--surface)]",
+                                                "bg-[var(--surface-alt)]",
                                                 "px-4",
                                                 "py-8",
                                                 "text-center",
@@ -3541,15 +3713,14 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                     } else if let Some(error) = (*trend_error).clone() {
                                         html! {
                                             <div class={classes!(
-                                                "rounded-xl",
+                                                "rounded-[10px]",
                                                 "border",
-                                                "border-red-400/50",
-                                                "bg-red-500/10",
+                                                "border-[var(--err)]/35",
+                                                "bg-[var(--err-soft)]",
                                                 "px-4",
                                                 "py-3",
                                                 "text-sm",
-                                                "text-red-700",
-                                                "dark:text-red-200"
+                                                "text-[var(--err)]"
                                             )}>
                                                 { error }
                                             </div>

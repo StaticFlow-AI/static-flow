@@ -1,10 +1,15 @@
-use web_sys::HtmlInputElement;
+use wasm_bindgen::JsCast;
+use web_sys::{HtmlImageElement, HtmlInputElement, KeyboardEvent};
 use yew::prelude::*;
 use yew_router::prelude::*;
 
 use crate::{
     api,
-    components::{image_with_loading::ImageWithLoading, pagination::Pagination},
+    components::{
+        icons::{Icon, IconName},
+        image_with_loading::ImageWithLoading,
+        pagination::Pagination,
+    },
     i18n::current::image_library_page as t,
     router::Route,
     utils::image_url,
@@ -25,13 +30,76 @@ pub fn image_library_page() -> Html {
     let loading = use_state(|| true);
     let error = use_state(|| None::<String>);
     let total = use_state(|| 0usize);
+    let catalog_total = use_state(|| 0usize);
     let current_page = use_state(|| 1usize);
     let display_mode = use_state(|| LibraryDisplayMode::RandomRecommended);
     let random_refresh_tick = use_state(|| 0_u64);
     let search_input = use_state(String::new);
     let active_query = use_state(|| None::<String>);
     let request_seq = use_mut_ref(|| 0_u64);
-    let search_focused = use_state(|| false);
+    let lightbox_index = use_state(|| None::<usize>);
+    let lightbox_dims = use_state(|| None::<(u32, u32)>);
+
+    // Fetch total image count once on mount for header counter
+    {
+        let catalog_total = catalog_total.clone();
+        use_effect_with((), move |_| {
+            wasm_bindgen_futures::spawn_local(async move {
+                if let Ok(page_data) = api::fetch_images_page(Some(1), Some(0)).await {
+                    catalog_total.set(page_data.total);
+                }
+            });
+            || ()
+        });
+    }
+
+    // Lightbox keyboard navigation (Escape / ArrowLeft / ArrowRight)
+    {
+        let lightbox_index = lightbox_index.clone();
+        let lightbox_dims = lightbox_dims.clone();
+        let img_len = images.len();
+        let is_open = lightbox_index.is_some();
+        use_effect_with((is_open, img_len), move |(open, len)| {
+            let mut listener_opt: Option<gloo_events::EventListener> = None;
+            if *open {
+                if let Some(win) = web_sys::window() {
+                    let lb_idx = lightbox_index.clone();
+                    let lb_dims = lightbox_dims.clone();
+                    let count = *len;
+                    listener_opt =
+                        Some(gloo_events::EventListener::new(&win, "keydown", move |event| {
+                            let Some(ke) = event.dyn_ref::<KeyboardEvent>() else {
+                                return;
+                            };
+                            match ke.key().as_str() {
+                                "Escape" => {
+                                    lb_idx.set(None);
+                                    lb_dims.set(None);
+                                },
+                                "ArrowLeft" if count > 1 => {
+                                    if let Some(cur) = *lb_idx {
+                                        let prev = if cur == 0 { count - 1 } else { cur - 1 };
+                                        lb_dims.set(None);
+                                        lb_idx.set(Some(prev));
+                                    }
+                                },
+                                "ArrowRight" if count > 1 => {
+                                    if let Some(cur) = *lb_idx {
+                                        let next = (cur + 1) % count;
+                                        lb_dims.set(None);
+                                        lb_idx.set(Some(next));
+                                    }
+                                },
+                                _ => {},
+                            }
+                        }));
+                }
+            }
+            move || {
+                drop(listener_opt);
+            }
+        });
+    }
 
     let on_search_input = {
         let search_input = search_input.clone();
@@ -46,6 +114,7 @@ pub fn image_library_page() -> Html {
         let search_input = search_input.clone();
         let active_query = active_query.clone();
         let current_page = current_page.clone();
+        let lightbox_index = lightbox_index.clone();
         move || {
             let query = search_input.trim().to_string();
             if query.is_empty() {
@@ -53,6 +122,7 @@ pub fn image_library_page() -> Html {
             } else {
                 active_query.set(Some(query));
             }
+            lightbox_index.set(None);
             current_page.set(1);
         }
     };
@@ -71,23 +141,15 @@ pub fn image_library_page() -> Html {
         })
     };
 
-    let on_search_focus = {
-        let search_focused = search_focused.clone();
-        Callback::from(move |_: FocusEvent| search_focused.set(true))
-    };
-
-    let on_search_blur = {
-        let search_focused = search_focused.clone();
-        Callback::from(move |_: FocusEvent| search_focused.set(false))
-    };
-
     let on_clear_search = {
         let search_input = search_input.clone();
         let active_query = active_query.clone();
         let current_page = current_page.clone();
+        let lightbox_index = lightbox_index.clone();
         Callback::from(move |_: MouseEvent| {
             search_input.set(String::new());
             active_query.set(None);
+            lightbox_index.set(None);
             current_page.set(1);
         })
     };
@@ -95,8 +157,10 @@ pub fn image_library_page() -> Html {
     let on_switch_random = {
         let display_mode = display_mode.clone();
         let current_page = current_page.clone();
+        let lightbox_index = lightbox_index.clone();
         Callback::from(move |_: MouseEvent| {
             display_mode.set(LibraryDisplayMode::RandomRecommended);
+            lightbox_index.set(None);
             current_page.set(1);
         })
     };
@@ -104,15 +168,19 @@ pub fn image_library_page() -> Html {
     let on_switch_all = {
         let display_mode = display_mode.clone();
         let current_page = current_page.clone();
+        let lightbox_index = lightbox_index.clone();
         Callback::from(move |_: MouseEvent| {
             display_mode.set(LibraryDisplayMode::AllImages);
+            lightbox_index.set(None);
             current_page.set(1);
         })
     };
 
     let on_refresh_random = {
         let random_refresh_tick = random_refresh_tick.clone();
+        let lightbox_index = lightbox_index.clone();
         Callback::from(move |_: MouseEvent| {
+            lightbox_index.set(None);
             random_refresh_tick.set(*random_refresh_tick + 1);
         })
     };
@@ -122,6 +190,7 @@ pub fn image_library_page() -> Html {
         let loading = loading.clone();
         let error = error.clone();
         let total = total.clone();
+        let catalog_total = catalog_total.clone();
         let request_seq = request_seq.clone();
         let deps = (*display_mode, (*active_query).clone(), *current_page, *random_refresh_tick);
         use_effect_with(deps, move |deps| {
@@ -132,6 +201,7 @@ pub fn image_library_page() -> Html {
             };
 
             let (mode, active_query, page, _refresh_tick) = deps.clone();
+            let is_all_unfiltered = active_query.is_none() && mode == LibraryDisplayMode::AllImages;
             loading.set(true);
             error.set(None);
             let request_seq = request_seq.clone();
@@ -159,6 +229,9 @@ pub fn image_library_page() -> Html {
                             return;
                         }
                         total.set(page_data.total);
+                        if is_all_unfiltered {
+                            catalog_total.set(page_data.total);
+                        }
                         images.set(page_data.images);
                     },
                     Err(err) => {
@@ -181,127 +254,288 @@ pub fn image_library_page() -> Html {
 
     let on_page_change = {
         let current_page = current_page.clone();
-        Callback::from(move |page: usize| current_page.set(page))
+        let lightbox_index = lightbox_index.clone();
+        Callback::from(move |page: usize| {
+            lightbox_index.set(None);
+            current_page.set(page);
+        })
+    };
+
+    let on_open_lightbox = {
+        let lightbox_index = lightbox_index.clone();
+        let lightbox_dims = lightbox_dims.clone();
+        Callback::from(move |idx: usize| {
+            lightbox_dims.set(None);
+            lightbox_index.set(Some(idx));
+        })
+    };
+
+    let on_close_lightbox = {
+        let lightbox_index = lightbox_index.clone();
+        let lightbox_dims = lightbox_dims.clone();
+        Callback::from(move |_: MouseEvent| {
+            lightbox_index.set(None);
+            lightbox_dims.set(None);
+        })
     };
 
     let total_value = *total;
+    let header_count = if *catalog_total > 0 { *catalog_total } else { total_value };
     let total_pages = if total_value == 0 { 1 } else { total_value.div_ceil(IMAGE_PAGE_SIZE) };
     let query_label = (*active_query).clone();
     let query_active = query_label.is_some();
     let should_show_pagination = query_active || *display_mode == LibraryDisplayMode::AllImages;
 
-    // Segmented mode switch: active segment lifts onto the base surface,
-    // inactive segments stay quiet until hovered.
-    let segment_class = |active: bool| {
+    let tab_class = |active: bool| {
         classes!(
             "inline-flex",
             "items-center",
-            "rounded-[var(--radius-sm)]",
-            "px-3.5",
-            "py-1.5",
+            "gap-2",
+            "border-b-[1.5px]",
+            "pb-2.5",
+            "pt-1",
             "text-sm",
-            "font-medium",
             "transition-colors",
-            "duration-[var(--motion-fast)]",
-            "ease-[var(--ease-snap)]",
             if active {
-                "bg-[var(--surface)] text-[var(--text)] shadow-[var(--shadow-sm)]"
+                "border-[var(--primary)] font-medium text-[var(--text)]"
             } else {
-                "text-[var(--muted)] hover:text-[var(--text)]"
+                "border-transparent text-[var(--muted)] hover:text-[var(--text)]"
             }
         )
     };
 
+    let lightbox_node = if let Some(active_idx) = *lightbox_index {
+        if let Some(active_img) = images.get(active_idx) {
+            let full_src = image_url(&format!("images/{}", active_img.filename));
+            let filename = active_img.filename.clone();
+            let img_id = active_img.id.clone();
+            let total_len = images.len();
+            let on_prev_img = {
+                let lb_idx = lightbox_index.clone();
+                let lb_dims = lightbox_dims.clone();
+                Callback::from(move |e: MouseEvent| {
+                    e.stop_propagation();
+                    if total_len > 1 {
+                        let prev = if active_idx == 0 { total_len - 1 } else { active_idx - 1 };
+                        lb_dims.set(None);
+                        lb_idx.set(Some(prev));
+                    }
+                })
+            };
+            let on_next_img = {
+                let lb_idx = lightbox_index.clone();
+                let lb_dims = lightbox_dims.clone();
+                Callback::from(move |e: MouseEvent| {
+                    e.stop_propagation();
+                    if total_len > 1 {
+                        let next = (active_idx + 1) % total_len;
+                        lb_dims.set(None);
+                        lb_idx.set(Some(next));
+                    }
+                })
+            };
+            let on_img_load = {
+                let lb_dims = lightbox_dims.clone();
+                Callback::from(move |e: Event| {
+                    if let Some(img_el) = e.target_dyn_into::<HtmlImageElement>() {
+                        let w = img_el.natural_width();
+                        let h = img_el.natural_height();
+                        if w > 0 && h > 0 {
+                            lb_dims.set(Some((w, h)));
+                        }
+                    }
+                })
+            };
+
+            html! {
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={filename.clone()}
+                    onclick={on_close_lightbox.clone()}
+                    class="fixed inset-0 z-[100] flex flex-col justify-between bg-[rgba(250,249,245,0.96)] p-4 backdrop-blur-[2px] dark:bg-[rgba(20,20,19,0.96)] sm:p-6"
+                >
+                    <div
+                        onclick={Callback::from(|e: MouseEvent| e.stop_propagation())}
+                        class="mx-auto flex w-full max-w-[1200px] items-center justify-between gap-4 border-b border-[var(--border)] pb-3"
+                    >
+                        <div class="min-w-0">
+                            <p class="truncate font-mono text-xs text-[var(--text)]">{&filename}</p>
+                            <p class="mt-0.5 truncate font-mono text-[11px] tabular-nums text-[var(--muted)]">
+                                {
+                                    if let Some((w, h)) = *lightbox_dims {
+                                        format!("{w} × {h} px · id {}", img_id.chars().take(12).collect::<String>())
+                                    } else {
+                                        format!("id {}", img_id.chars().take(12).collect::<String>())
+                                    }
+                                }
+                            </p>
+                        </div>
+                        <div class="flex shrink-0 items-center gap-2">
+                            <a
+                                href={full_src.clone()}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="rounded-[6px] border border-[var(--border-strong,var(--border))] bg-[var(--surface)] px-3 py-1.5 font-mono text-xs text-[var(--text)] no-underline transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
+                            >
+                                {"打开原图 ↗"}
+                            </a>
+                            <button
+                                type="button"
+                                onclick={on_close_lightbox}
+                                aria-label="Close preview"
+                                class="flex h-8 w-8 items-center justify-center rounded-[6px] border border-[var(--border-strong,var(--border))] bg-[var(--surface)] text-[var(--text)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
+                            >
+                                <Icon name={IconName::X} size={15} />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="relative my-4 flex min-h-0 flex-1 items-center justify-center">
+                        if total_len > 1 {
+                            <button
+                                type="button"
+                                onclick={on_prev_img}
+                                aria-label="Previous image"
+                                class="absolute left-0 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border-strong,var(--border))] bg-[var(--surface)] text-[var(--text)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)] sm:left-2"
+                            >
+                                <Icon name={IconName::ChevronLeft} size={18} />
+                            </button>
+                        }
+
+                        <img
+                            src={full_src}
+                            alt={filename}
+                            onload={on_img_load}
+                            onclick={Callback::from(|e: MouseEvent| e.stop_propagation())}
+                            class="max-h-[78vh] max-w-[88vw] rounded-[8px] border border-[var(--border)] bg-[var(--surface)] object-contain shadow-[var(--shadow-lg)]"
+                        />
+
+                        if total_len > 1 {
+                            <button
+                                type="button"
+                                onclick={on_next_img}
+                                aria-label="Next image"
+                                class="absolute right-0 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border-strong,var(--border))] bg-[var(--surface)] text-[var(--text)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)] sm:right-2"
+                            >
+                                <Icon name={IconName::ChevronRight} size={18} />
+                            </button>
+                        }
+                    </div>
+
+                    <div class="text-center font-mono text-xs tabular-nums text-[var(--muted)]">
+                        {format!("{} / {}", active_idx + 1, total_len)}
+                    </div>
+                </div>
+            }
+        } else {
+            Html::default()
+        }
+    } else {
+        Html::default()
+    };
+
     html! {
-        <div class="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
-            <header class="sf-page-hero flex flex-wrap items-end justify-between gap-4">
-                <div>
-                    <div class="sf-eyebrow">{ "VISUAL ARCHIVE" }</div>
-                    <h1 class="sf-page-title">
+        <div class="mx-auto max-w-[1200px] px-4 pb-20 pt-10 sm:px-6 md:pt-14 lg:px-8">
+            // Editorial Page Header
+            <header class="mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
+                <div class="max-w-2xl">
+                    <div class="sf-eyebrow mb-3 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted)]">
+                        { "VISUAL ARCHIVE · 图像馆藏" }
+                    </div>
+                    <h1 class="font-serif text-[clamp(2.125rem,4vw,3.125rem)] font-normal leading-[1.1] tracking-[-0.02em] text-[var(--text)]">
                         { t::TITLE }
                     </h1>
-                    <p class="sf-page-sub">
+                    <p class="mt-3 text-[0.975rem] leading-[1.65] text-[var(--text-2,var(--muted))]">
                         { t::SUBTITLE }
                     </p>
+                    if header_count > 0 {
+                        <div class="mt-3 font-mono text-xs tabular-nums text-[var(--muted)]">
+                            { format!("{}: {header_count}", t::LABEL_TOTAL_IMAGES) }
+                        </div>
+                    }
                 </div>
-                <div class="flex flex-wrap items-center gap-2">
+                <div class="flex shrink-0 flex-wrap items-center gap-2.5">
                     <Link<Route>
                         to={Route::MediaAudio}
-                        classes="btn-terminal"
+                        classes="sf-btn sf-btn--secondary inline-flex items-center gap-2 rounded-[8px] border border-[var(--border-strong,var(--border))] bg-transparent px-3.5 py-2 text-sm font-medium text-[var(--text)] no-underline transition-colors hover:bg-[var(--surface-alt)]"
                     >
-                        <i class="fas fa-music text-xs text-[var(--primary)]" aria-hidden="true"></i>
-                        { t::BTN_AUDIO_LIBRARY }
+                        <span>{ t::BTN_AUDIO_LIBRARY }</span>
+                        <span class="font-mono text-xs text-[var(--muted)]">{"→"}</span>
                     </Link<Route>>
                     <Link<Route>
                         to={Route::MediaVideo}
-                        classes="btn-terminal"
+                        classes="sf-btn sf-btn--secondary inline-flex items-center gap-2 rounded-[8px] border border-[var(--border-strong,var(--border))] bg-transparent px-3.5 py-2 text-sm font-medium text-[var(--text)] no-underline transition-colors hover:bg-[var(--surface-alt)]"
                     >
-                        <i class="fas fa-video text-xs text-[var(--primary)]" aria-hidden="true"></i>
-                        { t::BTN_VIDEO_LIBRARY }
+                        <span>{ t::BTN_VIDEO_LIBRARY }</span>
+                        <span class="font-mono text-xs text-[var(--muted)]">{"→"}</span>
                     </Link<Route>>
                 </div>
             </header>
 
-            <div class="mb-4 flex flex-wrap items-center gap-2">
-                <div class="inline-flex items-center gap-1 rounded-[var(--radius)] border border-[var(--border)] \
-                            bg-[var(--surface-alt)] p-1">
+            // Toolbar: Text Tabs + Chips + Search Input
+            <div class="mb-5 flex flex-col justify-between gap-4 border-b border-[var(--border)] pb-3 md:flex-row md:items-end">
+                <div class="flex flex-wrap items-center gap-5">
                     <button
                         type="button"
                         onclick={on_switch_random}
-                        class={segment_class(*display_mode == LibraryDisplayMode::RandomRecommended)}
+                        class={tab_class(*display_mode == LibraryDisplayMode::RandomRecommended && !query_active)}
                     >
-                        { t::MODE_RANDOM }
+                        <span>{ t::MODE_RANDOM }</span>
                     </button>
                     <button
                         type="button"
                         onclick={on_switch_all}
-                        class={segment_class(*display_mode == LibraryDisplayMode::AllImages)}
+                        class={tab_class(*display_mode == LibraryDisplayMode::AllImages && !query_active)}
                     >
-                        { t::MODE_ALL }
+                        <span>{ t::MODE_ALL }</span>
+                        if header_count > 0 {
+                            <span class="font-mono text-xs tabular-nums text-[var(--muted)]">{header_count}</span>
+                        }
                     </button>
+                    if *display_mode == LibraryDisplayMode::RandomRecommended && !query_active {
+                        <button
+                            type="button"
+                            onclick={on_refresh_random}
+                            class="sf-chip mb-1 inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 font-mono text-xs text-[var(--muted)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
+                        >
+                            <Icon name={IconName::Shuffle} size={12} />
+                            <span>{ t::BTN_REFRESH_RANDOM }</span>
+                        </button>
+                    }
+                    if query_active {
+                        <button
+                            type="button"
+                            onclick={on_clear_search}
+                            class="sf-chip sf-chip--active mb-1 inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[var(--primary)]/35 bg-[var(--primary-soft,rgba(201,100,66,0.12))] px-3 py-1 font-mono text-xs text-[var(--primary)]"
+                        >
+                            <Icon name={IconName::X} size={11} />
+                            <span>{ t::BTN_CLEAR_SEARCH }</span>
+                        </button>
+                    }
                 </div>
-                if *display_mode == LibraryDisplayMode::RandomRecommended && !query_active {
-                    <button
-                        type="button"
-                        onclick={on_refresh_random}
-                        class="sf-chip cursor-pointer"
-                    >
-                        <i class="fas fa-shuffle text-[10px]" aria-hidden="true"></i>
-                        { t::BTN_REFRESH_RANDOM }
-                    </button>
-                }
-                if query_active {
-                    <button
-                        type="button"
-                        onclick={on_clear_search}
-                        class="sf-chip cursor-pointer"
-                    >
-                        <i class="fas fa-xmark text-[10px]" aria-hidden="true"></i>
-                        { t::BTN_CLEAR_SEARCH }
-                    </button>
-                }
-            </div>
 
-            <div class={classes!("music-search-hero", search_focused.then_some("focused"))}>
-                <div class="music-search-hero-inner">
-                    <i class="fas fa-image music-search-icon" />
+                <div class="relative flex w-full items-center md:w-80">
                     <input
                         type="text"
                         placeholder={t::SEARCH_PLACEHOLDER}
-                        class="music-search-input"
                         value={(*search_input).clone()}
                         oninput={on_search_input}
                         onkeypress={on_search_keypress}
-                        onfocus={on_search_focus}
-                        onblur={on_search_blur}
+                        class="sf-input h-9 w-full rounded-[8px] border border-[var(--border)] bg-[var(--surface)] pl-3 pr-8 text-sm text-[var(--text)] placeholder-[var(--muted)] transition-colors focus:border-[var(--primary)] focus:outline-none"
                     />
-                    <button class="music-search-btn" onclick={on_search_click} type="button">
-                        <i class="fas fa-search" />
+                    <button
+                        onclick={on_search_click}
+                        type="button"
+                        aria-label="Search images"
+                        class="absolute right-2 inline-flex h-6 w-6 items-center justify-center text-[var(--muted)] transition-colors hover:text-[var(--primary)]"
+                    >
+                        <Icon name={IconName::Search} size={14} />
                     </button>
                 </div>
             </div>
 
-            <div class="mb-4 font-mono text-xs tracking-[0.02em] text-[var(--muted)]">
+            <div class="mb-5 font-mono text-xs tracking-[0.02em] text-[var(--muted)]">
                 {
                     if let Some(query) = query_label {
                         format!("{}: {}（{}）", t::LABEL_SEARCH_RESULTS, total_value, query)
@@ -314,38 +548,31 @@ pub fn image_library_page() -> Html {
             </div>
 
             if *loading {
-                <div class="flex justify-center py-20">
-                    <div class="h-8 w-8 animate-spin rounded-full border-2 border-[var(--border)] \
-                                border-t-[var(--primary)] motion-reduce:animate-none" />
+                <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+                    { for (0..10).map(|_| html! {
+                        <div class="aspect-[4/3] animate-pulse rounded-[6px] border border-[var(--border)] bg-[var(--surface-alt)]" />
+                    }) }
                 </div>
             } else if let Some(ref err) = *error {
-                <div class="sf-state sf-state--error">
-                    <span class="sf-state__icon">
-                        <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
-                    </span>
-                    <p class="sf-state__body">{ format!("{}: {}", t::LOAD_ERROR_PREFIX, err) }</p>
+                <div class="rounded-[12px] border border-[var(--err,#B8443A)]/30 bg-[var(--err-soft,rgba(184,68,58,0.08))] p-6 text-sm text-[var(--err,#B8443A)]">
+                    { format!("{}: {}", t::LOAD_ERROR_PREFIX, err) }
                 </div>
             } else if images.is_empty() {
-                <div class="sf-state">
-                    <span class="sf-state__icon">
-                        <i
-                            class={if query_active { "fas fa-magnifying-glass" } else { "fas fa-images" }}
-                            aria-hidden="true"
-                        ></i>
-                    </span>
-                    <p class="sf-state__body">
-                        {
-                            if query_active {
-                                t::EMPTY_SEARCH
-                            } else {
-                                t::EMPTY_LIBRARY
-                            }
+                <div class="rounded-[12px] border border-[var(--border)] bg-[var(--surface)] px-6 py-16 text-center text-sm text-[var(--muted)]">
+                    {
+                        if query_active {
+                            t::EMPTY_SEARCH
+                        } else {
+                            t::EMPTY_LIBRARY
                         }
-                    </p>
+                    }
                 </div>
             } else {
-                <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:gap-5 lg:grid-cols-4 xl:grid-cols-5">
-                    { for images.iter().map(render_image_card) }
+                // Clean masonry / equal-height grid: gap-3, rounded-[6px], zero card shadow
+                <div class="columns-2 gap-3 space-y-3 sm:columns-3 md:columns-4 xl:columns-5">
+                    { for images.iter().enumerate().map(|(idx, image)| {
+                        render_image_tile(idx, image, &on_open_lightbox)
+                    }) }
                 </div>
             }
 
@@ -358,41 +585,50 @@ pub fn image_library_page() -> Html {
                     />
                 </div>
             }
+
+            // Warm semi-transparent Lightbox Preview (rgba(250,249,245,0.96) light / rgba(20,20,19,0.96) dark)
+            {lightbox_node}
         </div>
     }
 }
 
-fn render_image_card(image: &api::ImageInfo) -> Html {
+fn render_image_tile(index: usize, image: &api::ImageInfo, on_open: &Callback<usize>) -> Html {
     let src = image_url(&format!("images/{}", image.filename));
     let filename = image.filename.clone();
-    let id = image.id.clone();
+    let short_id: String = image.id.chars().take(8).collect();
+    let on_click = {
+        let cb = on_open.clone();
+        Callback::from(move |e: MouseEvent| {
+            e.prevent_default();
+            cb.emit(index);
+        })
+    };
 
     html! {
-        <a
-            href={src.clone()}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="group flex flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] \
-                   bg-[var(--surface)] no-underline shadow-[var(--shadow-sm)] \
-                   transition-[transform,box-shadow,border-color] duration-[var(--motion-base)] ease-[var(--ease-spring)] \
-                   hover:-translate-y-1 hover:border-[var(--primary)]/50 hover:shadow-[var(--shadow-8)] \
-                   motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+        <button
+            type="button"
+            onclick={on_click}
             title={filename.clone()}
+            class="group relative block w-full break-inside-avoid overflow-hidden rounded-[6px] border border-[var(--border)] bg-[var(--surface-alt)] p-0 text-left transition-colors hover:border-[var(--border-strong,var(--primary))] focus:outline-none focus-visible:border-[var(--primary)]"
         >
-            <div class="relative aspect-square overflow-hidden bg-[var(--surface-alt)]">
-                <ImageWithLoading
-                    src={src}
-                    alt={filename.clone()}
-                    loading={Some(AttrValue::from("lazy"))}
-                    class="h-full w-full object-cover transition-transform duration-500 ease-[var(--ease-spring)] \
-                           group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
-                    container_class={classes!("w-full", "h-full")}
-                />
+            <ImageWithLoading
+                src={src}
+                alt={filename.clone()}
+                loading={Some(AttrValue::from("lazy"))}
+                class="block h-auto min-h-[120px] w-full object-cover"
+                container_class={classes!("w-full")}
+            />
+            <div
+                class="pointer-events-none absolute inset-x-0 bottom-0 px-2.5 pb-2 pt-8 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100"
+                style="background: linear-gradient(to top, rgba(20,20,19,0.68), rgba(20,20,19,0));"
+            >
+                <p class="truncate font-mono text-[11px] leading-tight text-[#FAF9F5]">
+                    {filename}
+                </p>
+                <p class="mt-0.5 truncate font-mono text-[10px] tabular-nums text-[#FAF9F5]/75">
+                    {format!("#{short_id}")}
+                </p>
             </div>
-            <div class="flex flex-col gap-1 border-t border-[var(--border)] px-3 py-2.5">
-                <p class="truncate text-xs font-medium text-[var(--text)]">{ filename }</p>
-                <p class="truncate font-mono text-[10px] text-[var(--muted)]">{ id }</p>
-            </div>
-        </a>
+        </button>
     }
 }
