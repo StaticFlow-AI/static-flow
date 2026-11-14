@@ -32,10 +32,8 @@ web-sys = { workspace = true, features = [
 ] }
 js-sys = { workspace = true }
 pulldown-cmark = { workspace = true }
-url = "2.5"
 urlencoding = "2.1"
 base64 = "0.22.1"
-ammonia = "4"
 
 # Shared crate
 static-flow-shared = { path = "../shared" }

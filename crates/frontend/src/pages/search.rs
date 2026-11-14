@@ -1,8 +1,9 @@
 use std::collections::BTreeMap;
 
+use gloo_events::EventListener;
 use gloo_timers::callback::Timeout;
 use wasm_bindgen::JsCast;
-use web_sys::{window, Event, KeyboardEvent};
+use web_sys::{window, Event, HtmlInputElement, KeyboardEvent};
 use yew::prelude::*;
 use yew_router::prelude::*;
 
@@ -16,7 +17,10 @@ use crate::{
         scroll_to_top_button::ScrollToTopButton,
     },
     hooks::use_pagination,
-    i18n::{current::search as t, fill_one},
+    i18n::{
+        current::{common as common_t, header as header_t, search as t},
+        fill_one,
+    },
     music_context::{MusicAction, MusicPlayerContext},
     router::Route,
     utils::image_url,
@@ -26,11 +30,33 @@ use crate::{
 /// Use as `onclick` on `<a>` tags that would otherwise trigger a browser
 /// navigation.
 fn spa_navigate(href: &str) {
+    spa_apply_history(href, false);
+}
+
+/// Replace the current history entry in-place for live debounced typing updates
+/// so intermediate keystrokes do not pollute browser Back history.
+fn spa_replace(href: &str) {
+    spa_apply_history(href, true);
+}
+
+fn spa_apply_history(href: &str, replace: bool) {
     if let Some(window) = web_sys::window() {
+        let loc = window.location();
+        let current =
+            format!("{}{}", loc.pathname().unwrap_or_default(), loc.search().unwrap_or_default());
+        if current == href {
+            return;
+        }
         if let Ok(history) = window.history() {
-            let _ = history.push_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(href));
-            if let Ok(event) = Event::new("popstate") {
-                let _ = window.dispatch_event(&event);
+            let result = if replace {
+                history.replace_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(href))
+            } else {
+                history.push_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(href))
+            };
+            if result.is_ok() {
+                if let Ok(event) = Event::new("popstate") {
+                    let _ = window.dispatch_event(&event);
+                }
             }
         }
     }
@@ -71,6 +97,7 @@ pub struct SearchPageProps {
 }
 
 const DEFAULT_TEXT_SEARCH_LIMIT: usize = 50;
+const ALL_TEXT_SEARCH_LIMIT: usize = 500;
 const DEFAULT_IMAGE_SEARCH_LIMIT: usize = 8;
 const SEARCH_PAGE_SIZE: usize = 15;
 const IMAGE_GRID_CHUNK_SIZE: usize = 8;
@@ -78,6 +105,8 @@ const LIGHTBOX_MIN_ZOOM: f64 = 0.5;
 const LIGHTBOX_MAX_ZOOM: f64 = 3.0;
 const LIGHTBOX_ZOOM_STEP: f64 = 0.25;
 const MUSIC_SEARCH_RESULT_LIMIT: usize = 50;
+const KEYWORD_DEBOUNCE_MS: u32 = 240;
+const HEAVY_MODE_DEBOUNCE_MS: u32 = 420;
 
 #[function_component(SearchPage)]
 pub fn search_page() -> Html {
@@ -130,11 +159,20 @@ pub fn search_page() -> Html {
         .and_then(|q| q.limit)
         .filter(|value| *value > 0)
         .unwrap_or(DEFAULT_TEXT_SEARCH_LIMIT);
-    let active_limit = if fetch_all { None } else { Some(requested_limit) };
+    let active_limit = if fetch_all { Some(ALL_TEXT_SEARCH_LIMIT) } else { Some(requested_limit) };
     let max_distance = query
         .as_ref()
         .and_then(|q| q.max_distance)
         .filter(|value| value.is_finite() && *value >= 0.0);
+    let search_input = use_state(|| keyword.clone());
+    let search_input_ref = use_node_ref();
+    let last_synced_keyword = use_mut_ref(|| keyword.clone());
+    let is_composing = use_mut_ref(|| false);
+    let debounce_timer = use_mut_ref(|| Option::<Timeout>::None);
+    let article_req_gen = use_mut_ref(|| 0u64);
+    let music_req_gen = use_mut_ref(|| 0u64);
+    let image_text_req_gen = use_mut_ref(|| 0u64);
+    let image_similar_req_gen = use_mut_ref(|| 0u64);
     let results = use_state(Vec::<SearchResult>::new);
     let loading = use_state(|| false);
     let image_catalog = use_state(Vec::<ImageInfo>::new);
@@ -370,10 +408,45 @@ pub fn search_page() -> Html {
     }
 
     {
+        let search_input = search_input.clone();
+        let last_synced_keyword = last_synced_keyword.clone();
+        let debounce_timer = debounce_timer.clone();
+        use_effect_with(keyword.clone(), move |kw| {
+            let prev = last_synced_keyword.borrow().clone();
+            if prev != *kw {
+                *last_synced_keyword.borrow_mut() = kw.clone();
+                *debounce_timer.borrow_mut() = None;
+                search_input.set(kw.clone());
+            }
+            || ()
+        });
+    }
+
+    {
+        let debounce_timer = debounce_timer.clone();
+        use_effect_with((), move |_| {
+            move || {
+                *debounce_timer.borrow_mut() = None;
+            }
+        });
+    }
+
+    {
+        let go_to_page = go_to_page.clone();
+        use_effect_with((keyword.clone(), mode.clone()), move |_| {
+            if !crate::navigation_context::is_return_armed() {
+                go_to_page.emit(1);
+            }
+            || ()
+        });
+    }
+
+    {
         let results = results.clone();
         let loading = loading.clone();
         let keyword = keyword.clone();
         let mode = mode.clone();
+        let article_req_gen = article_req_gen.clone();
 
         use_effect_with(
             (
@@ -398,6 +471,12 @@ pub fn search_page() -> Html {
                 hybrid_vector_limit,
                 hybrid_fts_limit,
             )| {
+                let next_gen = {
+                    let mut gen_ref = article_req_gen.borrow_mut();
+                    *gen_ref = gen_ref.wrapping_add(1);
+                    *gen_ref
+                };
+
                 if mode == "image" || mode == "music" || kw.trim().is_empty() {
                     loading.set(false);
                     results.set(vec![]);
@@ -405,6 +484,7 @@ pub fn search_page() -> Html {
                     loading.set(true);
                     let results = results.clone();
                     let loading = loading.clone();
+                    let article_req_gen = article_req_gen.clone();
                     let query_text = kw.clone();
                     let use_semantic = mode == "semantic";
                     let use_enhanced_highlight = *enhanced_highlight;
@@ -432,6 +512,10 @@ pub fn search_page() -> Html {
                             crate::api::search_articles(&query_text, limit).await
                         };
 
+                        if *article_req_gen.borrow() != next_gen {
+                            return;
+                        }
+
                         match response {
                             Ok(data) => {
                                 results.set(data);
@@ -458,10 +542,17 @@ pub fn search_page() -> Html {
         let keyword = keyword.clone();
         let mode = mode.clone();
         let music_sub_mode = music_sub_mode.clone();
+        let music_req_gen = music_req_gen.clone();
 
         use_effect_with(
             (keyword.clone(), mode.clone(), music_sub_mode.clone()),
             move |(kw, mode, sub_mode)| {
+                let next_gen = {
+                    let mut gen_ref = music_req_gen.borrow_mut();
+                    *gen_ref = gen_ref.wrapping_add(1);
+                    *gen_ref
+                };
+
                 if mode != "music" || kw.trim().is_empty() {
                     music_loading.set(false);
                     music_results.set(vec![]);
@@ -472,6 +563,7 @@ pub fn search_page() -> Html {
                     let music_results = music_results.clone();
                     let music_loading = music_loading.clone();
                     let music_error = music_error.clone();
+                    let music_req_gen = music_req_gen.clone();
                     let q = kw.clone();
                     let api_mode = match sub_mode.as_str() {
                         "semantic" => Some("semantic"),
@@ -480,13 +572,15 @@ pub fn search_page() -> Html {
                     };
 
                     wasm_bindgen_futures::spawn_local(async move {
-                        match crate::api::search_songs(
-                            &q,
-                            Some(MUSIC_SEARCH_RESULT_LIMIT),
-                            api_mode,
-                        )
-                        .await
-                        {
+                        let response =
+                            crate::api::search_songs(&q, Some(MUSIC_SEARCH_RESULT_LIMIT), api_mode)
+                                .await;
+
+                        if *music_req_gen.borrow() != next_gen {
+                            return;
+                        }
+
+                        match response {
                             Ok(data) => {
                                 music_results.set(data);
                                 music_error.set(None);
@@ -596,10 +690,17 @@ pub fn search_page() -> Html {
         let image_text_visible = image_text_visible.clone();
         let image_text_has_more = image_text_has_more.clone();
         let image_text_loading = image_text_loading.clone();
+        let image_text_req_gen = image_text_req_gen.clone();
 
         use_effect_with(
             (mode.clone(), keyword.clone(), max_distance),
             move |(mode, keyword, max_distance)| {
+                let next_gen = {
+                    let mut gen_ref = image_text_req_gen.borrow_mut();
+                    *gen_ref = gen_ref.wrapping_add(1);
+                    *gen_ref
+                };
+
                 if mode != "image" || keyword.trim().is_empty() {
                     image_text_loading.set(false);
                     image_text_results.set(vec![]);
@@ -611,18 +712,24 @@ pub fn search_page() -> Html {
                     let image_text_visible = image_text_visible.clone();
                     let image_text_has_more = image_text_has_more.clone();
                     let image_text_loading = image_text_loading.clone();
+                    let image_text_req_gen = image_text_req_gen.clone();
                     let query_text = keyword.clone();
                     let query_distance = *max_distance;
 
                     wasm_bindgen_futures::spawn_local(async move {
-                        match search_images_by_text_page(
+                        let response = search_images_by_text_page(
                             &query_text,
                             Some(IMAGE_GRID_CHUNK_SIZE),
                             Some(0),
                             query_distance,
                         )
-                        .await
-                        {
+                        .await;
+
+                        if *image_text_req_gen.borrow() != next_gen {
+                            return;
+                        }
+
+                        match response {
                             Ok(data) => {
                                 image_text_visible.set(data.images.len());
                                 image_text_has_more.set(data.has_more);
@@ -820,8 +927,14 @@ pub fn search_page() -> Html {
         let image_similar_has_more = image_similar_has_more.clone();
         let image_loading = image_loading.clone();
         let selected_image_id = selected_image_id.clone();
+        let image_similar_req_gen = image_similar_req_gen.clone();
 
         Callback::from(move |id: String| {
+            let next_gen = {
+                let mut gen_ref = image_similar_req_gen.borrow_mut();
+                *gen_ref = gen_ref.wrapping_add(1);
+                *gen_ref
+            };
             selected_image_id.set(Some(id.clone()));
             image_loading.set(true);
 
@@ -829,16 +942,22 @@ pub fn search_page() -> Html {
             let image_similar_visible = image_similar_visible.clone();
             let image_similar_has_more = image_similar_has_more.clone();
             let image_loading = image_loading.clone();
+            let image_similar_req_gen = image_similar_req_gen.clone();
 
             wasm_bindgen_futures::spawn_local(async move {
-                match search_images_by_id_page(
+                let response = search_images_by_id_page(
                     &id,
                     Some(IMAGE_GRID_CHUNK_SIZE),
                     Some(0),
                     max_distance,
                 )
-                .await
-                {
+                .await;
+
+                if *image_similar_req_gen.borrow() != next_gen {
+                    return;
+                }
+
+                match response {
                     Ok(data) => {
                         image_similar_visible.set(data.images.len());
                         image_similar_has_more.set(data.has_more);
@@ -989,9 +1108,196 @@ pub fn search_page() -> Html {
         })
     };
 
+    let build_current_mode_href = {
+        let mode = mode.clone();
+        let music_sub_mode = music_sub_mode.clone();
+        move |next_kw: &str| -> String {
+            let trimmed = next_kw.trim();
+            match mode.as_str() {
+                "semantic" => build_search_href(
+                    Some("semantic"),
+                    trimmed,
+                    enhanced_highlight,
+                    if fetch_all { None } else { Some(requested_limit) },
+                    fetch_all,
+                    max_distance,
+                    hybrid,
+                    Some(hybrid_rrf_k),
+                    hybrid_vector_limit,
+                    hybrid_fts_limit,
+                    None,
+                ),
+                "image" => build_search_href(
+                    Some("image"),
+                    trimmed,
+                    false,
+                    None,
+                    false,
+                    max_distance,
+                    false,
+                    None,
+                    None,
+                    None,
+                    None,
+                ),
+                "music" => build_search_href(
+                    Some("music"),
+                    trimmed,
+                    false,
+                    None,
+                    false,
+                    None,
+                    false,
+                    None,
+                    None,
+                    None,
+                    Some(music_sub_mode.as_str()),
+                ),
+                _ => build_search_href(
+                    None,
+                    trimmed,
+                    false,
+                    if fetch_all { None } else { Some(requested_limit) },
+                    fetch_all,
+                    None,
+                    false,
+                    None,
+                    None,
+                    None,
+                    None,
+                ),
+            }
+        }
+    };
+
+    let debounce_delay_ms =
+        if mode == "keyword" { KEYWORD_DEBOUNCE_MS } else { HEAVY_MODE_DEBOUNCE_MS };
+
+    let schedule_debounced_query = {
+        let debounce_timer = debounce_timer.clone();
+        let last_synced_keyword = last_synced_keyword.clone();
+        let build_current_mode_href = build_current_mode_href.clone();
+        move |next_value: String| {
+            let target_trimmed = next_value.trim().to_string();
+            let href = build_current_mode_href(&target_trimmed);
+            let last_synced_keyword = last_synced_keyword.clone();
+            let debounce_timer_inner = debounce_timer.clone();
+            *debounce_timer.borrow_mut() = Some(Timeout::new(debounce_delay_ms, move || {
+                *debounce_timer_inner.borrow_mut() = None;
+                *last_synced_keyword.borrow_mut() = target_trimmed;
+                spa_replace(&href);
+            }));
+        }
+    };
+
+    let on_search_input = {
+        let search_input = search_input.clone();
+        let is_composing = is_composing.clone();
+        let schedule_debounced_query = schedule_debounced_query.clone();
+        Callback::from(move |event: InputEvent| {
+            if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                let val = target.value();
+                search_input.set(val.clone());
+                let event_composing = js_sys::Reflect::get(&event, &"isComposing".into())
+                    .ok()
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                if !*is_composing.borrow() && !event_composing {
+                    schedule_debounced_query(val);
+                }
+            }
+        })
+    };
+
+    {
+        let search_input_ref = search_input_ref.clone();
+        let is_composing = is_composing.clone();
+        let debounce_timer = debounce_timer.clone();
+        let search_input = search_input.clone();
+        let schedule_debounced_query = schedule_debounced_query.clone();
+        use_effect_with(
+            (
+                mode.clone(),
+                enhanced_highlight,
+                fetch_all,
+                requested_limit,
+                max_distance,
+                hybrid,
+                hybrid_rrf_k,
+                hybrid_vector_limit,
+                hybrid_fts_limit,
+                music_sub_mode.clone(),
+            ),
+            move |_| {
+                let listeners = search_input_ref.cast::<HtmlInputElement>().map(|target| {
+                    let is_composing_start = is_composing.clone();
+                    let debounce_timer_start = debounce_timer.clone();
+                    let comp_start = EventListener::new(&target, "compositionstart", move |_| {
+                        *is_composing_start.borrow_mut() = true;
+                        *debounce_timer_start.borrow_mut() = None;
+                    });
+
+                    let is_composing_end = is_composing.clone();
+                    let search_input_end = search_input.clone();
+                    let search_input_ref_end = search_input_ref.clone();
+                    let comp_end = EventListener::new(&target, "compositionend", move |_| {
+                        *is_composing_end.borrow_mut() = false;
+                        let val = search_input_ref_end
+                            .cast::<HtmlInputElement>()
+                            .map(|input| input.value())
+                            .unwrap_or_else(|| (*search_input_end).clone());
+                        search_input_end.set(val.clone());
+                        schedule_debounced_query(val);
+                    });
+
+                    (comp_start, comp_end)
+                });
+
+                move || {
+                    drop(listeners);
+                }
+            },
+        );
+    }
+
+    let on_search_clear = {
+        let search_input = search_input.clone();
+        let search_input_ref = search_input_ref.clone();
+        let debounce_timer = debounce_timer.clone();
+        let last_synced_keyword = last_synced_keyword.clone();
+        let build_current_mode_href = build_current_mode_href.clone();
+        Callback::from(move |event: MouseEvent| {
+            event.prevent_default();
+            *debounce_timer.borrow_mut() = None;
+            search_input.set(String::new());
+            *last_synced_keyword.borrow_mut() = String::new();
+            let href = build_current_mode_href("");
+            spa_replace(&href);
+            if let Some(input) = search_input_ref.cast::<HtmlInputElement>() {
+                let _ = input.focus();
+            }
+        })
+    };
+
+    let on_search_submit = {
+        let search_input = search_input.clone();
+        let debounce_timer = debounce_timer.clone();
+        let last_synced_keyword = last_synced_keyword.clone();
+        let build_current_mode_href = build_current_mode_href.clone();
+        Callback::from(move |event: SubmitEvent| {
+            event.prevent_default();
+            *debounce_timer.borrow_mut() = None;
+            let trimmed = search_input.trim().to_string();
+            *last_synced_keyword.borrow_mut() = trimmed.clone();
+            let href = build_current_mode_href(&trimmed);
+            spa_navigate(&href);
+        })
+    };
+
+    let link_keyword = search_input.trim();
     let keyword_href = build_search_href(
         None,
-        &keyword,
+        link_keyword,
         false,
         Some(requested_limit),
         fetch_all,
@@ -1004,7 +1310,7 @@ pub fn search_page() -> Html {
     );
     let semantic_fast_href = build_search_href(
         Some("semantic"),
-        &keyword,
+        link_keyword,
         false,
         Some(requested_limit),
         fetch_all,
@@ -1017,7 +1323,7 @@ pub fn search_page() -> Html {
     );
     let semantic_precise_href = build_search_href(
         Some("semantic"),
-        &keyword,
+        link_keyword,
         true,
         Some(requested_limit),
         fetch_all,
@@ -1032,7 +1338,7 @@ pub fn search_page() -> Html {
         if enhanced_highlight { semantic_precise_href.clone() } else { semantic_fast_href.clone() };
     let image_href = build_search_href(
         Some("image"),
-        &keyword,
+        link_keyword,
         false,
         None,
         false,
@@ -1045,7 +1351,7 @@ pub fn search_page() -> Html {
     );
     let music_href = build_search_href(
         Some("music"),
-        &keyword,
+        link_keyword,
         false,
         None,
         false,
@@ -1452,6 +1758,103 @@ pub fn search_page() -> Html {
                             </span>
                         }
                     </p>
+
+                    // On-page search bar
+                    <form
+                        role="search"
+                        onsubmit={on_search_submit}
+                        class={classes!("mt-5", "w-full", "max-w-2xl")}
+                    >
+                        <div class={classes!(
+                            "flex",
+                            "items-center",
+                            "gap-2",
+                            "rounded-[var(--radius-lg)]",
+                            "border",
+                            "border-[var(--border)]",
+                            "bg-[var(--surface)]",
+                            "px-3.5",
+                            "py-1.5",
+                            "shadow-[var(--shadow-sm)]",
+                            "transition-colors",
+                            "focus-within:border-[var(--primary)]"
+                        )}>
+                            <i
+                                class={classes!(
+                                    "fas",
+                                    "fa-search",
+                                    "text-sm",
+                                    "text-[var(--muted)]",
+                                    "shrink-0"
+                                )}
+                                aria-hidden="true"
+                            />
+                            <input
+                                ref={search_input_ref}
+                                type="search"
+                                value={(*search_input).clone()}
+                                oninput={on_search_input}
+                                placeholder={common_t::SEARCH_PLACEHOLDER}
+                                aria-label={header_t::SEARCH_ARIA}
+                                autocomplete="off"
+                                spellcheck="false"
+                                class={classes!(
+                                    "min-w-0",
+                                    "flex-1",
+                                    "bg-transparent",
+                                    "py-2",
+                                    "text-sm",
+                                    "sm:text-base",
+                                    "text-[var(--text)]",
+                                    "placeholder:text-[var(--muted)]",
+                                    "outline-none",
+                                    "[&::-webkit-search-cancel-button]:hidden"
+                                )}
+                            />
+                            if !search_input.is_empty() {
+                                <button
+                                    type="button"
+                                    onclick={on_search_clear}
+                                    aria-label={header_t::CLEAR_ARIA}
+                                    title={header_t::CLEAR_ARIA}
+                                    class={classes!(
+                                        "inline-flex",
+                                        "h-7",
+                                        "w-7",
+                                        "shrink-0",
+                                        "items-center",
+                                        "justify-center",
+                                        "rounded-full",
+                                        "text-base",
+                                        "leading-none",
+                                        "text-[var(--muted)]",
+                                        "transition-colors",
+                                        "hover:bg-[var(--surface-alt)]",
+                                        "hover:text-[var(--text)]",
+                                        "cursor-pointer"
+                                    )}
+                                >
+                                    { "×" }
+                                </button>
+                            }
+                            <button
+                                type="submit"
+                                aria-label={header_t::SEARCH_ARIA}
+                                class={classes!(
+                                    "btn-fluent-primary",
+                                    "!px-3.5",
+                                    "!py-1.5",
+                                    "!text-xs",
+                                    "sm:!text-sm",
+                                    "shrink-0",
+                                    "cursor-pointer"
+                                )}
+                            >
+                                <i class={classes!("fas", "fa-arrow-right", "text-xs")} aria-hidden="true" />
+                                <span class={classes!("hidden", "sm:inline")}>{ header_t::SEARCH_ARIA }</span>
+                            </button>
+                        </div>
+                    </form>
 
                     // Mode switches
                     <div class={classes!("flex", "flex-wrap", "items-center", "gap-2.5", "mt-5")}>
@@ -2880,7 +3283,7 @@ pub fn search_page() -> Html {
 
 
 fn render_search_result(result: &SearchResult) -> Html {
-    let highlight_html = AttrValue::from(result.highlight.clone());
+    let highlight_html = AttrValue::from(crate::utils::sanitize_html(&result.highlight));
 
     html! {
         <article class={classes!(
