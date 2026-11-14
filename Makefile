@@ -3,7 +3,9 @@
 
 # Binary output directory
 BIN_DIR ?= ./bin
-TARGET_DIR ?= ./target/release
+CARGO_TARGET_ROOT ?= $(or $(CARGO_TARGET_DIR),./target)
+TARGET_DIR ?= $(CARGO_TARGET_ROOT)/release
+BACKEND_TARGET_DIR ?= $(CARGO_TARGET_ROOT)/release-backend
 BACKEND_DEFAULT_FEATURES ?= 1
 BACKEND_FEATURES ?=
 BACKEND_BIN_NAME ?= static-flow-backend
@@ -61,11 +63,11 @@ dev-frontend:
 	@echo "🎨 启动前端（http://localhost:8080）..."
 	@cd crates/frontend && trunk serve --open
 
-# 构建项目
+# 构建项目（前端走自托管脚本，避免裸 trunk build --release 指向 localhost:3000/api）
 build:
 	@echo "📦 构建项目..."
 	@cargo build --workspace --release
-	@cd crates/frontend && trunk build --release
+	@bash scripts/build_frontend_selfhosted.sh
 	@echo "✅ 构建完成"
 
 # 检查代码
@@ -98,16 +100,18 @@ kill-backend:
 kill-frontend:
 	@-pkill -9 -f "trunk serve" 2>/dev/null || true
 
-# 格式化代码
+# 格式化代码（禁止在根目录执行全局 cargo fmt，防止污染 deps/lance 与 deps/lancedb）
 fmt:
-	@cargo fmt --all
+	@echo "❌ 禁止在仓库根目录执行 cargo fmt / cargo fmt --all（保护 deps/lance 与 deps/lancedb）"
+	@echo "   请仅对实际改动文件运行：rustfmt <changed_files...>"
+	@exit 1
 
 # Lint 检查
 lint:
 	@cargo clippy --workspace -- -D warnings
 
 # 完整检查
-ci: fmt lint test check
+ci: lint test check
 	@echo "✅ 所有检查通过"
 
 # 编译指定 package 的 release binary，并导出到 ./bin
@@ -146,7 +150,7 @@ bin-backend:
 	eval "$$cmd"
 	@mkdir -p $(BIN_DIR)
 	@tmp_bin="$(BIN_DIR)/.$(BACKEND_BIN_NAME).tmp"; \
-	cp ./target/release-backend/static-flow-backend "$$tmp_bin"; \
+	cp $(BACKEND_TARGET_DIR)/static-flow-backend "$$tmp_bin"; \
 	mv -f "$$tmp_bin" $(BIN_DIR)/$(BACKEND_BIN_NAME)
 	@echo "✅ 输出: $(BIN_DIR)/$(BACKEND_BIN_NAME)"
 
@@ -157,7 +161,7 @@ bin-media:
 	echo "📦 $$cmd"; \
 	eval "$$cmd"
 	@mkdir -p $(BIN_DIR)
-	@cp ./target/release-backend/static-flow-media $(BIN_DIR)/$(MEDIA_BIN_NAME)
+	@cp $(BACKEND_TARGET_DIR)/static-flow-media $(BIN_DIR)/$(MEDIA_BIN_NAME)
 	@echo "✅ 输出: $(BIN_DIR)/$(MEDIA_BIN_NAME)"
 
 # 编译所有 Rust binary

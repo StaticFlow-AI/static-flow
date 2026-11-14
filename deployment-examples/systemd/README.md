@@ -17,9 +17,14 @@ Files:
 - `staticflow-backend-slot.env.example`
 - `llm-access.service.template`
 - `llm-access-usage-worker.service.template`
+- `llm-access-codex-image.service.template`
+- `llm-access-opencode.service.template`
 - `llm-access-cursor.service.template`
 - `llm-access-antigravity.service.template`
+- `llm-access-oauth.service.template`
+- `llm-access-monitor.service.template`
 - `llm-access-juicefs.mount.template`
+- `juicefs-llm-access-usage.service.template`
 - `juicefs-llm-access.resource-guard.conf`
 - `staticflow-wait-llm-access-state`
 
@@ -73,8 +78,14 @@ Storage model:
   `llm_usage_segment_key_rollups`
 - packed usage details: `/mnt/llm-access-usage/details/packs/...`
 - hot usage journal: `/var/lib/staticflow/llm-access/usage-journal`
+- main Codex/Kiro gateway & shared admin bind: `127.0.0.1:19080`
 - usage query worker bind: `127.0.0.1:19081`
-- Cursor/Grok data-plane bind: `127.0.0.1:19090`
+- Codex image gateway bind: `127.0.0.1:19082`
+- OpenCode decision gateway bind: `127.0.0.1:19085`
+- Cursor/Grok data-plane & admin bind: `127.0.0.1:19090`
+- host/process resource monitor bind: `127.0.0.1:19092`
+- Antigravity data-plane & admin bind: `127.0.0.1:19095`
+- loopback OAuth manager bind: `127.0.0.1:19194`
 - control JuiceFS cache dir: `/var/cache/juicefs/llm-access`
 - usage JuiceFS cache dir: `/var/cache/juicefs/llm-access-usage`
 
@@ -94,16 +105,26 @@ Neon Postgres.
 The GeoIP MMDB is a rebuildable local cache and should stay on the VM block
 disk, not under `/mnt/llm-access`.
 
-`llm-access-cursor.service` is a thin provider data plane. Public requests use
-`/api/cursor-gateway/v1/*`, which Caddy strips to `/v1/*` before forwarding to
-`:19090`. The process owns no local keys, account registry, policy, or usage
-database: it reads the shared Neon control plane and appends terminal usage to
-the same local hot journal consumed by `llm-access-usage-worker`.
+`llm-access-cursor.service` (`:19090`), `llm-access-antigravity.service`
+(`:19095`), and `llm-access-opencode.service` (`:19085`) are thin standalone
+provider data planes. Public Cursor and Antigravity requests enter Caddy under
+`/api/cursor-gateway/v1/*` and `/api/antigravity-gateway/v1/*` (stripped to
+`/v1/*` before forwarding), while OpenCode runs on loopback as the primary Kiro
+Thinking Guard decision gateway (`jev-1.13-free`). None of their `/admin/*`
+routes or `llm-access-oauth.service` (`:19194`) / `llm-access-monitor.service`
+(`:19092`) are exposed publicly; operators reach them through local pb-mapper
+subscriptions or authenticated SSH loopback tunnels. Each data plane reads the
+shared Neon control plane (plus Valkey request cache) and appends terminal usage
+to the same local hot journal consumed by `llm-access-usage-worker`.
 
-Deploy only this process with
-`scripts/release_llm_access_cloud_cursor_only.sh`. The Cursor-only release uses
-its own manifest and `latest` pointer, preserves the shared Neon environment,
-and installs, restarts, verifies, or rolls back only `llm-access-cursor.service`.
+Each cloud unit stays independently deployable via its targeted script:
+
+- `scripts/release_llm_access_cloud_api_only.sh` (`llm-access.service`)
+- `scripts/release_llm_access_cloud_worker_only.sh` (`llm-access-usage-worker.service`)
+- `scripts/release_llm_access_cloud_codex_image_only.sh` (`llm-access-codex-image.service`)
+- `scripts/release_llm_access_cloud_opencode_only.sh` (`llm-access-opencode.service`)
+- `scripts/release_llm_access_cloud_cursor_only.sh` (`llm-access-cursor.service`)
+- `scripts/release_llm_access_cloud_antigravity_only.sh` (`llm-access-antigravity.service` + `llm-access-oauth.service`)
 
 Bundle rendering and template validation:
 

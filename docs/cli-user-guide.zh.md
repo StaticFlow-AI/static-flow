@@ -4,8 +4,9 @@
 > - 内容主表与资源表（`articles` / `images` / `taxonomies`）
 > - backend 运行时与请求表（`article_views` / `api_behavior_events` / `article_requests*`）
 > - 交互镜像表（`interactive_pages` / `interactive_page_locales` / `interactive_assets`）
-> - LLM gateway 表（`llm_gateway_keys` / `llm_gateway_usage_events` / `llm_gateway_runtime_config`）
-> - backend 评论体系表（`comment_tasks` / `comment_published` / `comment_audit_logs`，位于评论专用 DB）
+> - 本地遗留 LLM gateway 迁移源表（`llm_gateway_keys` / `llm_gateway_usage_events` / `llm_gateway_runtime_config`；生产已迁至独立 `llm-access`）
+> - backend 评论体系表（`comment_tasks` / `comment_published` / `comment_audit_logs` / `comment_ai_runs*`，位于评论专用 DB）
+> - 音乐库表（`songs` / `music_plays` / `music_comments` / `music_wishes*`，位于音乐专用 DB）
 > - 全量 CRUD（增删改查）命令
 > - 每个字段的语义与来源
 > - 索引、检索、调试方式
@@ -17,14 +18,15 @@
 ### 1.1 编译二进制
 
 ```bash
-# 在仓库根目录
-make bin-cli
+# 推荐：指定大容量挂载点作为编译缓存目录，并直接使用最新编译产物
+export CARGO_TARGET_DIR=/mnt/wsl/data4tb/static-flow-data/cargo-target/static_flow
+cargo build --release -p sf-cli --jobs 8
 
-# 产物
-./bin/sf-cli --help
+# 产物（写入存储格式敏感数据时优先使用最新 target/release/sf-cli，而非陈旧 ./bin/sf-cli 快照）
+$CARGO_TARGET_DIR/release/sf-cli --help
 ```
 
-> 若你偏好 release 目录，也可用：`./target/release/sf-cli`。
+> 若希望同时同步导出到 `./bin/sf-cli`，可在设置 `CARGO_TARGET_DIR` 后执行 `make bin-cli`。
 
 ### 1.2 初始化数据库
 
@@ -65,9 +67,9 @@ CLI_BIN=./bin/sf-cli WORKDIR=./tmp/cli-e2e ./scripts/test_cli_e2e.sh
 
 ## 2. 数据模型总览（无硬编码词典）
 
-当前数据模型分四组：
+当前数据模型跨三个 LanceDB 根目录（Content DB / Comments DB / Music DB）：
 
-主内容库（`LANCEDB_URI`）：
+主内容库（Content DB，`LANCEDB_URI`，默认 `.../lancedb`）：
 - `articles`：文章主体、元数据、文本向量、双语字段、转载/交互关联字段
 - `images`：原图 blob v2、缩略图二进制、图像向量
 - `taxonomies`：分类/标签元数据（含 `description`）
@@ -84,17 +86,23 @@ CLI_BIN=./bin/sf-cli WORKDIR=./tmp/cli-e2e ./scripts/test_cli_e2e.sh
 - `interactive_page_locales`：交互页多语言版本元数据
 - `interactive_assets`：交互页 HTML/CSS/JS/图片/字体等资源；资源字节采用 blob v2
 
-LLM gateway 库（同一 Content DB，公开接入与额度管理）：
-- `llm_gateway_keys`：公开/私有 API key、状态、额度与累计计费
-- `llm_gateway_usage_events`：按请求落库的使用账本、URL、IP、headers、延迟等诊断字段
-- `llm_gateway_runtime_config`：鉴权缓存 TTL 等运行时配置
+本地遗留 LLM gateway 表（同一 Content DB，历史迁移源，当前生产控制面已迁往云端 Neon + 独立 `llm-access` 服务）：
+- `llm_gateway_keys`：历史公开/私有 API key、状态、额度与累计计费
+- `llm_gateway_usage_events`：历史按请求落库的使用账本与诊断字段
+- `llm_gateway_runtime_config`：历史运行时配置
 
-评论库（`COMMENTS_LANCEDB_URI`）：
+评论库（Comments DB，`COMMENTS_LANCEDB_URI`，默认 `.../lancedb-comments`）：
 - `comment_tasks`：评论任务队列（待审核、处理中、失败等状态）
 - `comment_published`：审核通过且 AI 回复完成的公开评论
 - `comment_audit_logs`：评论审核动作审计日志
 - `comment_ai_runs`：每次 AI 执行批次元数据（状态、退出码、最终回复）
 - `comment_ai_run_chunks`：AI 输出分片（stdout/stderr），支持后台拼接完整输出
+
+音乐库（Music DB，`MUSIC_LANCEDB_URI`，默认 `.../lancedb-music`）：
+- `songs`：音频本体（`audio_data` 采用 blob v2）、封面、歌词、检索文本与向量
+- `music_plays`：播放记录统计
+- `music_comments`：歌曲评论
+- `music_wishes` / `music_wish_ai_runs` / `music_wish_ai_run_chunks`：点歌许愿单与后台 Codex worker 执行日志
 
 说明：
 - 评论库由 backend 自动创建和维护；`sf-cli init` 只初始化主内容库表。
@@ -801,9 +809,9 @@ sf-cli rebuild-songs-table --db-path /mnt/wsl/data4tb/static-flow-data/lancedb-m
 
 ### 13.5 为其他表实现重建的参考模板
 
-当需要对 `articles`、`images` 等表执行类似重建时，可参照以下步骤在 `shared/` 和 `cli/` 中实现：
+当需要对 `articles`、`images` 等表执行类似重建时，可参照以下步骤在 `crates/store/` 和 `crates/cli/` 中实现：
 
-**1) `crates/shared/src/*_store.rs` — 核心逻辑**
+**1) `crates/store/src/*_store.rs` — 核心逻辑**
 
 ```rust
 pub async fn rebuild_xxx_table(&self, batch_size: usize, db_uri: &str) -> Result<usize> {

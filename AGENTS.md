@@ -19,11 +19,13 @@ Route work by owner before editing:
 - StaticFlow owns the site/backend, public frontend consumers, the legacy admin
   handoff, mirrored LLM HTTP contract types, Caddy/systemd integration, cloud
   release scripts, and the production operations runbook.
-- `deps/llm-access` owns provider integrations, request conversion, routing,
-  account/key policy, moderation, persistence, migrations, usage processing,
-  image generation, AI review, and the standalone
-  `apps/llm-access-frontend` operations console. Its own `AGENTS.md` is
-  mandatory for work in that repository.
+- `deps/llm-access` owns provider integrations (Codex, Kiro, Cursor/Grok,
+  Antigravity, OpenCode), request conversion, fallback-graph routing,
+  account/key policy, moderation, Neon Postgres persistence + Valkey request
+  caching, migrations, usage journal & tiered DuckDB analytics, Codex image
+  generation, loopback OAuth management, Linux host/process resource monitoring,
+  AI review, and the standalone `apps/llm-access-frontend` operations console.
+  Its own `AGENTS.md` is mandatory for work in that repository.
 - A change spanning the HTTP boundary must update and verify both sides. Do not
   move private implementation back into StaticFlow or hide a contract mismatch
   behind a speculative compatibility shim.
@@ -31,12 +33,14 @@ Route work by owner before editing:
   Use `git -C deps/llm-access ...` when inspecting the child from this root; do
   not treat a clean parent status as proof that the child is clean.
 
-## LLM / Kiro / Codex Admin UI (Hard Rule)
+## LLM / Multi-Provider Operator Console (Hard Rule)
 
-The live operator console for Codex/Kiro keys, accounts, groups, usage,
-moderation, runtime config, and proxies is the React app in
-`deps/llm-access/apps/llm-access-frontend` (local `127.0.0.1:19191`, tmux
-`sf-llm-access-frontend`). Follow `deps/llm-access/AGENTS.md` for that work.
+The live operator console for Codex, Kiro, Cursor/Grok, Antigravity, and
+OpenCode keys, accounts, groups, fallback routing graphs, usage, host/process
+telemetry, moderation, model pricing, runtime config, and proxies is the React
+app in `deps/llm-access/apps/llm-access-frontend` (local `127.0.0.1:19191`,
+tmux `sf-llm-access-frontend`). Follow `deps/llm-access/AGENTS.md` for that
+work.
 
 Default StaticFlow Yew `/admin/llm-gateway*` and `/admin/kiro-gateway*` routes
 are handoff pages into that console. The old Yew admin
@@ -44,13 +48,19 @@ are handoff pages into that console. The old Yew admin
 `admin_kiro_gateway*.rs`) is mounted only when the parent frontend is built
 with `STATICFLOW_ENABLE_LEGACY_LLM_ADMIN=1`.
 
-When the task is creating or editing a Codex/Kiro key, or any other llm-access
-control-plane form:
+When the task is creating or editing a provider key, account, fallback route,
+or any other llm-access control-plane form:
 
-- Edit `deps/llm-access/apps/llm-access-frontend` (create-key lives in
-  `src/console/pages/InventoryPage.tsx` plus `TypedActionDialog` /
-  `TypedValueFields` in `src/console/components.tsx`; existing-key edits live
-  in `src/console/key-editor.tsx`).
+- Edit `deps/llm-access/apps/llm-access-frontend`:
+  - Provider inventories (`/console/{codex,kiro,cursor,antigravity,opencode}/*`):
+    `src/console/pages/InventoryPage.tsx`
+  - Create dialogs: `TypedActionDialog` / `TypedValueFields` in
+    `src/console/components.tsx`
+  - Existing-key & fallback-graph edits: `src/console/key-editor.tsx`,
+    `src/console/fallback-editor.tsx`, `src/console/fallback-canvas.tsx`
+  - Account edits: `src/console/account-editor.tsx`
+  - Host resources, runtime settings, model pricing, proxies:
+    `src/console/pages/{SystemResourcesPage,SettingsPage,PricingPage,ProxiesPage}.tsx`
 - Do not treat the Yew pages as the live UI. A `/admin/kiro-gateway/keys` or
   `/admin/llm-gateway/keys` URL in the browser is a handoff, not the form that
   submits the JSON body.
@@ -205,15 +215,29 @@ Traffic path:
   → route split
 - `https://staticflow.cc` / `https://www.staticflow.cc` → Cloudflare
   orange-cloud → the same AWS Caddy origin `:443` → route split
-- LLM paths (`/v1/*`, `/cc/v1/*`, `/api/llm-gateway/*`, `/api/kiro-gateway/*`,
-  `/api/codex-gateway/*`, `/api/llm-access/*`) → cloud `llm-access` `127.0.0.1:19080`
+- Main Codex/Kiro LLM paths (`/v1/*`, `/cc/v1/*`, `/api/llm-gateway/*`,
+  `/api/kiro-gateway/*`, `/api/codex-gateway/*`, `/api/llm-access/*`)
+  → cloud `llm-access` `127.0.0.1:19080`
+- Codex image generation/edit paths (`/v1/images/{generations,edits}`,
+  `/api/{codex,llm}-gateway/[v1/]images/{generations,edits}`)
+  → cloud `llm-access-codex-image` `127.0.0.1:19082`
+- Cursor/Grok gateway path (`/api/cursor-gateway/v1/*`, stripped to `/v1/*`)
+  → cloud `llm-access-cursor` `127.0.0.1:19090`
+- Antigravity gateway path (`/api/antigravity-gateway/v1/*`, stripped to `/v1/*`)
+  → cloud `llm-access-antigravity` `127.0.0.1:19095`
+- Cloud loopback-only services (never exposed on public Caddy):
+  - `llm-access-usage-worker` `127.0.0.1:19081` (journal consumer & usage queries)
+  - `llm-access-opencode` `127.0.0.1:19085` (OpenCode decision gateway for Kiro Thinking Guard)
+  - `llm-access-monitor` `127.0.0.1:19092` (Linux `/proc` + cgroup v2 + PSI + JuiceFS sampler)
+  - `llm-access-oauth` `127.0.0.1:19194` (remote OAuth account login & console grant handoff)
 - Non-LLM paths → cloud pb-mapper client `127.0.0.1:39080` → configured cloud
   pb-mapper relay from private env
-  → local Pingora `127.0.0.1:39180` → active backend slot
-- Local `pbmapper-llm-access-aws` on `127.0.0.1:19182` subscribes cloud
-  `llm-access` back for local dev/testing
-- Local `pbmapper-llm-access-cursor-aws` on `127.0.0.1:19183` subscribes the
-  independent cloud `llm-access-cursor` admin surface for the local console
+  → local Pingora `127.0.0.1:39180` → active backend slot (`:39080` / `:39081`)
+  + local media service (`:39085`)
+- Local operator console (`127.0.0.1:19191`) reaches cloud control planes via
+  `pbmapper-llm-access-aws` (`:19182`), `pbmapper-llm-access-cursor-aws`
+  (`:19183`), and SSH loopback tunnels for monitor (`:19092`), OAuth (`:19194`),
+  Antigravity (`:19195`), and OpenCode (`:19196`)
 
 Additional external Dario proxy:
 - A separate Azure VM runs Dario at `http://20.115.164.89:3456`.
@@ -226,13 +250,14 @@ Additional external Dario proxy:
 Key rules:
 - Before any "publish online" / "release to production" action, classify the
   deployment plane first:
-  - Cloud `llm-access` on AWS for LLM/API paths (`/v1/*`, `/cc/v1/*`,
+  - Cloud `llm-access*` on AWS for LLM/API paths (`/v1/*`, `/cc/v1/*`,
     `/api/llm-gateway/*`, `/api/kiro-gateway/*`, `/api/codex-gateway/*`,
-    `/api/llm-access/*`)
-  - Local self-hosted StaticFlow behind Pingora for non-LLM site/backend paths
-- If the change only touches `llm-access*`, `llm-access-kiro`, Kiro/Codex/LLM
-  gateway behavior, default the production release target to the AWS
-  `llm-access` service, not the local `39180` Pingora stack.
+    `/api/llm-access/*`, `/api/cursor-gateway/v1/*`,
+    `/api/antigravity-gateway/v1/*`, plus loopback OpenCode/image/worker/OAuth/monitor)
+  - Local self-hosted StaticFlow behind Pingora for non-LLM site/backend/media paths
+- If the change only touches `llm-access*`, provider gateways, or operator
+  console backend contracts, default the production release target to the
+  affected AWS `llm-access*` service, not the local `39180` Pingora stack.
 - Make llm-access source changes in the standalone `deps/llm-access` repository.
   Run cloud release orchestration from this StaticFlow root, whose scripts use
   `LLM_ACCESS_DIR=deps/llm-access` by default; verify that the parent gitlink and
@@ -246,15 +271,18 @@ Key rules:
   to `localhost:3000/api` and breaks public users.
 - Agents may inherit local proxy env vars; unset them for direct-public checks.
 - `/_caddy_health` only proves Caddy is alive, not the full pb-mapper data path.
-- Live AWS `llm-access.service` and `llm-access-usage-worker.service` run as
-  `ts_user`, not `llm-access`; do not change the systemd templates back to a
-  non-existent service user unless you also provision that user on the host.
-- Cloud `llm-access` API, usage worker, and Codex image gateway releases must
-  stay independently deployable. Use
-  `scripts/release_llm_access_cloud_api_only.sh`,
-  `scripts/release_llm_access_cloud_worker_only.sh`, or
-  `scripts/release_llm_access_cloud_codex_image_only.sh` according to the
-  changed binary/unit. Do not restart an unaffected service.
+- Live AWS `llm-access*.service` units run as `ts_user`, not `llm-access`; do
+  not change the systemd templates back to a non-existent service user unless
+  you also provision that user on the host.
+- Cloud `llm-access` services must stay independently deployable. Use the
+  targeted release script for the changed binary/unit and never restart an
+  unaffected service:
+  - `scripts/release_llm_access_cloud_api_only.sh` (`llm-access.service`, `:19080`)
+  - `scripts/release_llm_access_cloud_worker_only.sh` (`llm-access-usage-worker.service`, `:19081`)
+  - `scripts/release_llm_access_cloud_codex_image_only.sh` (`llm-access-codex-image.service`, `:19082`)
+  - `scripts/release_llm_access_cloud_opencode_only.sh` (`llm-access-opencode.service`, `:19085`)
+  - `scripts/release_llm_access_cloud_cursor_only.sh` (`llm-access-cursor.service`, `:19090`)
+  - `scripts/release_llm_access_cloud_antigravity_only.sh` (`llm-access-antigravity.service` `:19095` & `llm-access-oauth.service` `:19194`)
 - The usage worker now depends on the shared control JuiceFS mount, the
   dedicated usage JuiceFS mount, and the shared Neon config file
   `/mnt/llm-access/config/neon.env`. Do not reintroduce
@@ -272,11 +300,11 @@ Key rules:
   `/console/kiro/keys` and `/console/codex/keys`.
 
 For full cloud/AWS/Valkey/JuiceFS/systemd details and emergency recovery, see
-`docs/ops-runbook.md`.
+`docs/ops-runbook.md` and `docs/llm-access-monitor.md`.
 
-Local tmux-supervised runtime example (slot color is runtime state, not a
-constant; verify `conf/pingora/staticflow-gateway.yaml`, `39180/api/healthz`,
-and active tmux sessions before assuming blue vs green):
+Local tmux-supervised runtime (restored via `scripts/restore_local_tmux_services.sh`;
+slot color is runtime state, not a constant — verify `conf/pingora/staticflow-gateway.yaml`,
+`39180/api/healthz`, and active tmux sessions before assuming blue vs green):
 
 Legacy GCP rollback sessions may still exist locally. Do not assume they are
 the active production path.
@@ -285,14 +313,21 @@ the active production path.
 |---|---|---|
 | `sf-gateway` | Pingora ingress (do not stop) | `127.0.0.1:39180` |
 | `sf-backend-blue` or `sf-backend-green` | Current active/inactive backend slots | `127.0.0.1:39080` / `127.0.0.1:39081` |
+| `sf-media` | Local media streaming/transcode service | `127.0.0.1:39085` |
 | `gpt2api-rs` | GPT2API image gateway | `127.0.0.1:18787` |
 | `pbmapper-sf-backend-aws` | Registers gateway with active AWS cloud relay | configured in private env |
 | `pbmapper-llm-access-aws` | Subscribes active AWS cloud `llm-access` locally | `127.0.0.1:19182` |
-| `pbmapper-llm-access-cursor-aws` | Subscribes active AWS cloud `llm-access-cursor` locally | `127.0.0.1:19183` |
-| `sf-llm-access-frontend` | llm-access operations console (Vite preview) | `127.0.0.1:19191` |
-| `pbmapper-llm-access-frontend-aws` | Publishes the local console through the AWS relay | `127.0.0.1:19191` |
+| `pbmapper-llm-access-cursor-aws` | Subscribes cloud `llm-access-cursor` admin locally (`--full`) | `127.0.0.1:19183` |
+| `llm-access-monitor-aws` | SSH tunnel to cloud `llm-access-monitor` (`--full`) | `127.0.0.1:19092` |
+| `sf-llm-access-oauth-aws` | SSH tunnel to cloud `llm-access-oauth` (`--full`) | `127.0.0.1:19194` |
+| `sf-llm-access-antigravity-aws` | SSH tunnel to cloud `llm-access-antigravity` (`--full`) | `127.0.0.1:19195` |
+| `sf-llm-access-opencode-aws` | SSH tunnel to cloud `llm-access-opencode` (`--full`) | `127.0.0.1:19196` |
+| `sf-ai-review` | Local AI review backend for operator console (`--full`) | `127.0.0.1:19190` |
+| `sf-llm-access-frontend` | llm-access operations console Vite preview (`--full`) | `127.0.0.1:19191` |
+| `pbmapper-llm-access-frontend-aws` | Publishes the local console through the AWS relay (`--full`) | `127.0.0.1:19191` |
 | `pbmapper-home-ubuntu-aws` | Registers local SSH with active AWS cloud relay | configured in private env |
 | `pbmapper-codex-remote-aws` | Registers local Codex remote endpoint with active AWS cloud relay | configured in private env |
+| `antigravity-manager` | Optional local Antigravity Manager (`--with-antigravity`) | `127.0.0.1:8045` |
 
 ## Mandatory Quality Gates (Hard Rule)
 - Run `cargo clippy` for affected crates and fix all warnings to zero before
@@ -365,12 +400,14 @@ bash scripts/start_frontend_with_api.sh --open
 
 Do not run bare `trunk build --release` for the public deployment.
 
-The Codex/Kiro/LLM operator console is not this Yew app. Build and preview it
-from `deps/llm-access/apps/llm-access-frontend` (`pnpm typecheck && pnpm build`,
-then `pnpm preview` on `127.0.0.1:19191`).
+The multi-provider LLM operator console is not this Yew app. Build, test, and
+preview it from `deps/llm-access/apps/llm-access-frontend`
+(`pnpm typecheck && pnpm test:runtime && pnpm build`, then `pnpm preview` on
+`127.0.0.1:19191`).
 
 ## Skill Routing (Soft Rule)
-Use the following skill by default according to task type:
+Use the following skill (`skills/<name>/SKILL.md`, symlinked under
+`.agents/skills` and `.claude/skills`) by default according to task type:
 
 - Publishing/syncing Markdown or images into LanceDB, or table/API verification:
   `staticflow-cli-publisher`
@@ -384,8 +421,10 @@ Use the following skill by default according to task type:
   `article-bilingual-translation-publisher`
 - Regenerating or improving `detailed_summary.zh/en` only:
   `article-summary-architect`
-- Writing technical implementation documentation/specs:
+- Writing mechanism-first technical implementation documentation/specs:
   `tech-impl-deep-dive-writer`
+- Writing or reviewing source-verified long-form deep-dive blog posts in the author's voice:
+  `deep-dive-blog-style`
 - Ingesting music files (Netease search/download, NCM decrypt, local mp3/flac):
   `music-ingestion-publisher`
 - Optimizing (compact + prune) LanceDB tables:
@@ -398,18 +437,27 @@ Use the following skill by default according to task type:
   `interactive-page-repost-publisher`
 - Operating the gpt2api-rs image gateway (lifecycle, admin, StaticFlow integration):
   `gpt2api-rs-admin`
-- Codex/Kiro/LLM admin console (create/edit keys, accounts, groups, usage,
-  moderation, runtime config): `deps/llm-access/apps/llm-access-frontend`
-  and `deps/llm-access/AGENTS.md`. Not the Yew `/admin/kiro-gateway*` or
-  `/admin/llm-gateway*` pages.
+- Multi-provider LLM admin console (create/edit keys, accounts, groups,
+  fallback graphs, usage, host resources, moderation, runtime config):
+  `deps/llm-access/apps/llm-access-frontend` and `deps/llm-access/AGENTS.md`.
+  Not the Yew `/admin/kiro-gateway*` or `/admin/llm-gateway*` pages.
 - Checking daily Kiro usage credits and account breakdowns:
   `kiro-usage-day-report`
 - Recalibrating Kiro cache-estimation coefficients from usage samples:
   `kiro-kmodel-calibrator`
+- Importing local Kiro CLI SQLite credentials or onboarding Kiro accounts:
+  `kiro-local-account-importer`, `kiro-social-onboarder`,
+  `kiro-github-google-onboarder`, `kiro-aws-builder-id-onboarder`,
+  `aws-builder-id-kiro-account-workflow`, `aws-builder-id-security`,
+  `kiro-outlook-prism-onboarder`
 - Automating pickup-code ZIP retrieval from plus.keria.cc.cd:
   `keria-plus-pickup`
-- Validating, issuing, and patching pending LLM Gateway account contributions in bulk:
+- Submitting or approving pending LLM Gateway account contributions in bulk:
+  `submitting-llm-gateway-account-batches`,
   `approving-llm-gateway-account-batches`
+- Rotating GitHub/Google account passwords or drafting GitHub suspension appeals:
+  `github-password-rotator`, `google-password-rotator`,
+  `github-account-suspension-appeal`
 - Searching local Codex session history:
   `codex-session-history`
 - Drafting GitHub PR titles, bodies, and maintainer comments:
@@ -444,21 +492,30 @@ Key conventions:
 - All data processing in workers happens under `/tmp/`, not the project root
 
 ## Local Dependency and Private Service Submodules
-Lance, LanceDB, and Pingora remain personal public forks under `deps/`.
-`jieba-rs` is the only dependency hosted by `StaticFlow-AI`. The private
-`llm-access` service repository is mounted at `deps/llm-access` for authorized
-maintainers and is intentionally excluded from the public root workspace. It is
-a release input and integration peer, not a StaticFlow Cargo dependency.
+StaticFlow tracks 12 git submodules across `deps/`, `tools/`, and `patches/`.
+Six public build submodules are required to compile the workspace
+(`scripts/init_public_build_submodules.sh`), while the remaining six are
+optional runtime services, CLI utilities, or the private `llm-access` workspace
+(which is a release input and integration peer, not a StaticFlow Cargo
+dependency).
 
-| Submodule | Path | Fork |
-|---|---|---|
-| lance | `deps/lance` | `acking-you/lance` |
-| lancedb | `deps/lancedb` | `acking-you/lancedb` |
-| pingora | `deps/pingora` | `acking-you/pingora` |
-| jieba-rs | `deps/jieba-rs` | `StaticFlow-AI/jieba-rs` |
-| llm-access | `deps/llm-access` | private `acking-you/llm-access` |
+| Submodule | Path | Repository | Role |
+|---|---|---|---|
+| lance | `deps/lance` | `acking-you/lance` | Public build dep (`feat/static-flow`) |
+| lancedb | `deps/lancedb` | `acking-you/lancedb` | Public build dep (`feat/static-flow`) |
+| pingora | `deps/pingora` | `acking-you/pingora` | Public build dep (`feat/static-flow`) |
+| ffmpeg-sidecar | `deps/ffmpeg-sidecar` | `acking-you/ffmpeg-sidecar` | Public build dep (media transcoding) |
+| jieba-rs | `deps/jieba-rs` | `StaticFlow-AI/jieba-rs` | Public build dep (Chinese tokenization) |
+| object_store | `patches/object_store` | `acking-you/arrow-rs-object-store` | Public build patch (`dev` branch) |
+| llm-access | `deps/llm-access` | private `acking-you/llm-access` | Managed multi-provider LLM services + React console |
+| gpt2api_rs | `deps/gpt2api_rs` | `acking-you/gpt2api_rs` | Optional standalone GPT2API image gateway (`:18787`) |
+| juicefs | `deps/juicefs` | `acking-you/juicefs` | Optional cloud JuiceFS client build source |
+| AntigravityManager | `deps/AntigravityManager` | `acking-you/AntigravityManager` | Optional local Antigravity OAuth/proxy manager (`:8045`) |
+| ncmdump-rs | `tools/ncmdump-rs` | `acking-you/ncmdump-rs` | Optional NCM/music ingestion CLI tool |
+| pb-mapper | `tools/pb-mapper` | `acking-you/pb-mapper` | Cloud-to-local TCP tunnel & relay utility |
 
 Key points:
+- Rust toolchain is pinned in `rust-toolchain.toml` (`nightly-2026-08-21`).
 - Root `Cargo.toml` uses path deps, not crates.io. Root workspace has
   `exclude = ["deps"]` so vendored projects never become workspace members.
 - After cloning for public StaticFlow work:
@@ -484,21 +541,21 @@ crates/store/                     LanceDB-backed content, comments, and music st
 crates/embedding/                 Text and image embedding services
 crates/backend/                   Axum HTTP server — handlers, routes, state, workers, email
 crates/cli/                       sf-cli binary — LanceDB write/query/embed/optimize workflows
-crates/media-service/             Media processing service (image/audio pipelines)
+crates/media-service/             Local media streaming/processing service (sf-media :39085)
 crates/media-types/               Shared media type definitions
 crates/email-notifier/            Email notification utilities (package static-flow-email)
 crates/gateway/                   Pingora local ingress gateway (blue/green upstream switching)
 crates/runtime/                   Shared runtime utilities (logging, tracing, signal handling)
 
 # Non-crate directories
-skills/              Codex/Claude agent skill definitions (SKILL.md + references)
-scripts/             Shell scripts — worker runners, backend/frontend launchers, e2e tests
-docs/                Technical documentation, implementation deep-dives, ops runbook
+skills/              31 agent skill definitions (symlinked by .agents/skills & .claude/skills)
+scripts/             Shell/Python scripts — launchers, workers, cloud releases, CI affected-set, e2e tests
+docs/                Technical documentation, deep-dives, ops & monitor runbooks
 content/             Article Markdown source files and images
-conf/                Configuration files (Pingora gateway YAML, systemd templates)
-tools/               Third-party utilities (ncmdump-rs, pb-mapper)
-bin/                 Pre-built backend binary
-deployment-examples/ Legacy Nginx reverse proxy configs (superseded by Caddy)
+conf/                Configuration files (Pingora gateway YAML templates)
+deployment-examples/ Active self-hosted & cloud systemd templates (systemd/) + legacy Nginx configs
+tools/               Third-party utility submodules (ncmdump-rs, pb-mapper)
+bin/                 Exported local binaries (ignored in git)
 patches/             Vendored crate patches (object_store)
 deps/                Public dependency submodules + private llm-access workspace
                      (live operator console: deps/llm-access/apps/llm-access-frontend)

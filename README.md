@@ -17,8 +17,10 @@ local machine with optional cloud edge ingress.
 - AI-powered comment moderation via background Codex agent workers
 - External blog repost ingestion with style-aware translation
 - Interactive page mirroring for JS-heavy external content
-- Public LLM access layer: OpenAI-compatible (Codex) and Anthropic-compatible
-  (Kiro) gateways with quota management and usage accounting
+- Public multi-provider LLM access layer: OpenAI-compatible (Codex),
+  Anthropic-compatible (Kiro), Cursor/Grok, Antigravity, and OpenCode decision
+  gateways with fallback-graph routing, quota management, and tiered usage
+  accounting
 
 ## Architecture
 
@@ -29,25 +31,26 @@ submodule for authorized maintainers:
 ```text
 static-flow/
 ├── crates/
-│   ├── frontend/                # Yew/WASM public site + site admin (LLM/Kiro operator console is deps/llm-access/apps/llm-access-frontend)
+│   ├── frontend/                # Yew/WASM public site + site admin (LLM operator console is deps/llm-access/apps/llm-access-frontend)
 │   ├── shared/                  # Shared domain types and compatibility facade
 │   ├── store/                   # LanceDB-backed content, comments, and music stores
 │   ├── embedding/               # Text and image embedding services
 │   ├── backend/                 # Axum HTTP server — handlers, routes, workers
 │   ├── cli/                     # sf-cli — write/query/embed/optimize workflows
-│   ├── media-service/           # Image/audio processing service
+│   ├── media-service/           # Image/audio/video local media service
 │   ├── media-types/             # Shared media type definitions
 │   ├── email-notifier/          # Email notification utilities
 │   ├── gateway/                 # Pingora ingress with blue/green switching
 │   └── runtime/                 # Logging, tracing, and signal utilities
-├── skills/              # Codex/Claude agent skill definitions
-├── scripts/             # Shell scripts — launchers, worker runners, e2e tests
-├── docs/                # Technical docs, deep-dives, ops runbook
-├── conf/                # Configuration (Pingora gateway YAML, systemd templates)
-├── content/             # Article Markdown source files and images
-├── tools/               # Third-party utilities (ncmdump-rs, pb-mapper)
-├── deps/                # Public dependency submodules + private llm-access
-└── patches/             # Vendored crate patches
+├── skills/                      # Codex/Claude agent skill definitions (31 skills)
+├── scripts/                     # Shell scripts — launchers, worker runners, cloud releases, e2e tests
+├── docs/                        # Technical docs, deep-dives, ops runbook
+├── conf/                        # Configuration (Pingora gateway YAML)
+├── deployment-examples/         # Self-hosted & cloud systemd templates (+ legacy Nginx examples)
+├── content/                     # Article Markdown source files and images
+├── tools/                       # Third-party utilities (ncmdump-rs, pb-mapper)
+├── deps/                        # Public dependency submodules + private llm-access
+└── patches/                     # Vendored crate patches (object_store)
 ```
 
 ## Prerequisites
@@ -111,17 +114,30 @@ Current production is split between a cloud LLM tier and a local content tier:
 - `https://ackingliu.top` and the Cloudflare-fronted `https://staticflow.cc`
   terminate at the same AWS Lightsail Caddy origin
 - LLM paths (`/v1/*`, `/cc/v1/*`, `/api/llm-gateway/*`, `/api/kiro-gateway/*`,
-  `/api/codex-gateway/*`, `/api/llm-access/*`) stay on the cloud VM and go to
-  standalone `llm-access`
+  `/api/codex-gateway/*`, `/api/llm-access/*`, `/api/cursor-gateway/v1/*`,
+  `/api/antigravity-gateway/v1/*`) stay on the cloud VM and go to standalone
+  `llm-access` services
 - non-LLM StaticFlow paths continue through cloud pb-mapper and land on the
-  local Pingora gateway + active backend slot
+  local Pingora gateway (`:39180`) + active backend slot (`:39080` / `:39081`)
+  and local media service (`:39085`)
 
-The cloud `llm-access` service itself is split in two processes:
+The cloud `llm-access` tier is decomposed into independently deployable
+processes:
 
-- `llm-access.service`: provider/admin API, Neon control plane, account
-  refreshers, and usage journal production
-- `llm-access-usage-worker.service`: journal consumption, tiered DuckDB usage
-  analytics, and usage query routes
+- `llm-access.service` (`:19080`): main Codex/Kiro gateway, shared admin plane,
+  Neon Postgres control plane + Valkey request cache, account refreshers, and
+  hot usage journal production
+- `llm-access-usage-worker.service` (`:19081`): journal consumption, tiered
+  DuckDB usage analytics, packed detail blobs, and usage query routes
+- `llm-access-codex-image.service` (`:19082`): standalone Codex image gateway
+- `llm-access-opencode.service` (`:19085`): typed OpenCode decision gateway
+  (primary Kiro Thinking Guard review tier)
+- `llm-access-cursor.service` (`:19090`) and `llm-access-antigravity.service`
+  (`:19095`): thin Cursor/Grok and Antigravity data planes sharing Neon + hot
+  usage journal
+- `llm-access-oauth.service` (`:19194`) and `llm-access-monitor.service`
+  (`:19092`): loopback OAuth manager and Linux `/proc` + cgroup v2 + PSI +
+  JuiceFS host/process sampler
 
 Current usage analytics storage shape:
 
@@ -129,8 +145,10 @@ Current usage analytics storage shape:
 - retained rollback SQLite snapshot: `/mnt/llm-access/control/llm-access.sqlite3`
 - hot journal: `/var/lib/staticflow/llm-access/usage-journal`
 - active mutable DuckDB: `/var/lib/staticflow/llm-access/analytics-active`
-- archived immutable DuckDB segments + catalog:
-  `/mnt/llm-access-usage/analytics`
+- archived immutable DuckDB segments:
+  `/mnt/llm-access-usage/analytics/segments`
+- narrow archived-segment catalog: Neon Postgres tables (`llm_usage_segments`,
+  `llm_usage_segment_events`, `llm_usage_segment_key_rollups`)
 - heavy per-event detail payloads: packed files under
   `/mnt/llm-access-usage/details/packs/...`
 
@@ -169,19 +187,25 @@ in production).
 
 | Endpoint | Description |
 |----------|-------------|
+| `GET /api/healthz` | Liveness/readiness check (includes active slot metadata) |
 | `GET /api/articles` | Article list (tag/category filter) |
 | `GET /api/articles/:id` | Article detail |
 | `GET /api/articles/:id/raw/:lang` | Raw markdown (`lang=zh\|en`) |
 | `POST /api/articles/:id/view` | Track view (60s dedupe) |
 | `GET /api/articles/:id/view-trend` | View trend (day/hour, Asia/Shanghai) |
 | `GET /api/articles/:id/related` | Related articles (vector similarity) |
+| `GET /interactive-pages/:page_id` | Mirrored standalone interactive page entry |
+| `POST /api/article-requests` | Submit external article repost/translation request |
 | `POST /api/comments/submit` | Submit comment (rate-limited) |
 | `GET /api/comments/list` | Public comments for an article |
 | `GET /api/search?q=` | Full-text search |
 | `GET /api/semantic-search?q=` | Semantic search (vector, cross-language) |
 | `GET /api/images` | Image catalog |
 | `GET /api/images/:id` | Image binary (`?thumb=true` supported) |
-| `GET /api/image-search?id=` | Similar images |
+| `GET /api/image-search?id=` | Similar images (by image vector) |
+| `GET /api/image-search-text?q=` | Cross-modal text-to-image vector search |
+| `GET /api/music` | Music catalog & streaming audio/lyrics endpoints |
+| `POST /api/music/wishes` | Submit song ingestion wish for background worker |
 | `GET /api/tags` | Tag list |
 | `GET /api/categories` | Category list |
 

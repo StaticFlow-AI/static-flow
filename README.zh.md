@@ -15,8 +15,8 @@ LanceDB 存储。支持文章发布、AI 评论审核、音乐管理、图片资
 - AI 评论审核：后台 Codex agent worker 自动回复
 - 外部博客转载：风格感知翻译 + 自适应源格式处理
 - 交互式页面镜像：JS 重度外部页面本地化
-- 公开 LLM 接入层：OpenAI 兼容（Codex）和 Anthropic 兼容（Kiro）网关，
-  配额管理与用量计费
+- 公开多提供商 LLM 接入层：OpenAI 兼容（Codex）、Anthropic 兼容（Kiro）、
+  Cursor/Grok、Antigravity 与 OpenCode 决策网关，支持回退路由图、配额管理与分层用量计费
 
 ## 项目结构
 
@@ -26,25 +26,26 @@ LanceDB 存储。支持文章发布、AI 评论审核、音乐管理、图片资
 ```text
 static-flow/
 ├── crates/
-│   ├── frontend/                # Yew/WASM 站点与站点 Admin（LLM/Kiro 运维控制台在 deps/llm-access/apps/llm-access-frontend）
+│   ├── frontend/                # Yew/WASM 站点与站点 Admin（LLM 运维控制台在 deps/llm-access/apps/llm-access-frontend）
 │   ├── shared/                  # 共享领域类型与兼容 facade
 │   ├── store/                   # 基于 LanceDB 的内容、评论和音乐存储
 │   ├── embedding/               # 文本和图片 embedding 服务
 │   ├── backend/                 # Axum HTTP 服务 — handler、路由、worker
 │   ├── cli/                     # sf-cli — 写入/查询/嵌入/优化流程
-│   ├── media-service/           # 图片/音频处理服务
+│   ├── media-service/           # 本地图片/音视频媒体服务
 │   ├── media-types/             # 共享媒体类型
 │   ├── email-notifier/          # 邮件通知工具
 │   ├── gateway/                 # 支持蓝绿切换的 Pingora 入口
 │   └── runtime/                 # 日志、追踪与信号处理工具
-├── skills/              # Codex/Claude agent skill 定义
-├── scripts/             # Shell 脚本 — 启动器、worker runner、e2e 测试
-├── docs/                # 技术文档、实现深潜、运维手册
-├── conf/                # 配置文件（Pingora gateway YAML、systemd 模板）
-├── content/             # 文章 Markdown 源文件与图片
-├── tools/               # 第三方工具（ncmdump-rs、pb-mapper）
-├── deps/                # 公开依赖 submodule + 私有 llm-access
-└── patches/             # 供应商 crate 补丁
+├── skills/                      # Codex/Claude agent skill 定义（31 个 skill）
+├── scripts/                     # Shell 脚本 — 启动器、worker runner、云端发布、e2e 测试
+├── docs/                        # 技术文档、实现深潜、运维手册
+├── conf/                        # 配置文件（Pingora gateway YAML）
+├── deployment-examples/         # 自托管与云端 systemd 模板（含历史 Nginx 示例）
+├── content/                     # 文章 Markdown 源文件与图片
+├── tools/                       # 第三方工具（ncmdump-rs、pb-mapper）
+├── deps/                        # 公开依赖 submodule + 私有 llm-access
+└── patches/                     # 供应商 crate 补丁（object_store）
 ```
 
 ## 前置依赖
@@ -105,17 +106,26 @@ bash scripts/start_frontend_with_api.sh --open       # 终端 2：trunk 开发�
 - `https://ackingliu.top` 与经 Cloudflare 代理的 `https://staticflow.cc`
   都进入同一个 AWS Lightsail Caddy 源站
 - LLM 路径（`/v1/*`、`/cc/v1/*`、`/api/llm-gateway/*`、`/api/kiro-gateway/*`、
-  `/api/codex-gateway/*`、`/api/llm-access/*`）直接留在云端，进入独立
-  `llm-access`
-- 非 LLM StaticFlow 路径继续经过云端 pb-mapper，回到本地 Pingora 和当前激活
-  backend slot
+  `/api/codex-gateway/*`、`/api/llm-access/*`、`/api/cursor-gateway/v1/*`、
+  `/api/antigravity-gateway/v1/*`）直接留在云端，进入独立 `llm-access` 服务群
+- 非 LLM StaticFlow 路径继续经过云端 pb-mapper，回到本地 Pingora（`:39180`）、
+  当前激活 backend slot（`:39080` / `:39081`）以及本地媒体服务（`:39085`）
 
-云端 `llm-access` 也已经拆成两个进程：
+云端 `llm-access` 已拆分为多个可独立发布的进程：
 
-- `llm-access.service`：provider/admin API、Neon 控制面、账号刷新、usage journal
-  生产
-- `llm-access-usage-worker.service`：journal 消费、tiered DuckDB usage
-  analytics、usage 查询接口
+- `llm-access.service`（`:19080`）：Codex/Kiro 主网关、共享管理平面、Neon
+  Postgres 控制面 + Valkey 请求缓存、账号状态刷新与热 usage journal 生产
+- `llm-access-usage-worker.service`（`:19081`）：journal 消费、分层 DuckDB
+  usage analytics、pack 明细归档与 usage 查询接口
+- `llm-access-codex-image.service`（`:19082`）：独立 Codex 图像生成网关
+- `llm-access-opencode.service`（`:19085`）：类型化 OpenCode 决策网关（Kiro
+  Thinking Guard 主决策层）
+- `llm-access-cursor.service`（`:19090`）与 `llm-access-antigravity.service`
+  （`:19095`）：共享 Neon 控制面与热 usage journal 的轻量 Cursor/Grok、
+  Antigravity 数据平面
+- `llm-access-oauth.service`（`:19194`）与 `llm-access-monitor.service`
+  （`:19092`）：仅监听回环地址的 OAuth 授权管理器，以及基于 `/proc` + cgroup v2 +
+  PSI + JuiceFS 的主机/进程资源监控器
 
 当前 usage analytics 存储布局：
 
@@ -123,8 +133,10 @@ bash scripts/start_frontend_with_api.sh --open       # 终端 2：trunk 开发�
 - 保留的回退 SQLite 快照：`/mnt/llm-access/control/llm-access.sqlite3`
 - 热 journal：`/var/lib/staticflow/llm-access/usage-journal`
 - 当前可写 DuckDB：`/var/lib/staticflow/llm-access/analytics-active`
-- 归档 immutable DuckDB segment + catalog：
-  `/mnt/llm-access-usage/analytics`
+- 归档 immutable DuckDB segment：
+  `/mnt/llm-access-usage/analytics/segments`
+- 归档 segment 窄目录索引：Neon Postgres 表（`llm_usage_segments`、
+  `llm_usage_segment_events`、`llm_usage_segment_key_rollups`）
 - 单条事件的重明细 payload：pack 形式写入
   `/mnt/llm-access-usage/details/packs/...`
 
@@ -161,12 +173,15 @@ sf-cli api --db-path ./data/lancedb semantic-search --q "前端 架构"
 
 | 端点 | 说明 |
 |------|------|
+| `GET /api/healthz` | 存活/就绪探针（含当前激活 slot 信息） |
 | `GET /api/articles` | 文章列表（支持 tag/category 过滤） |
 | `GET /api/articles/:id` | 文章详情 |
 | `GET /api/articles/:id/raw/:lang` | 原始 Markdown（`lang=zh\|en`） |
 | `POST /api/articles/:id/view` | 记录浏览（60 秒去重） |
 | `GET /api/articles/:id/view-trend` | 浏览趋势（按天/小时，Asia/Shanghai） |
 | `GET /api/articles/:id/related` | 相关文章（向量相似） |
+| `GET /interactive-pages/:page_id` | 本地化独立交互镜像页入口 |
+| `POST /api/article-requests` | 提交外部文章转载/翻译请求 |
 | `POST /api/comments/submit` | 提交评论（限流） |
 | `GET /api/comments/list` | 文章公开评论列表 |
 | `GET /api/search?q=` | 全文搜索 |
@@ -174,6 +189,9 @@ sf-cli api --db-path ./data/lancedb semantic-search --q "前端 架构"
 | `GET /api/images` | 图片列表 |
 | `GET /api/images/:id` | 图片二进制（支持 `?thumb=true`） |
 | `GET /api/image-search?id=` | 以图搜图 |
+| `GET /api/image-search-text?q=` | 跨模态文本搜图（向量检索） |
+| `GET /api/music` | 音乐库列表、流式播放与歌词接口 |
+| `POST /api/music/wishes` | 提交点歌许愿单（后台 worker 自动导入） |
 | `GET /api/tags` | 标签列表 |
 | `GET /api/categories` | 分类列表 |
 
