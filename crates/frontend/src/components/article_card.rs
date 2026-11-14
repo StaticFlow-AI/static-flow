@@ -219,7 +219,7 @@ pub fn article_card(props: &ArticleCardProps) -> Html {
                         "text-[var(--muted)]",
                         "line-clamp-3"
                     )}>
-                        { &article.summary }
+                        { crate::utils::plain_excerpt(&article.summary) }
                     </p>
                 }
 
@@ -312,7 +312,7 @@ pub fn article_card(props: &ArticleCardProps) -> Html {
                             "text-[var(--muted)]",
                             "line-clamp-2"
                         )}>
-                            { &article.summary }
+                            { crate::utils::plain_excerpt(&article.summary) }
                         </p>
                     }
 

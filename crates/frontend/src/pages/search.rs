@@ -1662,7 +1662,7 @@ pub fn search_page() -> Html {
                                 class="sf-btn sf-btn--ghost sf-btn--sm !px-2 !py-1 cursor-pointer"
                             >
                                 <span aria-hidden="true">{ "←" }</span>
-                                <span>{ "Back" }</span>
+                                <span>{ "返回" }</span>
                             </button>
                             <span class="text-[var(--border-strong)]" aria-hidden="true">{ "·" }</span>
                             <span class="sf-eyebrow !mb-0">{ t::SEARCH_ENGINE_BADGE }</span>
@@ -1994,16 +1994,6 @@ pub fn search_page() -> Html {
                                         </a>
                                     </div>
                                 }
-                            </div>
-                        }
-
-                        if mode == "keyword" && !keyword.is_empty() {
-                            <div class="mt-1 rounded-[8px] border border-[var(--border)] bg-[var(--surface-alt)] px-4 py-3 flex items-center justify-between gap-3 flex-wrap text-sm text-[var(--muted)]">
-                                <span>{ t::KEYWORD_GUIDE_BANNER }</span>
-                                <a href={semantic_fast_href.clone()} class="sf-link text-sm font-medium shrink-0">
-                                    { t::SWITCH_TO_SEMANTIC }
-                                    { " →" }
-                                </a>
                             </div>
                         }
                     </div>
@@ -2485,7 +2475,9 @@ pub fn search_page() -> Html {
 
 
 fn render_search_result(result: &SearchResult) -> Html {
-    let highlight_html = AttrValue::from(crate::utils::sanitize_html(&result.highlight));
+    let highlight_html = AttrValue::from(crate::utils::sanitize_html(
+        &crate::utils::plain_excerpt(&result.highlight),
+    ));
 
     html! {
         <article class="py-7 border-b border-[var(--border)] group">

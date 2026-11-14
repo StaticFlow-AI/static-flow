@@ -158,9 +158,6 @@ pub mod search {
     pub const SEMANTIC_MISS_TEMPLATE: &str = "未找到与「{}」语义相关的文章";
     pub const SEMANTIC_FOUND_TEMPLATE: &str = "找到 {} 篇语义相关内容";
 
-    pub const KEYWORD_GUIDE_BANNER: &str =
-        "提示：你当前使用的是关键词检索。即使已有结果，也建议对比一下 Semantic 语义检索。";
-    pub const SWITCH_TO_SEMANTIC: &str = "切换到 Semantic";
     pub const NO_RESULTS_TITLE: &str = "NO RESULTS FOUND";
     pub const SEARCH_ERROR_STATUS: &str = "搜索出错，请稍后重试";
     pub const SEARCH_FAILED_TITLE: &str = "SEARCH FAILED";
@@ -169,7 +166,7 @@ pub mod search {
     pub const SEMANTIC_EMPTY_CARD_DESC: &str = "未找到语义相关结果，可尝试更具体的关键词。";
     pub const SWITCH_TO_SEMANTIC_CTA: &str = "改用 Semantic 语义检索";
 
-    pub const SEARCH_ENGINE_BADGE: &str = "// SEARCH_ENGINE";
+    pub const SEARCH_ENGINE_BADGE: &str = "Search";
     pub const STATUS_SCANNING: &str = "SCANNING";
     pub const STATUS_READY: &str = "READY";
     pub const MODE_KEYWORD: &str = "Keyword";
@@ -477,7 +474,6 @@ pub mod music_wish {
     pub const STATUS_RUNNING: &str = "搜索中";
     pub const STATUS_DONE: &str = "已入库";
     pub const STATUS_FAILED: &str = "搜索失败";
-    pub const LISTEN_NOW: &str = "去听歌 →";
     pub const EMPTY_LIST: &str = "还没有人许愿，来做第一个吧！";
     pub const SUBMIT_SUCCESS: &str = "心愿已提交，等待审核中";
     pub const REFRESH_BTN: &str = "刷新状态";

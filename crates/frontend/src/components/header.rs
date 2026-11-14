@@ -379,7 +379,12 @@ pub fn header() -> Html {
         Callback::from(move |_: MouseEvent| search_query.set(String::new()))
     };
 
-    let show_desktop_search_box = *search_expanded || !search_query.is_empty();
+    // The /search page owns a large in-page query field; mirroring `?q=` into
+    // an expanded header box (plus its suggestion popover) would duplicate it
+    // and occlude the result tabs, so the header stays a quiet icon there.
+    let on_search_route = matches!(route.as_ref(), Some(Route::Search));
+    let show_desktop_search_box =
+        !on_search_route && (*search_expanded || !search_query.is_empty());
 
     let hamburger_line = classes!(
         "block",

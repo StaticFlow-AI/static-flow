@@ -7,9 +7,7 @@ use yew_router::prelude::{use_location, Link};
 use crate::{
     api::{self, ArticleRequestItem, MusicWishItem, SongListItem},
     components::{article_card::ArticleCard, image_with_loading::ImageWithLoading},
-    i18n::current::{
-        article_request as ar_t, common as common_text, home as t, music_wish as mw_t,
-    },
+    i18n::current::{article_request as ar_t, home as t, music_wish as mw_t},
     models::{ArticleKind, ArticleListItem},
     music_context::{MusicAction, MusicPlayerContext},
     router::Route,
@@ -1437,7 +1435,7 @@ pub fn home_page() -> Html {
 
                                 if !lead_article.summary.trim().is_empty() {
                                     <p class="m-0 text-base leading-[1.65] text-[var(--muted)] line-clamp-3">
-                                        { &lead_article.summary }
+                                        { crate::utils::plain_excerpt(&lead_article.summary) }
                                     </p>
                                 }
 
@@ -1502,7 +1500,7 @@ pub fn home_page() -> Html {
 
                                             if !item.summary.trim().is_empty() {
                                                 <p class="mt-1.5 mb-0 text-sm leading-[1.6] text-[var(--muted)] line-clamp-2">
-                                                    { &item.summary }
+                                                    { crate::utils::plain_excerpt(&item.summary) }
                                                 </p>
                                             }
                                         </article>
@@ -1735,7 +1733,7 @@ pub fn home_page() -> Html {
             </section>
 
             // ⑤ Open Source & Engineering Architecture Strip
-            <section class="w-full border-t border-[var(--border)] bg-[var(--surface-alt)]/55 py-16">
+            <section class="w-full border-t border-[var(--border)] pt-16">
                 <div class="max-w-[1200px] mx-auto px-6 md:px-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
                     <div class="max-w-[56ch]">
                         <div class="sf-eyebrow text-xs font-semibold uppercase tracking-[0.08em] text-[var(--faint)]">
@@ -1763,16 +1761,6 @@ pub fn home_page() -> Html {
 
                             <GithubWrappedSelector />
 
-                            <a
-                                href="https://space.bilibili.com/24264499"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                aria-label={common_text::BILIBILI}
-                                title={common_text::BILIBILI}
-                                class="sf-btn sf-btn--ghost sf-btn--sm no-underline"
-                            >
-                                { common_text::BILIBILI }
-                            </a>
                         </div>
 
                         <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">

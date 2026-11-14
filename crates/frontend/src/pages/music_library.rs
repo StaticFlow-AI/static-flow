@@ -11,7 +11,7 @@ use crate::{
         pagination::Pagination,
         toast::use_toast,
     },
-    i18n::current::{header as header_t, music_wish as wish_t},
+    i18n::current::music_wish as wish_t,
     music_context::{MusicAction, MusicPlayerContext},
     router::Route,
 };
@@ -768,10 +768,10 @@ pub fn music_library_page() -> Html {
     html! {
         <div class="w-full pb-20">
             // 1. Anthropic Editorial Header
-            <header class="mx-auto max-w-[1200px] px-4 pb-8 pt-10 sm:px-6 md:pt-14 lg:px-8">
+            <header class="mx-auto max-w-[1200px] px-6 md:px-10 pb-12 pt-16 md:pt-20">
                 <div class="flex flex-col justify-between gap-6 md:flex-row md:items-end">
                     <div class="max-w-2xl">
-                        <div class="sf-eyebrow mb-3 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted)]">
+                        <div class="sf-eyebrow mb-4">
                             {"AUDIO LIBRARY · READER-WISHED ARCHIVE"}
                         </div>
                         <h1 class="font-serif text-[clamp(2.125rem,4vw,3.125rem)] font-normal leading-[1.1] tracking-[-0.02em] text-[var(--text)]">
@@ -798,17 +798,10 @@ pub fn music_library_page() -> Html {
                         <button
                             type="button"
                             onclick={on_jump_to_wish}
-                            class="sf-btn sf-btn--primary inline-flex items-center gap-2 rounded-[8px] bg-[var(--primary)] px-4 py-2.5 text-sm font-medium text-[var(--on-primary,#FAF9F5)] transition-colors hover:bg-[var(--primary-hover,#B85735)]"
+                            class="sf-btn sf-btn--primary"
                         >
                             <span>{"许下歌愿 ↓"}</span>
                         </button>
-                        <Link<Route>
-                            to={Route::MediaImage}
-                            classes="sf-btn sf-btn--secondary inline-flex items-center gap-2 rounded-[8px] border border-[var(--border-strong,var(--border))] bg-transparent px-3.5 py-2.5 text-sm font-medium text-[var(--text)] no-underline transition-colors hover:bg-[var(--surface-alt)]"
-                        >
-                            <span>{ header_t::IMAGE_LIBRARY_TITLE }</span>
-                            <span class="font-mono text-xs text-[var(--muted)]">{"→"}</span>
-                        </Link<Route>>
                     </div>
                 </div>
             </header>
@@ -818,11 +811,11 @@ pub fn music_library_page() -> Html {
                 id="music-wish-section"
                 class="w-full scroll-mt-16 border-y border-[var(--border)] bg-[var(--surface-alt)] py-10 sm:py-14"
             >
-                <div class="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-8">
+                <div class="mx-auto max-w-[1200px] px-6 md:px-10">
                     <div class="mb-7 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
                         <div>
-                            <div class="sf-eyebrow mb-2 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--primary)]">
-                                {"SELF-SERVICE JUKEBOX · 自助点歌入库工坊"}
+                            <div class="sf-eyebrow mb-2.5">
+                                {"SELF-SERVICE JUKEBOX"}
                             </div>
                             <h2 class="font-serif text-[clamp(1.5rem,2.6vw,2rem)] font-normal leading-[1.2] tracking-[-0.015em] text-[var(--text)]">
                                 {wish_t::SECTION_TITLE}
@@ -1687,22 +1680,15 @@ fn wish_queue_row(props: &WishQueueRowProps) -> Html {
                 Callback::from(move |_: MouseEvent| cb.emit(sid.clone()))
             };
             html! {
-                <>
-                    <button
-                        type="button"
-                        onclick={play_cb}
-                        class="inline-flex items-center gap-1 rounded-full border border-[var(--primary)]/40 bg-[var(--primary-soft,rgba(201,100,66,0.12))] px-2.5 py-0.5 font-mono text-[11px] font-medium text-[var(--primary)] transition-colors hover:bg-[var(--primary)] hover:text-[var(--on-primary,#FAF9F5)]"
-                    >
-                        <Icon name={if props.is_playing { IconName::Pause } else { IconName::Play }} size={10} />
-                        <span>{if props.is_playing { "暂停" } else { "播放" }}</span>
-                    </button>
-                    <Link<Route>
-                        to={Route::MusicPlayer { id: song_id.clone() }}
-                        classes="font-mono text-[11px] text-[var(--primary)] no-underline hover:underline"
-                    >
-                        {wish_t::LISTEN_NOW}
-                    </Link<Route>>
-                </>
+                <button
+                    type="button"
+                    onclick={play_cb}
+                    aria-label={if props.is_playing { "暂停" } else { "播放" }}
+                    title={if props.is_playing { "暂停" } else { "播放" }}
+                    class="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[var(--border-strong)] text-[var(--text-2)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
+                >
+                    <Icon name={if props.is_playing { IconName::Pause } else { IconName::Play }} size={11} />
+                </button>
             }
         } else {
             Html::default()
@@ -1733,8 +1719,17 @@ fn wish_queue_row(props: &WishQueueRowProps) -> Html {
                             <span>{status_text}</span>
                         </span>
 
-                        <h3 class="truncate font-serif text-[1rem] font-normal text-[var(--text)]">
-                            {&w.song_name}
+                        <h3 class="m-0 truncate font-serif text-[1rem] font-normal text-[var(--text)]">
+                            if let (true, Some(song_id)) = (w.status == "done", w.ingested_song_id.as_ref()) {
+                                <Link<Route>
+                                    to={Route::MusicPlayer { id: song_id.clone() }}
+                                    classes="text-inherit no-underline decoration-[var(--primary)] underline-offset-4 hover:underline"
+                                >
+                                    {&w.song_name}
+                                </Link<Route>>
+                            } else {
+                                {&w.song_name}
+                            }
                         </h3>
 
                         if let Some(ref artist) = w.artist_hint {
@@ -1747,25 +1742,23 @@ fn wish_queue_row(props: &WishQueueRowProps) -> Html {
                     </div>
                 </div>
 
-                <div class="flex shrink-0 flex-wrap items-center gap-1.5">
-                    {done_song_actions}
-
+                <div class="flex shrink-0 items-center gap-3">
                     <button
                         type="button"
                         onclick={on_toggle_log}
-                        class="rounded-[6px] border border-[var(--border)] px-2 py-0.5 font-mono text-[11px] text-[var(--muted)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
+                        class="bg-transparent border-0 p-0 cursor-pointer font-mono text-[11px] text-[var(--faint)] transition-colors hover:text-[var(--text)]"
                     >
                         {if *log_open { "收起日志" } else { "AI 日志" }}
                     </button>
-
                     <button
                         type="button"
                         onclick={on_fill}
                         title={wish_t::FILL_FORM}
-                        class="rounded-[6px] px-1.5 py-0.5 font-mono text-[11px] text-[var(--muted)] transition-colors hover:bg-[var(--surface-alt)] hover:text-[var(--primary)]"
+                        class="bg-transparent border-0 p-0 cursor-pointer font-mono text-[11px] text-[var(--faint)] transition-colors hover:text-[var(--text)]"
                     >
                         {wish_t::FILL_FORM}
                     </button>
+                    {done_song_actions}
                 </div>
             </div>
 

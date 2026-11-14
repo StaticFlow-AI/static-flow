@@ -2098,7 +2098,6 @@ pub fn article_detail_page(props: &ArticleDetailProps) -> Html {
                                             "m-0",
                                             "mt-5",
                                             "font-serif",
-                                            "italic",
                                             "text-[1.125rem]",
                                             "sm:text-[1.25rem]",
                                             "leading-[1.62]",

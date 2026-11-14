@@ -2,6 +2,14 @@ use pulldown_cmark::{html, CowStr, Event, Options, Parser, Tag};
 
 use crate::api::API_BASE;
 
+/// Strip inline Markdown punctuation (code ticks, strong/emphasis runs) from a
+/// one-line excerpt so card and search summaries read as plain prose instead
+/// of leaking `` `code` `` / `**bold**` tokens. Single `*`/`_` are kept because
+/// they are common in literal text (globs, identifiers, SQL `SELECT *`).
+pub fn plain_excerpt(raw: &str) -> String {
+    raw.replace("**", "").replace("__", "").replace('`', "")
+}
+
 /// Sanitize untrusted or Markdown-rendered HTML using a strict tag, attribute,
 /// and URL allowlist to prevent XSS without pulling `ammonia`/`html5ever` into
 /// WASM.

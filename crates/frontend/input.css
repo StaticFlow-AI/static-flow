@@ -591,16 +591,20 @@
     box-shadow: var(--focus-ring);
   }
 
+  /* Sun (8-fold symmetric, so the 90deg resting angle is invisible) sweeps
+     back to 20deg as it becomes a moon: the crescent ends up on the left with
+     its opening toward the upper right — the classic moon silhouette. */
   .sf-theme-toggle__svg {
     width: 18px;
     height: 18px;
     overflow: visible;
     transform-origin: 50% 50%;
+    transform: rotate(90deg);
     transition: transform var(--motion-slow) var(--ease-out);
   }
 
   .sf-theme-toggle--dark .sf-theme-toggle__svg {
-    transform: rotate(-40deg);
+    transform: rotate(20deg);
   }
 
   .sf-theme-toggle__core {
@@ -1519,6 +1523,11 @@
 html {
   height: -webkit-fill-available;
   font-family: var(--font-sans);
+  /* CJK faces ship no italic: never let the browser shear Han glyphs into a
+     fake oblique. Latin runs keep their real italic cuts. */
+  font-synthesis-style: none;
+  text-rendering: optimizeLegibility;
+  font-kerning: normal;
 }
 
 body {

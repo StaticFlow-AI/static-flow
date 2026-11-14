@@ -101,7 +101,7 @@ pub fn theme_toggle(props: &ThemeToggleProps) -> Html {
     let core_r = if is_dark { "8" } else { "5" };
     let core_style = if is_dark { "r: 8px;" } else { "r: 5px;" };
     let cutout_style =
-        if is_dark { "transform: translateX(-9px);" } else { "transform: translateX(0px);" };
+        if is_dark { "transform: translateX(-7px);" } else { "transform: translateX(0px);" };
     let mask_url = format!("url(#{})", *mask_id);
 
     let button_class =
@@ -130,8 +130,8 @@ pub fn theme_toggle(props: &ThemeToggleProps) -> Html {
                         <circle
                             class="sf-theme-toggle__cutout"
                             cx="24"
-                            cy="9"
-                            r="7"
+                            cy="7"
+                            r="6.5"
                             fill="black"
                             style={cutout_style}
                         />
