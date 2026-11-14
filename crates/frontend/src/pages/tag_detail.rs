@@ -8,9 +8,12 @@ use yew::prelude::*;
 use yew_router::prelude::Link;
 
 use crate::{
-    components::scroll_to_top_button::ScrollToTopButton,
+    components::{
+        article_card::{ArticleCard, ArticleCardVariant},
+        scroll_to_top_button::ScrollToTopButton,
+    },
     i18n::{current::tag_detail_page as t, fill_one},
-    pages::posts::{group_articles_by_year, render_archive_skeleton, render_archive_years},
+    pages::posts::render_archive_skeleton,
     router::Route,
 };
 
@@ -44,7 +47,8 @@ pub fn tag_detail_page(props: &TagDetailProps) -> Html {
             wasm_bindgen_futures::spawn_local(async move {
                 let tag_ref = tag.as_deref();
                 match crate::api::fetch_all_articles(tag_ref, None).await {
-                    Ok(data) => {
+                    Ok(mut data) => {
+                        data.sort_by(|a, b| b.date.cmp(&a.date));
                         articles.set(data);
                         loading.set(false);
                     },
@@ -69,9 +73,7 @@ pub fn tag_detail_page(props: &TagDetailProps) -> Html {
     };
 
     let filtered = (*articles).clone();
-
     let total_posts = filtered.len();
-    let grouped_by_year = group_articles_by_year(&filtered);
 
     let empty_message = if let Some(tag_value) = filter_value.as_ref() {
         fill_one(t::EMPTY_TEMPLATE, tag_value)
@@ -137,20 +139,21 @@ pub fn tag_detail_page(props: &TagDetailProps) -> Html {
     }
 
     html! {
-        <main class={classes!("tag-detail-page", "min-h-[60vh]", "pb-20")}>
-            <div class={classes!("container")}>
-                <header class="sf-page-hero">
-                    <div class="flex items-center gap-3 mb-3">
+        <main class={classes!("min-h-[65vh]", "pb-24")}>
+            <div class={classes!("max-w-[1200px]", "mx-auto", "px-6", "md:px-10")}>
+                <header class="pt-16 pb-10 border-b border-[var(--border)]">
+                    <div class="flex flex-wrap items-center gap-3 mb-3">
                         <Link<Route>
                             to={Route::Tags}
-                            classes="sf-chip"
+                            classes="sf-btn sf-btn--ghost sf-btn--sm !px-0 no-underline font-mono text-xs"
                         >
-                            <i class="fas fa-arrow-left text-[10px]" aria-hidden="true"></i>
-                            <span>{ t::ARCHIVE_BADGE }</span>
+                            { format!("← {}", t::ARCHIVE_BADGE) }
                         </Link<Route>>
                     </div>
-                    <h1 class="sf-page-title">{ format!("#{}", display_tag) }</h1>
-                    <p class="sf-page-sub">
+                    <h1 class="m-0 font-serif font-normal text-[clamp(2rem,1.5rem+2vw,3rem)] leading-[1.15] tracking-[-0.015em] text-[var(--text)]">
+                        { format!("#{}", display_tag) }
+                    </h1>
+                    <p class="mt-3 mb-0 font-mono text-xs tabular-nums text-[var(--faint)]">
                         if total_posts > 0 {
                             { fill_one(t::COLLECTED_COUNT_TEMPLATE, total_posts) }
                         } else {
@@ -164,35 +167,36 @@ pub fn tag_detail_page(props: &TagDetailProps) -> Html {
                         render_archive_skeleton()
                     } else if let Some(err) = (*load_error).clone() {
                         html! {
-                            <div class="sf-state sf-state--error" role="alert">
-                                <span class="sf-state__icon">
-                                    <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
-                                </span>
-                                <p class="sf-state__title">{ t::LOAD_ERROR_TITLE }</p>
-                                <p class="sf-state__body">{ err }</p>
-                                <div class="sf-state__action">
-                                    <button
-                                        type="button"
-                                        onclick={on_retry.clone()}
-                                        class="btn-fluent-secondary"
-                                    >
-                                        <i class="fas fa-rotate-right text-xs" aria-hidden="true"></i>
-                                        { t::RETRY }
-                                    </button>
-                                </div>
+                            <div class="py-14 max-w-[54ch]" role="alert">
+                                <p class="m-0 font-serif text-xl text-[var(--err)]">{ t::LOAD_ERROR_TITLE }</p>
+                                <p class="mt-2 mb-5 text-sm text-[var(--muted)]">{ err }</p>
+                                <button
+                                    type="button"
+                                    onclick={on_retry}
+                                    class="sf-btn sf-btn--secondary"
+                                >
+                                    { t::RETRY }
+                                </button>
                             </div>
                         }
-                    } else if grouped_by_year.is_empty() {
+                    } else if filtered.is_empty() {
                         html! {
-                            <div class="sf-state">
-                                <span class="sf-state__icon">
-                                    <i class="fas fa-hashtag" aria-hidden="true"></i>
-                                </span>
-                                <p class="sf-state__title">{ empty_message }</p>
+                            <div class="py-20">
+                                <p class="m-0 font-serif italic text-lg text-[var(--muted)]">{ empty_message }</p>
                             </div>
                         }
                     } else {
-                        render_archive_years(&grouped_by_year, true)
+                        html! {
+                            <div>
+                                { for filtered.iter().map(|article| html! {
+                                    <ArticleCard
+                                        key={article.id.clone()}
+                                        article={article.clone()}
+                                        variant={ArticleCardVariant::Row}
+                                    />
+                                }) }
+                            </div>
+                        }
                     }
                 }
             </div>
