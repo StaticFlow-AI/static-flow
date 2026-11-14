@@ -494,7 +494,7 @@ pub fn llm_access_usage_page() -> Html {
                                                 </td>
                                                 <td class={classes!("py-3", "pr-3", "min-w-[22rem]")}>
                                                     <div class={classes!("flex", "items-start", "gap-2")}>
-                                                        <span class={classes!("inline-flex", "rounded-full", "border", "border-sky-500/20", "bg-sky-500/10", "px-2", "py-1", "text-[11px]", "font-semibold", "uppercase", "tracking-[0.12em]", "text-sky-700", "dark:text-sky-200")}>
+                                                        <span class={classes!("inline-flex", "rounded-full", "border", "border-[var(--border-strong)]", "bg-[var(--surface-alt)]", "px-2", "py-1", "text-[11px]", "font-semibold", "uppercase", "tracking-[0.12em]", "text-[var(--text-2)]")}>
                                                             { event.request_method.clone() }
                                                         </span>
                                                         <div class={classes!("min-w-0", "flex-1")}>
@@ -517,7 +517,7 @@ pub fn llm_access_usage_page() -> Html {
                                                             }
                                                         </span>
                                                         if let Some(title) = same_account_retry_tooltip {
-                                                            <span title={title} class={classes!("inline-flex", "items-center", "rounded-full", "border", "border-indigo-500/20", "bg-indigo-500/10", "px-2", "py-0.5", "font-mono", "text-[11px]", "font-semibold", "text-indigo-700", "dark:text-indigo-200")}>
+                                                            <span title={title} class={classes!("inline-flex", "items-center", "rounded-full", "border", "border-[var(--primary)]/25", "bg-[var(--primary-soft)]", "px-2", "py-0.5", "font-mono", "text-[11px]", "font-semibold", "text-[var(--primary)]")}>
                                                                 { format!("同账号重试 ×{}", event.same_account_retry_count) }
                                                             </span>
                                                         }

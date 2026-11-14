@@ -123,11 +123,11 @@ fn status_text_class(status: &str) -> &'static str {
 }
 
 const ACCENT_BORDERS: &[&str] = &[
-    "border-l-4 border-l-teal-500/70",
-    "border-l-4 border-l-violet-500/70",
-    "border-l-4 border-l-amber-500/70",
-    "border-l-4 border-l-sky-500/70",
-    "border-l-4 border-l-rose-500/70",
+    "border-l-2 border-l-[var(--primary)]",
+    "border-l-2 border-l-[var(--ok)]",
+    "border-l-2 border-l-[var(--warn)]",
+    "border-l-2 border-l-[var(--border-strong)]",
+    "border-l-2 border-l-[var(--err)]",
 ];
 
 #[derive(Clone, Copy, PartialEq)]
@@ -326,14 +326,14 @@ fn account_card(props: &AccountCardProps) -> Html {
                             if let Some(ref w) = bucket.primary {
                                 <WindowBar
                                     label={"5h"}
-                                    accent={"bg-[linear-gradient(90deg,#0f766e,#14b8a6)]"}
+                                    accent={"bg-[var(--ok)]"}
                                     window={w.clone()}
                                 />
                             }
                             if let Some(ref w) = bucket.secondary {
                                 <WindowBar
                                     label={"weekly"}
-                                    accent={"bg-[linear-gradient(90deg,#2563eb,#7c3aed)]"}
+                                    accent={"bg-[var(--primary)]"}
                                     window={w.clone()}
                                 />
                             }
