@@ -5924,3 +5924,216 @@ button[aria-current="page"]:hover {
     animation: none;
   }
 }
+
+/* ==========================================
+   Interactive mirror callout (article detail)
+   One calm row: icon · badge + hint · CTA · dismiss. Theme-token only, so
+   it reads correctly on warm paper and obsidian alike.
+   ========================================== */
+.sf-interactive-callout {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 1.75rem;
+  padding: 0.5rem 0.5rem 0.5rem 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--border));
+  border-radius: 12px;
+  background:
+    linear-gradient(90deg, rgba(var(--primary-rgb), 0.075), rgba(var(--primary-rgb), 0.012) 62%),
+    var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.sf-interactive-callout__icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.95rem;
+  height: 1.95rem;
+  border-radius: 8px;
+  background: rgba(var(--primary-rgb), 0.12);
+  color: var(--primary);
+  font-size: 0.8rem;
+}
+
+.sf-interactive-callout__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.sf-interactive-callout__badge {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.sf-interactive-callout__hint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sf-interactive-callout .sf-interactive-callout__cta {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  height: 2rem;
+  padding: 0 0.9rem;
+  border-radius: 8px;
+  background: var(--primary);
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  box-shadow: 0 1px 2px rgba(var(--primary-rgb), 0.28);
+  transition: transform var(--motion-fast) var(--ease-snap),
+    box-shadow var(--motion-base) var(--ease-spring);
+}
+
+.sf-interactive-callout .sf-interactive-callout__cta:hover {
+  color: #ffffff;
+  text-decoration: none;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(var(--primary-rgb), 0.26);
+}
+
+.sf-interactive-callout .sf-interactive-callout__cta:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.sf-interactive-callout__cta i {
+  font-size: 0.68rem;
+  transition: transform var(--motion-fast) var(--ease-spring);
+}
+
+.sf-interactive-callout__cta:hover i {
+  transform: translateX(2px);
+}
+
+[data-theme="dark"] .sf-interactive-callout .sf-interactive-callout__cta,
+[data-theme="dark"] .sf-interactive-callout .sf-interactive-callout__cta:hover {
+  color: #0b0d11;
+}
+
+.sf-interactive-callout__close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: color var(--motion-fast) var(--ease-snap),
+    background-color var(--motion-fast) var(--ease-snap);
+}
+
+.sf-interactive-callout__close:hover {
+  color: var(--text);
+  background: var(--surface-alt);
+}
+
+@media (max-width: 640px) {
+  .sf-interactive-callout {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    row-gap: 0.6rem;
+    padding: 0.7rem;
+  }
+
+  .sf-interactive-callout__text {
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .sf-interactive-callout__hint {
+    white-space: normal;
+  }
+
+  .sf-interactive-callout .sf-interactive-callout__cta {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ==========================================
+   Editorial refinements — rhythm, hairlines, tactile feedback.
+   transform/opacity-only motion; no layout-affecting transitions.
+   ========================================== */
+.header-minimal {
+  border-bottom-color: color-mix(in srgb, var(--border) 72%, transparent);
+}
+
+.article-content h1,
+.article-content h2,
+.article-content h3,
+.article-content h4 {
+  letter-spacing: -0.016em;
+  text-wrap: balance;
+}
+
+.article-content p,
+.article-content li,
+.article-content blockquote {
+  text-wrap: pretty;
+}
+
+.article-content h2 {
+  padding-bottom: 0.32em;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 64%, transparent);
+}
+
+.article-content :not(pre) > code {
+  font-size: 0.88em;
+}
+
+.article-content a {
+  text-decoration-thickness: 0.06em;
+  text-underline-offset: 0.22em;
+}
+
+.editorial-card {
+  backface-visibility: hidden;
+}
+
+.editorial-card:active {
+  transform: translateY(0) scale(0.995);
+  transition-duration: 80ms;
+}
+
+.sf-theme-toggle:active {
+  transform: scale(0.92);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editorial-card,
+  .editorial-card:hover,
+  .editorial-card:active,
+  .sf-theme-toggle:active,
+  .sf-interactive-callout .sf-interactive-callout__cta:hover,
+  .sf-interactive-callout .sf-interactive-callout__cta:active {
+    transform: none;
+  }
+}

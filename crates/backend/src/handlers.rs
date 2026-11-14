@@ -1029,259 +1029,376 @@ fn build_interactive_page_shell_html(
     locales: &[InteractiveLocaleView],
     selected_locale: &InteractiveLocaleView,
 ) -> String {
-    let shell_title =
-        if selected_locale.locale == "zh" { "交互镜像" } else { "Interactive Mirror" };
-    let shell_note = if selected_locale.locale == "zh" {
-        "核心图示、滑杆与按钮演示都在这里。可以直接在界面内切换中文或 English。"
+    let is_zh = selected_locale.locale == "zh";
+    let pick = |zh: &'static str, en: &'static str| if is_zh { zh } else { en };
+    let shell_title = pick("交互镜像", "Interactive Mirror");
+    let back_label = pick("返回文章", "Back to article");
+    let raw_label = pick("原始页", "Raw page");
+    let raw_hint = pick("在新标签页打开当前语言的原始渲染", "Open the raw render in a new tab");
+    let source_label = pick("原文", "Source");
+    let source_hint = pick("打开原文出处", "Open the original source");
+    let collapse_label = pick("收起工具栏", "Hide toolbar");
+    let restore_label = pick("展开工具栏", "Show toolbar");
+    let switch_label = pick("切换语言", "Switch language");
+
+    let encoded_page_id = urlencoding::encode(page.id.as_str()).into_owned();
+    let article_href = format!("/posts/{}", urlencoding::encode(page.article_id.as_str()));
+    let entry_src = format!(
+        "/interactive-pages/{encoded_page_id}/entry?lang={}",
+        urlencoding::encode(selected_locale.locale.as_str())
+    );
+
+    let lang_switch = if locales.len() > 1 {
+        let segments = locales
+            .iter()
+            .map(|locale| {
+                let short_label = match locale.locale.as_str() {
+                    "zh" => "中文".to_string(),
+                    other => other.to_ascii_uppercase(),
+                };
+                let current = if locale.locale == selected_locale.locale {
+                    r#" aria-current="page""#
+                } else {
+                    ""
+                };
+                format!(
+                    r#"<a href="/interactive-pages/{page_id}?lang={lang}" hreflang="{lang_attr}" title="{full_label}"{current}>{label}</a>"#,
+                    page_id = encoded_page_id,
+                    lang = urlencoding::encode(locale.locale.as_str()),
+                    lang_attr = escape_html(locale.locale.as_str()),
+                    full_label =
+                        escape_html(interactive_locale_label(locale.locale.as_str()).as_str()),
+                    current = current,
+                    label = escape_html(short_label.as_str()),
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("");
+        format!(
+            r#"<nav class="seg" aria-label="{switch_label}">{segments}</nav><span class="sep" aria-hidden="true"></span>"#,
+            switch_label = escape_html(switch_label),
+            segments = segments,
+        )
     } else {
-        "The graphs, sliders, and bloom-filter demos live here. Switch between English and 中文 \
-         directly in this interface."
+        String::new()
     };
-    let shell_hint = if selected_locale.locale == "zh" {
-        "文字稿更适合检索与引用；理解这篇内容，请优先阅读交互版。"
+
+    let source_link = if page.source_url.trim().is_empty() {
+        String::new()
     } else {
-        "The article page is better for search and quoting; use this interactive view for the full \
-         reading experience."
+        format!(
+            r#"<a class="link link--src" href="{source_url}" target="_blank" rel="noreferrer noopener" title="{source_hint}">{source_label}<span class="ext" aria-hidden="true">↗</span></a>"#,
+            source_url = escape_html(page.source_url.as_str()),
+            source_hint = escape_html(source_hint),
+            source_label = escape_html(source_label),
+        )
     };
-    let source_label = if selected_locale.locale == "zh" { "原文来源" } else { "Source" };
-    let raw_entry_label = if selected_locale.locale == "zh" {
-        "直接打开当前语言原始渲染"
-    } else {
-        "Open Current-Language Raw Render"
-    };
-    let entry_src = format!("/interactive-pages/{}/entry?lang={}", page.id, selected_locale.locale);
-    let buttons = locales
-        .iter()
-        .map(|locale| {
-            let active = if locale.locale == selected_locale.locale {
-                " lang-chip--active"
-            } else {
-                ""
-            };
-            format!(
-                r#"<a class="lang-chip{active}" href="/interactive-pages/{page_id}?lang={lang}">{label}</a>"#,
-                active = active,
-                page_id = page.id,
-                lang = locale.locale,
-                label = escape_html(interactive_locale_label(locale.locale.as_str()).as_str()),
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("");
 
     format!(
         r#"<!doctype html>
-<html lang="{lang}">
+<html lang="{lang}" data-theme="light">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
   <title>{title}</title>
+  <script>
+    (function () {{
+      var d = document.documentElement;
+      try {{
+        var t = localStorage.getItem('theme');
+        if (t !== 'dark' && t !== 'light') {{
+          t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }}
+        d.setAttribute('data-theme', t);
+        if (sessionStorage.getItem('sf-imirror-bar') === 'collapsed') d.setAttribute('data-bar', 'collapsed');
+      }} catch (_) {{ }}
+    }})();
+  </script>
   <style>
     :root {{
       color-scheme: light;
-      --shell-bg: #f4efe2;
-      --shell-ink: #1d2b21;
-      --shell-muted: #5d6f63;
-      --shell-card: rgba(255, 252, 244, 0.92);
-      --shell-border: rgba(29, 43, 33, 0.14);
-      --shell-accent: #0f7b5f;
-      --shell-accent-strong: #085340;
-      --shell-shadow: 0 24px 60px rgba(29, 43, 33, 0.12);
+      --bg: #fafaf9;
+      --bar: rgba(250, 250, 249, 0.86);
+      --ink: #18181b;
+      --muted: #71717a;
+      --line: rgba(24, 24, 27, 0.09);
+      --wash: rgba(24, 24, 27, 0.05);
+      --seg-on: #ffffff;
+      --focus: rgba(37, 99, 235, 0.5);
+      --float-shadow: 0 6px 18px rgba(24, 24, 27, 0.12);
     }}
-    * {{
-      box-sizing: border-box;
+    [data-theme="dark"] {{
+      color-scheme: dark;
+      --bg: #0b0d11;
+      --bar: rgba(14, 16, 21, 0.86);
+      --ink: #f4f4f5;
+      --muted: #9a9ea8;
+      --line: rgba(255, 255, 255, 0.08);
+      --wash: rgba(255, 255, 255, 0.065);
+      --seg-on: #262b38;
+      --focus: rgba(96, 165, 250, 0.55);
+      --float-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
     }}
+    *, *::before, *::after {{ box-sizing: border-box; }}
     html, body {{
       margin: 0;
-      min-height: 100%;
-      background:
-        radial-gradient(circle at top left, rgba(236, 205, 150, 0.55), transparent 32%),
-        linear-gradient(180deg, #f7f1e3 0%, var(--shell-bg) 100%);
-      color: var(--shell-ink);
-      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-    }}
-    body {{
-      padding: 18px;
-    }}
-    .shell {{
-      max-width: 1440px;
-      margin: 0 auto;
-      display: grid;
-      gap: 16px;
-    }}
-    .hero {{
-      display: grid;
-      gap: 14px;
-      padding: 22px 24px;
-      border: 1px solid var(--shell-border);
-      border-radius: 28px;
-      background: var(--shell-card);
-      box-shadow: var(--shell-shadow);
-    }}
-    .eyebrow {{
-      margin: 0;
-      font-size: 0.72rem;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-      color: var(--shell-accent);
-      font-weight: 700;
-    }}
-    .hero h1 {{
-      margin: 0;
-      font-size: clamp(1.7rem, 3vw, 3rem);
-      line-height: 1.05;
-      letter-spacing: -0.04em;
-    }}
-    .hero p {{
-      margin: 0;
-      max-width: 72rem;
-      color: var(--shell-muted);
-      font-size: 1rem;
-      line-height: 1.65;
-    }}
-    .hero-top {{
-      display: flex;
-      justify-content: space-between;
-      gap: 16px;
-      align-items: flex-start;
-      flex-wrap: wrap;
-    }}
-    .lang-row {{
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      flex-wrap: wrap;
-    }}
-    .lang-chip {{
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 92px;
-      padding: 10px 14px;
-      border-radius: 999px;
-      border: 1px solid var(--shell-border);
-      background: rgba(255, 255, 255, 0.78);
-      color: var(--shell-muted);
-      text-decoration: none;
-      font-size: 0.92rem;
-      font-weight: 700;
-      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease, color 120ms ease;
-    }}
-    .lang-chip:hover {{
-      transform: translateY(-1px);
-      border-color: rgba(15, 123, 95, 0.42);
-      color: var(--shell-accent);
-    }}
-    .lang-chip--active {{
-      border-color: transparent;
-      background: linear-gradient(135deg, var(--shell-accent) 0%, var(--shell-accent-strong) 100%);
-      color: #fff;
-      box-shadow: 0 10px 22px rgba(15, 123, 95, 0.22);
-    }}
-    .source-link {{
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      color: var(--shell-accent);
-      font-weight: 700;
-      text-decoration: none;
-    }}
-    .hero-actions {{
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      flex-wrap: wrap;
-    }}
-    .raw-entry-link {{
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 42px;
-      padding: 0 16px;
-      border-radius: 999px;
-      background: linear-gradient(135deg, var(--shell-accent) 0%, var(--shell-accent-strong) 100%);
-      color: #fff;
-      font-weight: 700;
-      text-decoration: none;
-      box-shadow: 0 12px 24px rgba(15, 123, 95, 0.18);
-    }}
-    .raw-entry-link:hover {{
-      transform: translateY(-1px);
-    }}
-    .frame-card {{
+      height: 100%;
       overflow: hidden;
-      border: 1px solid var(--shell-border);
-      border-radius: 30px;
-      background: rgba(255, 255, 255, 0.88);
-      box-shadow: var(--shell-shadow);
+      background: var(--bg);
+      color: var(--ink);
+      font: 500 12.5px/1 -apple-system, BlinkMacSystemFont, "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
     }}
-    iframe {{
+    .viewer {{
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+    }}
+    .bar {{
+      position: relative;
+      z-index: 2;
+      flex: 0 0 38px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 8px;
+      padding-left: max(8px, env(safe-area-inset-left));
+      padding-right: max(8px, env(safe-area-inset-right));
+      border-bottom: 1px solid var(--line);
+      background: var(--bar);
+      -webkit-backdrop-filter: saturate(1.6) blur(14px);
+      backdrop-filter: saturate(1.6) blur(14px);
+    }}
+    .bar-side {{
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      min-width: 0;
+    }}
+    .bar-side--start {{ flex: 1 1 auto; }}
+    .bar-side--end {{ flex: 0 0 auto; }}
+    .link {{
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      height: 26px;
+      padding: 0 8px;
+      border-radius: 7px;
+      color: var(--muted);
+      text-decoration: none;
+      white-space: nowrap;
+      transition: color 140ms ease, background-color 140ms ease;
+    }}
+    .link:hover {{ color: var(--ink); background: var(--wash); }}
+    .link--back {{ color: var(--ink); font-weight: 600; }}
+    .link--back .arrow {{ display: inline-block; transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1); }}
+    .link--back:hover .arrow {{ transform: translateX(-2px); }}
+    .ext {{ font-size: 10px; opacity: 0.6; }}
+    .sep {{ flex: none; width: 1px; height: 14px; margin: 0 4px; background: var(--line); }}
+    .pill {{
+      flex: none;
+      display: inline-flex;
+      align-items: center;
+      height: 20px;
+      padding: 0 7px;
+      border-radius: 999px;
+      background: var(--wash);
+      color: var(--muted);
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }}
+    .title {{
+      min-width: 0;
+      max-width: 320px;
+      margin-left: 4px;
+      overflow: hidden;
+      color: var(--muted);
+      font-weight: 500;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }}
+    .seg {{
+      display: inline-flex;
+      align-items: center;
+      height: 24px;
+      padding: 2px;
+      gap: 2px;
+      border-radius: 7px;
+      background: var(--wash);
+    }}
+    .seg a {{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 34px;
+      height: 20px;
+      padding: 0 8px;
+      border-radius: 5px;
+      color: var(--muted);
+      font-size: 11.5px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: color 140ms ease, background-color 140ms ease;
+    }}
+    .seg a:hover {{ color: var(--ink); }}
+    .seg a[aria-current="page"] {{
+      background: var(--seg-on);
+      color: var(--ink);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 0 0 0.5px var(--line);
+    }}
+    .icon-btn {{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      margin-left: 2px;
+      padding: 0;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: color 140ms ease, background-color 140ms ease;
+    }}
+    .icon-btn:hover {{ color: var(--ink); background: var(--wash); }}
+    .icon-btn svg, .restore svg {{ width: 14px; height: 14px; }}
+    a:focus-visible, button:focus-visible {{ outline: 2px solid var(--focus); outline-offset: 1px; }}
+    .stage {{
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
+    }}
+    .stage iframe {{
       display: block;
       width: 100%;
-      min-height: calc(100vh - 220px);
+      height: 100%;
       border: 0;
-      background: #fff;
+      background: #ffffff;
     }}
-    @media (max-width: 860px) {{
-      body {{
-        padding: 10px;
-      }}
-      .hero {{
-        padding: 18px;
-        border-radius: 22px;
-      }}
-      .frame-card {{
-        border-radius: 24px;
-      }}
-      iframe {{
-        min-height: calc(100vh - 180px);
-      }}
+    .restore {{
+      position: fixed;
+      right: max(12px, env(safe-area-inset-right));
+      bottom: max(12px, env(safe-area-inset-bottom));
+      z-index: 3;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      height: 28px;
+      padding: 0 11px 0 9px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--bar);
+      -webkit-backdrop-filter: saturate(1.6) blur(12px);
+      backdrop-filter: saturate(1.6) blur(12px);
+      box-shadow: var(--float-shadow);
+      color: var(--muted);
+      font: inherit;
+      font-size: 11.5px;
+      cursor: pointer;
+      opacity: 0.5;
+      transition: opacity 180ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1), color 140ms ease;
+    }}
+    .restore:hover, .restore:focus-visible {{ opacity: 1; color: var(--ink); transform: translateY(-1px); }}
+    [data-bar="collapsed"] .bar {{ display: none; }}
+    [data-bar="collapsed"] .restore {{ display: inline-flex; }}
+    @media (max-width: 760px) {{
+      .pill, .title, .sep--title, .link--raw .label {{ display: none; }}
+    }}
+    @media (max-width: 420px) {{
+      .link--back .label {{ display: none; }}
+    }}
+    @media (prefers-reduced-motion: reduce) {{
+      *, *::before, *::after {{ transition: none !important; }}
     }}
   </style>
 </head>
 <body>
-  <main class="shell">
-    <section class="hero">
-      <div class="hero-top">
-        <div>
-          <p class="eyebrow">{shell_title}</p>
-          <h1>{page_title}</h1>
-        </div>
-        <nav class="lang-row" aria-label="Interactive languages">
-          {buttons}
-        </nav>
+  <div class="viewer">
+    <header class="bar">
+      <div class="bar-side bar-side--start">
+        <a class="link link--back" href="{article_href}" title="{back_label}"><span class="arrow" aria-hidden="true">←</span><span class="label">{back_label}</span></a>
+        <span class="sep sep--title" aria-hidden="true"></span>
+        <span class="pill">{shell_title}</span>
+        <span class="title" title="{page_title}">{page_title}</span>
       </div>
-      <p>{shell_note}</p>
-      <p>{shell_hint}</p>
-      <div class="hero-actions">
-        <a class="raw-entry-link" href="{entry_src}">{raw_entry_label}</a>
-        <a class="source-link" href="{source_url}" target="_blank" rel="noreferrer noopener">{source_label}</a>
+      <div class="bar-side bar-side--end">
+        {lang_switch}
+        <a class="link link--raw" href="{entry_src}" target="_blank" rel="noopener" title="{raw_hint}"><span class="label">{raw_label}</span><span class="ext" aria-hidden="true">↗</span></a>
+        {source_link}
+        <button type="button" class="icon-btn" id="bar-collapse" title="{collapse_label}" aria-label="{collapse_label}">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10l4-4 4 4"/></svg>
+        </button>
       </div>
-    </section>
-    <section class="frame-card">
+    </header>
+    <main class="stage">
       <iframe
         src="{entry_src}"
         title="{iframe_title}"
         loading="eager"
         referrerpolicy="no-referrer"
+        allow="fullscreen; clipboard-write"
+        allowfullscreen
       ></iframe>
-    </section>
-  </main>
+    </main>
+  </div>
+  <button type="button" class="restore" id="bar-restore" title="{restore_label}" aria-label="{restore_label}">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+    <span>{restore_label}</span>
+  </button>
+  <script>
+    (function () {{
+      var d = document.documentElement;
+      var KEY = 'sf-imirror-bar';
+      var collapseBtn = document.getElementById('bar-collapse');
+      var restoreBtn = document.getElementById('bar-restore');
+      function setCollapsed(collapsed) {{
+        if (collapsed) d.setAttribute('data-bar', 'collapsed');
+        else d.removeAttribute('data-bar');
+        try {{
+          if (collapsed) sessionStorage.setItem(KEY, 'collapsed');
+          else sessionStorage.removeItem(KEY);
+        }} catch (_) {{ }}
+      }}
+      collapseBtn.addEventListener('click', function () {{ setCollapsed(true); restoreBtn.focus(); }});
+      restoreBtn.addEventListener('click', function () {{ setCollapsed(false); collapseBtn.focus(); }});
+      addEventListener('storage', function (e) {{
+        if (e.key === 'theme' && (e.newValue === 'dark' || e.newValue === 'light')) d.setAttribute('data-theme', e.newValue);
+      }});
+      if (window.matchMedia) {{
+        var mq = matchMedia('(prefers-color-scheme: dark)');
+        var onScheme = function (e) {{
+          try {{ if (localStorage.getItem('theme')) return; }} catch (_) {{ }}
+          d.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+        }};
+        if (mq.addEventListener) mq.addEventListener('change', onScheme);
+        else if (mq.addListener) mq.addListener(onScheme);
+      }}
+    }})();
+  </script>
 </body>
 </html>"#,
         lang = escape_html(selected_locale.locale.as_str()),
-        title = escape_html(format!("{shell_title} · {}", selected_locale.title).as_str()),
+        title = escape_html(format!("{} · {shell_title}", selected_locale.title).as_str()),
         shell_title = escape_html(shell_title),
         page_title = escape_html(selected_locale.title.as_str()),
-        shell_note = escape_html(shell_note),
-        shell_hint = escape_html(shell_hint),
-        buttons = buttons,
-        source_url = escape_html(page.source_url.as_str()),
-        source_label = escape_html(source_label),
-        raw_entry_label = escape_html(raw_entry_label),
+        article_href = escape_html(article_href.as_str()),
+        back_label = escape_html(back_label),
+        lang_switch = lang_switch,
         entry_src = escape_html(entry_src.as_str()),
-        iframe_title =
-            escape_html(format!("Interactive mirror for {}", selected_locale.title).as_str()),
+        raw_label = escape_html(raw_label),
+        raw_hint = escape_html(raw_hint),
+        source_link = source_link,
+        collapse_label = escape_html(collapse_label),
+        restore_label = escape_html(restore_label),
+        iframe_title = escape_html(format!("{shell_title}: {}", selected_locale.title).as_str()),
     )
 }
 

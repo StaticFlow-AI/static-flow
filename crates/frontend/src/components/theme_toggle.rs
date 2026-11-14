@@ -1,7 +1,15 @@
-use wasm_bindgen::JsCast;
+use gloo_events::EventListener;
+use wasm_bindgen::{JsCast, JsValue};
 use yew::prelude::*;
 
 use crate::i18n::current::theme_toggle as t;
+
+/// Window event dispatched by `window.__toggleTheme` (see `index.html`) right
+/// after `data-theme` is mutated. With View Transitions the mutation happens
+/// asynchronously inside the transition callback, so every mounted toggle
+/// (desktop + mobile header) re-reads the theme from this event instead of
+/// guessing at click time.
+const THEME_CHANGE_EVENT: &str = "sf-theme-change";
 
 fn is_dark_theme() -> bool {
     web_sys::window()
@@ -24,18 +32,43 @@ pub fn theme_toggle(props: &ThemeToggleProps) -> Html {
         class,
     } = props;
     let theme_state = use_state(is_dark_theme);
+    let button_ref = use_node_ref();
+
+    {
+        let theme_state = theme_state.clone();
+        use_effect_with((), move |_| {
+            // Re-sync once on mount in case the theme flipped between the
+            // initial state read and the effect running.
+            theme_state.set(is_dark_theme());
+            let listener = web_sys::window().map(|win| {
+                EventListener::new(&win, THEME_CHANGE_EVENT, move |_| {
+                    theme_state.set(is_dark_theme());
+                })
+            });
+            move || drop(listener)
+        });
+    }
 
     let onclick = {
-        let theme_state = theme_state.clone();
-        Callback::from(move |_| {
-            if let Some(win) = web_sys::window() {
-                let _ =
-                    js_sys::Reflect::get(&win, &wasm_bindgen::JsValue::from_str("__toggleTheme"))
-                        .ok()
-                        .and_then(|f| f.dyn_into::<js_sys::Function>().ok())
-                        .and_then(|func| func.call0(&wasm_bindgen::JsValue::NULL).ok());
-            }
-            theme_state.set(is_dark_theme());
+        let button_ref = button_ref.clone();
+        Callback::from(move |event: MouseEvent| {
+            let Some(win) = web_sys::window() else {
+                return;
+            };
+            let Some(toggle) = js_sys::Reflect::get(&win, &JsValue::from_str("__toggleTheme"))
+                .ok()
+                .and_then(|f| f.dyn_into::<js_sys::Function>().ok())
+            else {
+                return;
+            };
+            // Yew delegates events at the app root, so `event.currentTarget`
+            // is not this button by the time JS sees it. Hand the button over
+            // explicitly so the reveal circle is anchored on its center.
+            let origin_el = button_ref
+                .cast::<web_sys::Element>()
+                .map(JsValue::from)
+                .unwrap_or(JsValue::NULL);
+            let _ = toggle.call2(&JsValue::NULL, event.as_ref(), &origin_el);
         })
     };
 
@@ -53,6 +86,7 @@ pub fn theme_toggle(props: &ThemeToggleProps) -> Html {
 
     let button_class = classes!(
         "group",
+        "sf-theme-toggle",
         "btn-fluent-icon",
         "border",
         "border-[var(--border)]",
@@ -66,6 +100,7 @@ pub fn theme_toggle(props: &ThemeToggleProps) -> Html {
 
     html! {
         <button
+            ref={button_ref}
             type="button"
             class={button_class}
             {onclick}
