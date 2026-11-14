@@ -7,59 +7,50 @@ use crate::{i18n::current::not_found_page as t, router::Route};
 pub fn not_found_page() -> Html {
     html! {
         <main class={classes!(
-            "container",
+            "max-w-[1200px]",
             "mx-auto",
-            "px-4",
-            "py-16",
+            "px-6",
+            "md:px-10",
+            "py-24",
+            "md:py-32",
+            "min-h-[65vh]",
             "flex",
-            "justify-center",
-            "items-center",
-            "min-h-[65vh]"
+            "items-center"
         )}>
-            <div class={classes!(
-                "max-w-xl",
-                "w-full",
-                "rounded-2xl",
-                "border",
-                "border-[var(--border)]",
-                "bg-[var(--surface)]",
-                "p-8",
-                "sm:p-10",
-                "shadow-[var(--shadow-4)]"
-            )}>
-                <div class="sf-eyebrow">{ "404 · NOT FOUND" }</div>
-                <h1 class="text-3xl sm:text-4xl font-bold tracking-[-0.03em] text-[var(--text)] m-0">
-                    { t::ERROR_CODE }
+            <div class="max-w-[60ch]">
+                <div class="sf-eyebrow text-xs font-semibold uppercase tracking-[0.08em] text-[var(--faint)]">
+                    { "404 · PAGE NOT FOUND" }
+                </div>
+                <h1 class="mt-4 mb-0 font-serif font-normal text-[clamp(2.25rem,1.6rem+2.5vw,3.5rem)] leading-[1.12] tracking-[-0.02em] text-[var(--text)]">
+                    { "这一页不在文库目录中。" }
                 </h1>
-                <p class="mt-3 mb-0 text-sm sm:text-base leading-relaxed text-[var(--muted)]">
+                <p class="mt-4 mb-0 font-serif italic text-lg text-[var(--muted)]">
                     { t::ERROR_DETAIL }
                 </p>
+                <p class="mt-4 mb-0 text-[0.95rem] leading-[1.65] text-[var(--text-2)]">
+                    { "链接可能已变更或输入有误。你可以返回首页探索读者共创文库，或直接浏览最新与归档目录。" }
+                </p>
 
-                <ul class="mt-4 mb-0 pl-5 space-y-1.5 text-sm text-[var(--muted)]">
-                    <li>{ t::SUGGESTION_1 }</li>
-                    <li>{ t::SUGGESTION_2 }</li>
-                </ul>
+                <hr class="sf-rule my-8 border-0 border-t border-[var(--border)]" />
 
-                <div class={classes!("flex", "flex-wrap", "gap-2.5", "mt-7")}>
+                <div class={classes!("flex", "flex-wrap", "items-center", "gap-3")}>
                     <Link<Route>
                         to={Route::Home}
-                        classes={classes!("btn-fluent-primary")}
+                        classes={classes!("sf-btn", "sf-btn--primary", "no-underline")}
                     >
-                        <i class="fas fa-home text-xs" aria-hidden="true"></i>
                         { t::BTN_HOME }
+                        <span aria-hidden="true">{ "→" }</span>
                     </Link<Route>>
                     <Link<Route>
                         to={Route::LatestArticles}
-                        classes={classes!("btn-fluent-secondary")}
+                        classes={classes!("sf-btn", "sf-btn--secondary", "no-underline")}
                     >
-                        <i class="fas fa-newspaper text-xs text-[var(--muted)]" aria-hidden="true"></i>
                         { t::BTN_LATEST }
                     </Link<Route>>
                     <Link<Route>
                         to={Route::Posts}
-                        classes={classes!("btn-fluent-secondary")}
+                        classes={classes!("sf-btn", "sf-btn--ghost", "no-underline")}
                     >
-                        <i class="fas fa-box-archive text-xs text-[var(--muted)]" aria-hidden="true"></i>
                         { t::BTN_ARCHIVE }
                     </Link<Route>>
                 </div>

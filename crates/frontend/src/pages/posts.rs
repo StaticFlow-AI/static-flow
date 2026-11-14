@@ -9,7 +9,10 @@ use yew::prelude::*;
 use yew_router::prelude::{use_location, Link};
 
 use crate::{
-    components::scroll_to_top_button::ScrollToTopButton,
+    components::{
+        article_card::{ArticleCard, ArticleCardVariant},
+        scroll_to_top_button::ScrollToTopButton,
+    },
     i18n::{current::posts_page as t, fill_one},
     router::Route,
 };
@@ -90,7 +93,6 @@ pub fn posts_page() -> Html {
     }
 
     let filtered = (*articles).clone();
-
     let total_posts = filtered.len();
     let grouped_by_year = group_articles_by_year(&filtered);
 
@@ -156,7 +158,7 @@ pub fn posts_page() -> Html {
                     if crate::navigation_context::is_return_armed() {
                         return;
                     }
-                    let mut state = std::collections::BTreeMap::new();
+                    let mut state = BTreeMap::new();
                     if let Some(value) = tag.as_ref() {
                         state.insert("tag".to_string(), value.clone());
                     }
@@ -231,22 +233,36 @@ pub fn posts_page() -> Html {
     }
 
     html! {
-        <main class={classes!("pb-20")}>
-            <div class={classes!("container")}>
-                <header class="sf-page-hero">
-                    <div class="sf-eyebrow">{ t::HERO_INDEX }</div>
-                    <h1 class="sf-page-title">{ t::HERO_TITLE }</h1>
-                    <p class="sf-page-sub">{ description }</p>
+        <main class={classes!("min-h-[65vh]", "pb-24")}>
+            <div class={classes!("max-w-[1200px]", "mx-auto", "px-6", "md:px-10")}>
+                <header class="pt-16 pb-10 border-b border-[var(--border)]">
+                    <div class="sf-eyebrow text-xs font-semibold uppercase tracking-[0.08em] text-[var(--faint)]">
+                        { "ARCHIVE · CHRONOLOGICAL INDEX" }
+                    </div>
+                    <h1 class="mt-3 mb-0 font-serif font-normal text-[clamp(2rem,1.5rem+2vw,3rem)] leading-[1.15] tracking-[-0.015em] text-[var(--text)]">
+                        { t::HERO_TITLE }
+                    </h1>
+                    <p class="mt-3 mb-0 text-[0.95rem] leading-[1.65] text-[var(--muted)] max-w-[62ch]">
+                        { description }
+                    </p>
+
+                    <div class="mt-5 flex flex-wrap items-center gap-4 text-xs font-mono tabular-nums text-[var(--faint)]">
+                        <Link<Route> to={Route::Tags} classes="sf-link no-underline hover:underline text-[var(--muted)]">
+                            { "按标签索引 →" }
+                        </Link<Route>>
+                        <span aria-hidden="true">{ "·" }</span>
+                        <Link<Route> to={Route::Categories} classes="sf-link no-underline hover:underline text-[var(--muted)]">
+                            { "按分类目录 →" }
+                        </Link<Route>>
+                    </div>
 
                     if query.has_filters() {
-                        <div class={classes!("flex", "flex-wrap", "gap-2.5", "items-center", "mt-4")}>
-                            <span class="sf-chip !border-[var(--primary)] !text-[var(--primary)]">
-                                <i class="fas fa-filter text-xs" aria-hidden="true"></i>
+                        <div class={classes!("flex", "flex-wrap", "gap-2.5", "items-center", "mt-5")}>
+                            <span class="sf-chip !bg-[var(--primary-soft)] !text-[var(--primary)]">
                                 { filter_label }
                             </span>
-                            <Link<Route> to={Route::Posts} classes="btn-terminal !py-1 !px-3 !text-xs">
-                                <i class="fas fa-times" aria-hidden="true"></i>
-                                { t::FILTER_CLEAR }
+                            <Link<Route> to={Route::Posts} classes="sf-btn sf-btn--ghost sf-btn--sm no-underline">
+                                { format!("× {}", t::FILTER_CLEAR) }
                             </Link<Route>>
                         </div>
                     }
@@ -261,36 +277,27 @@ pub fn posts_page() -> Html {
                             Callback::from(move |_| refresh.set(*refresh + 1))
                         };
                         html! {
-                            <div class="sf-state sf-state--error" role="alert">
-                                <span class="sf-state__icon">
-                                    <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
-                                </span>
-                                <p class="sf-state__title">{ t::ERROR_TITLE }</p>
-                                <p class="sf-state__body">{ err }</p>
-                                <div class="sf-state__action">
-                                    <button
-                                        type="button"
-                                        class="btn-fluent-secondary"
-                                        onclick={on_retry}
-                                    >
-                                        <i class="fas fa-rotate-right text-xs" aria-hidden="true"></i>
-                                        { t::ERROR_RETRY }
-                                    </button>
-                                </div>
+                            <div class="py-16 max-w-[54ch]" role="alert">
+                                <p class="m-0 font-serif text-xl text-[var(--err)]">{ t::ERROR_TITLE }</p>
+                                <p class="mt-2 mb-5 text-sm text-[var(--muted)]">{ err }</p>
+                                <button
+                                    type="button"
+                                    class="sf-btn sf-btn--secondary"
+                                    onclick={on_retry}
+                                >
+                                    { t::ERROR_RETRY }
+                                </button>
                             </div>
                         }
                     } else if grouped_by_year.is_empty() {
                         html! {
-                            <div class="sf-state">
-                                <span class="sf-state__icon">
-                                    <i class="fas fa-inbox" aria-hidden="true"></i>
-                                </span>
-                                <p class="sf-state__title">{ t::EMPTY }</p>
+                            <div class="py-20">
+                                <p class="m-0 font-serif italic text-lg text-[var(--muted)]">{ t::EMPTY }</p>
                             </div>
                         }
                     } else {
                         html! {
-                            <div class="mb-16">
+                            <div class="divide-y divide-[var(--border)]">
                                 { for grouped_by_year.iter().map(|(year, posts)| {
                                     let year_value = *year;
                                     let total_count = posts.len();
@@ -305,20 +312,33 @@ pub fn posts_page() -> Html {
                                     let heading_id = format!("archive-year-{year_value}");
 
                                     html! {
-                                        <section class="sf-archive-year" aria-labelledby={heading_id.clone()}>
-                                            <div class="sf-archive-year__head">
-                                                <h2 class="sf-archive-year__num" id={heading_id}>{ year_value }</h2>
-                                                <span class="sf-archive-year__count">
+                                        <section
+                                            key={year_value}
+                                            class="grid grid-cols-1 lg:grid-cols-[120px_1fr] gap-4 lg:gap-12 py-10"
+                                            aria-labelledby={heading_id.clone()}
+                                        >
+                                            <div class="lg:sticky lg:top-24 self-start flex lg:flex-col items-baseline gap-3 lg:gap-1.5 pt-1">
+                                                <h2
+                                                    class="m-0 font-serif font-normal text-3xl text-[var(--faint)] tabular-nums leading-none"
+                                                    id={heading_id}
+                                                >
+                                                    { year_value }
+                                                </h2>
+                                                <span class="font-mono text-xs tabular-nums text-[var(--faint)]">
                                                     { fill_one(t::YEAR_COUNT_TEMPLATE, total_count) }
                                                 </span>
                                             </div>
 
                                             <div class="min-w-0">
-                                                <ul class="sf-archive-list">
-                                                    { for posts.iter().take(visible_count).map(|article| {
-                                                        render_archive_row(article, false)
+                                                <div class="[&>article:first-child]:pt-0 [&>article:last-child]:border-b-0">
+                                                    { for posts.iter().take(visible_count).map(|article| html! {
+                                                        <ArticleCard
+                                                            key={article.id.clone()}
+                                                            article={article.clone()}
+                                                            variant={ArticleCardVariant::Row}
+                                                        />
                                                     }) }
-                                                </ul>
+                                                </div>
 
                                                 {
                                                     if should_collapse {
@@ -331,23 +351,18 @@ pub fn posts_page() -> Html {
                                                         let year_for_toggle = year_value;
                                                         let onclick = Callback::from(move |_| toggle_cb.emit(year_for_toggle));
                                                         html! {
-                                                            <div class="mt-4">
+                                                            <div class="pt-4 border-t border-[var(--border)]">
                                                                 <button
                                                                     type="button"
-                                                                    class="btn-fluent-ghost"
+                                                                    class="sf-btn sf-btn--ghost sf-btn--sm"
                                                                     {onclick}
                                                                     aria-expanded={is_expanded.to_string()}
                                                                     aria-label={fill_one(t::YEAR_TOGGLE_ARIA_TEMPLATE, year_value)}
                                                                 >
                                                                     { button_label }
-                                                                    <i
-                                                                        class={classes!(
-                                                                            "fas",
-                                                                            "text-xs",
-                                                                            if is_expanded { "fa-chevron-up" } else { "fa-chevron-down" }
-                                                                        )}
-                                                                        aria-hidden="true"
-                                                                    ></i>
+                                                                    <span aria-hidden="true">
+                                                                        { if is_expanded { "↑" } else { "↓" } }
+                                                                    </span>
                                                                 </button>
                                                             </div>
                                                         }
@@ -369,63 +384,55 @@ pub fn posts_page() -> Html {
     }
 }
 
-/// One editorial archive row: `MM-DD · title / summary / meta · →`.
-pub(crate) fn render_archive_row(article: &ArticleListItem, show_category: bool) -> Html {
-    let detail_route = Route::ArticleDetail {
-        id: article.id.clone(),
-    };
-    let has_meta = show_category || !article.tags.is_empty();
+/// One editorial archive row helper retained for callers using year-grouped
+/// rendering.
+#[allow(
+    dead_code,
+    reason = "Retained as a shared archive row helper alongside ArticleCardVariant::Row."
+)]
+pub(crate) fn render_archive_row(article: &ArticleListItem, _show_category: bool) -> Html {
     html! {
-        <li class="sf-archive-item" key={article.id.clone()}>
-            <Link<Route> to={detail_route} classes="sf-archive-row">
-                <time class="sf-archive-row__date" datetime={article.date.clone()}>
-                    { format_month_day(&article.date) }
-                </time>
-                <div class="sf-archive-row__body">
-                    <h3 class="sf-archive-row__title">{ article.title.clone() }</h3>
-                    if !article.summary.is_empty() {
-                        <p class="sf-archive-row__summary">{ &article.summary }</p>
-                    }
-                    if has_meta {
-                        <div class="sf-archive-row__tags">
-                            if show_category {
-                                <span class="inline-flex items-center gap-1">
-                                    <i class="far fa-folder text-[0.68rem]" aria-hidden="true"></i>
-                                    { &article.category }
-                                </span>
-                            }
-                            { for article.tags.iter().take(3).map(|tag| html! {
-                                <span>{ format!("#{tag}") }</span>
-                            }) }
-                        </div>
-                    }
-                </div>
-                <i class="fas fa-arrow-right sf-archive-row__arrow" aria-hidden="true"></i>
-            </Link<Route>>
-        </li>
+        <ArticleCard
+            key={article.id.clone()}
+            article={article.clone()}
+            variant={ArticleCardVariant::Row}
+        />
     }
 }
 
 /// Year-grouped archive without collapsing (tag / category detail pages).
+#[allow(dead_code, reason = "Retained for callers that prefer year-grouped editorial rows.")]
 pub(crate) fn render_archive_years(
     grouped_by_year: &[(i32, Vec<ArticleListItem>)],
-    show_category: bool,
+    _show_category: bool,
 ) -> Html {
     html! {
-        <div class="mb-16">
+        <div class="divide-y divide-[var(--border)]">
             { for grouped_by_year.iter().map(|(year, posts)| {
                 let heading_id = format!("archive-year-{year}");
                 html! {
-                    <section class="sf-archive-year" key={*year} aria-labelledby={heading_id.clone()}>
-                        <div class="sf-archive-year__head">
-                            <h2 class="sf-archive-year__num" id={heading_id}>{ *year }</h2>
-                            <span class="sf-archive-year__count">
+                    <section
+                        class="grid grid-cols-1 lg:grid-cols-[120px_1fr] gap-4 lg:gap-12 py-10"
+                        key={*year}
+                        aria-labelledby={heading_id.clone()}
+                    >
+                        <div class="lg:sticky lg:top-24 self-start flex lg:flex-col items-baseline gap-3 lg:gap-1.5 pt-1">
+                            <h2 class="m-0 font-serif font-normal text-3xl text-[var(--faint)] tabular-nums leading-none" id={heading_id}>
+                                { *year }
+                            </h2>
+                            <span class="font-mono text-xs tabular-nums text-[var(--faint)]">
                                 { fill_one(t::YEAR_COUNT_TEMPLATE, posts.len()) }
                             </span>
                         </div>
-                        <ul class="sf-archive-list min-w-0">
-                            { for posts.iter().map(|article| render_archive_row(article, show_category)) }
-                        </ul>
+                        <div class="min-w-0 [&>article:first-child]:pt-0 [&>article:last-child]:border-b-0">
+                            { for posts.iter().map(|article| html! {
+                                <ArticleCard
+                                    key={article.id.clone()}
+                                    article={article.clone()}
+                                    variant={ArticleCardVariant::Row}
+                                />
+                            }) }
+                        </div>
                     </section>
                 }
             }) }
@@ -433,30 +440,23 @@ pub(crate) fn render_archive_years(
     }
 }
 
-/// Loading placeholder that mirrors the archive layout (no layout jump).
+/// Loading placeholder that mirrors the editorial row layout.
 pub(crate) fn render_archive_skeleton() -> Html {
     html! {
-        <div aria-hidden="true">
-            { for (0..2).map(|_| html! {
-                <section class="sf-archive-year">
-                    <div class="sf-archive-year__head">
-                        <span class="skeleton block h-8 w-20 rounded-md" />
-                        <span class="skeleton block h-3 w-12 rounded" />
+        <div class="divide-y divide-[var(--border)]" aria-hidden="true">
+            { for (0..5).map(|idx| html! {
+                <div key={idx} class="grid grid-cols-1 md:grid-cols-[130px_1fr_180px] gap-4 md:gap-6 py-7 items-start">
+                    <div class="space-y-2">
+                        <span class="skeleton block h-3.5 w-24 rounded" />
+                        <span class="skeleton block h-3 w-14 rounded" />
                     </div>
-                    <ul class="sf-archive-list">
-                        { for (0..4).map(|_| html! {
-                            <li class="sf-archive-item">
-                                <div class="sf-archive-row">
-                                    <span class="skeleton block h-3 w-10 rounded" />
-                                    <div class="sf-archive-row__body">
-                                        <span class="skeleton block h-4 w-3/5 rounded" />
-                                        <span class="skeleton block h-3 w-4/5 rounded" />
-                                    </div>
-                                </div>
-                            </li>
-                        }) }
-                    </ul>
-                </section>
+                    <div class="space-y-2.5">
+                        <span class="skeleton block h-6 w-3/4 rounded" />
+                        <span class="skeleton block h-4 w-full rounded" />
+                        <span class="skeleton block h-4 w-2/3 rounded" />
+                    </div>
+                    <span class="hidden md:block skeleton aspect-[4/3] w-full rounded-[8px]" />
+                </div>
             }) }
         </div>
     }
@@ -512,16 +512,17 @@ fn render_timeline_with_state(
                 } else {
                     total_count
                 };
-                        let remaining = total_count.saturating_sub(visible_count);
-                        html! {
-                            <>
-                                <h3 class={classes!(
-                                    "mt-10",
-                                    "mb-5",
-                                    "text-2xl",
-                                    "font-bold",
-                                    "text-[var(--text)]"
-                                )}>{ year_value }</h3>
+                let remaining = total_count.saturating_sub(visible_count);
+                html! {
+                    <>
+                        <h3 class={classes!(
+                            "mt-10",
+                            "mb-5",
+                            "font-serif",
+                            "font-normal",
+                            "text-2xl",
+                            "text-[var(--text)]"
+                        )}>{ year_value }</h3>
                         <div class={classes!("timeline")}>
                             { for posts.iter().take(visible_count).map(|article| {
                                 let detail_route = Route::ArticleDetail { id: article.id.clone() };
@@ -533,11 +534,12 @@ fn render_timeline_with_state(
                                             "pl-[calc(var(--timeline-offset)+1rem)]"
                                         )}>
                                             <Link<Route> to={detail_route} classes={classes!(
+                                                "font-serif",
+                                                "font-normal",
                                                 "text-[1.1rem]",
-                                                "font-semibold",
                                                 "text-[var(--text)]",
                                                 "transition-colors",
-                                                "duration-200",
+                                                "duration-150",
                                                 "hover:text-[var(--primary)]"
                                             )}>
                                                 { article.title.clone() }
@@ -551,10 +553,10 @@ fn render_timeline_with_state(
                                             <span class={classes!(
                                                 "inline-block",
                                                 "mt-1",
-                                                "text-[0.9rem]",
-                                                "tracking-[0.2em]",
-                                                "uppercase",
-                                                "text-[var(--muted)]"
+                                                "font-mono",
+                                                "text-xs",
+                                                "tabular-nums",
+                                                "text-[var(--faint)]"
                                             )}>
                                                 { fill_one(t::PUBLISHED_ON_TEMPLATE, format_month_day(&article.date)) }
                                             </span>
@@ -577,7 +579,7 @@ fn render_timeline_with_state(
                                     html! {
                                         <button
                                             type="button"
-                                            class={classes!("btn-fluent-ghost", "mt-3")}
+                                            class={classes!("sf-btn", "sf-btn--ghost", "sf-btn--sm", "mt-3")}
                                             {onclick}
                                             aria-expanded={is_expanded.to_string()}
                                             aria-label={fill_one(t::YEAR_TOGGLE_ARIA_TEMPLATE, year_value)}

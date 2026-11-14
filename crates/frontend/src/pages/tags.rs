@@ -47,39 +47,43 @@ pub fn tags_page() -> Html {
 
     let total_tags = tag_stats.len();
     let total_articles: usize = tag_stats.iter().map(|t| t.count).sum();
-    let max_count = tag_stats.iter().map(|t| t.count as f32).fold(1.0, f32::max);
 
     html! {
-        <main class={classes!("pb-20")}>
-            <div class={classes!("container")}>
-                <header class="sf-page-hero">
-                    <div class="sf-eyebrow">{ t::HERO_INDEX }</div>
-                    <h1 class="sf-page-title">{ t::HERO_TITLE }</h1>
-                    <p class="sf-page-sub">
+        <main class={classes!("min-h-[65vh]", "pb-24")}>
+            <div class={classes!("max-w-[1200px]", "mx-auto", "px-6", "md:px-10")}>
+                <header class="pt-16 pb-10 border-b border-[var(--border)]">
+                    <div class="sf-eyebrow text-xs font-semibold uppercase tracking-[0.08em] text-[var(--faint)]">
+                        { "TAXONOMY · TAG INDEX" }
+                    </div>
+                    <h1 class="mt-3 mb-0 font-serif font-normal text-[clamp(2rem,1.5rem+2vw,3rem)] leading-[1.15] tracking-[-0.015em] text-[var(--text)]">
+                        { t::HERO_TITLE }
+                    </h1>
+                    <p class="mt-3 mb-0 text-[0.95rem] leading-[1.65] text-[var(--muted)]">
                         { fill_two(t::HERO_DESC_TEMPLATE, total_tags, total_articles) }
                     </p>
-                    <div class={classes!("flex", "flex-wrap", "items-center", "gap-2.5", "mt-4")}>
-                        <span class="sf-chip">
-                            <i class={classes!("fas", "fa-tags", "text-[var(--primary)]")} aria-hidden="true"></i>
-                            <span>{ fill_one(t::TAG_COUNT_TEMPLATE, total_tags) }</span>
-                        </span>
-                        <span class="sf-chip">
-                            <i class={classes!("fas", "fa-book", "text-[var(--primary)]")} aria-hidden="true"></i>
-                            <span>{ fill_one(t::ARTICLE_COUNT_TEMPLATE, total_articles) }</span>
-                        </span>
+                    <div class={classes!("flex", "flex-wrap", "items-center", "gap-3", "mt-4", "font-mono", "text-xs", "tabular-nums", "text-[var(--faint)]")}>
+                        <span>{ fill_one(t::TAG_COUNT_TEMPLATE, total_tags) }</span>
+                        <span aria-hidden="true">{ "│" }</span>
+                        <span>{ fill_one(t::ARTICLE_COUNT_TEMPLATE, total_articles) }</span>
+                        <span aria-hidden="true">{ "│" }</span>
+                        <Link<Route> to={Route::Categories} classes="sf-link no-underline hover:underline text-[var(--muted)]">
+                            { "切换至分类目录 →" }
+                        </Link<Route>>
                     </div>
                 </header>
 
-                <section class="mb-16" aria-label={t::CLOUD_ARIA}>
+                <section class="py-12" aria-label={t::CLOUD_ARIA}>
                     {
                         if *loading {
                             html! {
-                                <div class="sf-tag-cloud" aria-hidden="true">
+                                <div class="flex flex-wrap items-center gap-3" aria-hidden="true">
                                     { for [5.5_f32, 7.0, 4.5, 8.5, 6.0, 5.0, 9.0, 4.0, 6.5, 7.5, 5.0, 8.0, 4.5, 6.0]
                                         .iter()
-                                        .map(|w| html! {
+                                        .enumerate()
+                                        .map(|(idx, w)| html! {
                                             <span
-                                                class="skeleton block h-9 rounded-full"
+                                                key={idx}
+                                                class="skeleton block h-7 rounded-full"
                                                 style={format!("width: {w}rem")}
                                             />
                                         })
@@ -88,51 +92,39 @@ pub fn tags_page() -> Html {
                             }
                         } else if let Some(err) = (*load_error).clone() {
                             html! {
-                                <div class="sf-state sf-state--error" role="alert">
-                                    <span class="sf-state__icon">
-                                        <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
-                                    </span>
-                                    <p class="sf-state__title">{ t::LOAD_ERROR_TITLE }</p>
-                                    <p class="sf-state__body">{ err }</p>
-                                    <div class="sf-state__action">
-                                        <button
-                                            type="button"
-                                            onclick={on_retry.clone()}
-                                            class="btn-fluent-secondary"
-                                        >
-                                            <i class="fas fa-rotate-right text-xs" aria-hidden="true"></i>
-                                            { t::RETRY }
-                                        </button>
-                                    </div>
+                                <div class="py-10 max-w-[54ch]" role="alert">
+                                    <p class="m-0 font-serif text-xl text-[var(--err)]">{ t::LOAD_ERROR_TITLE }</p>
+                                    <p class="mt-2 mb-5 text-sm text-[var(--muted)]">{ err }</p>
+                                    <button
+                                        type="button"
+                                        onclick={on_retry}
+                                        class="sf-btn sf-btn--secondary"
+                                    >
+                                        { t::RETRY }
+                                    </button>
                                 </div>
                             }
                         } else if tag_stats.is_empty() {
                             html! {
-                                <div class="sf-state">
-                                    <span class="sf-state__icon">
-                                        <i class="fas fa-tags" aria-hidden="true"></i>
-                                    </span>
-                                    <p class="sf-state__title">{ t::EMPTY }</p>
+                                <div class="py-12">
+                                    <p class="m-0 font-serif italic text-lg text-[var(--muted)]">{ t::EMPTY }</p>
                                 </div>
                             }
                         } else {
                             html! {
-                                <ul class="sf-tag-cloud">
+                                <ul class="m-0 p-0 list-none flex flex-wrap items-center gap-x-4 gap-y-3.5">
                                     { for tag_stats.iter().map(|tag_info| {
-                                        let weight = (tag_info.count as f32 / max_count).clamp(0.0, 1.0);
-                                        let style = format!("--tag-weight: {weight:.2}");
                                         html! {
-                                            <li class="m-0" {style}>
+                                            <li key={tag_info.name.clone()} class="m-0 inline-flex items-center gap-1.5">
                                                 <Link<Route>
                                                     to={Route::TagDetail { tag: tag_info.name.clone() }}
-                                                    classes="sf-tag"
+                                                    classes="sf-chip no-underline hover:!text-[var(--text)]"
                                                 >
-                                                    <span class="sf-tag__name">
-                                                        <span class="sf-tag__hash" aria-hidden="true">{ "#" }</span>
-                                                        { &tag_info.name }
-                                                    </span>
-                                                    <span class="sf-tag__count">{ tag_info.count }</span>
+                                                    { format!("#{}", tag_info.name) }
                                                 </Link<Route>>
+                                                <span class="font-mono text-xs tabular-nums text-[var(--faint)]">
+                                                    { tag_info.count }
+                                                </span>
                                             </li>
                                         }
                                     }) }
