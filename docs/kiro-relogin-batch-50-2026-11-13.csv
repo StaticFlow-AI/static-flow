@@ -2,29 +2,29 @@
 1,1,direct,laohan39,Prosacco1,Prosacco@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-a2e1ccfa-8a33-4546-afa1-e302c285c3e7,2026-11-12T19:08:38.979184+00:00
 2,1,direct,laohan41,Imeldaa1,Imeldaa@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-0a8355ad-64e9-4fea-b96f-f51156e930a5,2026-11-12T19:14:02.709357+00:00
 3,1,direct,laohan42,Hagenes12,Hagenes@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-a43bb386-0635-40f1-be97-f8a1af8d73be,2026-11-12T19:21:17.718678+00:00
-4,2,proxy,laohan43,Janessaa1,Janessaa@asu.edu,pending,,,,,,
-5,2,proxy,laohan44,Kuhlmannn1,Kuhlmannn@asu.edu,pending,,,,,,
-6,2,proxy,laohan45,Laurinez,Laurine@asu.edu,pending,,,,,,
-7,3,direct,laohan46,Darlenexc,Darlenex@asu.edu,pending,,,,,,
-8,3,direct,laohan47,Lehnerxz,Lehnerxz@asu.edu,pending,,,,,,
-9,3,direct,laohan48,Lefflerxs,Lefflerxs@asu.edu,pending,,,,,,
-10,4,proxy,laohan49,Emoryyy1,Emoryyy@asu.edu,pending,,,,,,
-11,4,proxy,laohan50,Deangeloo1,Deangeloo@asu.edu,pending,,,,,,
-12,4,proxy,laohan51,Smithamm1,Smithamm@asu.edu,pending,,,,,,
-13,5,direct,laohan52,Nienoww,Nienoww@asu.edu,pending,,,,,,
-14,5,direct,laohan53,Keelinggg,Keelinggg@asu.edu,pending,,,,,,
-15,5,direct,laohan54,Reingerrr,Reingerrr@asu.edu,pending,,,,,,
-16,6,proxy,laohan55,Reynoldss12,Reynoldss@asu.edu,pending,,,,,,
-17,6,proxy,laohan56,Kayleyu1,Kayleyu@asu.edu,pending,,,,,,
-18,6,proxy,laohan57,Sengerr2,Sengerr@asu.edu,pending,,,,,,
-19,7,direct,laohan58,Schulist1,Schulist@asu.edu,pending,,,,,,
-20,7,direct,laohan59,Arnoldo123z,Arnoldo@asu.edu,pending,,,,,,
-21,7,direct,laohan60,Kunzeez,Kunzeez@asu.edu,pending,,,,,,
-22,8,proxy,laohan61,Autumnn12,Autumnn@asu.edu,pending,,,,,,
-23,8,proxy,laohan62,Fritschh,Fritschh@asu.edu,pending,,,,,,
-24,8,proxy,laohan63,Carminee123,Carmine@asu.edu,pending,,,,,,
-25,9,direct,laohan64,Hodkiewicz1,Hodkiewicz@asu.edu,pending,,,,,,
-26,9,direct,laohan65,Clementinee1,Clementinee@asu.edu,pending,,,,,,
+4,2,proxy,laohan43,Janessaa1,Janessaa@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-e399b8b7-24d5-44cc-92bb-52da6a26c1b4,2026-11-15T10:43:14.726390+00:00
+5,2,proxy,laohan44,Kuhlmannn1,Kuhlmannn@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-7bae30e3-a681-4246-be3a-1367d302788f,2026-11-15T10:46:12.847186+00:00
+6,2,proxy,laohan45,Laurinez,Laurine@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-549a6b84-7c38-4fb5-ad65-a0db9f7e9599,2026-11-15T10:50:16.324295+00:00
+7,3,direct,laohan46,Darlenexc,Darlenex@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-8af73a3c-3ee9-493d-b58d-da3fe488840d,2026-11-15T10:55:18.987546+00:00
+8,3,direct,laohan47,Lehnerxz,Lehnerxz@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-162516ff-edf0-4291-90b4-b6faa71ddebf,2026-11-15T10:58:20.075777+00:00
+9,3,direct,laohan48,Lefflerxs,Lefflerxs@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-d2ebdc21-6401-4a11-b01b-6edb48356f44,2026-11-15T11:02:13.043996+00:00
+10,4,proxy,laohan49,Emoryyy1,Emoryyy@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-946c0a76-f549-493d-82a9-eedf9d3aec99,2026-11-15T11:05:55.819670+00:00
+11,4,proxy,laohan50,Deangeloo1,Deangeloo@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-b7e0c8c8-e3e9-4a56-a535-15ef7874df96,2026-11-15T11:08:52.505831+00:00
+12,4,proxy,laohan51,Smithamm1,Smithamm@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-2221cd16-87d5-45e0-bf4e-48f9f782ef2c,2026-11-15T11:12:26.956458+00:00
+13,5,direct,laohan52,Nienoww,Nienoww@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-0dff9af1-d2de-4293-b2c5-50aea4b2f322,2026-11-15T11:17:39.000973+00:00
+14,5,direct,laohan53,Keelinggg,Keelinggg@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-f8edb307-7ba6-4491-9935-e4d853bc82fa,2026-11-15T11:20:30.906738+00:00
+15,5,direct,laohan54,Reingerrr,Reingerrr@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-ef4b3ffa-f3de-4ac8-b079-c8284a971e97,2026-11-15T11:23:54.252420+00:00
+16,6,proxy,laohan55,Reynoldss12,Reynoldss@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-5cd41bc1-412a-4193-8a32-267ebb3db813,2026-11-15T11:28:24.683815+00:00
+17,6,proxy,laohan56,Kayleyu1,Kayleyu@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-f99309b3-38d1-44bf-bd14-3bb9b61f895a,2026-11-15T11:35:05.563262+00:00
+18,6,proxy,laohan57,Sengerr2,Sengerr@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-5658bfcf-0efa-4191-b234-164b838c9b25,2026-11-15T11:40:02.884137+00:00
+19,7,direct,laohan58,Schulist1,Schulist@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-968d19ef-8c7e-44f9-af9c-74a4691e639f,2026-11-15T11:45:36.548380+00:00
+20,7,direct,laohan59,Arnoldo123z,Arnoldo@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-317a0c4b-5ead-4b44-9538-6d5fb5b02e4e,2026-11-15T11:50:56.548814+00:00
+21,7,direct,laohan60,Kunzeez,Kunzeez@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-adbafcb3-7f9f-4bdf-aa6d-c24043f1d4cf,2026-11-15T11:54:20.430019+00:00
+22,8,proxy,laohan61,Autumnn12,Autumnn@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-daa823f8-6971-4160-815f-176685923c93,2026-11-15T11:59:36.838476+00:00
+23,8,proxy,laohan62,Fritschh,Fritschh@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-19c14f0a-3a21-4079-90db-247be5080559,2026-11-15T12:03:40.369479+00:00
+24,8,proxy,laohan63,Carminee123,Carmine@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-9bb22863-a519-406f-b0c9-17fc43d5c3fd,2026-11-15T12:07:27.916337+00:00
+25,9,direct,laohan64,Hodkiewicz1,Hodkiewicz@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-2ff0ebe1-37f5-4907-830f-078e063bc5fc,2026-11-15T12:11:04.871126+00:00
+26,9,direct,laohan65,Clementinee1,Clementinee@asu.edu,restored_verified,1000.0,KIRO STUDENT,200,claude-sonnet-5.5,llm-usage-ef0978bf-899c-47c5-b002-ab0ccd1ef20d,2026-11-15T12:16:29.347203+00:00
 27,9,direct,laohan66,Kilback12,Kilback@asu.edu,pending,,,,,,
 28,10,proxy,laohan67,Maxweelll,Maxweelll@asu.edu,pending,,,,,,
 29,10,proxy,laohan68,Bernierzz,Bernierzz@asu.edu,pending,,,,,,
