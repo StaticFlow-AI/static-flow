@@ -261,6 +261,7 @@ fn route_path_for(route: &Route) -> String {
         Route::Home => config::route_path("/"),
         Route::LatestArticles => config::route_path("/latest"),
         Route::Studio => config::route_path("/studio"),
+        Route::Worldlines => config::route_path("/lab/worldlines"),
         Route::Posts => config::route_path("/posts"),
         Route::ArticleDetail {
             id,
@@ -401,6 +402,18 @@ pub fn apply_route_seo(route: Option<&Route>) {
                 &canonical_url,
                 "website",
                 "index,follow",
+                "zh-CN",
+                &og_image,
+            );
+            apply_default_hreflang(&canonical_url);
+        },
+        Route::Worldlines => {
+            apply_common_seo(
+                "逆时投递 · 世界线观测室 · StaticFlow",
+                "转动三维世界线观测仪，用有限的 D-Mail 改写四个时刻的收束结果。",
+                &canonical_url,
+                "website",
+                "index,follow,max-image-preview:large",
                 "zh-CN",
                 &og_image,
             );

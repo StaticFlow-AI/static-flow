@@ -9,7 +9,7 @@ use crate::{
     i18n::current::home as t,
     models::{ArticleKind, ArticleListItem},
     music_context::{MusicAction, MusicPlayerContext},
-    pages::home_hero::PersonalHero,
+    pages::{home_hero::PersonalHero, worldlines::WorldlinesExhibit},
     router::Route,
     utils::image_url,
 };
@@ -51,11 +51,11 @@ pub fn home_page() -> Html {
     let songs_loaded = use_state(|| false);
     let loading_play_id = use_state(|| None::<String>);
 
-    // Redirect legacy #workshop / #workshop-music anchors cleanly to /studio
+    // Browser fragment navigation can run before WASM mounts the home sections.
     {
         let loc_dep = location.clone();
         use_effect_with(loc_dep, move |_| {
-            let redirect_if_legacy_hash = || {
+            let follow_home_fragment = || {
                 let hash = web_sys::window()
                     .and_then(|w| w.location().hash().ok())
                     .unwrap_or_default();
@@ -65,14 +65,19 @@ pub fn home_page() -> Html {
                 } else if hash == "#workshop" {
                     let target = crate::config::route_path("/studio#article");
                     let _ = crate::navigation_context::navigate_spa_to(&target);
+                } else if let Some(section) = hash
+                    .strip_prefix('#')
+                    .and_then(|id| gloo_utils::document().get_element_by_id(id))
+                {
+                    section.scroll_into_view();
                 }
             };
 
-            redirect_if_legacy_hash();
+            follow_home_fragment();
 
             let on_hashchange =
                 wasm_bindgen::closure::Closure::<dyn FnMut(web_sys::Event)>::new(move |_| {
-                    redirect_if_legacy_hash();
+                    follow_home_fragment();
                 });
 
             if let Some(win) = web_sys::window() {
@@ -299,6 +304,8 @@ pub fn home_page() -> Html {
                 featured_loading={featured_loading}
                 on_play_featured={on_play_featured}
             />
+
+            <WorldlinesExhibit />
 
             // ② Selected & Recent Writing (Anthropic Research / Editorial Magazine Layout)
             <section class="max-w-[1200px] mx-auto px-5 sm:px-6 md:px-10 pt-16 md:pt-24 pb-16 md:pb-24">

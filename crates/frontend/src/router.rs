@@ -32,6 +32,13 @@ pub enum Route {
     Studio,
 
     #[cfg(not(feature = "mock"))]
+    #[at("/lab/worldlines")]
+    Worldlines,
+    #[cfg(feature = "mock")]
+    #[at("/static_flow/lab/worldlines")]
+    Worldlines,
+
+    #[cfg(not(feature = "mock"))]
     #[at("/posts")]
     Posts,
     #[cfg(feature = "mock")]
@@ -369,6 +376,7 @@ fn switch(route: Route) -> Html {
         Route::Home => html! { <pages::home::HomePage /> },
         Route::LatestArticles => html! { <pages::latest_articles::LatestArticlesPage /> },
         Route::Studio => html! { <pages::studio::StudioPage /> },
+        Route::Worldlines => html! { <pages::worldlines::WorldlinesGame /> },
         Route::Posts => html! { <pages::PostsPage /> },
         Route::ArticleDetail {
             id,
