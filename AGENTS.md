@@ -192,6 +192,23 @@ commentary or routine progress/status updates unless they unblock the work,
 report a real blocker, or the user explicitly asks for status; preserve
 reasoning continuity over conversational progress reports.
 
+## Xiaohongshu Publishing & Copywriting (Hard Rule)
+When generating Xiaohongshu (`小红书`) cards/copy or publishing notes via
+Creator Center (`xiaohongshu-tech-note-publisher`), strictly prevent
+off-platform traffic-diversion throttling (`站外引流限流`):
+- **No diversion/link comments**: Never post or pin comments containing URLs,
+  domain names (`ackingliu.top`, `staticflow.cc`, `.com`, `.top`, `.cc`, `.io`),
+  blog links, or obfuscated prompts ("原文链接", "个人博客", "点主页", "搜同名",
+  "私信领"). Stop once the note is published in Creator Center.
+- **No diversion wording in title or body**: Never write `个人博客`,
+  `已导入博客`, `全文见博客`, `链接放评论区`, `评论区置顶`, `见评论区`,
+  `点击主页`, `私信获取`, or external URLs/domains in the title or body copy;
+  close the post naturally as a self-contained technical note.
+- **No domains or diversion text on slide images (OCR gate)**: Never render
+  `ackingliu.top`, `staticflow.cc`, any `.top`/`.com`/`.cc` domain, QR codes,
+  or phrases like `完整精翻入库` / `链接见评论区置顶` anywhere on slide headers,
+  badges, or footers.
+
 ## Repo-Local Instruction Precedence (Hard Rule)
 - When a generic/global agent habit conflicts with a narrower rule in this
   repo, obey the narrower repo-local rule here.
@@ -462,6 +479,8 @@ Use the following skill (`skills/<name>/SKILL.md`, symlinked under
   `codex-session-history`
 - Drafting GitHub PR titles, bodies, and maintainer comments:
   `github-pr-message-writer`
+- Generating Xiaohongshu (小红书) 3:4 cards/copy or publishing notes in Creator Center (strict zero external-link / zero diversion compliance):
+  `xiaohongshu-tech-note-publisher`
 
 If multiple skills apply, use the smallest set that fully covers the task.
 
