@@ -6512,7 +6512,7 @@ button[aria-current="page"]:hover {
     width: 100%;
     max-width: 1260px;
     margin-inline: auto;
-    padding: 1.75rem 1.25rem 2.25rem;
+    padding: 2.4rem 1.25rem 2.25rem;
     display: flex;
     flex-direction: column;
     gap: 2rem;
@@ -6534,45 +6534,128 @@ button[aria-current="page"]:hover {
 
   .sf-avatar {
     position: relative;
-    width: 7.25rem;
-    height: 7.25rem;
-    margin-bottom: 1.1rem;
-    animation: sf-avatar-float 4.6s ease-in-out infinite;
+    width: 8.75rem;
+    height: 8.75rem;
+    margin-bottom: 1.15rem;
+    animation: sf-avatar-float 4.8s ease-in-out infinite;
   }
 
   .sf-avatar__orbit {
     position: absolute;
-    inset: -7px;
+    inset: -8px;
     border-radius: 9999px;
-    border: 1px dashed color-mix(in srgb, var(--primary) 42%, var(--border-strong));
-    opacity: 0.75;
+    border: 1px dashed color-mix(in srgb, var(--primary) 46%, var(--border-strong));
+    opacity: 0.82;
     pointer-events: none;
-    transition: transform 320ms var(--ease-out), opacity 220ms var(--ease-out);
+    transition: transform 460ms var(--ease-out), opacity 220ms var(--ease-out), border-color 220ms var(--ease-out);
+  }
+
+  .sf-avatar__node {
+    position: absolute;
+    left: 87.16%;
+    top: 16.54%;
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    transform: translate(-50%, -50%);
+    background: var(--primary);
+    box-shadow: 0 0 8px rgba(var(--primary-rgb), 0.6);
   }
 
   .sf-avatar:hover .sf-avatar__orbit {
     opacity: 1;
-    transform: rotate(18deg) scale(1.03);
+    border-color: color-mix(in srgb, var(--primary) 68%, var(--border-strong));
+    transform: rotate(28deg) scale(1.02);
   }
 
+  .sf-avatar.is-shifting .sf-avatar__orbit {
+    opacity: 1;
+    border-color: var(--primary);
+    transform: rotate(188deg) scale(1.03);
+  }
+
+  /* Warm-obsidian anodized optical mount — bridges the dark Amadeus cosmos
+     portrait cleanly across both warm parchment (#FAF9F5) and obsidian (#181715). */
   .sf-avatar__btn {
+    position: relative;
     display: block;
     width: 100%;
     height: 100%;
-    padding: 0;
+    padding: 3.5px;
     margin: 0;
+    border: 0;
     border-radius: 9999px;
-    border: 3px solid var(--bg);
-    outline: 1px solid var(--border-strong);
-    background: var(--surface-alt);
-    overflow: hidden;
+    background: linear-gradient(155deg, #2A2723 0%, #161513 56%, #211F1C 100%);
+    box-shadow:
+      0 0 0 1px rgba(201, 100, 66, 0.36),
+      0 12px 28px -10px rgba(20, 20, 19, 0.28),
+      0 2px 6px rgba(20, 20, 19, 0.10);
     cursor: pointer;
-    transition: outline-color 180ms var(--ease-out), transform 200ms var(--ease-out);
+    transition:
+      box-shadow 220ms var(--ease-out),
+      transform 240ms var(--ease-out);
+  }
+
+  html[data-theme="dark"] .sf-avatar__btn {
+    background: linear-gradient(155deg, #282521 0%, #131211 58%, #1D1B18 100%);
+    box-shadow:
+      0 0 0 1px rgba(217, 119, 87, 0.38),
+      0 16px 34px -10px rgba(0, 0, 0, 0.72),
+      0 0 24px -8px rgba(217, 119, 87, 0.18);
   }
 
   .sf-avatar__btn:hover {
-    outline-color: var(--primary);
     transform: scale(1.02);
+    box-shadow:
+      0 0 0 1.25px var(--primary),
+      0 16px 34px -10px rgba(20, 20, 19, 0.34),
+      0 0 20px -6px rgba(var(--primary-rgb), 0.28);
+  }
+
+  html[data-theme="dark"] .sf-avatar__btn:hover {
+    box-shadow:
+      0 0 0 1.25px var(--primary),
+      0 18px 38px -10px rgba(0, 0, 0, 0.8),
+      0 0 28px -6px rgba(217, 119, 87, 0.32);
+  }
+
+  .sf-avatar__btn:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+
+  .sf-avatar__lens {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 9999px;
+    overflow: hidden;
+    background: #0B1220;
+    isolation: isolate;
+  }
+
+  .sf-avatar__lens::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: radial-gradient(
+      circle at 50% 46%,
+      transparent 64%,
+      rgba(18, 17, 16, 0.24) 100%
+    );
+    box-shadow:
+      inset 0 1px 1.5px rgba(255, 248, 240, 0.24),
+      inset 0 -1px 1.5px rgba(10, 14, 24, 0.55),
+      inset 0 0 0 1px rgba(243, 166, 126, 0.18);
+  }
+
+  .sf-avatar__pic {
+    display: block;
+    width: 100%;
+    height: 100%;
   }
 
   .sf-avatar__img {
@@ -6580,18 +6663,29 @@ button[aria-current="page"]:hover {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: 50% 48%;
+    transform: scale(1.005);
+    transition: transform 380ms var(--ease-out);
+  }
+
+  .sf-avatar__btn:hover .sf-avatar__img {
+    transform: scale(1.04);
   }
 
   .sf-avatar__bubble {
     position: absolute;
     left: 50%;
-    bottom: calc(100% + 0.5rem);
+    bottom: calc(100% + 0.65rem);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.38rem;
     transform: translate(-50%, 6px) scale(0.96);
-    padding: 0.28rem 0.68rem;
+    padding: 0.28rem 0.72rem;
     border-radius: 9999px;
     background: #181715;
     color: #FAF9F5;
-    border: 1px solid rgba(217, 119, 87, 0.5);
+    border: 1px solid rgba(217, 119, 87, 0.52);
+    box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.38);
     font-family: var(--font-mono);
     font-size: 0.72rem;
     white-space: nowrap;
@@ -6599,6 +6693,15 @@ button[aria-current="page"]:hover {
     pointer-events: none;
     transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out);
     z-index: 10;
+  }
+
+  .sf-avatar__bubble-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 9999px;
+    background: #D97757;
+    box-shadow: 0 0 6px rgba(217, 119, 87, 0.7);
+    flex-shrink: 0;
   }
 
   .sf-avatar__bubble.is-on {
@@ -7112,6 +7215,11 @@ button[aria-current="page"]:hover {
       text-align: left;
     }
 
+    .sf-avatar {
+      width: 9.25rem;
+      height: 9.25rem;
+    }
+
     .sf-hero__ctas {
       justify-content: flex-start;
     }
@@ -7339,14 +7447,14 @@ button[aria-current="page"]:hover {
     }
 
     .sf-avatar {
-      width: 8.5rem;
-      height: 8.5rem;
-      margin-left: -2.1rem;
-      margin-bottom: 1.15rem;
+      width: 9.75rem;
+      height: 9.75rem;
+      margin-left: -2.65rem;
+      margin-bottom: 1.2rem;
     }
 
     .sf-avatar__btn {
-      border-width: 4px;
+      padding: 4px;
     }
 
     .sf-hero__ctas {
@@ -7366,7 +7474,7 @@ button[aria-current="page"]:hover {
 
   @keyframes sf-avatar-float {
     0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-6px); }
+    50% { transform: translateY(-5px); }
   }
 
   @keyframes sf-caret-blink {
@@ -7387,6 +7495,13 @@ button[aria-current="page"]:hover {
     .sf-term__caret--idle,
     .sf-eq > i {
       animation: none;
+    }
+    .sf-avatar__orbit,
+    .sf-avatar:hover .sf-avatar__orbit,
+    .sf-avatar.is-shifting .sf-avatar__orbit,
+    .sf-avatar__btn:hover,
+    .sf-avatar__btn:hover .sf-avatar__img {
+      transform: none;
     }
     .sf-eq > i {
       transform: scaleY(0.65);

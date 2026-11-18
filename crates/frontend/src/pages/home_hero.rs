@@ -395,16 +395,20 @@ pub fn personal_hero(props: &PersonalHeroProps) -> Html {
         });
     }
 
-    // ---- Avatar speech bubble ---------------------------------------------
+    // ---- Avatar speech bubble & world-line shift --------------------------
     let bubble = use_state(|| false);
+    let bubble_timer = use_mut_ref(|| None::<Timeout>);
     let on_avatar_click = {
         let bubble = bubble.clone();
+        let bubble_timer = bubble_timer.clone();
         let shift = shift_world_line.clone();
         Callback::from(move |e: MouseEvent| {
             shift.emit(e);
             bubble.set(true);
-            let bubble = bubble.clone();
-            Timeout::new(2200, move || bubble.set(false)).forget();
+            let bubble_reset = bubble.clone();
+            *bubble_timer.borrow_mut() = Some(Timeout::new(2200, move || {
+                bubble_reset.set(false);
+            }));
         })
     };
 
@@ -466,25 +470,38 @@ pub fn personal_hero(props: &PersonalHeroProps) -> Html {
 
                 // ── Center: identity on the seam ──
                 <div class="sf-hero__center">
-                    <div class="sf-avatar">
-                        <span class="sf-avatar__orbit" aria-hidden="true" />
+                    <div class={classes!("sf-avatar", (*bubble).then_some("is-shifting"))}>
+                        <span class="sf-avatar__orbit" aria-hidden="true">
+                            <span class="sf-avatar__node" />
+                        </span>
                         <button
                             type="button"
                             class="sf-avatar__btn"
                             onclick={on_avatar_click}
+                            title="点击跳跃世界线"
                             aria-label="L_B__ 的头像（点我跳跃世界线）"
                         >
-                            <img
-                                src={crate::config::asset_path("static/avatar.jpg")}
-                                alt="L_B__"
-                                width="168"
-                                height="168"
-                                loading="eager"
-                                decoding="async"
-                                class="sf-avatar__img"
-                            />
+                            <span class="sf-avatar__lens">
+                                <picture class="sf-avatar__pic">
+                                    <source
+                                        srcset={crate::config::asset_path("static/avatar.webp?v=kurisu1")}
+                                        type="image/webp"
+                                    />
+                                    <img
+                                        src={crate::config::asset_path("static/avatar.jpg?v=kurisu1")}
+                                        alt="L_B__ · ackingliu"
+                                        width="160"
+                                        height="160"
+                                        loading="eager"
+                                        fetchpriority="high"
+                                        decoding="async"
+                                        class="sf-avatar__img"
+                                    />
+                                </picture>
+                            </span>
                         </button>
                         <span class={classes!("sf-avatar__bubble", (*bubble).then_some("is-on"))} aria-hidden={(!*bubble).to_string()}>
+                            <span class="sf-avatar__bubble-dot" aria-hidden="true" />
                             { "El Psy Kongroo." }
                         </span>
                     </div>
