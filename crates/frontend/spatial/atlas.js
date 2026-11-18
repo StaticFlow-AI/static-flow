@@ -1,4 +1,4 @@
-import { CanvasTexture, SRGBColorSpace, NearestFilter, NearestMipmapLinearFilter } from 'three';
+import { CanvasTexture, SRGBColorSpace, LinearFilter, LinearMipmapLinearFilter } from 'three';
 import { seeded } from './stage.js';
 
 const BASE = {
@@ -120,7 +120,15 @@ export const sw = Object.fromEntries(
     shadow: '#535852'
   }).map(([key, color], i) => [key, { id: 201 + i, color }])
 );
-const instrumentTiles = { crtFace: 249, waveDial: 250, nixieLeft: 251, nixieRight: 252 };
+const instrumentTiles = {
+  crtFace: 249,
+  waveDial: 250,
+  nixieLeft: 251,
+  nixieRight: 252,
+  ovenGlass: 253,
+  circuit: 254,
+  photograph: 255
+};
 for (const [name, id] of Object.entries(instrumentTiles)) sw[name] = { id, color: '#394640' };
 const numerals = [
   '111101101101111',
@@ -368,51 +376,269 @@ function art(ctx, id, key, kind) {
       break;
   }
 }
+// Fine marks are drawn on a 32-texel surface. Keep the low-frequency pattern legible on distant mip levels.
+function surfaceArt(ctx, id, key, side) {
+  art(ctx, id, key, side);
+  ctx.save();
+  ctx.scale(0.5, 0.5);
+  const rand = seeded(971 + id * 743 + side * 83);
+  function mark(x, y, w, h, color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, w, h);
+  }
+  const scatter = (n, color, w = 1, h = 1) => {
+    for (let i = 0; i < n; i++) mark((rand() * 32) | 0, (rand() * 32) | 0, w, h, color);
+  };
+  if (key === 'plank' || (key === 'roof' && side === 2)) {
+    const ceiling = key === 'roof';
+    mark(0, 0, 32, 32, ceiling ? '#dfdac8' : '#bd946a');
+    if (ceiling) {
+      mark(0, 0, 32, 1, '#a7a493');
+      mark(0, 1, 32, 1, '#f0ead5');
+      mark(0, 0, 1, 32, '#b5b09e');
+      scatter(74, '#9693822b');
+      scatter(42, '#fff8dc46', 2);
+    } else {
+      for (let row = 0; row < 4; row++) {
+        const y = row * 8,
+          joint = [5, 23, 12, 28][row];
+        mark(0, y, 32, 8, ['#bd966e', '#c8a279', '#c49a70', '#ba9169'][row]);
+        mark(0, y, 32, 1, '#987a5c');
+        mark(0, y + 1, 32, 1, '#d4af86');
+        mark(joint, y + 1, 1, 7, '#9c7d60');
+        mark(joint + 1, y + 1, 1, 7, '#d5ad80');
+        for (let k = 0; k < 8; k++)
+          mark(
+            (rand() * 32) | 0,
+            y + 2 + ((rand() * 6) | 0),
+            2 + ((rand() * 7) | 0),
+            1,
+            k % 3 ? '#8d715636' : '#f3cf9654'
+          );
+      }
+      mark(15, 19, 5, 1, '#9e7a53');
+      mark(17, 18, 2, 1, '#ac875d');
+    }
+  } else if (key === 'plaster') {
+    mark(0, 0, 32, 32, '#e2dac4');
+    scatter(130, '#a79b841e');
+    scatter(46, '#fff6da3b', 2);
+    for (let k = 0; k < 4; k++) mark((rand() * 30) | 0, (rand() * 32) | 0, 2, 1, '#a89e8b58');
+  } else if (key === 'brick' || key === 'cobble') {
+    const brick = key === 'brick';
+    mark(0, 0, 32, 32, brick ? '#b5a797' : '#767b76');
+    for (let row = 0; row < 4; row++)
+      for (let col = -1; col < 3; col++) {
+        const x = col * 16 + (row % 2) * 8,
+          y = row * 8;
+        const tone = brick
+          ? ['#a16754', '#915c50', '#b17860', '#a8725c']
+          : ['#8f9186', '#9c9c8d', '#8a9089', '#aaa89b'];
+        mark(x + 1, y + 1, 15, 7, tone[(rand() * 4) | 0]);
+        mark(x + 2, y + 1, 12, 1, '#e2c3a253');
+        mark(x + 15, y + 3, 1, 5, '#49463945');
+        mark(x + 2, y + 7, 13, 1, '#5d524546');
+      }
+    scatter(55, '#37383228');
+    scatter(32, '#eee2b940');
+  } else if (key === 'leaves' || key === 'pine') {
+    const pine = key === 'pine';
+    for (let i = 0; i < 34; i++) {
+      const x = (rand() * 30) | 0,
+        y = (rand() * 30) | 0;
+      mark(x, y, 3, 2, pine ? '#3c6556' : '#538650');
+      mark(x + 1, y, 2, 1, pine ? '#7c9b77' : '#87ad65');
+      if (i % 6 === 0) ctx.clearRect(x - 1, y + 1, 2, 2);
+    }
+  } else if (key === 'water') {
+    for (let i = 0; i < 15; i++) {
+      const x = (rand() * 30) | 0,
+        y = (rand() * 31) | 0;
+      mark(x, y, (2 + rand() * 4) | 0, 1, '#b9ded08a');
+      mark(x + 2, y + 1, 3, 1, '#437e8869');
+    }
+  } else if (key === 'glass') {
+    ctx.clearRect(0, 0, 32, 32);
+    mark(0, 0, 32, 1, '#758884');
+    mark(0, 0, 1, 32, '#879a92');
+    mark(31, 0, 1, 32, '#667772');
+    mark(0, 31, 32, 1, '#71837b');
+    mark(1, 1, 30, 1, '#d2d9c6');
+    mark(1, 1, 1, 30, '#aebfaf');
+    for (const [x, y] of [
+      [4, 10],
+      [10, 5],
+      [23, 25]
+    ]) {
+      mark(x, y, 3, 1, '#c7dcd5');
+      mark(x + 3, y - 1, 2, 1, '#c7dcd5');
+    }
+  } else if (key === 'roof' || key === 'steel' || key === 'slab') {
+    scatter(34, '#e7edcf30', 3);
+    scatter(31, '#46534d34', 2);
+    for (const x of [3, 27])
+      for (const y of [3, 26]) {
+        mark(x, y, 2, 2, '#65716b');
+        mark(x, y, 1, 1, '#cad0bd');
+      }
+  } else if (key === 'log' && side === 1) {
+    for (let i = 0; i < 33; i++)
+      mark(
+        (rand() * 32) | 0,
+        (rand() * 30) | 0,
+        1,
+        2 + ((rand() * 7) | 0),
+        i % 2 ? '#58483259' : '#c4a4684d'
+      );
+  } else if (
+    ['stone', 'coal_ore', 'copper_ore', 'crystal_ore', 'road', 'grass', 'dirt', 'sand', 'snow'].includes(
+      key
+    )
+  ) {
+    scatter(65, '#343b3828', 2);
+    scatter(65, '#f3e8be37');
+    if (key.endsWith('_ore'))
+      for (const [x, y] of [
+        [4, 6],
+        [18, 4],
+        [12, 16],
+        [24, 22],
+        [4, 26]
+      ]) {
+        mark(
+          x + 2,
+          y - 2,
+          3,
+          1,
+          key === 'crystal_ore' ? '#d0fff1' : key === 'coal_ore' ? '#858f8b' : '#ffbe8b'
+        );
+        mark(x + 1, y + 5, 3, 1, '#4e514c');
+      }
+  } else if (key === 'cabinet' && side === 1) {
+    for (let i = 0; i < 13; i++) mark((rand() * 22 + 4) | 0, (rand() * 19 + 9) | 0, 1, 2, '#5c4b362b');
+    mark(10, 8, 12, 1, '#c5b394');
+    mark(11, 9, 10, 1, '#534d40');
+    mark(4, 22, 5, 3, '#dcd4ae');
+    mark(5, 23, 3, 1, '#8c8775');
+  }
+  ctx.restore();
+}
+function panelArt(ctx, key) {
+  const fill = (x, y, w, h, c) => {
+    ctx.fillStyle = c;
+    ctx.fillRect(x, y, w, h);
+  };
+  ctx.save();
+  ctx.scale(0.5, 0.5);
+  if (key === 'ovenGlass') {
+    fill(0, 0, 32, 32, '#344548');
+    fill(2, 2, 28, 27, '#4a5851');
+    for (let y = 3; y < 28; y += 3) for (let x = 2 + (y % 2); x < 30; x += 3) fill(x, y, 1, 1, '#293c3b');
+    fill(3, 2, 17, 1, '#91a499');
+    fill(2, 3, 1, 13, '#738b7c');
+    fill(24, 23, 5, 1, '#607868');
+  } else if (key === 'circuit') {
+    fill(0, 0, 32, 32, '#294442');
+    fill(2, 2, 28, 3, '#537c69');
+    for (let y = 7; y < 28; y += 4) {
+      fill(3, y, 3, 1, '#a9c990');
+      fill(8, y, 4 + ((y * 3) % 10), 1, '#86ac88');
+      fill(6, y + 1, 1, 1, '#668e76');
+    }
+    fill(23, 8, 6, 12, '#324f49');
+    for (let x = 23; x < 29; x++) fill(x, 18 - ((x * 3) % 7), 1, 1, '#b3d09c');
+    fill(3, 29, 15, 1, '#4b7463');
+    fill(7, 25, 2, 2, '#daaa6b');
+  } else {
+    fill(0, 0, 32, 32, '#e9dfbb');
+    fill(3, 3, 26, 20, '#9eafa1');
+    fill(3, 13, 26, 10, '#728d85');
+    fill(6, 10, 4, 11, '#526b64');
+    fill(9, 15, 8, 8, '#60736c');
+    fill(18, 6, 5, 17, '#697b72');
+    fill(20, 4, 1, 3, '#687b73');
+    fill(6, 26, 17, 1, '#99987f');
+    fill(5, 4, 3, 3, '#be6d53');
+  }
+  ctx.restore();
+}
+export function sampleAtlas(shader) {
+  if (!shader.defines.VOXEL_PRECISE) return;
+  // Keep pixel boundaries crisp in close-up, filtering across an edge only when a screen pixel straddles it.
+  // Preserve the original UV derivatives so mip selection and anisotropy still work at grazing angles.
+  shader.fragmentShader = shader.fragmentShader.replace(
+    '#include <map_fragment>',
+    `#ifdef USE_MAP
+    vec2 pixel=vMapUv*1024.0, seam=floor(pixel+.5);
+    vec2 footprint=clamp(fwidth(pixel),vec2(.0001),vec2(1.));
+    vec2 uv=(seam+clamp((pixel-seam)/footprint,-.5,.5))/1024.0;
+    diffuseColor*=textureGrad(map,uv,dFdx(vMapUv),dFdy(vMapUv));
+  #endif`
+  );
+}
 export function makeAtlas(items) {
   const atlas = document.createElement('canvas');
-  atlas.width = atlas.height = 512;
+  atlas.width = atlas.height = 1024;
   const out = atlas.getContext('2d');
   out.imageSmoothingEnabled = false;
   const tile = document.createElement('canvas');
-  tile.width = tile.height = 16;
+  tile.width = tile.height = 32;
   const ctx = tile.getContext('2d');
+  ctx.scale(2, 2);
   function put(index, paint) {
     ctx.clearRect(0, 0, 16, 16);
     paint(ctx);
-    const x = (index % 16) * 32 + 8,
-      y = (index >> 4) * 32 + 8;
+    const x = (index % 16) * 64 + 16,
+      y = (index >> 4) * 64 + 16;
+    // Extrude all four edges and corners before mipmapping the atlas.
     out.drawImage(tile, x, y);
-    // Extend the edges into the gutter for linear mip interpolation at distance.
-    for (const [sx, dx] of [
-      [0, -8],
-      [15, 16]
-    ])
-      out.drawImage(tile, sx, 0, 1, 16, x + dx, y, 8, 16);
-    for (const [sy, dy] of [
-      [0, -8],
-      [15, 16]
-    ])
-      out.drawImage(atlas, x - 8, y + sy, 32, 1, x - 8, y + dy, 32, 8);
+    out.drawImage(tile, 0, 0, 1, 32, x - 16, y, 16, 32);
+    out.drawImage(tile, 31, 0, 1, 32, x + 32, y, 16, 32);
+    for (const [src, dst] of [
+      [0, -16],
+      [31, 32]
+    ]) {
+      out.drawImage(tile, 0, src, 32, 1, x, y + dst, 32, 16);
+      out.drawImage(tile, 0, src, 1, 1, x - 16, y + dst, 16, 16);
+      out.drawImage(tile, 31, src, 1, 1, x + 32, y + dst, 16, 16);
+    }
   }
   items.forEach((item, id) => {
-    for (let i = 0; i < 3; i++) put(id * 3 + i, (c) => art(c, id, item.key, i));
+    for (let i = 0; i < 3; i++) put(id * 3 + i, (c) => surfaceArt(c, id, item.key, i));
   });
   for (const s of Object.values(sw))
     put(s.id, (c) => {
       c.fillStyle = s.color;
       c.fillRect(0, 0, 16, 16);
       const r = seeded(s.id * 2127);
+      const cloth = [
+        sw.green.id,
+        sw.denim.id,
+        sw.khaki.id,
+        sw.indigo.id,
+        sw.navy.id,
+        sw.rose.id
+      ].includes(s.id);
+      if (cloth) {
+        for (let y = 0; y < 32; y++)
+          for (let x = y % 2; x < 32; x += 3) {
+            c.fillStyle = y % 3 ? '#101e2010' : '#f0e9c91a';
+            c.fillRect(x / 2, y / 2, 0.5, 0.5);
+          }
+      }
       for (let i = 0; i < 65; i++) {
-        c.fillStyle = tint(s.color, (r() - 0.5) * 12);
+        c.fillStyle = tint(s.color, (r() - 0.5) * (cloth || s.id === sw.skin.id ? 5 : 10));
         c.fillRect((r() * 16) | 0, (r() * 16) | 0, 1 + (r() > 0.7), 1);
       }
     });
+  for (const name of ['ovenGlass', 'circuit', 'photograph'])
+    put(instrumentTiles[name], (c) => panelArt(c, name));
   const texture = new CanvasTexture(atlas);
   texture.colorSpace = SRGBColorSpace;
-  texture.magFilter = NearestFilter;
-  texture.minFilter = NearestMipmapLinearFilter;
-  texture.anisotropy = 2;
-  const icons = items.map((item, id) => icon(atlas, item, id));
+  texture.magFilter = LinearFilter;
+  texture.minFilter = LinearMipmapLinearFilter;
+  const icons = [];
+  const itemIcon = (id) => (icons[id] ??= icon(atlas, items[id], id));
   let last = '';
   function instruments(s) {
     const key = [s.line, s.crt, s.armed].join('/');
@@ -463,17 +689,17 @@ export function makeAtlas(items) {
     );
     texture.needsUpdate = true;
   }
-  return { texture, icons, instruments };
+  return { texture, itemIcon, instruments };
 }
 function icon(atlas, item, id) {
   const c = document.createElement('canvas');
   c.width = c.height = 32;
-  const g = c.getContext('2d');
+  const g = c.getContext('2d', { willReadFrequently: true });
   g.imageSmoothingEnabled = false;
   const face = (n, mat, shade) => {
     g.save();
     g.setTransform(...mat);
-    g.drawImage(atlas, (n % 16) * 32 + 8, (n >> 4) * 32 + 8, 16, 16, 0, 0, 16, 16);
+    g.drawImage(atlas, (n % 16) * 64 + 16, (n >> 4) * 64 + 16, 32, 32, 0, 0, 16, 16);
     if (shade) {
       g.fillStyle = 'rgba(28,28,30,' + shade + ')';
       g.fillRect(0, 0, 16, 16);

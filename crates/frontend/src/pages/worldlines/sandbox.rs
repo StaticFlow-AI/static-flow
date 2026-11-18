@@ -4,7 +4,7 @@ use wasm_bindgen::prelude::*;
 
 use super::{
     catalog::*,
-    player::{ray_box, Hit, Player, EYE, REACH},
+    player::{ray_box, Hit, Player, REACH},
     story::{self, Line, Panel, Story, CHOICES},
     terrain::{World, HEIGHT},
 };
@@ -241,7 +241,7 @@ impl Sandbox {
         !matches!((self.story.line, id), (Line::Echo, "mayuri") | (Line::Beta, "daru"))
     }
     fn actor_hit(&self, max: f32) -> Option<&'static str> {
-        let origin = [self.player.x, self.player.y + EYE, self.player.z];
+        let origin = self.player.eye();
         let dir = self.player.direction();
         let mut nearest = max;
         let mut target = None;
@@ -324,7 +324,7 @@ impl Sandbox {
         let hp = self.health;
         let dirty = self.dirty.len();
         let stamp = self.seconds as u32;
-        self.seconds += dt.clamp(0., 0.08);
+        self.seconds += dt.clamp(0., 0.2);
         self.player
             .advance(&mut self.world, dt, side, forward, jump, sprint);
         if !self.planted.is_empty() && stamp != self.seconds as u32 {
@@ -359,10 +359,13 @@ impl Sandbox {
     pub fn trim(&mut self, cx: i32, cz: i32) {
         self.world.retain(cx, cz);
     }
+    pub fn world_edits(&self) -> Vec<i32> {
+        self.world.edits().into_iter().flatten().collect()
+    }
     pub fn changes(&mut self) -> Vec<i32> {
         std::mem::take(&mut self.dirty)
             .into_iter()
-            .flatten()
+            .flat_map(|[x, y, z]| [x, y, z, i32::from(self.world.get(x, y, z))])
             .collect()
     }
     pub fn aim(&mut self) -> Vec<f32> {

@@ -22,6 +22,12 @@
   height: 100%;
   display: block;
 }
+.block-viewport.voxel-loading > canvas {
+  visibility: hidden;
+}
+.block-viewport.voxel-loading .voxel-hud {
+  display: none;
+}
 .block-viewport > canvas {
   touch-action: none;
   outline: none;
@@ -349,6 +355,10 @@
   border-bottom-width: 2px;
   padding: 4px 10px;
   color: #434536;
+}
+.voxel-links button[aria-pressed="true"] {
+  background: #455f52;
+  color: #fff2d7;
 }
 .voxel-sheet-content {
   overflow: auto;

@@ -233,3 +233,32 @@ fn the_quarry_removes_the_whole_surface_and_its_markers_have_footing() {
         assert_eq!(ITEMS[w.get(x, 11, z) as usize].height, 1.);
     }
 }
+
+#[test]
+fn camera_tracks_the_same_stairs_across_frame_rates_and_uses_the_visible_eye_to_aim() {
+    let travel = |dt: f32, frames: usize| {
+        let mut g = Sandbox::new(42);
+        g.player.x = 8.7;
+        g.player.z = 6.6;
+        g.player.y = 12.;
+        g.player.pitch = 0.;
+        g.player.yaw = 0.;
+        let start = g.player.y;
+        let mut high_step = 0_f32;
+        let mut last = start;
+        for _ in 0..frames {
+            g.advance(dt, 0., 1., false, false);
+            let pose = g.pose();
+            high_step = high_step.max((pose[1] - last).abs());
+            assert!((g.player.eye()[1] - pose[1] - 1.58).abs() < 1e-5);
+            last = pose[1];
+        }
+        (g.player.view_position(), high_step)
+    };
+    let (fast, step) = travel(1. / 120., 240);
+    let (slow, _) = travel(1. / 30., 60);
+    assert!(fast[1] > 15.5 && step < 0.11, "stairs {fast:?}, eye jump {step}");
+    for i in 0..3 {
+        assert!((fast[i] - slow[i]).abs() < 0.04, "{fast:?} vs {slow:?}");
+    }
+}

@@ -4,7 +4,7 @@ import { makeHud } from './hud.js';
 
 const SAVE = 'staticflow.lab.blocks.v2';
 const LEGACY = 'staticflow.lab.worldlines.v1';
-export function mount(host, game, signal, report) {
+export function mount(host, game, signal, report, assets) {
   let stored = null,
     lockedSave = false,
     saveWarning = '';
@@ -21,14 +21,15 @@ export function mount(host, game, signal, report) {
     saveWarning = '浏览器未允许本地存档。';
   }
   const cat = JSON.parse(game.catalog()),
-    { texture, icons, instruments } = makeAtlas(cat.items);
-  const world = worldScene(host, game, cat, texture, signal, report),
+    { texture, itemIcon, instruments } = makeAtlas(cat.items);
+  const world = worldScene(host, game, cat, texture, signal, report, assets),
     canvas = world.canvas;
-  const hud = makeHud(host, cat, icons, action, signal),
+  const hud = makeHud(host, cat, itemIcon, action, signal, () => world.quality),
     keys = new Set();
   let state,
     clock = 0,
     saveTime = 0,
+    pendingSave = null,
     alive = true,
     swing = 0,
     engaged = false,
@@ -45,7 +46,18 @@ export function mount(host, game, signal, report) {
     shiftTimer = 0;
   const on = (element, type, fn, options = {}) =>
     element.addEventListener(type, fn, { signal, ...options });
+  function scheduleSave() {
+    if (pendingSave !== null || lockedSave) return;
+    pendingSave = window.requestIdleCallback
+      ? window.requestIdleCallback(save, { timeout: 750 })
+      : setTimeout(save, 150);
+  }
   function save() {
+    if (pendingSave !== null) {
+      if (window.cancelIdleCallback) window.cancelIdleCallback(pendingSave);
+      else clearTimeout(pendingSave);
+      pendingSave = null;
+    }
     if (!alive || lockedSave) return false;
     try {
       if (localStorage.getItem(SAVE) !== stored) {
@@ -72,7 +84,7 @@ export function mount(host, game, signal, report) {
     world.state(state);
     hud.state(state);
     world.request();
-    if (write) save();
+    if (write) scheduleSave();
   }
   function release() {
     keys.clear();
@@ -114,6 +126,10 @@ export function mount(host, game, signal, report) {
   }
   function action(key, id) {
     switch (key) {
+      case 'quality':
+        world.setQuality(['auto', 'native', 'fast'][id]);
+        hud.panel('help', true);
+        break;
       case 'slot':
         game.select(id);
         refresh(true);
@@ -388,18 +404,16 @@ export function mount(host, game, signal, report) {
   on(hud.stick, 'pointercancel', endStick);
   on(hud.touch, 'pointerdown', (e) => {
     const b = e.target.closest('button');
-    if (!b) return;
-    if (b.dataset.action === 'jump') {
-      e.preventDefault();
-      jump = true;
-    }
-    if (b.dataset.action === 'mine') {
-      e.preventDefault();
+    if (!b || e.button !== 0) return;
+    // A look swipe can suppress the browser's next synthetic click. Consume every game control on press.
+    e.preventDefault();
+    if (b.dataset.action === 'jump') jump = true;
+    else if (b.dataset.action === 'mine') {
       b.setPointerCapture(e.pointerId);
       holding = true;
       mining = 0;
       miningDenied = false;
-    }
+    } else action(b.dataset.action);
   });
   on(hud.touch, 'pointerup', () => {
     holding = false;
@@ -422,7 +436,7 @@ export function mount(host, game, signal, report) {
   hud.toast(saveWarning || (!state.phone ? '茶几上的手机在响　·　走近后调查' : '进度已接续'));
   world.start((dt, reduced) => {
     if (!alive) return false;
-    if (!hud.mode) {
+    if (!hud.mode && world.playable) {
       const check = (k) => Number(keys.has(k));
       game.look(
         (check('ArrowLeft') - check('ArrowRight')) * dt * 1.85,
@@ -469,7 +483,7 @@ export function mount(host, game, signal, report) {
       saveTime += dt;
       if (saveTime >= 5) {
         saveTime = 0;
-        save();
+        scheduleSave();
       }
     }
     const p = game.pose();

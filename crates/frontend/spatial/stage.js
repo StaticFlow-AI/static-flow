@@ -11,18 +11,36 @@ export function stage(host, signal, notify) {
     stencil: false
   });
   engine.outputColorSpace = SRGBColorSpace;
+  const gl = engine.getContext();
+  const info = gl.getExtension('WEBGL_debug_renderer_info');
+  const software =
+    info &&
+    /swiftshader|llvmpipe|softpipe|software rasterizer|microsoft basic render/i.test(
+      gl.getParameter(info.UNMASKED_RENDERER_WEBGL)
+    );
+  let setting = 'auto';
+  try {
+    const saved = localStorage.getItem('staticflow.lab.graphics');
+    if (['native', 'fast'].includes(saved)) setting = saved;
+  } catch {}
+  let constrained = Boolean(software),
+    slowTime = 0,
+    slowFrames = 0,
+    qualityChanged;
+  const precise = () => setting === 'native' || (setting === 'auto' && !constrained);
   host.append(canvas);
   const scene = new Scene(),
-    camera = new PerspectiveCamera(72, 1, 0.045, 150);
-  const overlay = new Scene(),
-    handCamera = new PerspectiveCamera();
+    camera = new PerspectiveCamera(72, 1, 0.12, 150);
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   let frame = 0,
     previous = 0,
     seen = true,
     lost = false,
     stopped = false,
-    paint;
+    paint,
+    preparing = true,
+    generation = 0,
+    onPresented;
   function request() {
     if (!frame && !stopped && !lost && seen && !document.hidden && paint)
       frame = requestAnimationFrame(draw);
@@ -30,23 +48,45 @@ export function stage(host, signal, notify) {
   function draw(now) {
     frame = 0;
     if (stopped || lost || !seen || document.hidden) return;
-    const dt = previous ? Math.min((now - previous) / 1000, 0.065) : 0;
+    const dt = previous ? Math.min((now - previous) / 1000, 0.2) : 0;
     previous = now;
     const moving = paint(dt, reduced.matches);
-    engine.render(scene, camera);
-    // The hand has its own depth buffer, including correct occlusion between the fingers and tool.
-    handCamera.projectionMatrix.copy(camera.projectionMatrix);
-    engine.autoClear = false;
-    engine.clearDepth();
-    engine.render(overlay, handCamera);
-    engine.autoClear = true;
+    if (!preparing) {
+      engine.render(scene, camera);
+      if (onPresented) {
+        onPresented();
+        onPresented = null;
+      }
+    }
+    // Select a stable preset once when sustained frame times show this GPU cannot keep up.
+    // A background-tab gap, a shader compile or an individual dropped frame cannot trigger it.
+    if (!preparing && moving && setting === 'auto' && !constrained && dt > 0 && dt < 0.15) {
+      if (dt > 0.029) {
+        slowTime += dt;
+        slowFrames++;
+      } else {
+        slowTime = Math.max(0, slowTime - dt * 2);
+        slowFrames = Math.max(0, slowFrames - 2);
+      }
+      if (slowTime >= 2.5 && slowFrames >= 45) {
+        constrained = true;
+        resize();
+        qualityChanged?.(false);
+      }
+    }
     if (moving) request();
+    else previous = 0;
   }
   function resize() {
     const w = Math.max(1, host.clientWidth),
       h = Math.max(1, host.clientHeight);
-    engine.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5, Math.sqrt(1850000 / (w * h))));
-    engine.setSize(w, h, false);
+    const limit = engine.capabilities.maxTextureSize;
+    const ratio = Math.min(
+      devicePixelRatio || 1,
+      limit / Math.max(w, h),
+      precise() ? Infinity : Math.min(1, Math.sqrt(2073600 / (w * h)))
+    );
+    engine.setDrawingBufferSize(w, h, ratio);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     request();
@@ -55,8 +95,17 @@ export function stage(host, signal, notify) {
     cancelAnimationFrame(frame);
     frame = 0;
     previous = 0;
+    slowTime = slowFrames = 0;
     request();
   }
+  let density;
+  function watchDensity() {
+    density?.removeEventListener('change', watchDensity);
+    density = matchMedia('(resolution: ' + devicePixelRatio + 'dppx)');
+    density.addEventListener('change', watchDensity, { once: true, signal });
+    resize();
+  }
+  watchDensity();
   const size = new ResizeObserver(resize);
   size.observe(host);
   const intersection = new IntersectionObserver((entries) => {
@@ -92,18 +141,16 @@ export function stage(host, signal, notify) {
     size.disconnect();
     intersection.disconnect();
     const assets = new Set();
-    for (const layer of [scene, overlay])
-      layer.traverse((o) => {
-        if (o.shadow) o.shadow.dispose();
-        if (o.geometry) assets.add(o.geometry);
-        for (const m of [].concat(o.material || [])) {
-          assets.add(m);
-          for (const v of Object.values(m)) if (v?.isTexture) assets.add(v);
-        }
-      });
+    scene.traverse((o) => {
+      if (o.shadow) o.shadow.dispose();
+      if (o.geometry) assets.add(o.geometry);
+      for (const m of [].concat(o.material || [])) {
+        assets.add(m);
+        for (const v of Object.values(m)) if (v?.isTexture) assets.add(v);
+      }
+    });
     for (const asset of assets) asset.dispose();
     scene.clear();
-    overlay.clear();
     engine.dispose();
     engine.forceContextLoss();
     canvas.remove();
@@ -112,7 +159,50 @@ export function stage(host, signal, notify) {
   signal.addEventListener('abort', dispose, { once: true });
   return {
     scene,
-    overlay,
+    get playable() {
+      return !preparing && !lost;
+    },
+    prepare() {
+      generation++;
+      preparing = true;
+      onPresented = null;
+    },
+    reveal(done) {
+      const version = ++generation;
+      engine
+        .compileAsync(scene, camera)
+        .then(() => {
+          if (stopped || generation !== version) return;
+          preparing = false;
+          previous = 0;
+          onPresented = done;
+          request();
+        })
+        .catch((error) => {
+          if (!stopped) {
+            console.error('Voxel shader compilation', error);
+            notify('error');
+          }
+        });
+    },
+    get setting() {
+      return setting;
+    },
+    onQuality(callback) {
+      qualityChanged = callback;
+      callback(precise());
+    },
+    setQuality(next) {
+      const was = precise();
+      setting = next;
+      slowTime = slowFrames = 0;
+      if (next === 'auto') constrained = Boolean(software);
+      try {
+        localStorage.setItem('staticflow.lab.graphics', setting);
+      } catch {}
+      resize();
+      if (was !== precise()) qualityChanged?.(precise());
+    },
     camera,
     canvas,
     engine,

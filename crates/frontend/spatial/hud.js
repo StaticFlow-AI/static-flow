@@ -54,7 +54,7 @@ function btn(text, action, id) {
   if (id !== undefined) b.dataset.id = id;
   return b;
 }
-export function makeHud(host, cat, icons, handle, signal) {
+export function makeHud(host, cat, itemIcon, handle, signal, graphics) {
   const root = node('div', 'voxel-hud');
   host.append(root);
   root.innerHTML =
@@ -111,7 +111,7 @@ export function makeHud(host, cat, icons, handle, signal) {
   wrap.append(content);
   const picture = (id) => {
     const img = node('img');
-    img.src = icons[id];
+    img.src = itemIcon(id);
     img.alt = '';
     img.draggable = false;
     return img;
@@ -119,6 +119,8 @@ export function makeHud(host, cat, icons, handle, signal) {
   let mode = '',
     s,
     focusKey = '',
+    previousProgress = -1,
+    slotKeys = [],
     lastHealth = -1,
     timeout,
     placeKey = '';
@@ -244,15 +246,27 @@ export function makeHud(host, cat, icons, handle, signal) {
       );
       const links = node('div', 'voxel-links');
       content.append(links);
-      addButton(links, '操作与按键', 'help');
+      addButton(links, '操作与画质', 'help');
       addButton(links, '回到研究所', 'home');
       addButton(links, '新世界', 'reset');
     }
-    if (mode === 'help')
+    if (mode === 'help') {
+      section(content, '画质');
+      const presets = node('div', 'voxel-links');
+      content.append(presets);
+      ['自动', '原生精细', '流畅'].forEach((label, id) => {
+        const b = addButton(presets, label, 'quality', id);
+        b.setAttribute('aria-pressed', String(graphics() === ['auto', 'native', 'fast'][id]));
+      });
+      paragraph(
+        content,
+        '原生精细按屏幕实际像素绘制，保留阳光投影与斜面纹理。流畅优先保障移动和采集的帧率。'
+      );
       for (const [title, body] of help) {
         section(content, title);
         paragraph(content, body);
       }
+    }
     if (mode === 'talk') {
       paragraph(content, s.panel.body);
       addButton(content, '收起对话', 'close');
@@ -301,6 +315,9 @@ export function makeHud(host, cat, icons, handle, signal) {
       b.setAttribute('aria-pressed', String(i === s.slot));
       b.setAttribute('aria-label', i + 1 + ' ' + (n ? cat.items[id].name + ' ×' + n : '空位'));
       b.title = n ? cat.items[id].name : '空位';
+      const contentKey = id + ',' + n;
+      if (slotKeys[i] === contentKey) return;
+      slotKeys[i] = contentKey;
       b.replaceChildren(node('small', '', String(i + 1)));
       if (n) {
         b.append(picture(id));
@@ -335,8 +352,12 @@ export function makeHud(host, cat, icons, handle, signal) {
       focusKey = key;
       focus.textContent = label;
     }
-    progress.style.width = Math.round(pct * 100) + '%';
-    progress.parentElement.classList.toggle('active', pct > 0);
+    const percent = Math.ceil(pct * 100);
+    if (percent !== previousProgress) {
+      previousProgress = percent;
+      progress.style.width = percent + '%';
+      progress.parentElement.classList.toggle('active', percent > 0);
+    }
   }
   function position(p) {
     const [x, y, z] = [Math.floor(p[0]), Math.floor(p[1] + 0.001), Math.floor(p[2])];
@@ -367,8 +388,16 @@ export function makeHud(host, cat, icons, handle, signal) {
   controls(false);
   function click(e) {
     const b = e.target.closest('button[data-action]');
-    if (b && !b.disabled && !(touch.contains(b) && ['mine', 'jump'].includes(b.dataset.action)))
-      handle(b.dataset.action, Number(b.dataset.id));
+    if (!b || b.disabled) return;
+    if (
+      touch.contains(b) &&
+      (e.pointerType ||
+        e.detail > 0 ||
+        e.sourceCapabilities?.firesTouchEvents ||
+        ['mine', 'jump'].includes(b.dataset.action))
+    )
+      return;
+    handle(b.dataset.action, Number(b.dataset.id));
   }
   root.addEventListener('click', click, { signal });
   dialog.addEventListener('click', click, { signal });

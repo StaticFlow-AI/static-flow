@@ -1,5 +1,6 @@
 //! First-person voxel sandbox at the Future Gadget Laboratory.
 mod catalog;
+mod lighting;
 mod player;
 mod sandbox;
 mod story;
@@ -12,6 +13,14 @@ use yew_router::prelude::Link;
 use self::sandbox::Sandbox;
 use crate::router::Route;
 
+#[wasm_bindgen]
+extern "C" {
+    // wasm-bindgen emits this accessor in the entry module, including Trunk's
+    // public base and hash.
+    #[wasm_bindgen(thread_local_v2, js_namespace = ["import", "meta"], js_name = url)]
+    static BINDINGS_URL: String;
+}
+
 #[wasm_bindgen(module = "/spatial/bridge.js")]
 extern "C" {
     type GameView;
@@ -20,6 +29,8 @@ extern "C" {
         host: &web_sys::HtmlElement,
         base: &str,
         game: JsValue,
+        module: JsValue,
+        bindings_url: &str,
         notify: &Closure<dyn Fn(String)>,
     ) -> GameView;
     #[wasm_bindgen(method)]
@@ -41,6 +52,8 @@ pub fn worldlines_game() -> Html {
                     &element,
                     &crate::config::asset_path("static/sf-space/"),
                     JsValue::from(Sandbox::new(seed)),
+                    wasm_bindgen::module(),
+                    &BINDINGS_URL.with(Clone::clone),
                     &emit,
                 )
             });

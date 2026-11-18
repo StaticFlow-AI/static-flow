@@ -1,4 +1,4 @@
-import { BufferGeometry, Float32BufferAttribute } from 'three';
+import { BufferAttribute, BufferGeometry, Float32BufferAttribute, Sphere, Vector3 } from 'three';
 import { faceTiles, sw } from './atlas.js';
 
 const faces = [
@@ -54,15 +54,28 @@ const corners = [
   [1, 1],
   [0, 1]
 ];
+const emissionTiles = new Set([
+  sw.lit.id,
+  sw.amber.id,
+  sw.waveDial.id,
+  sw.nixieLeft.id,
+  sw.nixieRight.id,
+  sw.crtFace.id,
+  sw.circuit.id,
+  ...faceTiles(33),
+  ...faceTiles(54)
+]);
 export class Batch {
   constructor() {
     this.position = [];
     this.normal = [];
     this.color = [];
     this.uv = [];
+    this.irradiance = [];
+    this.lighting = 0;
     this.triangles = [];
   }
-  face(x, y, z, w, h, d, f, tile, ao, level = 1) {
+  face(x, y, z, w, h, d, f, tile, ao, level = 1, lighting = this.lighting, mirror = false) {
     const idx = this.position.length / 3,
       u = ((tile % 16) * 32 + 8.12) / 512,
       v = 1 - ((tile >> 4) * 32 + 23.88) / 512,
@@ -71,10 +84,12 @@ export class Batch {
     let i = 0;
     for (const [a, b, c] of shape) {
       this.position.push(x + w * a, y + h * b, z + d * c);
-      this.normal.push(...normals[f]);
+      this.normal.push(normals[f][0], normals[f][1], normals[f][2]);
       const l = light[f] * level * (ao ? ao[i] : 1);
-      this.color.push(l, l * 0.986, l * 0.961);
-      this.uv.push(u + corners[i][0] * size, v + corners[i][1] * size);
+      this.color.push(l, l * 0.99, l * 0.975);
+      const exposure = (lighting >>> (i * 8)) & 255;
+      this.irradiance.push((exposure >> 4) / 9, (exposure & 15) / 9, emissionTiles.has(tile) ? 1 : 0);
+      this.uv.push(u + (mirror ? 1 - corners[i][0] : corners[i][0]) * size, v + corners[i][1] * size);
       i++;
     }
     if (ao && ao[0] + ao[2] > ao[1] + ao[3])
@@ -108,7 +123,7 @@ function prop(batch, key, x, y, z) {
       b(13, 0, 3, 2, 1, 8, 'ink');
       face(0.7, 2, 10.8, 8.7, 'metal');
       face(1.2, 2.6, 9.6, 7.6, 'ink', 14.3);
-      face(2, 3.4, 8.2, 5.9, 'screen', 14.5);
+      face(2, 3.4, 8.2, 5.9, 'ovenGlass', 14.5);
       for (let i = 0; i < 3; i++) {
         face(2.6 + i * 2.1, 4.2, 2.4, 0.9, 'banana', 14.8);
         face(2.3 + i * 2.1, 4.8, 0.9, 1.1, 'lime', 14.83);
@@ -137,18 +152,13 @@ function prop(batch, key, x, y, z) {
       b(2, 3, 1.3, 12, 9, 5, 'metal');
       b(0.4, 2.5, 5, 15.2, 11, 9, 'darkblue');
       b(1.2, 3.4, 13.6, 13.6, 9.4, 0.8, 'ink');
-      face(2.1, 5, 11.7, 6.6, big ? 'crtFace' : 'screen', 14.5);
-      if (!big)
-        for (let i = 0; i < 4; i++)
-          face(
-            3.1,
-            10.2 - i * 1.15,
-            (((big ? 7 : 4) + i * 3) % 8) + 1,
-            0.35,
-            i === 0 ? 'cyan' : 'sage',
-            14.8
-          );
+      face(2.1, 5, 11.7, 6.6, big ? 'crtFace' : 'circuit', 14.5);
       face(12, 3.9, 1, 0.6, 'lime', 14.8);
+      for (let j = 0; j < 4; j++) b(15.4, 5 + j * 1.35, 6, 0.35, 0.4, 4.8, 'ink');
+      if (big) {
+        b(13, 3.3, 14.55, 1, 0.8, 0.48, 'silver');
+        for (let j = 0; j < 4; j++) face(2 + j * 1.25, 3.35, 0.7, 0.4, 'metal', 14.6);
+      }
       if (!big) {
         b(1, 0, 13, 13, 0.6, 3, 'silver');
         for (let i = 0; i < 5; i++) b(2 + i * 2, 0.65, 14, 1.2, 0.2, 0.8, 'ink');
@@ -159,7 +169,9 @@ function prop(batch, key, x, y, z) {
       b(5.4, 0.1, 4, 5, 0.8, 8, 'black');
       b(5.7, 1, 4.5, 4.4, 3.9, 0.8, 'ink');
       b(6.1, 1.5, 5.3, 3.6, 2.7, 0.2, 'cyan');
-      for (let i = 0; i < 3; i++) b(6, 1, 7 + i * 1.25, 3.8, 0.15, 0.65, 'silver');
+      for (let row = 0; row < 3; row++)
+        for (let col = 0; col < 3; col++) b(6 + col * 1.28, 1, 7 + row * 1.25, 1, 0.15, 0.65, 'silver');
+      b(6.4, 3.4, 5.54, 2.9, 0.2, 0.1, 'paper');
       break;
     case 'leap':
       b(3, 1, 4, 2.4, 5, 3, 'ink');
@@ -185,6 +197,9 @@ function prop(batch, key, x, y, z) {
       b(0.5, 3, 4.5, 15, 4, 9, 'sage');
       b(0, 6.8, 4.5, 1, 0.4, 9, 'green');
       b(0.6, 2, 13.4, 14.8, 3, 1, 'green');
+      b(1, 6.85, 12.8, 14, 0.35, 0.55, 'sage');
+      b(1.2, 7.1, 5, 13.6, 0.22, 0.45, 'seam');
+      for (const x of [4.4, 11.6]) b(x, 11.9, 4.67, 0.65, 0.7, 0.25, 'seam');
       break;
     case 'panda':
       b(3, 0, 3, 10, 8, 5, 'white');
@@ -196,6 +211,7 @@ function prop(batch, key, x, y, z) {
       break;
     case 'table':
       b(0, 13, 0, 16, 3, 16, 'wood');
+      b(0.5, 13.2, 15.8, 15, 0.45, 0.28, 'deepwood');
       b(0.4, 13, 0.4, 15.2, 0.55, 15.2, 'deepwood');
       for (const a of [1, 13]) for (const c of [1, 13]) b(a, 0, c, 2, 13, 2, 'deepwood');
       break;
@@ -295,6 +311,7 @@ function prop(batch, key, x, y, z) {
         b(a + 1, v + h - 0.8, 1.72, 1, 0.65, 0.3, 'red');
         for (let j = 0; j < 3; j++) b(a + 0.7, v + 1.2 + j * 1.05, 1.72, 2 + (j % 2), 0.26, 0.3, 'metal');
       }
+      b(4.5, 3.6, 1.8, 4.5, 5.8, 0.14, 'photograph');
       b(2, 7, 1.86, 9, 0.32, 0.16, 'red');
       b(8, 6.4, 1.88, 6, 0.32, 0.16, 'auburn');
       break;
@@ -325,77 +342,114 @@ function prop(batch, key, x, y, z) {
       break;
   }
 }
-const emission = {
-  torch: [9, 7, 0xffba76, 0.72],
-  lamp: [17, 10, 0xffe8bb, 0.4],
-  tube_light: [20, 11, 0xffedcd, 0.7],
-  beacon: [22, 12, 0xa4ffdb, 0.65]
-};
-export function chunkGeometry(data, cx, cz, catalog) {
-  const { height, items } = catalog,
-    batch = new Batch();
-  const lights = [];
-  const get = (x, y, z) => (y < 0 ? 4 : y >= height ? 0 : data[y * 324 + (z + 1) * 18 + x + 1]);
-  const opaque = (id) => items[id].form === 'cube';
+// Rust emits two words per visible face: a local block/face/AO descriptor and four light samples.
+const variedGrain = new Set([
+  'plank',
+  'plaster',
+  'grass',
+  'sand',
+  'stone',
+  'dirt',
+  'road',
+  'leaves',
+  'pine',
+  'snow'
+]);
+function windowTrim(batch, x, y, z, face) {
+  const bar = 1 / 32,
+    lip = 0.018;
+  if (face === 4 || face === 5) {
+    const at = z + (face === 4 ? 1 - lip : -lip);
+    batch.box(x, y, at, 1, bar, 2 * lip, 'metal');
+    batch.box(x, y + bar, at, bar, 1 - bar, 2 * lip, 'silver');
+  } else if (face < 2) {
+    const at = x + (face === 0 ? 1 - lip : -lip);
+    batch.box(at, y, z, 2 * lip, bar, 1, 'metal');
+    batch.box(at, y + bar, z, 2 * lip, 1 - bar, bar, 'silver');
+  }
+}
+export function chunkBuffers(words, items) {
+  const batch = new Batch();
   const tiles = items.map((_, id) => faceTiles(id));
-  for (let y = 0; y < height; y++)
-    for (let z = 0; z < 16; z++)
-      for (let x = 0; x < 16; x++) {
-        const id = get(x, y, z);
-        if (!id) continue;
-        const { form, key } = items[id],
-          wx = cx * 16 + x,
-          wz = cz * 16 + z;
-        if (emission[key]) {
-          const [power, range, color, offset] = emission[key];
-          lights.push({ x: wx + 0.5, y: y + offset, z: wz + 0.5, power, range, color });
-        }
-        if (form === 'prop') {
-          prop(batch, key, wx, y, wz);
-          continue;
-        }
-        const h = form === 'liquid' ? 0.875 : form === 'slab' ? 0.5 : 1;
-        for (let f = 0; f < 6; f++) {
-          const n = normals[f],
-            nx = x + n[0],
-            ny = y + n[1],
-            nz = z + n[2],
-            neighbor = get(nx, ny, nz);
-          if ((opaque(neighbor) || (neighbor === id && form !== 'slab')) && !(f === 2 && h < 1)) continue;
-          let ao;
-          if (form === 'cube') {
-            const axes = n[0] ? [1, 2] : n[1] ? [0, 2] : [0, 1];
-            ao = faces[f].map((v) => {
-              const side = (axis) => {
-                const a = [nx, ny, nz];
-                a[axis] += v[axis] ? 1 : -1;
-                return a;
-              };
-              const a = side(axes[0]),
-                b = side(axes[1]);
-              const corner = a.slice();
-              corner[axes[1]] += v[axes[1]] ? 1 : -1;
-              const sa = Number(opaque(get(...a))),
-                sb = Number(opaque(get(...b)));
-              return sa && sb ? 0.65 : 1 - 0.112 * (sa + sb + Number(opaque(get(...corner))));
-            });
-          }
-          batch.face(
-            wx,
-            y,
-            wz,
-            1,
-            h,
-            1,
-            f,
-            tiles[id][f],
-            ao,
-            key === 'lamp' || key === 'beacon' ? 1.22 : 1
-          );
-        }
+  const ao = [1, 1, 1, 1];
+  const solid = [],
+    cutout = [];
+  let low = Infinity,
+    high = -Infinity;
+  for (let i = 0; i < words.length; i += 2) {
+    const header = words[i],
+      lighting = words[i + 1];
+    const x = header & 15,
+      z = (header >>> 4) & 15,
+      y = (header >>> 8) & 63,
+      f = (header >>> 14) & 7,
+      id = (header >>> 17) & 127;
+    low = Math.min(low, y);
+    high = Math.max(high, y + 1);
+    batch.triangles = items[id].form === 'cutout' ? cutout : solid;
+    if (f === 6) {
+      batch.lighting = lighting;
+      prop(batch, items[id].key, x, y, z);
+    } else {
+      const form = items[id].form;
+      for (let j = 0; j < 4; j++) ao[j] = 1 - 0.105 * ((header >>> (24 + j * 2)) & 3);
+      const mirror = variedGrain.has(items[id].key) && ((x * 7 + z * 11 + y * 3) & 3) === 1;
+      batch.face(
+        x,
+        y,
+        z,
+        1,
+        form === 'slab' ? 0.5 : form === 'liquid' ? 0.875 : 1,
+        1,
+        f,
+        tiles[id][f],
+        ao,
+        1,
+        lighting,
+        mirror
+      );
+      if (items[id].key === 'glass') {
+        batch.triangles = solid;
+        batch.lighting = lighting;
+        windowTrim(batch, x, y, z, f);
       }
-  const geometry = batch.geometry();
-  geometry.userData.lights = lights;
+    }
+  }
+  const index = solid.concat(cutout);
+  const pack = (a) => Uint8Array.from(a, (n) => Math.round(Math.min(1, n) * 255));
+  return {
+    position: new Float32Array(batch.position),
+    normal: Int8Array.from(batch.normal, (n) => n * 127),
+    color: pack(batch.color),
+    uv: Uint16Array.from(batch.uv, (n) => Math.round(n * 65535)),
+    irradiance: pack(batch.irradiance),
+    index: batch.position.length / 3 > 65535 ? new Uint32Array(index) : new Uint16Array(index),
+    solidCount: solid.length,
+    low: Number.isFinite(low) ? low : 0,
+    high: Number.isFinite(high) ? high : 0
+  };
+}
+export function uploadedGeometry(data) {
+  const geometry = new BufferGeometry();
+  for (const [name, size, normalized] of [
+    ['position', 3, false],
+    ['normal', 3, true],
+    ['color', 3, true],
+    ['uv', 2, true],
+    ['irradiance', 3, true]
+  ]) {
+    geometry.setAttribute(name, new BufferAttribute(data[name], size, normalized));
+  }
+  geometry.setIndex(new BufferAttribute(data.index, 1));
+  if (data.solidCount) geometry.addGroup(0, data.solidCount, 0);
+  if (data.index.length > data.solidCount)
+    geometry.addGroup(data.solidCount, data.index.length - data.solidCount, 1);
+  const center = (data.low + data.high) * 0.5;
+  // Sign panels and awnings can overhang a voxel. Bound them without rescanning the upload.
+  geometry.boundingSphere = new Sphere(
+    new Vector3(8, center, 8),
+    Math.hypot(9, 9, center - data.low + 1)
+  );
   return geometry;
 }
 

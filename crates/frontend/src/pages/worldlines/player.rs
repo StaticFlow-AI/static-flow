@@ -5,6 +5,7 @@ use super::{
     terrain::{World, HEIGHT},
 };
 
+const TICK: f32 = 1. / 120.;
 pub const EYE: f32 = 1.58;
 const RADIUS: f32 = 0.29;
 const BODY: f32 = 1.77;
@@ -20,6 +21,14 @@ pub struct Player {
     vy: f32,
     #[serde(skip)]
     pub grounded: bool,
+    #[serde(skip)]
+    remainder: f32,
+    #[serde(skip)]
+    jump_queued: bool,
+    #[serde(skip)]
+    previous_eye: Option<[f32; 3]>,
+    #[serde(skip)]
+    step_offset: f32,
 }
 impl Default for Player {
     fn default() -> Self {
@@ -31,6 +40,10 @@ impl Default for Player {
             pitch: -0.105,
             vy: 0.,
             grounded: false,
+            remainder: 0.,
+            jump_queued: false,
+            previous_eye: None,
+            step_offset: 0.,
         }
     }
 }
@@ -56,7 +69,18 @@ impl Player {
         [-s * h, v, -c * h]
     }
     pub fn pose(&self) -> Vec<f32> {
-        vec![self.x, self.y, self.z, self.yaw, self.pitch, f32::from(u8::from(self.grounded))]
+        let [x, y, z] = self.view_position();
+        vec![x, y, z, self.yaw, self.pitch, f32::from(u8::from(self.grounded))]
+    }
+    pub fn view_position(&self) -> [f32; 3] {
+        let current = [self.x, self.y + self.step_offset, self.z];
+        let previous = self.previous_eye.unwrap_or(current);
+        let alpha = self.remainder / TICK;
+        std::array::from_fn(|i| previous[i] + (current[i] - previous[i]) * alpha)
+    }
+    pub fn eye(&self) -> [f32; 3] {
+        let [x, y, z] = self.view_position();
+        [x, y + EYE, z]
     }
     fn collides(w: &mut World, x: f32, y: f32, z: f32) -> bool {
         for by in y.floor() as i32..=(y + BODY - 0.001).floor() as i32 {
@@ -103,10 +127,16 @@ impl Player {
         jump: bool,
         sprint: bool,
     ) {
-        let dt = dt.clamp(0., 0.08);
-        if dt <= 0. {
-            return;
+        self.remainder += dt.clamp(0., 0.2);
+        self.jump_queued |= jump;
+        while self.remainder >= TICK {
+            self.remainder -= TICK;
+            self.previous_eye = Some([self.x, self.y + self.step_offset, self.z]);
+            let jump = std::mem::take(&mut self.jump_queued);
+            self.tick(w, side, forward, jump, sprint);
         }
+    }
+    fn tick(&mut self, w: &mut World, side: f32, forward: f32, jump: bool, sprint: bool) {
         let (s, c) = self.yaw.sin_cos();
         let length = (side * side + forward * forward).sqrt().max(1.);
         let swimming =
@@ -121,39 +151,71 @@ impl Player {
         };
         let dx = (side * c - forward * s) * speed / length;
         let dz = (-forward * c - side * s) * speed / length;
-        let steps = (dt * 100.).ceil() as u32;
-        let t = dt / steps as f32;
+        let t = TICK;
         if jump && (self.grounded || swimming) {
             self.vy = if swimming { 4.4 } else { 8.0 };
             self.grounded = false;
         }
-        for _ in 0..steps {
+        let was_grounded = self.grounded;
+        let floor_y = self.y;
+        if dx != 0. {
             self.slide(w, self.x + dx * t, self.z);
+        }
+        if dz != 0. {
             self.slide(w, self.x, self.z + dz * t);
-            self.vy = (self.vy - if swimming { 8. } else { 22. } * t).max(-28.);
-            let ny = self.y + self.vy * t;
-            if Self::collides(w, self.x, ny, self.z) {
-                // Resolve to the last free point, also for partial blocks and ceilings.
-                let (mut ok, mut blocked) = (self.y, ny);
-                for _ in 0..10 {
-                    let mid = (ok + blocked) * 0.5;
-                    if Self::collides(w, self.x, mid, self.z) {
-                        blocked = mid
-                    } else {
-                        ok = mid
-                    }
-                }
-                self.y = ok;
-                self.grounded = self.vy <= 0.;
+        }
+        // Follow half-height treads in both directions. Full ledges still start a real
+        // fall.
+        if was_grounded && !swimming {
+            if let Some(top) = self.support(w) {
+                self.y = top;
+                self.step_offset = (self.step_offset - (top - floor_y)).clamp(-0.6, 0.6);
+                self.step_offset *= 0.88;
                 self.vy = 0.;
-            } else {
-                self.y = ny;
-                self.grounded = false;
+                return;
             }
         }
+        self.step_offset *= 0.88;
+        self.vy = (self.vy - if swimming { 8. } else { 22. } * t).max(-28.);
+        let ny = self.y + self.vy * t;
+        if Self::collides(w, self.x, ny, self.z) {
+            // Resolve to the last free point, also for partial blocks and ceilings.
+            let (mut ok, mut blocked) = (self.y, ny);
+            for _ in 0..10 {
+                let mid = (ok + blocked) * 0.5;
+                if Self::collides(w, self.x, mid, self.z) {
+                    blocked = mid
+                } else {
+                    ok = mid
+                }
+            }
+            self.y = ok;
+            self.grounded = self.vy <= 0.;
+            self.vy = 0.;
+        } else {
+            self.y = ny;
+            self.grounded = false;
+        }
+    }
+    fn support(&self, w: &mut World) -> Option<f32> {
+        let mut top: Option<f32> = None;
+        for by in (self.y - 0.501).floor() as i32..=(self.y + 0.001).floor() as i32 {
+            for bz in (self.z - RADIUS).floor() as i32..=(self.z + RADIUS - 0.001).floor() as i32 {
+                for bx in
+                    (self.x - RADIUS).floor() as i32..=(self.x + RADIUS - 0.001).floor() as i32
+                {
+                    let h = ITEMS[w.get(bx, by, bz) as usize].height;
+                    let y = by as f32 + h;
+                    if h > 0. && (self.y - 0.501..=self.y + 0.001).contains(&y) {
+                        top = Some(top.map_or(y, |prev| prev.max(y)));
+                    }
+                }
+            }
+        }
+        top
     }
     pub fn pick(&self, w: &mut World) -> Option<Hit> {
-        let origin = [self.x, self.y + EYE, self.z];
+        let origin = self.eye();
         let dir = self.direction();
         // Exact grid traversal; partial-height objects leave the air above them
         // reachable.

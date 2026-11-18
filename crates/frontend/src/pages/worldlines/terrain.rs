@@ -354,7 +354,9 @@ impl World {
             return;
         }
         let (key, i) = address(x, y, z);
-        self.load(key)[i] = id;
+        if let Some(chunk) = self.chunks.get_mut(&key) {
+            chunk[i] = id;
+        }
         self.restore_edit(p, id);
     }
     pub fn restore_edit(&mut self, p: [i32; 3], id: u8) {
@@ -388,19 +390,29 @@ impl World {
     // Include the adjacent ring so visibility and ambient occlusion agree at chunk
     // seams.
     pub fn region(&mut self, cx: i32, cz: i32) -> Vec<u8> {
-        let size = (SIDE + 2) as usize;
-        let mut v = vec![0; size * size * HEIGHT as usize];
-        for z in -1..=SIDE {
-            for x in -1..=SIDE {
-                let (key, index) = address(cx * SIDE + x, 0, cz * SIDE + z);
-                let blocks = self.load(key);
-                let mut to = ((z + 1) * (SIDE + 2) + x + 1) as usize;
-                for y in 0..HEIGHT as usize {
-                    v[to] = blocks[index + y * 256];
-                    to += size * size;
+        self.volume(cx, cz, 1)
+    }
+    pub fn volume(&mut self, cx: i32, cz: i32, margin: i32) -> Vec<u8> {
+        let width = SIDE + 2 * margin;
+        let (x0, z0) = (cx * SIDE - margin, cz * SIDE - margin);
+        let (x1, z1) = (x0 + width, z0 + width);
+        let mut out = vec![0; (width * width * HEIGHT) as usize];
+        for bz in z0.div_euclid(SIDE)..=(z1 - 1).div_euclid(SIDE) {
+            for bx in x0.div_euclid(SIDE)..=(x1 - 1).div_euclid(SIDE) {
+                let blocks = self.load((bx, bz));
+                let x = x0.max(bx * SIDE);
+                let n = (x1.min((bx + 1) * SIDE) - x) as usize;
+                for z in z0.max(bz * SIDE)..z1.min((bz + 1) * SIDE) {
+                    let mut src = (z.rem_euclid(SIDE) * SIDE + x.rem_euclid(SIDE)) as usize;
+                    let mut dst = ((z - z0) * width + x - x0) as usize;
+                    for _ in 0..HEIGHT {
+                        out[dst..dst + n].copy_from_slice(&blocks[src..src + n]);
+                        dst += (width * width) as usize;
+                        src += (SIDE * SIDE) as usize;
+                    }
                 }
             }
         }
-        v
+        out
     }
 }
