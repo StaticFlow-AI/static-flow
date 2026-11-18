@@ -63,6 +63,7 @@
 
   <!-- Trunk will compile Rust to WASM; scripts/build_frontend_selfhosted.sh runs wasm-opt -Oz -->
   <link data-trunk rel="rust" data-wasm-opt="0" />
+  <script data-trunk src="spatial/entries.generated.js"></script>
 
   <!-- Copy entire static directory -->
   <link data-trunk rel="copy-dir" href="static" />
@@ -851,8 +852,8 @@
       <div class="sf-boot__track" aria-hidden="true">
         <span class="sf-boot__bar"></span>
       </div>
-      <p class="sf-boot__plate-en">◆ 100% RUST, COMPILED TO WEBASSEMBLY · NO JS FRAMEWORK</p>
-      <p class="sf-boot__plate-zh">全站由原生 Rust 编译为 WebAssembly · 无 JS 框架运行时</p>
+      <p class="sf-boot__plate-en">RUST · WEBASSEMBLY · WEBGL</p>
+      <p class="sf-boot__plate-zh">正在载入 StaticFlow</p>
       <p id="sf-boot-stats" class="sf-boot__stats" aria-hidden="true"></p>
     </div>
   </div>

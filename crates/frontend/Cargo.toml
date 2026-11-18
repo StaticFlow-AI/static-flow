@@ -12,7 +12,6 @@ workspace = true
 yew = { workspace = true }
 yew-router = { workspace = true }
 gloo-events = "0.2"
-gloo-render = "0.2"
 gloo-net = { workspace = true }
 gloo-timers = { version = "0.4", features = ["futures"] }
 gloo-utils = "0.3"
@@ -30,8 +29,7 @@ web-sys = { workspace = true, features = [
   "ClipboardEvent", "DataTransfer",
   "TimeRanges", "File", "Blob", "FileList", "FormData",
   "IntersectionObserver", "IntersectionObserverEntry", "IntersectionObserverInit",
-  "ResizeObserver", "MediaQueryList", "PointerEvent", "HtmlCanvasElement",
-  "WebGl2RenderingContext", "WebGlContextAttributes", "WebGlProgram", "WebGlShader", "WebGlUniformLocation"
+  "HtmlDialogElement"
 ] }
 js-sys = { workspace = true }
 pulldown-cmark = { workspace = true }

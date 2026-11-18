@@ -7622,7 +7622,6 @@ dependencies = [
  "futures",
  "gloo-events",
  "gloo-net 0.7.0",
- "gloo-render",
  "gloo-timers 0.4.0",
  "gloo-utils 0.3.0",
  "js-sys",

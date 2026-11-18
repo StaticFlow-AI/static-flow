@@ -28,6 +28,7 @@ pub mod scroll_to_top_button;
 pub mod search_box;
 pub mod search_suggest;
 pub mod skeleton;
+pub mod spatial_surface;
 pub mod spotlight;
 pub mod stats_card;
 pub mod status_badge;

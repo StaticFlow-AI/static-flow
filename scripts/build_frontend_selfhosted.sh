@@ -57,7 +57,7 @@ command -v trunk >/dev/null 2>&1 || fail "trunk not found. Install with: cargo i
 
 # Ensure npm deps
 if [[ "$SKIP_NPM" != "true" ]]; then
-  if [[ ! -d "$FRONTEND_DIR/node_modules/@tailwindcss/cli" ]]; then
+  if [[ ! -d "$FRONTEND_DIR/node_modules/@tailwindcss/cli" || ! -d "$FRONTEND_DIR/node_modules/three" || ! -d "$FRONTEND_DIR/node_modules/esbuild" ]]; then
     log "Installing frontend npm dependencies..."
     mkdir -p "$NPM_CACHE_DIR"
     (cd "$FRONTEND_DIR" && NPM_CONFIG_CACHE="$NPM_CACHE_DIR" npm install)

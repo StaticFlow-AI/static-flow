@@ -76,6 +76,8 @@ yarn.lock
 
 # Tailwind CSS 生成文件
 crates/frontend/static/styles.css
+crates/frontend/static/sf-space/
+crates/frontend/spatial/entries.generated.js
 
 # 测试覆盖率报告
 coverage/

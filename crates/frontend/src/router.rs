@@ -573,13 +573,14 @@ fn app_router_inner() -> Html {
         });
     }
 
+    let immersive = matches!(route, Some(Route::Home | Route::Worldlines));
     html! {
         <div class="flex flex-col bg-[var(--bg)]" style="min-height: 100vh; min-height: 100svh;">
-            <Header />
-            <div class="flex-1 min-w-0 pt-[var(--space-sm)]">
+            if !immersive { <Header /> }
+            <div class={classes!("flex-1", "min-w-0", (!immersive).then_some("pt-[var(--space-sm)]"))}>
                 <Switch<Route> render={switch} />
             </div>
-            <Footer />
+            if !immersive { <Footer /> }
             <crate::components::persistent_audio::PersistentAudio />
             <crate::components::mini_player::MiniPlayer />
         </div>
