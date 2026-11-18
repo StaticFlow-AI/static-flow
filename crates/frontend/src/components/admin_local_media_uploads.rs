@@ -173,44 +173,87 @@ pub fn admin_local_media_uploads(props: &AdminLocalMediaUploadsProps) -> Html {
         })
     };
 
+    let target_label = format!("/{}", display_target_dir(&props.current_dir));
+
     html! {
-        <section class="mb-5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow)]">
-            <h2 class="m-0 text-lg font-semibold text-[var(--text)]">{ "Uploads" }</h2>
-            <p class="mt-2 text-sm text-[var(--muted)]">
-                { format!("Target directory: /{}", display_target_dir(&props.current_dir)) }
-            </p>
-            if let Some(err) = (*error).clone() {
-                <div class="mt-3 rounded-[var(--radius)] border border-red-400/40 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-200">
-                    { err }
+        <section class="adm-card media-uploads" aria-label="上传队列">
+            <div class="adm-card__header media-uploads__head">
+                <div class="media-uploads__heading">
+                    <h2 class="adm-card__title">{ "上传队列" }</h2>
+                    <p class="adm-card__sub media-uploads__target">
+                        <span>{ "目标目录 " }</span>
+                        <code class="media-mono" title={target_label.clone()}>{ target_label }</code>
+                    </p>
                 </div>
-            }
-            <input
-                type="file"
-                accept="video/*,.mkv,.mp4,.mov,.webm,.m4v,.avi,.mpeg,.mpg,.ts"
-                multiple=true
-                disabled={busy}
-                class="mt-3 block w-full text-sm text-[var(--text)]"
-                onchange={on_change}
-            />
-            if tasks.is_empty() && (*error).is_none() {
-                <div class="mt-4">
-                    <EmptyState icon="fa-cloud-arrow-up" title="No uploads yet" hint="Select a video above to start uploading into this directory." />
+                <div class="media-uploads__badges">
+                    if busy {
+                        <span class="adm-pill adm-pill--accent adm-pill--live">{ "正在传输" }</span>
+                    }
+                    if !tasks.is_empty() {
+                        <span class="adm-tag">{ format!("{} 项", tasks.len()) }</span>
+                    }
                 </div>
-            } else {
-                <div class="mt-4 space-y-3">
-                    { for tasks.iter().map(|task| {
-                        let has_local_file = attached_files.contains_key(&task.task_id);
-                        let task_transfer_stats = transfer_stats.get(&task.task_id).copied();
-                        render_upload_task_card(
-                            task,
-                            (*active_task_id).as_deref(),
-                            has_local_file,
-                            task_transfer_stats,
-                            on_cancel.clone(),
-                        )
-                    }) }
-                </div>
-            }
+            </div>
+            <div class="adm-card__body media-uploads__body">
+                if let Some(err) = (*error).clone() {
+                    <div class="adm-banner adm-banner--err media-banner" role="alert">
+                        <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
+                        <div class="adm-banner__body media-banner__body">{ err }</div>
+                    </div>
+                }
+                <label class={classes!("media-upload-picker", busy.then_some("is-busy"))}>
+                    <input
+                        type="file"
+                        accept="video/*,.mkv,.mp4,.mov,.webm,.m4v,.avi,.mpeg,.mpg,.ts"
+                        multiple=true
+                        disabled={busy}
+                        class="media-upload-picker__input"
+                        onchange={on_change}
+                    />
+                    <span class="media-upload-picker__icon" aria-hidden="true">
+                        <i class="fas fa-arrow-up-from-bracket"></i>
+                    </span>
+                    <span class="media-upload-picker__copy">
+                        <span class="media-upload-picker__title">
+                            { if busy { "正在顺序上传分片…" } else { "选择本地视频上传至当前目录" } }
+                        </span>
+                        <span class="media-upload-picker__hint">
+                            { "支持 MP4 / MKV / MOV / WebM / TS · 8 MiB 分片续传（中断后重选同一文件即可恢复）" }
+                        </span>
+                    </span>
+                    <span class={classes!(
+                        "adm-btn",
+                        if busy { "adm-btn--secondary" } else { "adm-btn--primary" },
+                        "media-upload-picker__cta",
+                    )} aria-hidden="true">
+                        <i class={classes!("fas", if busy { "fa-spinner fa-spin" } else { "fa-plus" })}></i>
+                        <span>{ if busy { "传输中" } else { "选择视频" } }</span>
+                    </span>
+                </label>
+                if tasks.is_empty() && (*error).is_none() {
+                    <div class="media-uploads__empty">
+                        <EmptyState
+                            icon="fa-cloud-arrow-up"
+                            title="当前目录暂无上传记录"
+                            hint="在上方选择视频文件后，这里会显示实时进度、传输速率与剩余时间。"
+                        />
+                    </div>
+                } else if !tasks.is_empty() {
+                    <ul class="media-upload-list">
+                        { for tasks.iter().map(|task| {
+                            let has_local_file = attached_files.contains_key(&task.task_id);
+                            let task_transfer_stats = transfer_stats.get(&task.task_id).copied();
+                            render_upload_task_card(
+                                task,
+                                (*active_task_id).as_deref(),
+                                has_local_file,
+                                task_transfer_stats,
+                                on_cancel.clone(),
+                            )
+                        }) }
+                    </ul>
+                }
+            </div>
         </section>
     }
 }
@@ -414,6 +457,73 @@ fn upload_speed_label(
     }
 }
 
+fn upload_remaining_label(
+    task: &static_flow_media_types::UploadTaskRecord,
+    is_active: bool,
+    transfer_stats: Option<UploadTransferStats>,
+) -> Option<String> {
+    let remaining = task.file_size.saturating_sub(task.uploaded_bytes);
+    if is_active {
+        if remaining == 0 {
+            return Some("ETA 00:00".to_string());
+        }
+        return match transfer_stats.and_then(|stats| stats.bytes_per_second) {
+            Some(speed) if speed.is_finite() && speed > 0.0 => {
+                let eta_seconds = (remaining as f64 / speed).ceil() as u64;
+                Some(format!(
+                    "剩余 {} · ETA {}",
+                    format_bytes(remaining),
+                    format_eta_seconds(eta_seconds),
+                ))
+            },
+            _ => Some(format!("剩余 {}", format_bytes(remaining))),
+        };
+    }
+    if matches!(task.status, static_flow_media_types::UploadTaskStatus::Partial) && remaining > 0 {
+        return Some(format!("剩余 {}", format_bytes(remaining)));
+    }
+    None
+}
+
+fn format_eta_seconds(total_seconds: u64) -> String {
+    let hours = total_seconds / 3600;
+    let minutes = (total_seconds % 3600) / 60;
+    let seconds = total_seconds % 60;
+    if hours > 0 {
+        format!("{hours:02}:{minutes:02}:{seconds:02}")
+    } else {
+        format!("{minutes:02}:{seconds:02}")
+    }
+}
+
+fn upload_status_pill_class(
+    task: &static_flow_media_types::UploadTaskRecord,
+    is_active: bool,
+    has_local_file: bool,
+) -> Classes {
+    if is_active {
+        return classes!("adm-pill", "adm-pill--accent", "adm-pill--live");
+    }
+    match task.status {
+        static_flow_media_types::UploadTaskStatus::Completed => {
+            classes!("adm-pill", "adm-pill--ok")
+        },
+        static_flow_media_types::UploadTaskStatus::Failed => {
+            classes!("adm-pill", "adm-pill--err")
+        },
+        static_flow_media_types::UploadTaskStatus::Canceled => {
+            classes!("adm-pill", "adm-pill--neutral")
+        },
+        static_flow_media_types::UploadTaskStatus::Partial if !has_local_file => {
+            classes!("adm-pill", "adm-pill--warn")
+        },
+        static_flow_media_types::UploadTaskStatus::Partial
+        | static_flow_media_types::UploadTaskStatus::Created => {
+            classes!("adm-pill", "adm-pill--info")
+        },
+    }
+}
+
 fn format_bytes(bytes: u64) -> String {
     format_byte_amount(bytes as f64)
 }
@@ -447,7 +557,19 @@ fn render_upload_task_card(
     on_cancel: Callback<String>,
 ) -> Html {
     let progress = upload_progress_percent(task);
+    let clamped_progress = progress.clamp(0.0, 100.0);
     let is_active = active_task_id == Some(task.task_id.as_str());
+    let is_failed = matches!(task.status, static_flow_media_types::UploadTaskStatus::Failed)
+        || task.error.is_some();
+    let status_label = upload_status_label(task, is_active, has_local_file);
+    let pill_classes = upload_status_pill_class(task, is_active, has_local_file);
+    let speed_label = upload_speed_label(is_active, transfer_stats);
+    let remaining_label = upload_remaining_label(task, is_active, transfer_stats);
+    let can_cancel = !matches!(
+        task.status,
+        static_flow_media_types::UploadTaskStatus::Completed
+            | static_flow_media_types::UploadTaskStatus::Canceled
+    );
     let cancel = {
         let task_id = task.task_id.clone();
         let on_cancel = on_cancel.clone();
@@ -455,31 +577,73 @@ fn render_upload_task_card(
     };
 
     html! {
-        <div class="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface-alt)] p-3">
-            <div class="text-sm font-semibold text-[var(--text)] break-all">{ task.target_relative_path.clone() }</div>
-            <div class="mt-2 h-2 overflow-hidden rounded-full bg-[var(--surface)]">
-                <div class="h-full bg-sky-500 transition-[width] duration-150" style={format!("width: {:.2}%;", progress)}></div>
+        <li class={classes!(
+            "media-task",
+            is_active.then_some("is-active"),
+            is_failed.then_some("is-err"),
+        )}>
+            <div class="media-task__top">
+                <div class="media-task__title-wrap">
+                    <i class="fas fa-file-video media-task__icon" aria-hidden="true"></i>
+                    <span class="media-task__name" title={task.target_relative_path.clone()}>
+                        { task.target_relative_path.clone() }
+                    </span>
+                </div>
+                <div class="media-task__actions">
+                    <span class={classes!(pill_classes, "media-task__pill")} title={status_label.clone()}>
+                        <span class="media-task__pill-text">{ status_label }</span>
+                    </span>
+                    if can_cancel {
+                        <button
+                            type="button"
+                            class="adm-btn adm-btn--danger adm-btn--sm media-task__cancel"
+                            onclick={cancel}
+                        >
+                            { "取消" }
+                        </button>
+                    }
+                </div>
             </div>
-            <div class="mt-2 flex items-center justify-between gap-3 text-xs text-[var(--muted)]">
-                <span>{ format!("{} / {} ({:.1}%)", format_bytes(task.uploaded_bytes), format_bytes(task.file_size), progress) }</span>
-                <span>{ upload_status_label(task, is_active, has_local_file) }</span>
+            <div
+                class="media-task__track"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow={format!("{clamped_progress:.0}")}
+                aria-label={format!("{} 上传进度", task.target_relative_path)}
+            >
+                <span
+                    class={classes!("media-task__fill", is_failed.then_some("is-err"))}
+                    style={format!("width: {clamped_progress:.2}%;")}
+                ></span>
             </div>
-            if let Some(speed) = upload_speed_label(is_active, transfer_stats) {
-                <div class="mt-1 text-xs text-[var(--muted)]">{ speed }</div>
-            }
+            <div class="media-task__meta">
+                <span class="media-task__bytes">
+                    { format!(
+                        "{} / {} · {:.1}%",
+                        format_bytes(task.uploaded_bytes),
+                        format_bytes(task.file_size),
+                        progress,
+                    ) }
+                </span>
+                if speed_label.is_some() || remaining_label.is_some() {
+                    <span class="media-task__telemetry">
+                        if let Some(speed) = speed_label {
+                            <span>{ speed }</span>
+                        }
+                        if let Some(remaining) = remaining_label {
+                            <span>{ remaining }</span>
+                        }
+                    </span>
+                }
+            </div>
             if let Some(err) = task.error.clone() {
-                <div class="mt-2 text-xs text-red-700 dark:text-red-200">{ err }</div>
+                <div class="media-task__err" role="alert">
+                    <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
+                    <span>{ err }</span>
+                </div>
             }
-            if !matches!(
-                task.status,
-                static_flow_media_types::UploadTaskStatus::Completed
-                    | static_flow_media_types::UploadTaskStatus::Canceled
-            ) {
-                <button type="button" class="btn-fluent-danger mt-3" onclick={cancel}>
-                    { "Cancel" }
-                </button>
-            }
-        </div>
+        </li>
     }
 }
 
@@ -490,8 +654,8 @@ mod tests {
     use static_flow_media_types::{UploadTaskRecord, UploadTaskStatus};
 
     use super::{
-        record_upload_chunk_success, upload_progress_percent, upload_speed_label,
-        upload_status_label, UploadTransferStats,
+        record_upload_chunk_success, upload_progress_percent, upload_remaining_label,
+        upload_speed_label, upload_status_label, UploadTransferStats,
     };
 
     fn sample_task() -> UploadTaskRecord {
@@ -570,5 +734,23 @@ mod tests {
             ),
             Some("Speed: measuring...".to_string())
         );
+    }
+
+    #[test]
+    fn upload_remaining_label_formats_eta_and_remaining_bytes() {
+        let task = sample_task();
+        assert_eq!(
+            upload_remaining_label(
+                &task,
+                true,
+                Some(UploadTransferStats {
+                    last_uploaded_bytes: 4,
+                    last_observed_at_ms: 2_000.0,
+                    bytes_per_second: Some(2.0),
+                }),
+            ),
+            Some("剩余 4 B · ETA 00:02".to_string())
+        );
+        assert_eq!(upload_remaining_label(&task, false, None), Some("剩余 4 B".to_string()));
     }
 }

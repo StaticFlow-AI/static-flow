@@ -8,6 +8,7 @@ use crate::{
         fetch_admin_local_media_list, LocalMediaEntry, LocalMediaEntryKind, LocalMediaListResponse,
     },
     components::empty_state::EmptyState,
+    pages::admin::shell::{AdminNav, AdminPageHeader, AdminShell},
     router::Route,
 };
 
@@ -91,42 +92,117 @@ pub fn admin_local_media_page() -> Html {
         })
     };
 
+    let summary = (*data)
+        .as_ref()
+        .filter(|response| response.configured && !*loading && (*error).is_none())
+        .map(|response| {
+            let dirs = response
+                .entries
+                .iter()
+                .filter(|entry| entry.kind == LocalMediaEntryKind::Directory)
+                .count();
+            let videos = response.entries.len() - dirs;
+            let more = if response.has_more {
+                format!(" · 共 {}", response.total)
+            } else {
+                String::new()
+            };
+            format!("{dirs} 个文件夹 · {videos} 个视频{more}")
+        });
+
     let content = if *loading {
         html! {
-            <div class="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-6 text-sm text-[var(--muted)]">
-                { "Loading local media..." }
+            <div class="media-section" aria-busy="true" aria-live="polite">
+                <span class="sr-only">{ "正在加载本地媒体…" }</span>
+                <div class="media-grid media-grid--video">
+                    { for (0..6).map(|_| html! {
+                        <div class="media-card media-card--skel" aria-hidden="true">
+                            <div class="media-card__thumb adm-skel"></div>
+                            <div class="media-card__body">
+                                <div class="adm-skel media-skel-line"></div>
+                                <div class="adm-skel media-skel-line media-skel-line--short"></div>
+                            </div>
+                        </div>
+                    }) }
+                </div>
             </div>
         }
     } else if let Some(err) = (*error).clone() {
         html! {
-            <div class="rounded-[var(--radius)] border border-red-400/40 bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-200">
-                { err }
+            <div class="adm-banner adm-banner--err media-banner" role="alert">
+                <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                <div class="adm-banner__body media-banner__body">
+                    <strong>{ "目录加载失败" }</strong>
+                    <span class="media-banner__detail">{ err }</span>
+                </div>
+                <button type="button" class="adm-btn adm-btn--secondary adm-btn--sm" onclick={refresh_dir.reform(|_| ())}>
+                    { "重试" }
+                </button>
             </div>
         }
     } else if let Some(response) = (*data).clone() {
         if !response.configured {
             html! {
-                <div class="rounded-[var(--radius)] border border-amber-400/40 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-200">
-                    { "Local media is enabled in this build, but the backend does not have STATICFLOW_LOCAL_MEDIA_ROOT configured." }
+                <div class="adm-banner adm-banner--warn media-banner" role="status">
+                    <i class="fas fa-circle-info" aria-hidden="true"></i>
+                    <div class="adm-banner__body media-banner__body">
+                        <strong>{ "本地媒体根目录未配置" }</strong>
+                        <span class="media-banner__detail">
+                            { "当前构建已启用本地媒体，但后端没有配置 " }
+                            <code class="media-mono">{ "STATICFLOW_LOCAL_MEDIA_ROOT" }</code>
+                            { "。" }
+                        </span>
+                    </div>
                 </div>
             }
         } else if response.entries.is_empty() {
             html! {
-                <EmptyState icon="fa-folder-open" title="This directory is empty." hint="Upload a video or open another folder to get started." />
+                <div class="adm-card media-empty-card">
+                    <EmptyState icon="fa-folder-open" title="这个目录还是空的" hint="在上方上传视频，或返回上一级打开其它文件夹。" />
+                </div>
             }
         } else {
+            let (dirs, videos): (Vec<_>, Vec<_>) = response
+                .entries
+                .iter()
+                .partition(|entry| entry.kind == LocalMediaEntryKind::Directory);
             html! {
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    { for response.entries.iter().map(|entry| {
-                        html! {
-                            <LocalMediaCard
-                                entry={entry.clone()}
-                                on_open_dir={open_dir.clone()}
-                                on_open_player={open_player.clone()}
-                            />
-                        }
-                    }) }
-                </div>
+                <>
+                    if !dirs.is_empty() {
+                        <section class="media-section" aria-label="文件夹">
+                            <div class="media-section__head">
+                                <h2 class="media-section__title">{ "文件夹" }</h2>
+                                <span class="media-section__count">{ dirs.len().to_string() }</span>
+                            </div>
+                            <div class="media-grid media-grid--dir">
+                                { for dirs.iter().map(|entry| html! {
+                                    <LocalMediaCard
+                                        entry={(*entry).clone()}
+                                        on_open_dir={open_dir.clone()}
+                                        on_open_player={open_player.clone()}
+                                    />
+                                }) }
+                            </div>
+                        </section>
+                    }
+                    if !videos.is_empty() {
+                        <section class="media-section" aria-label="视频">
+                            <div class="media-section__head">
+                                <h2 class="media-section__title">{ "视频" }</h2>
+                                <span class="media-section__count">{ videos.len().to_string() }</span>
+                            </div>
+                            <div class="media-grid media-grid--video">
+                                { for videos.iter().map(|entry| html! {
+                                    <LocalMediaCard
+                                        entry={(*entry).clone()}
+                                        on_open_dir={open_dir.clone()}
+                                        on_open_player={open_player.clone()}
+                                    />
+                                }) }
+                            </div>
+                        </section>
+                    }
+                </>
             }
         }
     } else {
@@ -136,39 +212,35 @@ pub fn admin_local_media_page() -> Html {
     let breadcrumb = render_breadcrumbs(&current_dir, open_dir.clone());
 
     html! {
-        <main class="container py-8">
-            <section class="mb-5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow)]">
-                <div class="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                        <div class="text-sm text-[var(--muted)]">
-                            <Link<Route> to={Route::Admin} classes={classes!("hover:text-[var(--text)]")}>{ "Admin" }</Link<Route>>
-                            <span class="mx-2">{ "/" }</span>
-                            <span>{ "Local Media" }</span>
-                        </div>
-                        <h1 class="mt-2 text-xl font-semibold text-[var(--text)]">{ "Local Media Browser" }</h1>
-                        <p class="mt-1 text-sm text-[var(--muted)]">
-                            { "Browse the configured local media root. Folders stay lightweight; videos jump straight into the dedicated player page." }
-                        </p>
-                    </div>
+        <AdminShell active={AdminNav::LocalMedia}>
+            <div class="media-page">
+                <AdminPageHeader
+                    eyebrow="工具"
+                    title="本地媒体"
+                    description="浏览已配置的本地媒体根目录：文件夹轻量浏览，视频直接进入独立播放页。"
+                >
                     <button
                         type="button"
-                        class="btn-fluent-secondary"
+                        class="adm-btn adm-btn--secondary"
                         onclick={refresh_dir.reform(|_| ())}
                     >
-                        <i class="fas fa-rotate-right mr-2" aria-hidden="true"></i>
-                        { "Refresh" }
+                        <i class={classes!("fas", "fa-rotate-right", (*loading).then_some("fa-spin"))} aria-hidden="true"></i>
+                        <span>{ "刷新" }</span>
                     </button>
-                </div>
-                <div class="mt-4 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface-alt)] p-3">
+                </AdminPageHeader>
+                <div class="media-pathbar">
                     { breadcrumb }
+                    if let Some(summary) = summary {
+                        <span class="media-pathbar__summary">{ summary }</span>
+                    }
                 </div>
-            </section>
-            <crate::components::admin_local_media_uploads::AdminLocalMediaUploads
-                current_dir={current_dir.clone()}
-                on_refresh_dir={refresh_dir}
-            />
-            { content }
-        </main>
+                <crate::components::admin_local_media_uploads::AdminLocalMediaUploads
+                    current_dir={current_dir.clone()}
+                    on_refresh_dir={refresh_dir}
+                />
+                { content }
+            </div>
+        </AdminShell>
     }
 }
 
@@ -200,13 +272,14 @@ fn local_media_card(props: &LocalMediaCardProps) -> Html {
             Callback::from(move |_| open_player.emit(relative_path.clone()))
         },
     };
+    let is_dir = entry.kind == LocalMediaEntryKind::Directory;
     let action_label = match entry.kind {
-        LocalMediaEntryKind::Directory => "Open Folder",
-        LocalMediaEntryKind::Video => "Open Player",
+        LocalMediaEntryKind::Directory => "打开文件夹",
+        LocalMediaEntryKind::Video => "播放",
     };
     let icon_class = match entry.kind {
-        LocalMediaEntryKind::Directory => "fa-folder-tree",
-        LocalMediaEntryKind::Video => "fa-circle-play",
+        LocalMediaEntryKind::Directory => "fa-folder",
+        LocalMediaEntryKind::Video => "fa-film",
     };
     let show_poster =
         entry.kind == LocalMediaEntryKind::Video && entry.poster_url.is_some() && !*poster_failed;
@@ -214,45 +287,64 @@ fn local_media_card(props: &LocalMediaCardProps) -> Html {
         let poster_failed = poster_failed.clone();
         Callback::from(move |_| poster_failed.set(true))
     };
+    let aria_label = format!("{action_label}：{}", entry.name);
+
+    if is_dir {
+        return html! {
+            <button
+                type="button"
+                onclick={click}
+                class="media-card media-card--dir"
+                title={entry.relative_path.clone()}
+                aria-label={aria_label}
+            >
+                <span class="media-card__glyph" aria-hidden="true">
+                    <i class={classes!("fas", icon_class)}></i>
+                </span>
+                <span class="media-card__body">
+                    <span class="media-card__name" title={entry.name.clone()}>{ entry.name.clone() }</span>
+                    <span class="media-card__meta">
+                        <span>{ format_modified(entry.modified_at_ms) }</span>
+                    </span>
+                </span>
+                <i class="fas fa-chevron-right media-card__chev" aria-hidden="true"></i>
+            </button>
+        };
+    }
 
     html! {
         <button
             type="button"
             onclick={click}
-            class="w-full overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] text-left shadow-[var(--shadow)] transition-transform duration-150 hover:-translate-y-0.5 hover:border-sky-500/40"
+            class="media-card media-card--video"
+            aria-label={aria_label}
         >
-            <div class="relative aspect-video w-full overflow-hidden bg-[var(--surface-alt)]">
+            <span class="media-card__thumb">
                 if show_poster {
                     <img
                         src={entry.poster_url.clone().unwrap_or_default()}
-                        alt={format!("Poster for {}", entry.name)}
+                        alt=""
                         loading="lazy"
-                        class="h-full w-full object-cover"
+                        class="media-card__poster"
                         onerror={poster_error}
                     />
-                    <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-transparent"></div>
                 } else {
-                    <div class="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.18),_transparent_55%),linear-gradient(135deg,rgba(15,23,42,0.12),rgba(15,23,42,0.02))] text-[var(--muted)]">
-                        <i class={classes!("fas", icon_class, "text-3xl")} aria-hidden="true"></i>
-                    </div>
+                    <span class="media-card__placeholder" aria-hidden="true">
+                        <i class={classes!("fas", icon_class)}></i>
+                    </span>
                 }
-                <span class="absolute right-3 top-3 rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-white">
-                    { action_label }
+                <span class="media-card__play" aria-hidden="true">
+                    <i class="fas fa-play"></i>
                 </span>
-            </div>
-            <div class="p-4">
-                <div class="flex items-start gap-2 text-sm font-semibold text-[var(--text)]">
-                    <i class={classes!("fas", icon_class, "mt-0.5")} aria-hidden="true"></i>
-                    <span class="line-clamp-2 break-all">{ entry.name.clone() }</span>
-                </div>
-                <div class="mt-2 text-xs text-[var(--muted)] break-all">
-                    { entry.relative_path.clone() }
-                </div>
-                <div class="mt-3 flex items-center justify-between gap-3 text-xs text-[var(--muted)]">
+            </span>
+            <span class="media-card__body">
+                <span class="media-card__name" title={entry.name.clone()}>{ entry.name.clone() }</span>
+                <span class="media-card__path" title={entry.relative_path.clone()}>{ entry.relative_path.clone() }</span>
+                <span class="media-card__meta">
                     <span>{ format_entry_meta(entry.size_bytes, entry.extension.as_deref()) }</span>
                     <span>{ format_modified(entry.modified_at_ms) }</span>
-                </div>
-            </div>
+                </span>
+            </span>
         </button>
     }
 }
@@ -262,50 +354,54 @@ fn render_breadcrumbs(current_dir: &str, open_dir: Callback<String>) -> Html {
         .split('/')
         .filter(|segment| !segment.is_empty())
         .collect::<Vec<_>>();
-    if segments.is_empty() {
-        return html! { <span class="text-sm font-medium text-[var(--text)]">{ "/" }</span> };
-    }
+    let root_click = {
+        let open_dir = open_dir.clone();
+        Callback::from(move |_| open_dir.emit(String::new()))
+    };
+    let last_index = segments.len().checked_sub(1);
 
     let mut built = Vec::new();
     html! {
-        <div class="flex flex-wrap items-center gap-2 text-sm">
+        <nav class="media-crumbs" aria-label="目录路径">
             <button
                 type="button"
-                class="rounded-full bg-transparent px-2 py-1 text-[var(--muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
-                onclick={{
-                    let open_dir = open_dir.clone();
-                    Callback::from(move |_| open_dir.emit(String::new()))
-                }}
+                class={classes!("media-crumbs__item", segments.is_empty().then_some("is-current"))}
+                aria-current={segments.is_empty().then_some("page")}
+                onclick={root_click}
             >
-                { "/" }
+                <i class="fas fa-hard-drive" aria-hidden="true"></i>
+                <span>{ "根目录" }</span>
             </button>
-            { for segments.iter().map(|segment| {
+            { for segments.iter().enumerate().map(|(index, segment)| {
                 built.push((*segment).to_string());
                 let next_dir = built.join("/");
                 let open_dir = open_dir.clone();
+                let is_current = Some(index) == last_index;
                 html! {
                     <>
-                        <span class="text-[var(--muted)]">{ "/" }</span>
+                        <span class="media-crumbs__sep" aria-hidden="true">{ "/" }</span>
                         <button
                             type="button"
-                            class="rounded-full bg-transparent px-2 py-1 text-[var(--muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--text)]"
+                            class={classes!("media-crumbs__item", is_current.then_some("is-current"))}
+                            aria-current={is_current.then_some("page")}
+                            title={next_dir.clone()}
                             onclick={Callback::from(move |_| open_dir.emit(next_dir.clone()))}
                         >
-                            { (*segment).to_string() }
+                            <span class="media-crumbs__text">{ (*segment).to_string() }</span>
                         </button>
                     </>
                 }
             }) }
-        </div>
+        </nav>
     }
 }
 
 fn format_entry_meta(size_bytes: Option<u64>, extension: Option<&str>) -> String {
     let size = size_bytes
         .map(format_bytes)
-        .unwrap_or_else(|| "Folder".to_string());
+        .unwrap_or_else(|| "文件夹".to_string());
     match extension {
-        Some(extension) => format!("{}. {}", extension.to_ascii_uppercase(), size),
+        Some(extension) => format!("{} · {}", extension.to_ascii_uppercase(), size),
         None => size,
     }
 }
@@ -337,5 +433,5 @@ fn format_modified(timestamp_ms: Option<i64>) -> String {
                 date.get_date()
             )
         })
-        .unwrap_or_else(|| "Unknown".to_string())
+        .unwrap_or_else(|| "—".to_string())
 }

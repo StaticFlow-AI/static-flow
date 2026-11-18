@@ -1,18 +1,17 @@
 use wasm_bindgen::{closure::Closure, JsCast};
 use web_sys::{Event, EventSource, MessageEvent};
 use yew::prelude::*;
-use yew_router::prelude::Link;
 
 use crate::{
     api::{
         build_admin_article_request_ai_stream_url, fetch_admin_article_request_ai_output,
         ArticleRequestAiRunChunk, ArticleRequestAiRunRecord,
     },
-    components::{
-        empty_state::EmptyState, status_badge::StatusBadge, stream_chunk_batcher::ChunkBatcher,
+    components::stream_chunk_batcher::ChunkBatcher,
+    pages::{
+        admin::shell::AdminNav,
+        admin_ai_stream::{log_entries, RunEntry, RunReader},
     },
-    pages::llm_access_shared::format_ms_iso,
-    router::Route,
 };
 
 type NamedEventClosure = Closure<dyn FnMut(MessageEvent)>;
@@ -48,8 +47,6 @@ pub fn admin_article_request_runs_page(props: &Props) -> Html {
     let stream_status = use_state(|| "idle".to_string());
     let stream_error = use_state(|| None::<String>);
     let stream_ref = use_mut_ref(|| None::<StreamHandle>);
-    // Scrollable chunk container; we pin it to the newest entry on new chunks.
-    let chunk_scroll_ref = use_node_ref();
 
     let request_id = props.request_id.clone();
 
@@ -210,113 +207,38 @@ pub fn admin_article_request_runs_page(props: &Props) -> Html {
         });
     }
 
-    let chunk_rows = {
-        let mut rows = (*stream_chunks).clone();
-        rows.sort_by_key(|c| c.batch_index);
-        rows
-    };
-
-    // Keep the chunk list pinned to the newest entry as tokens stream in.
-    {
-        let chunk_scroll_ref = chunk_scroll_ref.clone();
-        use_effect_with(chunk_rows.len(), move |_| {
-            if let Some(el) = chunk_scroll_ref.cast::<web_sys::HtmlElement>() {
-                el.set_scroll_top(el.scroll_height());
-            }
-            || ()
-        });
-    }
+    let run_rows = runs
+        .iter()
+        .map(|run| RunEntry {
+            run_id: run.run_id.clone(),
+            status: run.status.clone(),
+            runner: run.runner_program.clone(),
+            exit_code: run.exit_code,
+            started_at: run.started_at,
+            completed_at: run.completed_at,
+            failure_reason: run.failure_reason.clone(),
+        })
+        .collect::<Vec<_>>();
+    let logs = log_entries(stream_chunks.iter().map(|chunk| {
+        (chunk.stream.clone(), chunk.batch_index, chunk.created_at, chunk.content.clone())
+    }));
 
     html! {
-        <main class={classes!("container", "py-8")}>
-            <section class={classes!(
-                "bg-[var(--surface)]", "border", "border-[var(--border)]",
-                "rounded-[var(--radius)]", "shadow-[var(--shadow)]", "p-5", "mb-5"
-            )}>
-                <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
-                    <div>
-                        <h1 class={classes!("m-0", "text-xl", "font-semibold")}>{ "Article Request AI Stream" }</h1>
-                        <p class={classes!("m-0", "text-sm", "text-[var(--muted)]")}>
-                            { format!("request_id={}", request_id) }
-                        </p>
-                    </div>
-                    <Link<Route> to={Route::Admin} classes={classes!("btn-fluent-secondary")}>
-                        { "Back to Admin" }
-                    </Link<Route>>
-                </div>
-                if let Some(err) = (*load_error).clone() {
-                    <p class={classes!("mt-3", "m-0", "text-sm", "text-red-700", "dark:text-red-200")}>{ err }</p>
-                }
-                if let Some(err) = (*stream_error).clone() {
-                    <p class={classes!("mt-2", "m-0", "text-sm", "text-red-700", "dark:text-red-200")}>{ err }</p>
-                }
-                <div class={classes!("mt-2")}>
-                    <StatusBadge status={(*stream_status).clone()} label={Some(AttrValue::from(format!("stream: {}", *stream_status)))} />
-                </div>
-            </section>
-
-            if *loading {
-                <section class={classes!("text-sm", "text-[var(--muted)]")}>{ "Loading..." }</section>
-            } else {
-                <section class={classes!(
-                    "bg-[var(--surface)]", "border", "border-[var(--border)]",
-                    "rounded-[var(--radius)]", "shadow-[var(--shadow)]", "p-5", "mb-5"
-                )}>
-                    <h2 class={classes!("m-0", "mb-3", "text-lg", "font-semibold")}>
-                        { format!("Runs ({})", runs.len()) }
-                    </h2>
-                    if runs.is_empty() {
-                        <EmptyState icon="fa-inbox" title="No runs yet." hint="This request has not triggered any AI run." />
-                    } else {
-                        <div class={classes!("flex", "gap-2", "flex-wrap")}>
-                            { for (*runs).iter().map(|run| {
-                                let label = format!("{} · {}", run.status, &run.run_id[..8.min(run.run_id.len())]);
-                                html! {
-                                    <StatusBadge status={run.status.clone()} label={Some(AttrValue::from(label))} />
-                                }
-                            }) }
-                        </div>
-                    }
-                </section>
-            }
-
-            <section class={classes!(
-                "bg-[var(--surface)]", "border", "border-[var(--border)]",
-                "rounded-[var(--radius)]", "shadow-[var(--shadow)]", "p-5"
-            )}>
-                <h2 class={classes!("m-0", "mb-3", "text-lg", "font-semibold")}>
-                    { format!("Stream Chunks ({})", chunk_rows.len()) }
-                </h2>
-                if chunk_rows.is_empty() {
-                    if !*loading {
-                        <EmptyState icon="fa-inbox" title="No chunks yet." hint="Output will appear here as the run streams." />
-                    }
-                } else {
-                    <ul ref={chunk_scroll_ref.clone()} class={classes!("m-0", "p-0", "list-none", "flex", "flex-col", "gap-2", "max-h-[60vh]", "overflow-y-auto")}>
-                        { for chunk_rows.into_iter().map(|chunk| {
-                            let badge = if chunk.stream == "stderr" {
-                                classes!("inline-flex", "rounded-full", "px-2", "py-0.5", "text-xs", "font-semibold", "bg-red-500/15", "text-red-700", "dark:text-red-200")
-                            } else {
-                                classes!("inline-flex", "rounded-full", "px-2", "py-0.5", "text-xs", "font-semibold", "bg-sky-500/15", "text-sky-700", "dark:text-sky-200")
-                            };
-                            html! {
-                                <li class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-3")}>
-                                    <div class={classes!("mb-2", "flex", "items-center", "gap-2", "flex-wrap")}>
-                                        <span class={badge}>{ chunk.stream.clone() }</span>
-                                        <span class={classes!("text-xs", "text-[var(--muted)]")}>{ format!("batch={}", chunk.batch_index) }</span>
-                                        if chunk.created_at > 0 {
-                                            <span class={classes!("text-xs", "text-[var(--muted)]")}>{ format_ms_iso(chunk.created_at) }</span>
-                                        }
-                                    </div>
-                                    <pre class={classes!("m-0", "text-xs", "whitespace-pre-wrap", "break-words", "font-mono")}>
-                                        { chunk.content.clone() }
-                                    </pre>
-                                </li>
-                            }
-                        }) }
-                    </ul>
-                }
-            </section>
-        </main>
+        <RunReader
+            nav={AdminNav::ArticleRequests}
+            eyebrow="共建队列 / 文章入库"
+            title="文章入库 AI 运行记录"
+            description="实时跟随该入库请求最新一次 AI 运行的输出，并保留历史运行概览。"
+            id_label="request_id"
+            id_value={request_id}
+            stream_status={(*stream_status).clone()}
+            loading={*loading}
+            load_error={(*load_error).clone()}
+            stream_error={(*stream_error).clone()}
+            runs={run_rows}
+            selected_run_id={None::<String>}
+            empty_runs_hint="该入库请求还没有触发过 AI 运行。"
+            logs={logs}
+        />
     }
 }

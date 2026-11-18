@@ -90,21 +90,37 @@ pub fn search_box(props: &SearchBoxProps) -> Html {
 
     let has_value = !props.value.is_empty() && !props.hide_clear;
     let base_input_class = classes!(
+        "sf-search-box__input",
         "w-full",
-        "rounded-lg",
+        "rounded-[6px]",
         "border",
-        "border-[var(--border)]",
-        "bg-[var(--surface-alt)]",
-        "px-3",
-        "py-2",
+        "border-[var(--border-strong)]",
+        "bg-[var(--surface)]",
+        "pl-8",
         "pr-8",
+        "py-1.5",
         "text-sm",
-        "font-mono",
+        "text-[var(--text)]",
         props.input_class.clone(),
     );
 
     html! {
-        <div class={classes!("relative", "w-full")}>
+        <div class={classes!("sf-search-box", "relative", "w-full")}>
+            <i
+                class={classes!(
+                    "fas",
+                    "fa-magnifying-glass",
+                    "sf-search-box__icon",
+                    "pointer-events-none",
+                    "absolute",
+                    "left-2.5",
+                    "top-1/2",
+                    "-translate-y-1/2",
+                    "text-xs",
+                    "text-[var(--faint)]"
+                )}
+                aria-hidden="true"
+            ></i>
             <input
                 type="search"
                 class={base_input_class}
@@ -118,15 +134,25 @@ pub fn search_box(props: &SearchBoxProps) -> Html {
                 <button
                     type="button"
                     class={classes!(
-                        "absolute", "right-2", "top-1/2", "-translate-y-1/2",
-                        "text-[var(--muted)]", "hover:text-[var(--text)]",
-                        "text-xs", "px-1"
+                        "sf-search-box__clear",
+                        "absolute",
+                        "right-1.5",
+                        "top-1/2",
+                        "-translate-y-1/2",
+                        "inline-flex",
+                        "items-center",
+                        "justify-center",
+                        "text-[var(--muted)]",
+                        "hover:text-[var(--text)]",
+                        "text-xs",
+                        "px-1.5",
+                        "py-1"
                     )}
                     title="清空"
                     aria-label="清空搜索"
                     onclick={on_clear}
                 >
-                    { "✕" }
+                    <i class="fas fa-xmark" aria-hidden="true"></i>
                 </button>
             }
         </div>

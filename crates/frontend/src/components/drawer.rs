@@ -8,7 +8,7 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use gloo_events::EventListener;
-use gloo_utils::document;
+use gloo_utils::{body, document};
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlElement, KeyboardEvent};
 use yew::prelude::*;
@@ -41,8 +41,6 @@ pub struct DrawerProps {
 /// A dismissible right-side panel.
 #[function_component(Drawer)]
 pub fn drawer(props: &DrawerProps) -> Html {
-    // Stable unique id for the title, wired to the panel via `aria-labelledby`.
-    // (`yew::use_id` lands in a later Yew; generate one ourselves on 0.21.)
     let title_id = use_memo((), |_| {
         let n = NEXT_TITLE_ID.fetch_add(1, Ordering::Relaxed);
         AttrValue::from(format!("admin-drawer-title-{n}"))
@@ -63,6 +61,11 @@ pub fn drawer(props: &DrawerProps) -> Html {
                 if let Some(panel) = panel_ref.cast::<HtmlElement>() {
                     let _ = panel.focus();
                 }
+                let body_overflow = body()
+                    .style()
+                    .get_property_value("overflow")
+                    .unwrap_or_default();
+                let _ = body().style().set_property("overflow", "hidden");
                 let keydown = EventListener::new(&document(), "keydown", move |event| {
                     let Some(event) = event.dyn_ref::<KeyboardEvent>() else {
                         return;
@@ -110,6 +113,7 @@ pub fn drawer(props: &DrawerProps) -> Html {
                 });
                 cleanup = Some(Box::new(move || {
                     drop(keydown);
+                    let _ = body().style().set_property("overflow", &body_overflow);
                     if let Some(el) = previously_focused {
                         let _ = el.focus();
                     }

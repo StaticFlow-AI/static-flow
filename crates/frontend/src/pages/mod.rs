@@ -1,7 +1,6 @@
 pub mod admin;
 pub mod admin_ai_stream;
 pub mod admin_article_request_stream;
-pub mod admin_gpt2api_rs;
 #[cfg(feature = "legacy-llm-admin")]
 pub mod admin_kiro_account_status;
 #[cfg(feature = "legacy-llm-admin")]

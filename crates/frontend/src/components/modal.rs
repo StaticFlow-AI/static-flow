@@ -4,6 +4,8 @@
 //! [`ConfirmModal`] is the opinionated confirm/cancel dialog that replaces
 //! `window.confirm()` for destructive admin actions.
 
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use gloo_events::EventListener;
 use gloo_utils::{body, document};
 use wasm_bindgen::JsCast;
@@ -11,6 +13,8 @@ use web_sys::{HtmlElement, KeyboardEvent};
 use yew::prelude::*;
 
 use crate::i18n::current::modal as t;
+
+static NEXT_MODAL_TITLE_ID: AtomicUsize = AtomicUsize::new(0);
 
 /// Selector matching everything focusable inside the dialog panel.
 const FOCUSABLE: &str = "a[href], button:not([disabled]), input:not([disabled]), \
@@ -34,6 +38,11 @@ pub struct ModalProps {
 /// backdrop click close, body scroll lock, focus restore on close.
 #[function_component(Modal)]
 pub fn modal(props: &ModalProps) -> Html {
+    let title_id = use_memo((), |_| {
+        let n = NEXT_MODAL_TITLE_ID.fetch_add(1, Ordering::Relaxed);
+        AttrValue::from(format!("modal-title-{n}"))
+    });
+    let title_id = (*title_id).clone();
     let panel_ref = use_node_ref();
     let backdrop_ref = use_node_ref();
 
@@ -145,11 +154,11 @@ pub fn modal(props: &ModalProps) -> Html {
                     class={classes!("modal-panel")}
                     role="dialog"
                     aria-modal="true"
-                    aria-labelledby="modal-title"
+                    aria-labelledby={title_id.clone()}
                     tabindex="-1"
                 >
                     <div class={classes!("modal-header")}>
-                        <h2 id="modal-title" class={classes!("modal-title")}>{ &props.title }</h2>
+                        <h2 id={title_id} class={classes!("modal-title")}>{ &props.title }</h2>
                         <button
                             type="button"
                             class={classes!("modal-close")}

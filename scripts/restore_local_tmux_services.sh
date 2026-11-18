@@ -19,8 +19,6 @@ LLM_ACCESS_OAUTH_TUNNEL_SCRIPT="${LLM_ACCESS_OAUTH_TUNNEL_SCRIPT:-$ROOT_DIR/.loc
 LLM_ACCESS_ANTIGRAVITY_TUNNEL_SCRIPT="${LLM_ACCESS_ANTIGRAVITY_TUNNEL_SCRIPT:-$ROOT_DIR/scripts/start_llm_access_antigravity_tunnel.sh}"
 LLM_ACCESS_OPENCODE_TUNNEL_SCRIPT="${LLM_ACCESS_OPENCODE_TUNNEL_SCRIPT:-$ROOT_DIR/scripts/start_llm_access_opencode_tunnel.sh}"
 LLM_ACCESS_CURSOR_PBMAPPER_ENV_FILE="${LLM_ACCESS_CURSOR_PBMAPPER_ENV_FILE:-$ROOT_DIR/.local/pbmapper/llm-access-cursor.env}"
-GPT2API_BIN="${GPT2API_BIN:-/mnt/wsl/data4tb/static-flow-data/cargo-target/gpt2api_rs/release/gpt2api-rs}"
-GPT2API_TARGET_DIR="${GPT2API_TARGET_DIR:-/mnt/wsl/data4tb/static-flow-data/cargo-target/gpt2api_rs/release}"
 ANTIGRAVITY_DIR="${ANTIGRAVITY_DIR:-$ROOT_DIR/deps/AntigravityManager}"
 ANTIGRAVITY_CONFIG_FILE="${ANTIGRAVITY_CONFIG_FILE:-$HOME/.antigravity-agent/gui_config.json}"
 MEDIA_ROOT="${MEDIA_ROOT:-/mnt/e/videos/static}"
@@ -52,7 +50,6 @@ Restores the local tmux-supervised service set after a reboot:
   - pbmapper-sf-backend-aws
   - pbmapper-llm-access-aws
   - pbmapper-home-ubuntu-aws
-  - gpt2api-rs
   - llm-access-monitor-aws (when the frontend stack is enabled)
 
 Optional services:
@@ -213,9 +210,9 @@ wait_tcp() {
 
 print_status() {
   log "tmux sessions"
-  tmux list-sessions 2>/dev/null | grep -E '^(sf-|pbmapper-|gpt2api-rs|antigravity-manager)' || true
+  tmux list-sessions 2>/dev/null | grep -E '^(sf-|pbmapper-|antigravity-manager)' || true
   log "listening ports"
-  ss -ltnp 2>/dev/null | grep -E ':(8045|18787|19092|19182|19183|19190|19191|19194|19195|19196|39080|39081|39085|39180)\b' || true
+  ss -ltnp 2>/dev/null | grep -E ':(8045|19092|19182|19183|19190|19191|19194|19195|19196|39080|39081|39085|39180)\b' || true
 }
 
 active_slot() {
@@ -296,17 +293,6 @@ start_pbmapper_home_ubuntu() {
   [[ -f "$ROOT_DIR/.local/pbmapper/cloud-server.env" ]] || fail "missing .local/pbmapper/cloud-server.env"
   cmd="cd $(q "$ROOT_DIR") && set -a && . .local/pbmapper/cloud-server.env && set +a && PB_MAPPER_SERVER=$(q "$HOME_PBMAPPER_SERVER") exec pb-mapper register tcp --server $(q "$HOME_PBMAPPER_SERVER") --key home-ubuntu --addr 127.0.0.1:22"
   start_tmux "pbmapper-home-ubuntu-aws" "$cmd"
-}
-
-start_gpt2api() {
-  local cmd
-  if [[ "$DRY_RUN" != "1" ]]; then
-    [[ -x "$GPT2API_BIN" ]] || fail "missing executable: $GPT2API_BIN"
-  fi
-  [[ -f "$ROOT_DIR/conf/gpt2api-rs.json" ]] || fail "missing conf/gpt2api-rs.json"
-  cmd="cd $(q "$ROOT_DIR") && ADMIN_TOKEN=\$(jq -r .admin_token conf/gpt2api-rs.json) && exec env LD_LIBRARY_PATH=$(q "$GPT2API_TARGET_DIR/deps") SITE_BASE_URL=https://ackingliu.top GPT2API_PUBLIC_BASE_URL=https://ackingliu.top GPT2API_EMAIL_ACCOUNTS_FILE=$(q "$ROOT_DIR/crates/backend/.local/email_accounts.json") $(q "$GPT2API_BIN") serve --listen 127.0.0.1:18787 --storage-dir /mnt/wsl/data4tb/static-flow-data/gpt2api-rs --admin-token \"\$ADMIN_TOKEN\""
-  start_tmux "gpt2api-rs" "$cmd"
-  wait_http "gpt2api-rs" "http://127.0.0.1:18787/healthz" 40
 }
 
 antigravity_port() {
@@ -458,7 +444,6 @@ main() {
   start_pbmapper_sf_backend
   start_pbmapper_llm_access
   start_pbmapper_home_ubuntu
-  start_gpt2api
 
   if [[ "$WITH_ANTIGRAVITY" == "1" ]]; then
     require_command git

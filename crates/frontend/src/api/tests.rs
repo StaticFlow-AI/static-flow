@@ -66,14 +66,6 @@ fn reset_credit_details_preserve_picker_fields() {
 }
 
 #[test]
-fn image_generation_request_serializes_b64_response_format() {
-    let value = serde_json::to_value(AdminGpt2ApiRsImageGenerationRequest::default())
-        .expect("request should serialize");
-
-    assert_eq!(value.get("response_format"), Some(&serde_json::json!("b64_json")));
-}
-
-#[test]
 fn admin_kiro_account_statuses_response_defaults_are_empty() {
     let response: AdminKiroAccountStatusesResponse =
         serde_json::from_str("{}").expect("response should parse");

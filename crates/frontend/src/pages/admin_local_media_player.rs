@@ -14,6 +14,7 @@ use crate::{
         open_admin_local_media_playback, LocalMediaPlaybackMode, LocalMediaPlaybackOpenResponse,
         LocalMediaPlaybackStatus,
     },
+    pages::admin::shell::{AdminNav, AdminPageHeader, AdminShell},
     router::Route,
 };
 
@@ -192,97 +193,188 @@ pub fn admin_local_media_player_page() -> Html {
         Callback::from(move |_| selected_mode.set(PlaybackOpenMode::Compatible))
     };
 
-    let body = if *loading {
+    let file_name = Path::new(&file)
+        .file_name()
+        .and_then(|value| value.to_str())
+        .map(ToString::to_string)
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "播放器".to_string());
+    let page_title = (*playback)
+        .as_ref()
+        .map(|value| value.title.clone())
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| file_name.clone());
+    let folder_label = parent_dir(&file)
+        .map(|dir| format!("/{dir}"))
+        .unwrap_or_else(|| "根目录".to_string());
+
+    let (status_label, status_tone) = if *loading {
+        ("正在打开", "neutral")
+    } else if (*error).is_some() {
+        ("出错", "err")
+    } else {
+        match (*playback).as_ref().map(|value| &value.status) {
+            Some(LocalMediaPlaybackStatus::Ready) => ("就绪", "ok"),
+            Some(LocalMediaPlaybackStatus::Preparing) => ("转码准备中", "warn"),
+            Some(LocalMediaPlaybackStatus::Failed) => ("准备失败", "err"),
+            None => ("空闲", "neutral"),
+        }
+    };
+    let stream_label = (*playback)
+        .as_ref()
+        .and_then(|value| value.mode)
+        .map(|mode| match mode {
+            LocalMediaPlaybackMode::Raw => "原始流 · raw",
+            LocalMediaPlaybackMode::Hls => "HLS 转码 · hls",
+        });
+    let duration_label = (*playback)
+        .as_ref()
+        .and_then(|value| value.duration_seconds)
+        .map(format_duration);
+    let job_label = (*playback).as_ref().and_then(|value| value.job_id.clone());
+
+    let stage = if *loading {
         html! {
-            <div class="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-6 text-sm text-[var(--muted)]">
-                { "Opening player..." }
+            <div class="media-stage__state" aria-busy="true" aria-live="polite">
+                <span class="media-stage__spinner" aria-hidden="true"></span>
+                <p class="media-stage__title">{ "正在打开播放器…" }</p>
             </div>
         }
     } else if let Some(err) = (*error).clone() {
         html! {
-            <div class="rounded-[var(--radius)] border border-red-400/40 bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-200">
-                { err }
+            <div class="media-stage__state media-stage__state--err" role="alert">
+                <i class="fas fa-triangle-exclamation media-stage__icon" aria-hidden="true"></i>
+                <p class="media-stage__title">{ "无法打开这个文件" }</p>
+                <p class="media-stage__detail">{ err }</p>
             </div>
         }
     } else if let Some(playback) = (*playback).clone() {
         match playback.status {
             LocalMediaPlaybackStatus::Preparing => html! {
-                <div class="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-6">
-                    <div class="text-base font-semibold text-[var(--text)]">{ playback.title }</div>
-                    <p class="mt-2 text-sm text-[var(--muted)]">
-                        { playback.detail.unwrap_or_else(|| "The backend is preparing a mobile-friendly playback stream.".to_string()) }
+                <div class="media-stage__state" aria-live="polite">
+                    <p class="media-stage__eyebrow">{ "兼容模式 · 准备中" }</p>
+                    <p class="media-stage__title">{ playback.title }</p>
+                    <p class="media-stage__detail">
+                        { playback.detail.unwrap_or_else(|| "后端正在准备适合移动端的兼容播放流。".to_string()) }
                     </p>
-                    if let Some(duration_seconds) = playback.duration_seconds {
-                        <div class="mt-3 text-xs text-[var(--muted)]">
-                            { format!("Duration: {}", format_duration(duration_seconds)) }
-                        </div>
-                    }
-                    if let Some(job_id) = playback.job_id {
-                        <div class="mt-3 text-xs text-[var(--muted)] break-all">{ format!("job: {job_id}") }</div>
-                    }
+                    <span class="media-stage__progress" aria-hidden="true"><span></span></span>
                 </div>
             },
             LocalMediaPlaybackStatus::Failed => html! {
-                <div class="rounded-[var(--radius)] border border-red-400/40 bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-200">
-                    { playback.error.unwrap_or_else(|| "Playback preparation failed".to_string()) }
+                <div class="media-stage__state media-stage__state--err" role="alert">
+                    <i class="fas fa-circle-exclamation media-stage__icon" aria-hidden="true"></i>
+                    <p class="media-stage__title">{ "播放准备失败" }</p>
+                    <p class="media-stage__detail">
+                        { playback.error.unwrap_or_else(|| "Playback preparation failed".to_string()) }
+                    </p>
                 </div>
             },
             LocalMediaPlaybackStatus::Ready => html! {
-                <div class="space-y-4">
-                    <div class="overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-black shadow-[var(--shadow)]">
-                        <div ref={player_host} class="aspect-video w-full"></div>
-                    </div>
-                    <div class="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--muted)]">
-                        { "Long press for 2x, swipe horizontally to seek, and double tap to play/pause on supported mobile browsers." }
-                    </div>
-                </div>
+                <div ref={player_host} class="media-stage__player"></div>
             },
         }
     } else {
         Html::default()
     };
 
+    let is_ready = !*loading
+        && (*error).is_none()
+        && (*playback)
+            .as_ref()
+            .is_some_and(|value| value.status == LocalMediaPlaybackStatus::Ready);
+
     html! {
-        <main class="container py-8">
-            <section class="mb-5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow)]">
-                <div class="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                        <div class="text-sm text-[var(--muted)]">
-                            <Link<Route> to={Route::Admin} classes={classes!("hover:text-[var(--text)]")}>{ "Admin" }</Link<Route>>
-                            <span class="mx-2">{ "/" }</span>
-                            <button type="button" class="bg-transparent hover:text-[var(--text)]" onclick={back_to_browser.clone()}>{ "Local Media" }</button>
-                            <span class="mx-2">{ "/" }</span>
-                            <span>{ "Player" }</span>
-                        </div>
-                        <h1 class="mt-2 text-xl font-semibold text-[var(--text)] break-all">{ file.clone() }</h1>
-                        <p class="mt-1 text-sm text-[var(--muted)]">
-                            { "Default is raw browser playback. Only switch to compatibility mode when the browser cannot play the file correctly." }
-                        </p>
-                    </div>
-                    <div class="flex flex-wrap items-center gap-2">
+        <AdminShell active={AdminNav::LocalMedia}>
+            <div class="media-page media-page--player">
+                <AdminPageHeader
+                    eyebrow="工具"
+                    title={AttrValue::from(page_title)}
+                    description="默认使用浏览器原始播放；只有浏览器无法正常播放时，再切换到兼容模式。"
+                >
+                    <div class="media-seg" role="group" aria-label="播放模式">
                         <button
                             type="button"
-                            class={mode_button_classes(*selected_mode == PlaybackOpenMode::Raw)}
+                            class={classes!("media-seg__btn", (*selected_mode == PlaybackOpenMode::Raw).then_some("is-active"))}
+                            aria-pressed={(*selected_mode == PlaybackOpenMode::Raw).to_string()}
                             onclick={select_raw}
                         >
-                            { "Raw" }
+                            { "原始" }
                         </button>
                         <button
                             type="button"
-                            class={mode_button_classes(*selected_mode == PlaybackOpenMode::Compatible)}
+                            class={classes!("media-seg__btn", (*selected_mode == PlaybackOpenMode::Compatible).then_some("is-active"))}
+                            aria-pressed={(*selected_mode == PlaybackOpenMode::Compatible).to_string()}
                             onclick={select_compatible}
                         >
-                            { "Compatible" }
-                        </button>
-                        <button type="button" class="btn-fluent-secondary" onclick={back_to_browser}>
-                            <i class="fas fa-arrow-left mr-2" aria-hidden="true"></i>
-                            { "Back To Folder" }
+                            { "兼容" }
                         </button>
                     </div>
-                </div>
-            </section>
-            { body }
-        </main>
+                    <button type="button" class="adm-btn adm-btn--secondary" onclick={back_to_browser.clone()}>
+                        <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                        <span>{ "返回文件夹" }</span>
+                    </button>
+                </AdminPageHeader>
+                <nav class="media-crumbs media-crumbs--player" aria-label="文件路径">
+                    <button type="button" class="media-crumbs__item" onclick={back_to_browser}>
+                        <i class="fas fa-folder" aria-hidden="true"></i>
+                        <span class="media-crumbs__text">{ folder_label }</span>
+                    </button>
+                    <span class="media-crumbs__sep" aria-hidden="true">{ "/" }</span>
+                    <span class="media-crumbs__item is-current" aria-current="page" title={file.clone()}>
+                        <span class="media-crumbs__text">{ file_name }</span>
+                    </span>
+                </nav>
+                <section class="media-theater" aria-label="播放器">
+                    <div class={classes!("media-stage", is_ready.then_some("is-ready"))}>
+                        { stage }
+                    </div>
+                    <div class="media-theater__info">
+                        <dl class="adm-kv media-kv">
+                            <div>
+                                <dt>{ "状态" }</dt>
+                                <dd>
+                                    <span class={classes!(
+                                        "adm-pill",
+                                        format!("adm-pill--{status_tone}"),
+                                        (status_tone == "warn").then_some("adm-pill--live"),
+                                    )}>
+                                        { status_label }
+                                    </span>
+                                </dd>
+                            </div>
+                            if let Some(stream_label) = stream_label {
+                                <div>
+                                    <dt>{ "播放流" }</dt>
+                                    <dd class="media-mono">{ stream_label }</dd>
+                                </div>
+                            }
+                            if let Some(duration_label) = duration_label {
+                                <div>
+                                    <dt>{ "时长" }</dt>
+                                    <dd class="media-mono">{ duration_label }</dd>
+                                </div>
+                            }
+                            if let Some(job_label) = job_label {
+                                <div>
+                                    <dt>{ "转码任务" }</dt>
+                                    <dd class="media-mono media-kv__wrap" title={job_label.clone()}>{ job_label }</dd>
+                                </div>
+                            }
+                            <div class="media-kv__wide">
+                                <dt>{ "相对路径" }</dt>
+                                <dd class="media-mono media-kv__wrap" title={file.clone()}>{ file.clone() }</dd>
+                            </div>
+                        </dl>
+                        if is_ready {
+                            <p class="media-theater__tip">
+                                <i class="fas fa-hand-pointer" aria-hidden="true"></i>
+                                <span>{ "移动端支持：长按 2× 倍速、左右滑动快进/快退、双击播放/暂停。" }</span>
+                            </p>
+                        }
+                    </div>
+                </section>
+            </div>
+        </AdminShell>
     }
 }
 
@@ -302,36 +394,6 @@ fn format_duration(duration_seconds: f64) -> String {
 enum PlaybackOpenMode {
     Raw,
     Compatible,
-}
-
-fn mode_button_classes(active: bool) -> Classes {
-    if active {
-        classes!(
-            "rounded-full",
-            "border",
-            "border-sky-500/60",
-            "bg-sky-500/15",
-            "px-3",
-            "py-1.5",
-            "text-sm",
-            "font-semibold",
-            "text-sky-700",
-            "dark:text-sky-200"
-        )
-    } else {
-        classes!(
-            "rounded-full",
-            "border",
-            "border-[var(--border)]",
-            "bg-[var(--surface)]",
-            "px-3",
-            "py-1.5",
-            "text-sm",
-            "font-semibold",
-            "text-[var(--muted)]",
-            "hover:text-[var(--text)]"
-        )
-    }
 }
 
 fn parent_dir(file: &str) -> Option<String> {

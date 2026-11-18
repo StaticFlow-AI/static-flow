@@ -314,7 +314,6 @@ fn route_path_for(route: &Route) -> String {
         Route::AdminKiroAnthropicUpstreams => {
             config::route_path("/admin/kiro-gateway/upstream-channels")
         },
-        Route::AdminGpt2ApiRs => config::route_path("/admin/gpt2api-rs"),
         Route::AdminCommentRuns {
             task_id,
         } => config::route_path(&format!("/admin/comments/runs/{}", urlencoding::encode(task_id))),
@@ -570,7 +569,6 @@ pub fn apply_route_seo(route: Option<&Route>) {
         | Route::AdminKiroGatewayGroups
         | Route::AdminKiroGatewayUsage
         | Route::AdminKiroAnthropicUpstreams
-        | Route::AdminGpt2ApiRs
         | Route::AdminCommentRuns {
             ..
         }

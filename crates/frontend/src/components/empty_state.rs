@@ -1,9 +1,8 @@
 //! Centered placeholder for empty / error admin lists and tables.
 //!
-//! Admin tables used to render an empty `<tbody>` (often with pagination still
-//! showing), so "no data" was indistinguishable from "still loading" or "the
-//! request failed". This gives a single, legible empty/error state with an
-//! optional action slot (e.g. a Retry button).
+//! Provides a calm, legible empty or error state with a quiet icon, serif
+//! headline, optional hint line, and optional action slot (e.g. a Retry
+//! button).
 
 use yew::prelude::*;
 
@@ -21,6 +20,9 @@ pub struct EmptyStateProps {
     /// `"neutral"` (default) or `"error"` for failure states.
     #[prop_or(AttrValue::Static("neutral"))]
     pub tone: AttrValue,
+    /// Extra classes on the root container.
+    #[prop_or_default]
+    pub class: Classes,
     /// Optional action (e.g. a Retry button) rendered under the hint.
     #[prop_or_default]
     pub children: Html,
@@ -30,14 +32,19 @@ pub struct EmptyStateProps {
 #[function_component(EmptyState)]
 pub fn empty_state(props: &EmptyStateProps) -> Html {
     let tone_class = (props.tone == "error").then_some("admin-empty--error");
+    let has_actions = props.children != Html::default();
     html! {
-        <div class={classes!("admin-empty", tone_class)}>
+        <div class={classes!("admin-empty", tone_class, props.class.clone())}>
             <i class={classes!("fas", props.icon.clone(), "admin-empty__icon")} aria-hidden="true"></i>
             <p class={classes!("admin-empty__title")}>{ props.title.clone() }</p>
             if let Some(hint) = props.hint.clone() {
                 <p class={classes!("admin-empty__hint")}>{ hint }</p>
             }
-            { props.children.clone() }
+            if has_actions {
+                <div class={classes!("admin-empty__actions")}>
+                    { props.children.clone() }
+                </div>
+            }
         </div>
     }
 }

@@ -21,6 +21,10 @@ use yew::prelude::*;
 /// * `on_select` — fires with the clicked (or keyboard-rotated) tab id.
 /// * `badge` — optional `(tab_id, count)`; shows a pending-count pill on that
 ///   tab when `count > 0`.
+#[cfg_attr(
+    not(feature = "legacy-llm-admin"),
+    allow(dead_code, reason = "Used by legacy LLM moderation admin page.")
+)]
 pub fn render_tab_bar(
     active: &str,
     tabs: &[(&str, &str)],

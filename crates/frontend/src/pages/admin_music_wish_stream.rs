@@ -1,18 +1,17 @@
 use wasm_bindgen::{closure::Closure, JsCast};
-use web_sys::{Event, EventSource, MessageEvent, ScrollToOptions};
+use web_sys::{Event, EventSource, MessageEvent};
 use yew::prelude::*;
-use yew_router::prelude::Link;
 
 use crate::{
     api::{
         build_admin_music_wish_ai_stream_url, fetch_admin_music_wish_ai_output,
         MusicWishAiRunChunk, MusicWishAiRunRecord,
     },
-    components::{
-        empty_state::EmptyState, status_badge::StatusBadge, stream_chunk_batcher::ChunkBatcher,
+    components::stream_chunk_batcher::ChunkBatcher,
+    pages::{
+        admin::shell::AdminNav,
+        admin_ai_stream::{log_entries, RunEntry, RunReader},
     },
-    pages::llm_access_shared::format_ms_iso,
-    router::Route,
 };
 
 type NamedEventClosure = Closure<dyn FnMut(MessageEvent)>;
@@ -48,7 +47,6 @@ pub fn admin_music_wish_runs_page(props: &Props) -> Html {
     let stream_status = use_state(|| "idle".to_string());
     let stream_error = use_state(|| None::<String>);
     let stream_ref = use_mut_ref(|| None::<StreamHandle>);
-    let chunks_list_ref = use_node_ref();
 
     let wish_id = props.wish_id.clone();
 
@@ -208,126 +206,38 @@ pub fn admin_music_wish_runs_page(props: &Props) -> Html {
         });
     }
 
-    let chunk_rows = {
-        let mut rows = (*stream_chunks).clone();
-        rows.sort_by_key(|c| c.batch_index);
-        rows
-    };
-
-    // Auto-scroll the streaming output list to the newest chunk.
-    {
-        let chunks_list_ref = chunks_list_ref.clone();
-        use_effect_with(chunk_rows.len(), move |_| {
-            if let Some(list) = chunks_list_ref.cast::<web_sys::HtmlElement>() {
-                let opts = ScrollToOptions::new();
-                opts.set_top(list.scroll_height() as f64);
-                opts.set_behavior(web_sys::ScrollBehavior::Smooth);
-                list.scroll_to_with_scroll_to_options(&opts);
-            }
-            || ()
-        });
-    }
+    let run_rows = runs
+        .iter()
+        .map(|run| RunEntry {
+            run_id: run.run_id.clone(),
+            status: run.status.clone(),
+            runner: run.runner_program.clone(),
+            exit_code: run.exit_code,
+            started_at: run.started_at,
+            completed_at: run.completed_at,
+            failure_reason: run.failure_reason.clone(),
+        })
+        .collect::<Vec<_>>();
+    let logs = log_entries(stream_chunks.iter().map(|chunk| {
+        (chunk.stream.clone(), chunk.batch_index, chunk.created_at, chunk.content.clone())
+    }));
 
     html! {
-        <main class={classes!("container", "py-8")}>
-            <section class={classes!(
-                "bg-[var(--surface)]", "border", "border-[var(--border)]",
-                "rounded-[var(--radius)]", "shadow-[var(--shadow)]", "p-5", "mb-5"
-            )}>
-                <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
-                    <div>
-                        <h1 class={classes!("m-0", "text-xl", "font-semibold")}>{ "Music Wish AI Stream" }</h1>
-                        <p class={classes!("m-0", "text-sm", "text-[var(--muted)]")}>
-                            { format!("wish_id={}", wish_id) }
-                        </p>
-                    </div>
-                    <Link<Route> to={Route::Admin} classes={classes!("btn-fluent-secondary")}>
-                        { "Back to Admin" }
-                    </Link<Route>>
-                </div>
-                if let Some(err) = (*load_error).clone() {
-                    <p class={classes!("mt-3", "m-0", "text-sm", "text-red-700", "dark:text-red-200")}>{ err }</p>
-                }
-                if let Some(err) = (*stream_error).clone() {
-                    <p class={classes!("mt-2", "m-0", "text-sm", "text-red-700", "dark:text-red-200")}>{ err }</p>
-                }
-                <div class={classes!("mt-2")}>
-                    <StatusBadge status={(*stream_status).clone()} label={Some(AttrValue::from(format!("stream: {}", *stream_status)))} />
-                </div>
-            </section>
-
-            if *loading {
-                <section class={classes!("text-sm", "text-[var(--muted)]")}>{ "Loading..." }</section>
-            } else if !runs.is_empty() {
-                <section class={classes!(
-                    "bg-[var(--surface)]", "border", "border-[var(--border)]",
-                    "rounded-[var(--radius)]", "shadow-[var(--shadow)]", "p-5", "mb-5"
-                )}>
-                    <h2 class={classes!("m-0", "mb-3", "text-lg", "font-semibold")}>
-                        { format!("Runs ({})", runs.len()) }
-                    </h2>
-                    <div class={classes!("flex", "gap-2", "flex-wrap", "items-center")}>
-                        { for (*runs).iter().map(|run| {
-                            html! {
-                                <span class={classes!("inline-flex", "items-center", "gap-2")}>
-                                    <StatusBadge status={run.status.clone()} />
-                                    <span class={classes!("text-xs", "font-mono", "text-[var(--muted)]")}>
-                                        { run.run_id[..8.min(run.run_id.len())].to_string() }
-                                    </span>
-                                </span>
-                            }
-                        }) }
-                    </div>
-                </section>
-            } else if !*loading {
-                <section class={classes!(
-                    "bg-[var(--surface)]", "border", "border-[var(--border)]",
-                    "rounded-[var(--radius)]", "shadow-[var(--shadow)]", "p-5", "mb-5"
-                )}>
-                    <EmptyState icon="fa-inbox" title="暂无运行记录" hint="该愿望尚未触发 AI 运行" />
-                </section>
-            }
-
-            <section class={classes!(
-                "bg-[var(--surface)]", "border", "border-[var(--border)]",
-                "rounded-[var(--radius)]", "shadow-[var(--shadow)]", "p-5"
-            )}>
-                <h2 class={classes!("m-0", "mb-3", "text-lg", "font-semibold")}>
-                    { format!("Stream Chunks ({})", chunk_rows.len()) }
-                </h2>
-                if chunk_rows.is_empty() {
-                    if !*loading {
-                        <EmptyState icon="fa-stream" title="暂无流式输出" hint="AI 运行开始后输出将实时显示在此处" />
-                    }
-                } else {
-                    <ul
-                        ref={chunks_list_ref}
-                        class={classes!("m-0", "p-0", "list-none", "flex", "flex-col", "gap-2", "max-h-[28rem]", "overflow-y-auto", "scroll-smooth")}
-                    >
-                        { for chunk_rows.into_iter().map(|chunk| {
-                            let badge = if chunk.stream == "stderr" {
-                                classes!("inline-flex", "rounded-full", "px-2", "py-0.5", "text-xs", "font-semibold", "bg-red-500/15", "text-red-700", "dark:text-red-200")
-                            } else {
-                                classes!("inline-flex", "rounded-full", "px-2", "py-0.5", "text-xs", "font-semibold", "bg-sky-500/15", "text-sky-700", "dark:text-sky-200")
-                            };
-                            html! {
-                                <li class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-3")}>
-                                    <div class={classes!("mb-2", "flex", "items-center", "gap-2", "flex-wrap")}>
-                                        <span class={badge}>{ chunk.stream.clone() }</span>
-                                        <span class={classes!("text-xs", "text-[var(--muted)]")}>{ format!("batch={}", chunk.batch_index) }</span>
-                                        if chunk.created_at > 0 {
-                                            <span class={classes!("text-xs", "text-[var(--muted)]")}>{ format_ms_iso(chunk.created_at) }</span>
-                                        }
-                                    </div>
-                                    <pre class={classes!("m-0", "text-xs", "whitespace-pre-wrap", "break-words", "font-mono")}>
-                                        { chunk.content.clone() }
-                                    </pre>
-                                </li>
-                            }
-                        }) }
-                    </ul>
-                }
-            </section>
-        </main>
+        <RunReader
+            nav={AdminNav::MusicWishes}
+            eyebrow="共建队列 / 点歌心愿"
+            title="点歌心愿 AI 运行记录"
+            description="实时跟随该心愿最新一次 AI 运行的输出，并保留历史运行概览。"
+            id_label="wish_id"
+            id_value={wish_id}
+            stream_status={(*stream_status).clone()}
+            loading={*loading}
+            load_error={(*load_error).clone()}
+            stream_error={(*stream_error).clone()}
+            runs={run_rows}
+            selected_run_id={None::<String>}
+            empty_runs_hint="该心愿还没有触发过 AI 运行。"
+            logs={logs}
+        />
     }
 }

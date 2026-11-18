@@ -1054,25 +1054,6 @@ pub struct SubmitLlmGatewayAccountContributionInput {
     pub frontend_page_url: Option<String>,
 }
 
-/// Public form payload for contributing a GPT image account.
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct SubmitGpt2ApiAccountContributionInput {
-    pub account_name: String,
-    pub access_token: Option<String>,
-    pub session_json: Option<String>,
-    pub requester_email: String,
-    pub contributor_message: String,
-    pub github_id: Option<String>,
-    pub frontend_page_url: Option<String>,
-}
-
-/// Public acknowledgement returned after a GPT contribution is queued.
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct SubmitGpt2ApiAccountContributionRequestResponse {
-    pub request_id: String,
-    pub status: String,
-}
-
 /// Public form payload for requesting to become a sponsor.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct SubmitLlmGatewaySponsorInput {
@@ -1179,49 +1160,6 @@ pub struct AdminLlmGatewayAccountContributionRequestsResponse {
 /// Query options for admin account contribution request listing.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
 pub struct AdminLlmGatewayAccountContributionRequestsQuery {
-    pub status: Option<String>,
-    pub limit: Option<usize>,
-    pub offset: Option<usize>,
-}
-
-/// Admin-only view of one GPT account contribution request.
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct AdminGpt2ApiAccountContributionRequestView {
-    pub request_id: String,
-    pub account_name: String,
-    pub access_token: Option<String>,
-    pub session_json: Option<String>,
-    pub requester_email: String,
-    pub contributor_message: String,
-    pub github_id: Option<String>,
-    pub frontend_page_url: Option<String>,
-    pub status: String,
-    pub client_ip: String,
-    pub ip_region: String,
-    pub admin_note: Option<String>,
-    pub failure_reason: Option<String>,
-    pub imported_account_name: Option<String>,
-    pub issued_key_id: Option<String>,
-    pub issued_key_name: Option<String>,
-    pub created_at: i64,
-    pub updated_at: i64,
-    pub processed_at: Option<i64>,
-}
-
-/// Paginated admin response for GPT account contribution requests.
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct AdminGpt2ApiAccountContributionRequestsResponse {
-    pub total: usize,
-    pub offset: usize,
-    pub limit: usize,
-    pub has_more: bool,
-    pub requests: Vec<AdminGpt2ApiAccountContributionRequestView>,
-    pub generated_at: i64,
-}
-
-/// Query options for admin GPT account contribution request listing.
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
-pub struct AdminGpt2ApiAccountContributionRequestsQuery {
     pub status: Option<String>,
     pub limit: Option<usize>,
     pub offset: Option<usize>,
@@ -1966,68 +1904,6 @@ pub async fn submit_llm_gateway_account_contribution_request(
             .filter(|value| !value.trim().is_empty())
         {
             body["account_id"] = serde_json::Value::String(account_id.trim().to_string());
-        }
-        if let Some(github_id) = input
-            .github_id
-            .as_deref()
-            .filter(|value| !value.trim().is_empty())
-        {
-            body["github_id"] = serde_json::Value::String(github_id.trim().to_string());
-        }
-        if let Some(page_url) = input.frontend_page_url.as_deref() {
-            body["frontend_page_url"] = serde_json::Value::String(page_url.to_string());
-        }
-        let response = api_post(&url)
-            .json(&body)
-            .map_err(|e| format!("Serialize error: {:?}", e))?
-            .send()
-            .await
-            .map_err(|e| format!("Network error: {:?}", e))?;
-        if !response.ok() {
-            let text = response.text().await.unwrap_or_default();
-            return Err(format!("Failed: {text}"));
-        }
-        response
-            .json()
-            .await
-            .map_err(|e| format!("Parse error: {:?}", e))
-    }
-}
-
-/// Submit a public GPT account contribution request from `/llm-access`.
-pub async fn submit_gpt2api_account_contribution_request(
-    input: &SubmitGpt2ApiAccountContributionInput,
-) -> Result<SubmitGpt2ApiAccountContributionRequestResponse, String> {
-    #[cfg(feature = "mock")]
-    {
-        let _ = input;
-        Ok(SubmitGpt2ApiAccountContributionRequestResponse {
-            request_id: "mock-gpt2api-account-contribution-1".to_string(),
-            status: "pending".to_string(),
-        })
-    }
-
-    #[cfg(not(feature = "mock"))]
-    {
-        let url = format!("{}/gpt2api/account-contribution-requests/submit", API_BASE);
-        let mut body = serde_json::json!({
-            "account_name": input.account_name,
-            "requester_email": input.requester_email,
-            "contributor_message": input.contributor_message,
-        });
-        if let Some(access_token) = input
-            .access_token
-            .as_deref()
-            .filter(|value| !value.trim().is_empty())
-        {
-            body["access_token"] = serde_json::Value::String(access_token.trim().to_string());
-        }
-        if let Some(session_json) = input
-            .session_json
-            .as_deref()
-            .filter(|value| !value.trim().is_empty())
-        {
-            body["session_json"] = serde_json::Value::String(session_json.trim().to_string());
         }
         if let Some(github_id) = input
             .github_id

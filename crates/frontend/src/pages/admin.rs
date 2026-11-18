@@ -1,9 +1,15 @@
-use std::collections::HashSet;
+pub mod shell;
 
+use std::collections::{HashMap, HashSet};
+
+use gloo_events::EventListener;
 use web_sys::{HtmlInputElement, HtmlTextAreaElement};
 use yew::prelude::*;
 use yew_router::prelude::Link;
 
+use self::shell::{
+    admin_nav_href, navigate_to_admin_section, AdminNav, AdminPageHeader, AdminShell,
+};
 use crate::{
     api::{
         admin_approve_and_run_article_request, admin_approve_and_run_comment_task,
@@ -47,19 +53,43 @@ use crate::{
         toast::use_toast,
         view_trend_chart::ViewTrendChart,
     },
-    pages::llm_access_shared::format_ms,
+    pages::{admin_llm_access_handoff::llm_access_frontend_url, llm_access_shared::format_ms},
     router::Route,
 };
 
+/// Data-fetch buckets backing the nine `/admin` sections.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-enum AdminTab {
-    Tasks,
-    Published,
+enum LoadBucket {
+    Core,
     Audit,
     Behavior,
     RuntimeMemory,
     MusicWishes,
     ArticleRequests,
+}
+
+fn buckets_for_section(nav: AdminNav) -> &'static [LoadBucket] {
+    match nav {
+        AdminNav::Overview => {
+            &[LoadBucket::Core, LoadBucket::MusicWishes, LoadBucket::ArticleRequests]
+        },
+        AdminNav::CommentTasks | AdminNav::PublishedComments | AdminNav::SiteConfig => {
+            &[LoadBucket::Core]
+        },
+        AdminNav::AuditLogs => &[LoadBucket::Audit],
+        AdminNav::MusicWishes => &[LoadBucket::MusicWishes],
+        AdminNav::ArticleRequests => &[LoadBucket::ArticleRequests],
+        AdminNav::ApiBehavior => &[LoadBucket::Behavior],
+        AdminNav::RuntimeMemory => &[LoadBucket::RuntimeMemory],
+        AdminNav::LocalMedia => &[],
+    }
+}
+
+fn read_current_section() -> AdminNav {
+    web_sys::window()
+        .and_then(|w| w.location().hash().ok())
+        .and_then(|h| AdminNav::from_hash(&h))
+        .unwrap_or(AdminNav::Overview)
 }
 
 fn format_bytes(bytes: u64) -> String {
@@ -93,9 +123,42 @@ fn article_request_has_article(req: &ArticleRequestItem) -> bool {
         .is_some_and(|id| !id.is_empty())
 }
 
-/// Destructive-ish actions fired from a Music Wish row. The parent builds a
-/// single `Callback<(wish_id, WishAction)>` and dispatches by variant, so the
-/// row component doesn't need to own four separate callbacks.
+fn http_status_pill(code: i32) -> Html {
+    let tone = if (200..300).contains(&code) {
+        "adm-pill adm-pill--ok adm-mono"
+    } else if (300..400).contains(&code) {
+        "adm-pill adm-pill--info adm-mono"
+    } else if (400..500).contains(&code) {
+        "adm-pill adm-pill--warn adm-mono"
+    } else {
+        "adm-pill adm-pill--err adm-mono"
+    };
+    html! { <span class={tone}>{ code }</span> }
+}
+
+fn table_skeleton(rows: usize) -> Html {
+    html! {
+        <div class="adm-card__body adm-stack-sm" aria-hidden="true">
+            { for (0..rows).map(|_| html! { <span class="adm-skel adm-skel--row"></span> }) }
+        </div>
+    }
+}
+
+fn kpi_skeleton(count: usize) -> Html {
+    html! {
+        <div class="adm-kpis" aria-hidden="true">
+            { for (0..count).map(|_| html! {
+                <div class="adm-kpi">
+                    <span class="adm-skel" style="width: 72px;"></span>
+                    <span class="adm-skel adm-skel--lg" style="width: 108px; margin-top: 10px;"></span>
+                    <span class="adm-skel" style="width: 132px; margin-top: 8px;"></span>
+                </div>
+            }) }
+        </div>
+    }
+}
+
+/// Destructive-ish actions fired from a Music Wish row.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum WishAction {
     Approve,
@@ -104,9 +167,7 @@ enum WishAction {
     Delete,
 }
 
-/// Same idea as WishAction but for Article Request rows. The two tabs run
-/// parallel workflows against different APIs, so the enums stay separate to
-/// keep the dispatcher callbacks type-safe.
+/// Parallel action dispatcher enum for Article Request rows.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum ArticleRequestAction {
     Approve,
@@ -129,37 +190,65 @@ fn music_wish_row(props: &MusicWishRowProps) -> Html {
     let status = wish.status.clone();
     let inflight = props.inflight;
 
-    // One cheap Rc clone of on_action per row render — versus the previous
-    // pattern which allocated four distinct closures + captured state handles.
     let dispatch = |action: WishAction| {
         let on_action = props.on_action.clone();
         let wid = wid.clone();
         Callback::from(move |_| on_action.emit((wid.clone(), action)))
     };
 
+    let artist = wish
+        .artist_hint
+        .as_deref()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or("—");
+
     html! {
-        <tr class={classes!("border-t", "border-[var(--border)]")}>
-            <td class={classes!("py-2", "pr-3", "max-w-[180px]", "truncate")} title={wish.song_name.clone()}>{ wish.song_name.clone() }</td>
-            <td class={classes!("py-2", "pr-3")}>{ wish.artist_hint.clone().unwrap_or_default() }</td>
-            <td class={classes!("py-2", "pr-3")}>{ wish.nickname.clone() }</td>
-            <td class={classes!("py-2", "pr-3")}><StatusBadge status={status.clone()} /></td>
-            <td class={classes!("py-2", "pr-3")}>{ wish.ip_region.clone() }</td>
-            <td class={classes!("py-2", "pr-3", "whitespace-nowrap")}>{ format_ms(wish.created_at) }</td>
-            <td class={classes!("py-2", "pr-3")}>
-                <div class={classes!("flex", "gap-1", "flex-wrap")}>
+        <tr>
+            <td style="max-width: 240px;">
+                <span class="adm-trunc" title={wish.song_name.clone()}>{ &wish.song_name }</span>
+                if !wish.wish_message.trim().is_empty() {
+                    <span class="adm-trunc adm-faint" style="font-size: 12px;" title={wish.wish_message.clone()}>
+                        { &wish.wish_message }
+                    </span>
+                }
+            </td>
+            <td style="max-width: 160px;">
+                <span class="adm-trunc" title={artist.to_string()}>{ artist }</span>
+            </td>
+            <td>{ &wish.nickname }</td>
+            <td><StatusBadge status={status.clone()} /></td>
+            <td class="adm-muted">{ &wish.ip_region }</td>
+            <td class="num">{ format_ms(wish.created_at) }</td>
+            <td class="actions">
+                <div class="adm-row-actions">
                     if status == "pending" {
-                        <button class={classes!("btn-fluent-primary", "!px-2", "!py-0.5", "!text-xs")} disabled={inflight} onclick={dispatch(WishAction::Approve)}>{ "Approve & Run" }</button>
-                        <button class={classes!("btn-fluent-secondary", "!px-2", "!py-0.5", "!text-xs")} disabled={inflight} onclick={dispatch(WishAction::Reject)}>{ "Reject" }</button>
+                        <button type="button" class="adm-btn adm-btn--primary adm-btn--sm"
+                            disabled={inflight} onclick={dispatch(WishAction::Approve)}>
+                            { "批准并执行" }
+                        </button>
+                        <button type="button" class="adm-btn adm-btn--ghost adm-btn--sm"
+                            disabled={inflight} onclick={dispatch(WishAction::Reject)}>
+                            { "驳回" }
+                        </button>
                     }
                     if status == "failed" {
-                        <button class={classes!("btn-fluent-primary", "!px-2", "!py-0.5", "!text-xs")} disabled={inflight} onclick={dispatch(WishAction::Retry)}>{ "Retry" }</button>
+                        <button type="button" class="adm-btn adm-btn--primary adm-btn--sm"
+                            disabled={inflight} onclick={dispatch(WishAction::Retry)}>
+                            { "重试" }
+                        </button>
                     }
                     if status == "done" || status == "running" || status == "failed" {
-                        <Link<Route> to={Route::AdminMusicWishRuns { wish_id: wid.clone() }} classes={classes!("btn-fluent-secondary", "!px-2", "!py-0.5", "!text-xs")}>
-                            { "AI Output" }
+                        <Link<Route>
+                            to={Route::AdminMusicWishRuns { wish_id: wid.clone() }}
+                            classes={classes!("adm-btn", "adm-btn--ghost", "adm-btn--sm")}
+                        >
+                            { "AI 日志 ↗" }
                         </Link<Route>>
                     }
-                    <button class={classes!("btn-fluent-danger", "!px-2", "!py-0.5", "!text-xs")} disabled={inflight} onclick={dispatch(WishAction::Delete)}>{ "Delete" }</button>
+                    <button type="button" class="adm-btn adm-btn--danger adm-btn--sm"
+                        disabled={inflight} onclick={dispatch(WishAction::Delete)}>
+                        { "删除" }
+                    </button>
                 </div>
             </td>
         </tr>
@@ -186,43 +275,87 @@ fn article_request_row(props: &ArticleRequestRowProps) -> Html {
         Callback::from(move |_| on_action.emit((rid.clone(), action)))
     };
 
-    let url_display: String = if req.article_url.chars().count() > 50 {
-        format!("{}...", req.article_url.chars().take(47).collect::<String>())
+    let url_display: String = if req.article_url.chars().count() > 52 {
+        format!("{}…", req.article_url.chars().take(49).collect::<String>())
     } else {
         req.article_url.clone()
     };
 
+    let title_hint = req
+        .title_hint
+        .as_deref()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or("—");
+
     html! {
-        <tr class={classes!("border-t", "border-[var(--border)]")}>
-            <td class={classes!("py-2", "pr-3", "max-w-[220px]", "truncate")} title={req.article_url.clone()}>
-                <a href={req.article_url.clone()} target="_blank" rel="noopener noreferrer" class="text-[var(--primary)] hover:underline">{ url_display }</a>
+        <tr>
+            <td style="max-width: 260px;" title={req.article_url.clone()}>
+                <a href={req.article_url.clone()} target="_blank" rel="noopener noreferrer"
+                    class="adm-link adm-mono adm-trunc">
+                    { url_display }
+                </a>
+                if !req.request_message.trim().is_empty() {
+                    <span class="adm-trunc adm-faint" style="font-size: 12px;" title={req.request_message.clone()}>
+                        { &req.request_message }
+                    </span>
+                }
             </td>
-            <td class={classes!("py-2", "pr-3", "max-w-[150px]", "truncate")}>{ req.title_hint.clone().unwrap_or_default() }</td>
-            <td class={classes!("py-2", "pr-3")}>{ req.nickname.clone() }</td>
-            <td class={classes!("py-2", "pr-3")}>
+            <td style="max-width: 180px;">
+                <span class="adm-trunc" title={title_hint.to_string()}>{ title_hint }</span>
+            </td>
+            <td>{ &req.nickname }</td>
+            <td>
                 if req.status == "done" && !article_request_has_article(req) {
                     <StatusBadge status="pending" label={Some(AttrValue::from("done/no-article"))} />
                 } else {
                     <StatusBadge status={req.status.clone()} />
                 }
             </td>
-            <td class={classes!("py-2", "pr-3")}>{ req.ip_region.clone() }</td>
-            <td class={classes!("py-2", "pr-3", "whitespace-nowrap")}>{ format_ms(req.created_at) }</td>
-            <td class={classes!("py-2", "pr-3")}>
-                <div class={classes!("flex", "gap-1", "flex-wrap")}>
+            <td class="adm-muted">{ &req.ip_region }</td>
+            <td class="num">{ format_ms(req.created_at) }</td>
+            <td class="actions">
+                <div class="adm-row-actions">
                     if status == "pending" {
-                        <button class={classes!("btn-fluent-primary", "!px-2", "!py-0.5", "!text-xs")} disabled={inflight} onclick={dispatch(ArticleRequestAction::Approve)}>{ "Approve & Run" }</button>
-                        <button class={classes!("btn-fluent-secondary", "!px-2", "!py-0.5", "!text-xs")} disabled={inflight} onclick={dispatch(ArticleRequestAction::Reject)}>{ "Reject" }</button>
+                        <button type="button" class="adm-btn adm-btn--primary adm-btn--sm"
+                            disabled={inflight} onclick={dispatch(ArticleRequestAction::Approve)}>
+                            { "批准并执行" }
+                        </button>
+                        <button type="button" class="adm-btn adm-btn--ghost adm-btn--sm"
+                            disabled={inflight} onclick={dispatch(ArticleRequestAction::Reject)}>
+                            { "驳回" }
+                        </button>
                     }
                     if status == "failed" {
-                        <button class={classes!("btn-fluent-primary", "!px-2", "!py-0.5", "!text-xs")} disabled={inflight} onclick={dispatch(ArticleRequestAction::Retry)}>{ "Retry" }</button>
+                        <button type="button" class="adm-btn adm-btn--primary adm-btn--sm"
+                            disabled={inflight} onclick={dispatch(ArticleRequestAction::Retry)}>
+                            { "重试" }
+                        </button>
                     }
-                    if status == "done" || status == "running" || status == "failed" {
-                        <Link<Route> to={Route::AdminArticleRequestRuns { request_id: rid.clone() }} classes={classes!("btn-fluent-secondary", "!px-2", "!py-0.5", "!text-xs")}>
-                            { "AI Output" }
+                    if let Some(article_id) = req
+                        .ingested_article_id
+                        .as_ref()
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty())
+                    {
+                        <Link<Route>
+                            to={Route::ArticleDetail { id: article_id.to_string() }}
+                            classes={classes!("adm-btn", "adm-btn--ghost", "adm-btn--sm")}
+                        >
+                            { "查看文章 ↗" }
                         </Link<Route>>
                     }
-                    <button class={classes!("btn-fluent-danger", "!px-2", "!py-0.5", "!text-xs")} disabled={inflight} onclick={dispatch(ArticleRequestAction::Delete)}>{ "Delete" }</button>
+                    if status == "done" || status == "running" || status == "failed" {
+                        <Link<Route>
+                            to={Route::AdminArticleRequestRuns { request_id: rid.clone() }}
+                            classes={classes!("adm-btn", "adm-btn--ghost", "adm-btn--sm")}
+                        >
+                            { "AI 日志 ↗" }
+                        </Link<Route>>
+                    }
+                    <button type="button" class="adm-btn adm-btn--danger adm-btn--sm"
+                        disabled={inflight} onclick={dispatch(ArticleRequestAction::Delete)}>
+                        { "删除" }
+                    </button>
                 </div>
             </td>
         </tr>
@@ -248,15 +381,15 @@ fn behavior_distribution_card(title: &str, items: &[ApiBehaviorBucket], path_lik
     };
 
     html! {
-        <article class={classes!("admin-dist-card")}>
-            <header class={classes!("admin-dist-card__header")}>
-                <h3 class={classes!("m-0", "text-sm", "font-semibold")}>{ title }</h3>
-                <span class={classes!("admin-dist-card__count")}>{ format!("{} items", items.len()) }</span>
+        <article class="admin-dist-card">
+            <header class="admin-dist-card__header">
+                <span>{ title }</span>
+                <span class="admin-dist-card__count">{ format!("{} 项", items.len()) }</span>
             </header>
             if items.is_empty() {
-                <p class={classes!("m-0", "text-xs", "text-[var(--muted)]")}>{ "No data" }</p>
+                <div class="adm-card__body adm-faint" style="font-size: 12.5px;">{ "暂无统计数据" }</div>
             } else {
-                <ul class={classes!("admin-dist-list")}>
+                <ul class="admin-dist-list">
                     { for items.iter().map(|item| {
                         let fill = if max_count == 0 {
                             0.0
@@ -265,9 +398,9 @@ fn behavior_distribution_card(title: &str, items: &[ApiBehaviorBucket], path_lik
                         };
                         let fill_style = format!("--fill: {:.4};", fill);
                         html! {
-                            <li class={classes!("dist-bar", "admin-dist-item")} style={fill_style}>
-                                <span class={key_class.clone()} title={item.key.clone()}>{ item.key.clone() }</span>
-                                <span class={classes!("admin-dist-item__value")}>{ item.count }</span>
+                            <li class="dist-bar admin-dist-item" style={fill_style}>
+                                <span class={key_class.clone()} title={item.key.clone()}>{ &item.key }</span>
+                                <span class="admin-dist-item__value">{ item.count }</span>
                             </li>
                         }
                     }) }
@@ -379,24 +512,24 @@ fn memory_stack_list(entries: &[MemoryStackEntry]) -> Html {
     }
 }
 
-
 #[function_component(AdminPage)]
 pub fn admin_page() -> Html {
+    let active_section = use_state(read_current_section);
     let load_error = use_state(|| None::<String>);
     let pending_delete_published = use_state(|| None::<String>);
     let pending_delete_task = use_state(|| None::<String>);
     let pending_delete_wish = use_state(|| None::<String>);
     let pending_delete_request = use_state(|| None::<String>);
-    // Destructive maintenance actions (irreversible row deletes) park a flag for
-    // ConfirmModal instead of firing on the first click.
     let pending_cleanup_failed = use_state(|| false);
     let pending_cleanup_logs = use_state(|| false);
     let toast = use_toast();
+
     let view_config = use_state(|| None::<ViewAnalyticsConfig>);
     let comment_config = use_state(|| None::<CommentRuntimeConfig>);
     let music_config = use_state(|| None::<MusicRuntimeConfig>);
     let behavior_config = use_state(|| None::<ApiBehaviorConfig>);
     let compaction_config = use_state(|| None::<CompactionRuntimeConfig>);
+
     let behavior_overview = use_state(|| None::<AdminApiBehaviorOverviewResponse>);
     let behavior_events = use_state(Vec::<AdminApiBehaviorEvent>::new);
     let behavior_days = use_state(|| "30".to_string());
@@ -408,6 +541,7 @@ pub fn admin_page() -> Html {
     let behavior_page_filter = use_state(String::new);
     let behavior_device_filter = use_state(String::new);
     let behavior_status_filter = use_state(String::new);
+
     let memory_overview = use_state(|| None::<MemoryProfilerOverview>);
     let memory_functions = use_state(|| None::<MemoryFunctionReport>);
     let memory_modules = use_state(|| None::<MemoryModuleReport>);
@@ -417,7 +551,7 @@ pub fn admin_page() -> Html {
     let memory_action_loading = use_state(|| false);
 
     let task_groups = use_state(Vec::<AdminCommentTaskGroup>::new);
-    let grouped_status_counts = use_state(std::collections::HashMap::<String, usize>::new);
+    let grouped_status_counts = use_state(HashMap::<String, usize>::new);
     let status_filter = use_state(String::new);
     let selected_task_id = use_state(|| None::<String>);
     let selected_task = use_state(|| None::<AdminCommentTask>);
@@ -432,7 +566,6 @@ pub fn admin_page() -> Html {
     let audit_task_filter = use_state(String::new);
     let audit_action_filter = use_state(String::new);
 
-    let active_tab = use_state(|| None::<AdminTab>);
     let cleanup_days = use_state(|| "30".to_string());
     let loading = use_state(|| false);
 
@@ -443,10 +576,10 @@ pub fn admin_page() -> Html {
     let article_request_action_inflight = use_state(HashSet::<String>::new);
     let article_request_search = use_state(String::new);
     let saving = use_state(|| false);
-    let loaded_tabs = use_state(HashSet::<AdminTab>::new);
-    let tab_loading = use_state(HashSet::<AdminTab>::new);
-    // Request sequence guards to avoid stale async responses overriding newer
-    // pages.
+
+    let loaded_buckets = use_state(HashSet::<LoadBucket>::new);
+    let bucket_loading = use_state(HashSet::<LoadBucket>::new);
+
     let refresh_all_seq = use_mut_ref(|| 0_u64);
     let refresh_audit_seq = use_mut_ref(|| 0_u64);
     let refresh_behavior_seq = use_mut_ref(|| 0_u64);
@@ -454,7 +587,6 @@ pub fn admin_page() -> Html {
     let refresh_music_wishes_seq = use_mut_ref(|| 0_u64);
     let refresh_article_requests_seq = use_mut_ref(|| 0_u64);
 
-    // Per-tab pagination state
     const PAGE_SIZE: usize = 50;
     let tasks_page = use_state(|| 1_usize);
     let published_page = use_state(|| 1_usize);
@@ -462,7 +594,7 @@ pub fn admin_page() -> Html {
     let behavior_page = use_state(|| 1_usize);
     let music_wish_page = use_state(|| 1_usize);
     let article_request_page = use_state(|| 1_usize);
-    // Per-tab total counts for pagination
+
     let tasks_total = use_state(|| 0_usize);
     let published_total = use_state(|| 0_usize);
     let audit_total = use_state(|| 0_usize);
@@ -473,14 +605,35 @@ pub fn admin_page() -> Html {
     let audit_has_more = use_state(|| false);
     let music_wish_has_more = use_state(|| false);
     let article_request_has_more = use_state(|| false);
-    // Split behavior loading flags
+
     let behavior_overview_loading = use_state(|| false);
     let behavior_events_loading = use_state(|| false);
+
+    // Sync active section with URL hash (`#overview`, `#tasks`, ...).
+    {
+        let active_section = active_section.clone();
+        use_effect_with((), move |_| {
+            active_section.set(read_current_section());
+            let listeners = web_sys::window().map(|window| {
+                let on_hash = {
+                    let active_section = active_section.clone();
+                    EventListener::new(&window, "hashchange", move |_| {
+                        active_section.set(read_current_section());
+                    })
+                };
+                let on_pop = EventListener::new(&window, "popstate", move |_| {
+                    active_section.set(read_current_section());
+                });
+                (on_hash, on_pop)
+            });
+            move || drop(listeners)
+        });
+    }
 
     let refresh_music_wishes = {
         let music_wishes = music_wishes.clone();
         let load_error = load_error.clone();
-        let tab_loading = tab_loading.clone();
+        let bucket_loading = bucket_loading.clone();
         let music_wish_page = music_wish_page.clone();
         let music_wish_total = music_wish_total.clone();
         let music_wish_has_more = music_wish_has_more.clone();
@@ -488,7 +641,7 @@ pub fn admin_page() -> Html {
         Callback::from(move |requested_page: Option<usize>| {
             let music_wishes = music_wishes.clone();
             let load_error = load_error.clone();
-            let tab_loading = tab_loading.clone();
+            let bucket_loading = bucket_loading.clone();
             let page = requested_page.unwrap_or(*music_wish_page).max(1);
             let music_wish_total = music_wish_total.clone();
             let music_wish_has_more = music_wish_has_more.clone();
@@ -499,9 +652,9 @@ pub fn admin_page() -> Html {
                 *seq
             };
             {
-                let mut s = (*tab_loading).clone();
-                s.insert(AdminTab::MusicWishes);
-                tab_loading.set(s);
+                let mut s = (*bucket_loading).clone();
+                s.insert(LoadBucket::MusicWishes);
+                bucket_loading.set(s);
             }
             wasm_bindgen_futures::spawn_local(async move {
                 let offset = (page - 1) * PAGE_SIZE;
@@ -519,15 +672,15 @@ pub fn admin_page() -> Html {
                         if *refresh_music_wishes_seq.borrow() != request_id {
                             return;
                         }
-                        load_error.set(Some(format!("Failed to load music wishes: {}", err)));
+                        load_error.set(Some(format!("加载点歌心愿失败：{err}")));
                     },
                 }
                 if *refresh_music_wishes_seq.borrow() != request_id {
                     return;
                 }
-                let mut s = (*tab_loading).clone();
-                s.remove(&AdminTab::MusicWishes);
-                tab_loading.set(s);
+                let mut s = (*bucket_loading).clone();
+                s.remove(&LoadBucket::MusicWishes);
+                bucket_loading.set(s);
             });
         })
     };
@@ -535,7 +688,7 @@ pub fn admin_page() -> Html {
     let refresh_article_requests = {
         let article_requests = article_requests.clone();
         let load_error = load_error.clone();
-        let tab_loading = tab_loading.clone();
+        let bucket_loading = bucket_loading.clone();
         let article_request_page = article_request_page.clone();
         let article_request_total = article_request_total.clone();
         let article_request_has_more = article_request_has_more.clone();
@@ -543,7 +696,7 @@ pub fn admin_page() -> Html {
         Callback::from(move |requested_page: Option<usize>| {
             let article_requests = article_requests.clone();
             let load_error = load_error.clone();
-            let tab_loading = tab_loading.clone();
+            let bucket_loading = bucket_loading.clone();
             let page = requested_page.unwrap_or(*article_request_page).max(1);
             let article_request_total = article_request_total.clone();
             let article_request_has_more = article_request_has_more.clone();
@@ -554,9 +707,9 @@ pub fn admin_page() -> Html {
                 *seq
             };
             {
-                let mut s = (*tab_loading).clone();
-                s.insert(AdminTab::ArticleRequests);
-                tab_loading.set(s);
+                let mut s = (*bucket_loading).clone();
+                s.insert(LoadBucket::ArticleRequests);
+                bucket_loading.set(s);
             }
             wasm_bindgen_futures::spawn_local(async move {
                 let offset = (page - 1) * PAGE_SIZE;
@@ -574,15 +727,15 @@ pub fn admin_page() -> Html {
                         if *refresh_article_requests_seq.borrow() != request_id {
                             return;
                         }
-                        load_error.set(Some(format!("Failed to load article requests: {}", err)));
+                        load_error.set(Some(format!("加载文章入库请求失败：{err}")));
                     },
                 }
                 if *refresh_article_requests_seq.borrow() != request_id {
                     return;
                 }
-                let mut s = (*tab_loading).clone();
-                s.remove(&AdminTab::ArticleRequests);
-                tab_loading.set(s);
+                let mut s = (*bucket_loading).clone();
+                s.remove(&LoadBucket::ArticleRequests);
+                bucket_loading.set(s);
             });
         })
     };
@@ -592,7 +745,7 @@ pub fn admin_page() -> Html {
         let audit_logs = audit_logs.clone();
         let audit_task_filter = audit_task_filter.clone();
         let audit_action_filter = audit_action_filter.clone();
-        let tab_loading = tab_loading.clone();
+        let bucket_loading = bucket_loading.clone();
         let audit_page = audit_page.clone();
         let audit_total = audit_total.clone();
         let audit_has_more = audit_has_more.clone();
@@ -602,7 +755,7 @@ pub fn admin_page() -> Html {
             let audit_logs = audit_logs.clone();
             let task_filter = (*audit_task_filter).trim().to_string();
             let action_filter = (*audit_action_filter).trim().to_string();
-            let tab_loading = tab_loading.clone();
+            let bucket_loading = bucket_loading.clone();
             let page = requested_page.unwrap_or(*audit_page).max(1);
             let audit_total = audit_total.clone();
             let audit_has_more = audit_has_more.clone();
@@ -613,9 +766,9 @@ pub fn admin_page() -> Html {
                 *seq
             };
             {
-                let mut s = (*tab_loading).clone();
-                s.insert(AdminTab::Audit);
-                tab_loading.set(s);
+                let mut s = (*bucket_loading).clone();
+                s.insert(LoadBucket::Audit);
+                bucket_loading.set(s);
             }
             wasm_bindgen_futures::spawn_local(async move {
                 let offset = (page - 1) * PAGE_SIZE;
@@ -640,15 +793,15 @@ pub fn admin_page() -> Html {
                         if *refresh_audit_seq.borrow() != request_id {
                             return;
                         }
-                        load_error.set(Some(format!("Failed to load audit logs: {}", err)));
+                        load_error.set(Some(format!("加载审计日志失败：{err}")));
                     },
                 }
                 if *refresh_audit_seq.borrow() != request_id {
                     return;
                 }
-                let mut s = (*tab_loading).clone();
-                s.remove(&AdminTab::Audit);
-                tab_loading.set(s);
+                let mut s = (*bucket_loading).clone();
+                s.remove(&LoadBucket::Audit);
+                bucket_loading.set(s);
             });
         })
     };
@@ -676,7 +829,7 @@ pub fn admin_page() -> Html {
         let behavior_page_filter = behavior_page_filter.clone();
         let behavior_device_filter = behavior_device_filter.clone();
         let behavior_status_filter = behavior_status_filter.clone();
-        let tab_loading = tab_loading.clone();
+        let bucket_loading = bucket_loading.clone();
         let behavior_page = behavior_page.clone();
         let behavior_overview_loading = behavior_overview_loading.clone();
         let behavior_events_loading = behavior_events_loading.clone();
@@ -700,7 +853,7 @@ pub fn admin_page() -> Html {
             let page_filter = (*behavior_page_filter).trim().to_string();
             let device_filter = (*behavior_device_filter).trim().to_string();
             let status_filter = (*behavior_status_filter).trim().parse::<i32>().ok();
-            let tab_loading = tab_loading.clone();
+            let bucket_loading = bucket_loading.clone();
             let page = requested_page.unwrap_or(*behavior_page).max(1);
             let behavior_overview_loading = behavior_overview_loading.clone();
             let behavior_events_loading = behavior_events_loading.clone();
@@ -715,12 +868,11 @@ pub fn admin_page() -> Html {
                 if date_val.is_empty() { (days, None) } else { (None, Some(date_val)) };
 
             {
-                let mut s = (*tab_loading).clone();
-                s.insert(AdminTab::Behavior);
-                tab_loading.set(s);
+                let mut s = (*bucket_loading).clone();
+                s.insert(LoadBucket::Behavior);
+                bucket_loading.set(s);
             }
 
-            // Spawn overview + config fetch
             {
                 let behavior_config = behavior_config.clone();
                 let behavior_overview = behavior_overview.clone();
@@ -745,7 +897,7 @@ pub fn admin_page() -> Html {
                                 return;
                             }
                             load_error.set(Some(format!(
-                                "Behavior overview unavailable. config={:?}, overview={:?}",
+                                "API 行为概览不可用：config={:?}, overview={:?}",
                                 cfg_err.err(),
                                 over_err.err()
                             )));
@@ -755,21 +907,17 @@ pub fn admin_page() -> Html {
                         return;
                     }
                     behavior_overview_loading.set(false);
-                    // Remove tab loading if events also done
-                    // (events spawn handles its own removal)
                 });
             }
 
-            // Spawn events fetch
             {
                 let behavior_events = behavior_events.clone();
                 let behavior_has_more = behavior_has_more.clone();
                 let behavior_total = behavior_total.clone();
                 let behavior_offset = behavior_offset.clone();
                 let load_error = load_error.clone();
-                let tab_loading = tab_loading.clone();
+                let bucket_loading = bucket_loading.clone();
                 let behavior_events_loading = behavior_events_loading.clone();
-                let query_date = query_date.clone();
                 let refresh_behavior_seq = refresh_behavior_seq.clone();
                 behavior_events_loading.set(true);
                 wasm_bindgen_futures::spawn_local(async move {
@@ -815,16 +963,16 @@ pub fn admin_page() -> Html {
                             if *refresh_behavior_seq.borrow() != request_id {
                                 return;
                             }
-                            load_error.set(Some(format!("Behavior events unavailable: {:?}", err)));
+                            load_error.set(Some(format!("API 行为事件加载失败：{err:?}")));
                         },
                     }
                     if *refresh_behavior_seq.borrow() != request_id {
                         return;
                     }
                     behavior_events_loading.set(false);
-                    let mut s = (*tab_loading).clone();
-                    s.remove(&AdminTab::Behavior);
-                    tab_loading.set(s);
+                    let mut s = (*bucket_loading).clone();
+                    s.remove(&LoadBucket::Behavior);
+                    bucket_loading.set(s);
                 });
             }
         })
@@ -838,7 +986,7 @@ pub fn admin_page() -> Html {
         let memory_stacks = memory_stacks.clone();
         let memory_config = memory_config.clone();
         let memory_top = memory_top.clone();
-        let tab_loading = tab_loading.clone();
+        let bucket_loading = bucket_loading.clone();
         let refresh_memory_seq = refresh_memory_seq.clone();
         Callback::from(move |_| {
             let load_error = load_error.clone();
@@ -847,7 +995,7 @@ pub fn admin_page() -> Html {
             let memory_modules = memory_modules.clone();
             let memory_stacks = memory_stacks.clone();
             let memory_config = memory_config.clone();
-            let tab_loading = tab_loading.clone();
+            let bucket_loading = bucket_loading.clone();
             let refresh_memory_seq = refresh_memory_seq.clone();
             let top = (*memory_top)
                 .trim()
@@ -861,9 +1009,9 @@ pub fn admin_page() -> Html {
             };
 
             {
-                let mut s = (*tab_loading).clone();
-                s.insert(AdminTab::RuntimeMemory);
-                tab_loading.set(s);
+                let mut s = (*bucket_loading).clone();
+                s.insert(LoadBucket::RuntimeMemory);
+                bucket_loading.set(s);
             }
 
             wasm_bindgen_futures::spawn_local(async move {
@@ -887,8 +1035,8 @@ pub fn admin_page() -> Html {
                     },
                     (overview_err, functions_err, modules_err, stacks_err) => {
                         load_error.set(Some(format!(
-                            "Memory profiler unavailable. overview={:?}, functions={:?}, \
-                             modules={:?}, stacks={:?}",
+                            "内存剖析器不可用：overview={:?}, functions={:?}, modules={:?}, \
+                             stacks={:?}",
                             overview_err.err(),
                             functions_err.err(),
                             modules_err.err(),
@@ -901,9 +1049,9 @@ pub fn admin_page() -> Html {
                     return;
                 }
 
-                let mut s = (*tab_loading).clone();
-                s.remove(&AdminTab::RuntimeMemory);
-                tab_loading.set(s);
+                let mut s = (*bucket_loading).clone();
+                s.remove(&LoadBucket::RuntimeMemory);
+                bucket_loading.set(s);
             });
         })
     };
@@ -925,7 +1073,7 @@ pub fn admin_page() -> Html {
         let selected_published = selected_published.clone();
         let loading = loading.clone();
         let status_filter = status_filter.clone();
-        let tab_loading = tab_loading.clone();
+        let bucket_loading = bucket_loading.clone();
         let tasks_page = tasks_page.clone();
         let published_page = published_page.clone();
         let tasks_total = tasks_total.clone();
@@ -950,7 +1098,7 @@ pub fn admin_page() -> Html {
             let selected_published_id = selected_published_id.clone();
             let selected_published = selected_published.clone();
             let loading = loading.clone();
-            let tab_loading = tab_loading.clone();
+            let bucket_loading = bucket_loading.clone();
             let tasks_total = tasks_total.clone();
             let published_total = published_total.clone();
             let tasks_has_more = tasks_has_more.clone();
@@ -967,10 +1115,9 @@ pub fn admin_page() -> Html {
             let p_page = requested_pages.1.unwrap_or(*published_page).max(1);
             loading.set(true);
             {
-                let mut s = (*tab_loading).clone();
-                s.insert(AdminTab::Tasks);
-                s.insert(AdminTab::Published);
-                tab_loading.set(s);
+                let mut s = (*bucket_loading).clone();
+                s.insert(LoadBucket::Core);
+                bucket_loading.set(s);
             }
             wasm_bindgen_futures::spawn_local(async move {
                 let t_offset = (t_page - 1) * PAGE_SIZE;
@@ -1053,10 +1200,7 @@ pub fn admin_page() -> Html {
                                         return;
                                     }
                                     selected_task_ai_output.set(None);
-                                    load_error.set(Some(format!(
-                                        "Failed to load task AI output: {}",
-                                        err
-                                    )));
+                                    load_error.set(Some(format!("加载任务 AI 输出失败：{err}")));
                                 },
                             }
                         } else {
@@ -1095,7 +1239,7 @@ pub fn admin_page() -> Html {
                             return;
                         }
                         load_error.set(Some(format!(
-                            "Admin API unavailable. view={:?}, comment={:?}, music={:?}, \
+                            "后台核心接口不可用：view={:?}, comment={:?}, music={:?}, \
                              behavior={:?}, compaction={:?}, grouped={:?}, published={:?}",
                             view_err.err(),
                             comment_err.err(),
@@ -1111,17 +1255,16 @@ pub fn admin_page() -> Html {
                     return;
                 }
                 loading.set(false);
-                let mut s = (*tab_loading).clone();
-                s.remove(&AdminTab::Tasks);
-                s.remove(&AdminTab::Published);
-                tab_loading.set(s);
+                let mut s = (*bucket_loading).clone();
+                s.remove(&LoadBucket::Core);
+                bucket_loading.set(s);
             });
         })
     };
 
+    // Trigger each bucket at most once on first visit to a section that needs it.
     {
-        let active_tab = active_tab.clone();
-        let loaded_tabs = loaded_tabs.clone();
+        let loaded_buckets = loaded_buckets.clone();
         let refresh_all = refresh_all.clone();
         let refresh_audit = refresh_audit.clone();
         let refresh_behavior = refresh_behavior.clone();
@@ -1129,28 +1272,52 @@ pub fn admin_page() -> Html {
         let refresh_music_wishes = refresh_music_wishes.clone();
         let refresh_article_requests = refresh_article_requests.clone();
         let load_error = load_error.clone();
-        use_effect_with(*active_tab, move |tab| {
-            // Clear stale load errors from a previous tab so switching tabs
-            // doesn't surface an unrelated banner on the new tab.
+        use_effect_with(*active_section, move |section| {
             load_error.set(None);
-            if let Some(tab) = tab {
-                if !loaded_tabs.contains(tab) {
-                    match *tab {
-                        AdminTab::Tasks | AdminTab::Published => refresh_all.emit((None, None)),
-                        AdminTab::Audit => refresh_audit.emit(None),
-                        AdminTab::Behavior => refresh_behavior.emit(None),
-                        AdminTab::RuntimeMemory => refresh_memory.emit(()),
-                        AdminTab::MusicWishes => refresh_music_wishes.emit(None),
-                        AdminTab::ArticleRequests => refresh_article_requests.emit(None),
+            let needed = buckets_for_section(*section);
+            let mut next = (*loaded_buckets).clone();
+            let mut changed = false;
+            for bucket in needed {
+                if next.insert(*bucket) {
+                    changed = true;
+                    match bucket {
+                        LoadBucket::Core => refresh_all.emit((None, None)),
+                        LoadBucket::Audit => refresh_audit.emit(None),
+                        LoadBucket::Behavior => refresh_behavior.emit(None),
+                        LoadBucket::RuntimeMemory => refresh_memory.emit(()),
+                        LoadBucket::MusicWishes => refresh_music_wishes.emit(None),
+                        LoadBucket::ArticleRequests => refresh_article_requests.emit(None),
                     }
-                    let mut set = (*loaded_tabs).clone();
-                    set.insert(*tab);
-                    loaded_tabs.set(set);
                 }
+            }
+            if changed {
+                loaded_buckets.set(next);
             }
             || ()
         });
     }
+
+    let on_reload_section = {
+        let active_section = active_section.clone();
+        let refresh_all = refresh_all.clone();
+        let refresh_audit = refresh_audit.clone();
+        let refresh_behavior = refresh_behavior.clone();
+        let refresh_memory = refresh_memory.clone();
+        let refresh_music_wishes = refresh_music_wishes.clone();
+        let refresh_article_requests = refresh_article_requests.clone();
+        Callback::from(move |_: MouseEvent| {
+            for bucket in buckets_for_section(*active_section) {
+                match bucket {
+                    LoadBucket::Core => refresh_all.emit((None, None)),
+                    LoadBucket::Audit => refresh_audit.emit(None),
+                    LoadBucket::Behavior => refresh_behavior.emit(None),
+                    LoadBucket::RuntimeMemory => refresh_memory.emit(()),
+                    LoadBucket::MusicWishes => refresh_music_wishes.emit(None),
+                    LoadBucket::ArticleRequests => refresh_article_requests.emit(None),
+                }
+            }
+        })
+    };
 
     let on_filter_change = {
         let status_filter = status_filter.clone();
@@ -1170,25 +1337,14 @@ pub fn admin_page() -> Html {
         })
     };
 
-    let on_reload_click = {
-        let active_tab = active_tab.clone();
+    let make_quick_status = |value: &'static str| {
+        let status_filter = status_filter.clone();
+        let tasks_page = tasks_page.clone();
         let refresh_all = refresh_all.clone();
-        let refresh_audit = refresh_audit.clone();
-        let refresh_behavior = refresh_behavior.clone();
-        let refresh_memory = refresh_memory.clone();
-        let refresh_music_wishes = refresh_music_wishes.clone();
-        let refresh_article_requests = refresh_article_requests.clone();
-        Callback::from(move |_| {
-            if let Some(tab) = *active_tab {
-                match tab {
-                    AdminTab::Tasks | AdminTab::Published => refresh_all.emit((None, None)),
-                    AdminTab::Audit => refresh_audit.emit(None),
-                    AdminTab::Behavior => refresh_behavior.emit(None),
-                    AdminTab::RuntimeMemory => refresh_memory.emit(()),
-                    AdminTab::MusicWishes => refresh_music_wishes.emit(None),
-                    AdminTab::ArticleRequests => refresh_article_requests.emit(None),
-                }
-            }
+        Callback::from(move |_: MouseEvent| {
+            status_filter.set(value.to_string());
+            tasks_page.set(1);
+            refresh_all.emit((Some(1), None));
         })
     };
 
@@ -1202,6 +1358,8 @@ pub fn admin_page() -> Html {
         let saving = saving.clone();
         let refresh_all = refresh_all.clone();
         let refresh_behavior = refresh_behavior.clone();
+        let loaded_buckets = loaded_buckets.clone();
+        let toast = toast.clone();
         Callback::from(move |_| {
             let Some(view_config_value) = (*view_config).clone() else {
                 return;
@@ -1223,6 +1381,8 @@ pub fn admin_page() -> Html {
             let saving = saving.clone();
             let refresh_all = refresh_all.clone();
             let refresh_behavior = refresh_behavior.clone();
+            let behavior_loaded = loaded_buckets.contains(&LoadBucket::Behavior);
+            let toast = toast.clone();
             saving.set(true);
             wasm_bindgen_futures::spawn_local(async move {
                 let view_result = update_admin_view_analytics_config(&view_config_value).await;
@@ -1242,12 +1402,15 @@ pub fn admin_page() -> Html {
                 ) {
                     (Ok(_), Ok(_), Ok(_), Ok(_), Ok(_)) => {
                         load_error.set(None);
+                        toast.success("运行时配置已保存");
                         refresh_all.emit((None, None));
-                        refresh_behavior.emit(None);
+                        if behavior_loaded {
+                            refresh_behavior.emit(None);
+                        }
                     },
                     (view_err, comment_err, music_err, behavior_err, compaction_err) => {
                         load_error.set(Some(format!(
-                            "Save failed. view={:?}, comment={:?}, music={:?}, behavior={:?}, \
+                            "保存配置失败：view={:?}, comment={:?}, music={:?}, behavior={:?}, \
                              compaction={:?}",
                             view_err.err(),
                             comment_err.err(),
@@ -1284,12 +1447,12 @@ pub fn admin_page() -> Html {
                     (Err(err), _) => {
                         selected_task.set(None);
                         selected_task_ai_output.set(None);
-                        load_error.set(Some(format!("Failed to load task detail: {}", err)));
+                        load_error.set(Some(format!("加载任务详情失败：{err}")));
                     },
                     (Ok(task), Err(err)) => {
                         selected_task.set(Some(task));
                         selected_task_ai_output.set(None);
-                        load_error.set(Some(format!("Failed to load task AI output: {}", err)));
+                        load_error.set(Some(format!("加载任务 AI 输出失败：{err}")));
                     },
                 }
             });
@@ -1311,7 +1474,7 @@ pub fn admin_page() -> Html {
                 {
                     Ok(output) => selected_task_ai_output.set(Some(output)),
                     Err(err) => {
-                        load_error.set(Some(format!("Failed to load task AI output: {}", err)));
+                        load_error.set(Some(format!("加载任务 AI 输出失败：{err}")));
                     },
                 }
             });
@@ -1348,6 +1511,7 @@ pub fn admin_page() -> Html {
         let selected_task = selected_task.clone();
         let load_error = load_error.clone();
         let refresh_all = refresh_all.clone();
+        let toast = toast.clone();
         Callback::from(move |_| {
             let Some(task) = (*selected_task).clone() else {
                 return;
@@ -1364,13 +1528,15 @@ pub fn admin_page() -> Html {
             let load_error = load_error.clone();
             let refresh_all = refresh_all.clone();
             let selected_task = selected_task.clone();
+            let toast = toast.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 match patch_admin_comment_task(&task.task_id, &request).await {
                     Ok(updated) => {
+                        toast.success("任务修改已保存");
                         selected_task.set(Some(updated));
                         refresh_all.emit((None, None));
                     },
-                    Err(err) => load_error.set(Some(format!("Patch task failed: {}", err))),
+                    Err(err) => load_error.set(Some(format!("更新评论任务失败：{err}"))),
                 }
             });
         })
@@ -1432,7 +1598,7 @@ pub fn admin_page() -> Html {
                         }
                         refresh_all.emit((None, None));
                     },
-                    Err(err) => load_error.set(Some(format!("Task action failed: {}", err))),
+                    Err(err) => load_error.set(Some(format!("执行任务操作失败：{err}"))),
                 }
                 let mut next = (*task_action_inflight).clone();
                 next.remove(&task_id);
@@ -1441,7 +1607,6 @@ pub fn admin_page() -> Html {
         })
     };
 
-    // Deletes park the id for ConfirmModal; everything else executes directly.
     let run_task_action = {
         let execute_task_action = execute_task_action.clone();
         let pending_delete_task = pending_delete_task.clone();
@@ -1493,6 +1658,7 @@ pub fn admin_page() -> Html {
         let selected_published = selected_published.clone();
         let load_error = load_error.clone();
         let refresh_all = refresh_all.clone();
+        let toast = toast.clone();
         Callback::from(move |_| {
             let Some(comment) = (*selected_published).clone() else {
                 return;
@@ -1505,20 +1671,20 @@ pub fn admin_page() -> Html {
             let load_error = load_error.clone();
             let refresh_all = refresh_all.clone();
             let selected_published = selected_published.clone();
+            let toast = toast.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 match patch_admin_published_comment(&comment.comment_id, &request).await {
                     Ok(updated) => {
+                        toast.success("已发布评论已更新");
                         selected_published.set(Some(updated));
                         refresh_all.emit((None, None));
                     },
-                    Err(err) => load_error.set(Some(format!("Patch published failed: {}", err))),
+                    Err(err) => load_error.set(Some(format!("更新已发布评论失败：{err}"))),
                 }
             });
         })
     };
 
-    // Pilot for the ConfirmModal kit: the delete flow first parks the id in
-    // `pending_delete_published`, the modal confirms, then the action runs.
     let delete_published_action = {
         let pending_delete_published = pending_delete_published.clone();
         Callback::from(move |comment_id: String| {
@@ -1560,7 +1726,7 @@ pub fn admin_page() -> Html {
                         refresh_all.emit((None, None));
                     },
                     Err(err) => {
-                        load_error.set(Some(format!("Delete published failed: {}", err)));
+                        load_error.set(Some(format!("删除已发布评论失败：{err}")));
                     },
                 }
             });
@@ -1571,6 +1737,7 @@ pub fn admin_page() -> Html {
         let cleanup_days = cleanup_days.clone();
         let load_error = load_error.clone();
         let refresh_all = refresh_all.clone();
+        let toast = toast.clone();
         Callback::from(move |_| {
             let days = cleanup_days.parse::<i64>().ok();
             let request = AdminCleanupRequest {
@@ -1579,10 +1746,14 @@ pub fn admin_page() -> Html {
             };
             let load_error = load_error.clone();
             let refresh_all = refresh_all.clone();
+            let toast = toast.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 match admin_cleanup_comments(&request).await {
-                    Ok(_) => refresh_all.emit((None, None)),
-                    Err(err) => load_error.set(Some(format!("Cleanup failed: {}", err))),
+                    Ok(_) => {
+                        toast.success("失败评论任务清理完成");
+                        refresh_all.emit((None, None));
+                    },
+                    Err(err) => load_error.set(Some(format!("清理失败评论任务出错：{err}"))),
                 }
             });
         })
@@ -1694,7 +1865,7 @@ pub fn admin_page() -> Html {
         let behavior_offset = behavior_offset.clone();
         let behavior_events_loading = behavior_events_loading.clone();
         let load_error = load_error.clone();
-        let tab_loading = tab_loading.clone();
+        let bucket_loading = bucket_loading.clone();
         let refresh_behavior_seq = refresh_behavior_seq.clone();
         Callback::from(move |_| {
             let date_val = (*behavior_date).trim().to_string();
@@ -1719,9 +1890,9 @@ pub fn admin_page() -> Html {
 
             behavior_events_loading.set(true);
             {
-                let mut s = (*tab_loading).clone();
-                s.insert(AdminTab::Behavior);
-                tab_loading.set(s);
+                let mut s = (*bucket_loading).clone();
+                s.insert(LoadBucket::Behavior);
+                bucket_loading.set(s);
             }
 
             let behavior_events = behavior_events.clone();
@@ -1730,7 +1901,7 @@ pub fn admin_page() -> Html {
             let behavior_offset = behavior_offset.clone();
             let behavior_events_loading = behavior_events_loading.clone();
             let load_error = load_error.clone();
-            let tab_loading = tab_loading.clone();
+            let bucket_loading = bucket_loading.clone();
             let refresh_behavior_seq = refresh_behavior_seq.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 let offset = (page - 1) * PAGE_SIZE;
@@ -1763,7 +1934,7 @@ pub fn admin_page() -> Html {
                         if *refresh_behavior_seq.borrow() != request_id {
                             return;
                         }
-                        load_error.set(Some(format!("Behavior events unavailable: {:?}", err)));
+                        load_error.set(Some(format!("API 行为事件加载失败：{err:?}")));
                     },
                 }
 
@@ -1771,9 +1942,9 @@ pub fn admin_page() -> Html {
                     return;
                 }
                 behavior_events_loading.set(false);
-                let mut s = (*tab_loading).clone();
-                s.remove(&AdminTab::Behavior);
-                tab_loading.set(s);
+                let mut s = (*bucket_loading).clone();
+                s.remove(&LoadBucket::Behavior);
+                bucket_loading.set(s);
             });
         })
     };
@@ -1783,7 +1954,9 @@ pub fn admin_page() -> Html {
         let behavior_page = behavior_page.clone();
         let behavior_events_loading = behavior_events_loading.clone();
         let refresh_behavior = refresh_behavior.clone();
+        let loaded_buckets = loaded_buckets.clone();
         let load_error = load_error.clone();
+        let toast = toast.clone();
         Callback::from(move |_| {
             let Some(config) = (*behavior_config).clone() else {
                 return;
@@ -1795,15 +1968,20 @@ pub fn admin_page() -> Html {
             let load_error = load_error.clone();
             let behavior_page = behavior_page.clone();
             let behavior_events_loading = behavior_events_loading.clone();
+            let behavior_loaded = loaded_buckets.contains(&LoadBucket::Behavior);
+            let toast = toast.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 match admin_cleanup_api_behavior(&request).await {
                     Ok(_) => {
-                        behavior_page.set(1);
-                        behavior_events_loading.set(true);
-                        refresh_behavior.emit(Some(1));
+                        toast.success("过期 API 行为日志已清理");
+                        if behavior_loaded {
+                            behavior_page.set(1);
+                            behavior_events_loading.set(true);
+                            refresh_behavior.emit(Some(1));
+                        }
                     },
                     Err(err) => {
-                        load_error.set(Some(format!("Behavior cleanup failed: {}", err)));
+                        load_error.set(Some(format!("清理 API 行为日志失败：{err}")));
                     },
                 }
             });
@@ -1886,6 +2064,7 @@ pub fn admin_page() -> Html {
         let memory_action_loading = memory_action_loading.clone();
         let load_error = load_error.clone();
         let refresh_memory = refresh_memory.clone();
+        let toast = toast.clone();
         Callback::from(move |_| {
             if *memory_action_loading {
                 return;
@@ -1894,14 +2073,16 @@ pub fn admin_page() -> Html {
             let memory_action_loading = memory_action_loading.clone();
             let load_error = load_error.clone();
             let refresh_memory = refresh_memory.clone();
+            let toast = toast.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 match admin_reset_memory_profiler().await {
                     Ok(()) => {
                         load_error.set(None);
+                        toast.success("内存采样计数已重置");
                         refresh_memory.emit(());
                     },
                     Err(err) => {
-                        load_error.set(Some(format!("Reset memory profiler failed: {}", err)));
+                        load_error.set(Some(format!("重置内存剖析器失败：{err}")));
                     },
                 }
                 memory_action_loading.set(false);
@@ -1914,6 +2095,7 @@ pub fn admin_page() -> Html {
         let memory_action_loading = memory_action_loading.clone();
         let load_error = load_error.clone();
         let refresh_memory = refresh_memory.clone();
+        let toast = toast.clone();
         Callback::from(move |_| {
             if *memory_action_loading {
                 return;
@@ -1927,6 +2109,7 @@ pub fn admin_page() -> Html {
             let memory_config = memory_config.clone();
             let load_error = load_error.clone();
             let refresh_memory = refresh_memory.clone();
+            let toast = toast.clone();
             let request = MemoryProfilerConfigUpdate {
                 enabled: Some(config.enabled),
                 sample_rate: Some(config.sample_rate),
@@ -1938,11 +2121,11 @@ pub fn admin_page() -> Html {
                     Ok(updated) => {
                         memory_config.set(Some(updated));
                         load_error.set(None);
+                        toast.success("采样器配置已保存");
                         refresh_memory.emit(());
                     },
                     Err(err) => {
-                        load_error
-                            .set(Some(format!("Update memory profiler config failed: {}", err)));
+                        load_error.set(Some(format!("更新内存采样配置失败：{err}")));
                     },
                 }
                 memory_action_loading.set(false);
@@ -1950,38 +2133,8 @@ pub fn admin_page() -> Html {
         })
     };
 
-    let tab_tasks = {
-        let active_tab = active_tab.clone();
-        Callback::from(move |_| active_tab.set(Some(AdminTab::Tasks)))
-    };
-    let tab_published = {
-        let active_tab = active_tab.clone();
-        Callback::from(move |_| active_tab.set(Some(AdminTab::Published)))
-    };
-    let tab_audit = {
-        let active_tab = active_tab.clone();
-        Callback::from(move |_| active_tab.set(Some(AdminTab::Audit)))
-    };
-    let tab_behavior = {
-        let active_tab = active_tab.clone();
-        Callback::from(move |_| active_tab.set(Some(AdminTab::Behavior)))
-    };
-    let tab_runtime_memory = {
-        let active_tab = active_tab.clone();
-        Callback::from(move |_| active_tab.set(Some(AdminTab::RuntimeMemory)))
-    };
-    let tab_music_wishes = {
-        let active_tab = active_tab.clone();
-        Callback::from(move |_| active_tab.set(Some(AdminTab::MusicWishes)))
-    };
-    let tab_article_requests = {
-        let active_tab = active_tab.clone();
-        Callback::from(move |_| active_tab.set(Some(AdminTab::ArticleRequests)))
-    };
-
     let grouped_total_tasks: usize = task_groups.iter().map(|group| group.total).sum();
 
-    // Pagination callbacks
     let on_tasks_page_change = {
         let page = tasks_page.clone();
         let refresh = refresh_all.clone();
@@ -2033,7 +2186,6 @@ pub fn admin_page() -> Html {
         })
     };
 
-    // Compute total pages
     let tasks_total_pages = (*tasks_total).max(1).div_ceil(PAGE_SIZE);
     let published_total_pages = (*published_total).max(1).div_ceil(PAGE_SIZE);
     let audit_total_pages = (*audit_total).max(1).div_ceil(PAGE_SIZE);
@@ -2041,12 +2193,10 @@ pub fn admin_page() -> Html {
     let music_wish_total_pages = (*music_wish_total).max(1).div_ceil(PAGE_SIZE);
     let article_request_total_pages = (*article_request_total).max(1).div_ceil(PAGE_SIZE);
 
-    // Client-side filters over the current page. Matches on multiple fields
-    // (case-insensitive). Uses use_memo so we don't re-filter on unrelated renders.
     let music_wish_query_lower = (*music_wish_search).trim().to_lowercase();
     let filtered_music_wishes: Vec<MusicWishItem> = {
         let q = music_wish_query_lower.clone();
-        use_memo(((*music_wishes).clone(), q.clone()), move |(items, q)| {
+        use_memo(((*music_wishes).clone(), q), move |(items, q)| {
             if q.is_empty() {
                 items.clone()
             } else {
@@ -2072,7 +2222,7 @@ pub fn admin_page() -> Html {
     let article_request_query_lower = (*article_request_search).trim().to_lowercase();
     let filtered_article_requests: Vec<ArticleRequestItem> = {
         let q = article_request_query_lower.clone();
-        use_memo(((*article_requests).clone(), q.clone()), move |(items, q)| {
+        use_memo(((*article_requests).clone(), q), move |(items, q)| {
             if q.is_empty() {
                 items.clone()
             } else {
@@ -2106,8 +2256,6 @@ pub fn admin_page() -> Html {
         Callback::from(move |v: String| article_request_search.set(v))
     };
 
-    // Single dispatcher used by MusicWishRow children. Beats allocating
-    // four `Callback::from` closures per row, per render.
     let execute_music_wish_action = {
         let music_wishes = music_wishes.clone();
         let music_wish_action_inflight = music_wish_action_inflight.clone();
@@ -2116,7 +2264,6 @@ pub fn admin_page() -> Html {
             let music_wishes = music_wishes.clone();
             let inflight = music_wish_action_inflight.clone();
             let load_error = load_error.clone();
-            // Reserve inflight slot.
             let mut s = (*inflight).clone();
             s.insert(wid.clone());
             inflight.set(s);
@@ -2134,7 +2281,7 @@ pub fn admin_page() -> Html {
                             music_wishes.set(list);
                             load_error.set(None);
                         },
-                        Err(err) => load_error.set(Some(format!("Approve failed: {}", err))),
+                        Err(err) => load_error.set(Some(format!("批准点歌失败：{err}"))),
                     },
                     WishAction::Reject => match admin_reject_music_wish(&wid, None).await {
                         Ok(updated) => {
@@ -2147,7 +2294,7 @@ pub fn admin_page() -> Html {
                             music_wishes.set(list);
                             load_error.set(None);
                         },
-                        Err(err) => load_error.set(Some(format!("Reject failed: {}", err))),
+                        Err(err) => load_error.set(Some(format!("驳回点歌失败：{err}"))),
                     },
                     WishAction::Retry => match admin_retry_music_wish(&wid).await {
                         Ok(updated) => {
@@ -2160,7 +2307,7 @@ pub fn admin_page() -> Html {
                             music_wishes.set(list);
                             load_error.set(None);
                         },
-                        Err(err) => load_error.set(Some(format!("Retry failed: {}", err))),
+                        Err(err) => load_error.set(Some(format!("重试点歌失败：{err}"))),
                     },
                     WishAction::Delete => match admin_delete_music_wish(&wid).await {
                         Ok(()) => {
@@ -2172,7 +2319,7 @@ pub fn admin_page() -> Html {
                             music_wishes.set(list);
                             load_error.set(None);
                         },
-                        Err(err) => load_error.set(Some(format!("Delete failed: {}", err))),
+                        Err(err) => load_error.set(Some(format!("删除点歌失败：{err}"))),
                     },
                 }
                 let mut s = (*inflight).clone();
@@ -2182,7 +2329,6 @@ pub fn admin_page() -> Html {
         })
     };
 
-    // Deletes park the id for ConfirmModal; everything else executes directly.
     let on_music_wish_action = {
         let execute_music_wish_action = execute_music_wish_action.clone();
         let pending_delete_wish = pending_delete_wish.clone();
@@ -2195,8 +2341,6 @@ pub fn admin_page() -> Html {
         })
     };
 
-    // Mirror of on_music_wish_action for the Article Requests tab. Same shape
-    // (single dispatcher, match on enum) so both tabs look the same.
     let execute_article_request_action = {
         let article_requests = article_requests.clone();
         let article_request_action_inflight = article_request_action_inflight.clone();
@@ -2222,7 +2366,7 @@ pub fn admin_page() -> Html {
                                 article_requests.set(list);
                                 load_error.set(None);
                             },
-                            Err(err) => load_error.set(Some(format!("Approve failed: {}", err))),
+                            Err(err) => load_error.set(Some(format!("批准入库失败：{err}"))),
                         }
                     },
                     ArticleRequestAction::Reject => {
@@ -2237,7 +2381,7 @@ pub fn admin_page() -> Html {
                                 article_requests.set(list);
                                 load_error.set(None);
                             },
-                            Err(err) => load_error.set(Some(format!("Reject failed: {}", err))),
+                            Err(err) => load_error.set(Some(format!("驳回入库失败：{err}"))),
                         }
                     },
                     ArticleRequestAction::Retry => match admin_retry_article_request(&rid).await {
@@ -2251,7 +2395,7 @@ pub fn admin_page() -> Html {
                             article_requests.set(list);
                             load_error.set(None);
                         },
-                        Err(err) => load_error.set(Some(format!("Retry failed: {}", err))),
+                        Err(err) => load_error.set(Some(format!("重试入库失败：{err}"))),
                     },
                     ArticleRequestAction::Delete => {
                         match admin_delete_article_request(&rid).await {
@@ -2264,7 +2408,7 @@ pub fn admin_page() -> Html {
                                 article_requests.set(list);
                                 load_error.set(None);
                             },
-                            Err(err) => load_error.set(Some(format!("Delete failed: {}", err))),
+                            Err(err) => load_error.set(Some(format!("删除入库请求失败：{err}"))),
                         }
                     },
                 }
@@ -2275,7 +2419,6 @@ pub fn admin_page() -> Html {
         })
     };
 
-    // Deletes park the id for ConfirmModal; everything else executes directly.
     let on_article_request_action = {
         let execute_article_request_action = execute_article_request_action.clone();
         let pending_delete_request = pending_delete_request.clone();
@@ -2288,18 +2431,2408 @@ pub fn admin_page() -> Html {
         })
     };
 
-    #[cfg(feature = "local-media")]
-    let local_media_link = html! {
-        <Link<Route> to={Route::AdminLocalMedia} classes={classes!("btn-fluent-secondary")}>
-            <i class={classes!("fas", "fa-film", "mr-2")} aria-hidden="true"></i>
-            { "Local Media" }
-        </Link<Route>>
+    // Derived counters for Overview KPIs & sidebar badges (from already-fetched
+    // data).
+    let pending_tasks_count = grouped_status_counts.get("pending").copied().unwrap_or(0);
+    let failed_tasks_count = grouped_status_counts.get("failed").copied().unwrap_or(0);
+    let running_tasks_count = grouped_status_counts.get("running").copied().unwrap_or(0);
+    let all_status_tasks_total: usize = grouped_status_counts.values().copied().sum();
+
+    let pending_wishes_count = music_wishes
+        .iter()
+        .filter(|w| w.status == "pending")
+        .count();
+    let failed_wishes_count = music_wishes.iter().filter(|w| w.status == "failed").count();
+
+    let pending_requests_count = article_requests
+        .iter()
+        .filter(|r| r.status == "pending")
+        .count();
+    let failed_requests_count = article_requests
+        .iter()
+        .filter(|r| r.status == "failed")
+        .count();
+    let orphan_done_requests_count = article_requests
+        .iter()
+        .filter(|r| r.status == "done" && !article_request_has_article(r))
+        .count();
+
+    let sidebar_badges = vec![
+        (AdminNav::CommentTasks, pending_tasks_count + failed_tasks_count),
+        (AdminNav::MusicWishes, pending_wishes_count + failed_wishes_count),
+        (
+            AdminNav::ArticleRequests,
+            pending_requests_count + failed_requests_count + orphan_done_requests_count,
+        ),
+    ];
+
+    let core_busy = bucket_loading.contains(&LoadBucket::Core) || *loading;
+    let audit_busy = bucket_loading.contains(&LoadBucket::Audit);
+    let wishes_busy = bucket_loading.contains(&LoadBucket::MusicWishes);
+    let requests_busy = bucket_loading.contains(&LoadBucket::ArticleRequests);
+    let behavior_busy = bucket_loading.contains(&LoadBucket::Behavior)
+        || *behavior_overview_loading
+        || *behavior_events_loading;
+    let memory_busy = bucket_loading.contains(&LoadBucket::RuntimeMemory);
+
+    let section_busy = match *active_section {
+        AdminNav::Overview => core_busy || wishes_busy || requests_busy,
+        AdminNav::CommentTasks | AdminNav::PublishedComments | AdminNav::SiteConfig => core_busy,
+        AdminNav::AuditLogs => audit_busy,
+        AdminNav::MusicWishes => wishes_busy,
+        AdminNav::ArticleRequests => requests_busy,
+        AdminNav::ApiBehavior => behavior_busy,
+        AdminNav::RuntimeMemory => memory_busy,
+        AdminNav::LocalMedia => false,
     };
-    #[cfg(not(feature = "local-media"))]
-    let local_media_link = Html::default();
+
+    let go_to = |nav: AdminNav| {
+        Callback::from(move |event: MouseEvent| {
+            event.prevent_default();
+            navigate_to_admin_section(nav, true);
+        })
+    };
+
+    let error_banner = (*load_error).clone().map(|err| {
+        let retry = on_reload_section.clone();
+        let dismiss = {
+            let load_error = load_error.clone();
+            Callback::from(move |_: MouseEvent| load_error.set(None))
+        };
+        html! {
+            <div class="adm-banner adm-banner--err" role="alert" style="margin-bottom: 20px;">
+                <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
+                <div class="adm-banner__body">{ err }</div>
+                <div class="adm-actions">
+                    <button type="button" class="adm-btn adm-btn--ghost adm-btn--sm" onclick={retry}>
+                        { "重试" }
+                    </button>
+                    <button type="button" class="adm-btn adm-btn--ghost adm-btn--icon adm-btn--sm"
+                        onclick={dismiss} aria-label="关闭错误提示">
+                        <i class="fas fa-xmark" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+        }
+    });
+
+    let refresh_btn = |busy: bool| {
+        let onclick = on_reload_section.clone();
+        html! {
+            <button type="button" class="adm-btn adm-btn--secondary" {onclick} disabled={busy}>
+                <i class={classes!("fas", "fa-rotate-right", busy.then_some("fa-spin"))} aria-hidden="true"></i>
+                <span>{ if busy { "刷新中…" } else { "刷新" } }</span>
+            </button>
+        }
+    };
+
+    let section_view = match *active_section {
+        AdminNav::Overview => {
+            let initial_empty = core_busy
+                && view_config.is_none()
+                && task_groups.is_empty()
+                && music_wishes.is_empty()
+                && article_requests.is_empty();
+            let llm_console = llm_access_frontend_url("/console");
+            #[cfg(feature = "local-media")]
+            let local_media_overview_link = html! {
+                <Link<Route> to={Route::AdminLocalMedia}
+                    classes={classes!("adm-btn", "adm-btn--secondary", "adm-btn--sm")}>
+                    <i class="fas fa-film" aria-hidden="true"></i>
+                    <span>{ "本地媒体" }</span>
+                </Link<Route>>
+            };
+            #[cfg(not(feature = "local-media"))]
+            let local_media_overview_link = Html::default();
+
+            html! {
+                <div class="adm-stack adm-enter">
+                    <AdminPageHeader
+                        eyebrow={Some(AttrValue::Static("工作台 · LOOPBACK ONLY"))}
+                        title={AttrValue::Static("管理概览")}
+                        description={Some(AttrValue::Static(
+                            "汇总本地站点的评论审核、读者共建队列与后台存储运行状态。"
+                        ))}
+                    >
+                        { refresh_btn(section_busy) }
+                    </AdminPageHeader>
+                    { error_banner.clone().unwrap_or_default() }
+
+                    if initial_empty {
+                        { kpi_skeleton(5) }
+                    } else {
+                        <section class="adm-kpis" aria-label="核心指标">
+                            <a class="adm-kpi adm-kpi--link" href={admin_nav_href(AdminNav::CommentTasks)}
+                                onclick={go_to(AdminNav::CommentTasks)}>
+                                <div class="adm-kpi__label">{ "待审评论任务" }</div>
+                                <div class={classes!(
+                                    "adm-kpi__value",
+                                    (pending_tasks_count > 0).then_some("adm-kpi__value--accent"),
+                                )}>
+                                    { pending_tasks_count }
+                                </div>
+                                <div class="adm-kpi__meta">
+                                    { format!("共 {} 条 · 运行 {} · 失败 {}", all_status_tasks_total, running_tasks_count, failed_tasks_count) }
+                                </div>
+                            </a>
+
+                            <a class="adm-kpi adm-kpi--link" href={admin_nav_href(AdminNav::MusicWishes)}
+                                onclick={go_to(AdminNav::MusicWishes)}>
+                                <div class="adm-kpi__label">{ "点歌心愿队列" }</div>
+                                <div class={classes!(
+                                    "adm-kpi__value",
+                                    (pending_wishes_count > 0).then_some("adm-kpi__value--accent"),
+                                )}>
+                                    { *music_wish_total }
+                                </div>
+                                <div class="adm-kpi__meta">
+                                    { format!("本页待审 {} · 失败 {}", pending_wishes_count, failed_wishes_count) }
+                                </div>
+                            </a>
+
+                            <a class="adm-kpi adm-kpi--link" href={admin_nav_href(AdminNav::ArticleRequests)}
+                                onclick={go_to(AdminNav::ArticleRequests)}>
+                                <div class="adm-kpi__label">{ "文章入库请求" }</div>
+                                <div class={classes!(
+                                    "adm-kpi__value",
+                                    (pending_requests_count > 0).then_some("adm-kpi__value--accent"),
+                                )}>
+                                    { *article_request_total }
+                                </div>
+                                <div class="adm-kpi__meta">
+                                    { format!("本页待审 {} · 失败 {}", pending_requests_count, failed_requests_count) }
+                                </div>
+                            </a>
+
+                            <a class="adm-kpi adm-kpi--link" href={admin_nav_href(AdminNav::PublishedComments)}
+                                onclick={go_to(AdminNav::PublishedComments)}>
+                                <div class="adm-kpi__label">{ "已发布评论" }</div>
+                                <div class="adm-kpi__value">{ *published_total }</div>
+                                <div class="adm-kpi__meta">
+                                    { (*comment_config)
+                                        .as_ref()
+                                        .map(|c| format!("提交限流 {}s · 保留 {}d", c.submit_rate_limit_seconds, c.cleanup_retention_days))
+                                        .unwrap_or_else(|| "审核通过并公开展示".to_string()) }
+                                </div>
+                            </a>
+
+                            <a class="adm-kpi adm-kpi--link" href={admin_nav_href(AdminNav::SiteConfig)}
+                                onclick={go_to(AdminNav::SiteConfig)}>
+                                <div class="adm-kpi__label">{ "Lance 自动整理" }</div>
+                                <div class="adm-kpi__value">
+                                    { match (*compaction_config).as_ref() {
+                                        Some(c) if c.enabled => "运行中",
+                                        Some(_) => "已暂停",
+                                        None => "—",
+                                    } }
+                                </div>
+                                <div class="adm-kpi__meta">
+                                    { (*compaction_config)
+                                        .as_ref()
+                                        .map(|c| format!("扫描 {}s · 阈值 {} 片", c.scan_interval_seconds, c.fragment_threshold))
+                                        .unwrap_or_else(|| "点击查看全局配置".to_string()) }
+                                </div>
+                            </a>
+                        </section>
+                    }
+
+                    <div class="adm-grid-2">
+                        <section class="adm-card">
+                            <div class="adm-card__header">
+                                <div>
+                                    <h2 class="adm-card__title">{ "待办与队列入口" }</h2>
+                                    <p class="adm-card__sub">{ "直接进入需要人工确认或失败重试的工作流。" }</p>
+                                </div>
+                            </div>
+                            <div class="adm-card__body adm-card__body--flush">
+                                <a class="adm-todo" href={admin_nav_href(AdminNav::CommentTasks)}
+                                    onclick={go_to(AdminNav::CommentTasks)}>
+                                    <span class="adm-todo__icon">
+                                        <i class="fas fa-inbox" aria-hidden="true"></i>
+                                    </span>
+                                    <div class="adm-todo__main">
+                                        <div class="adm-todo__title">{ "评论任务审核" }</div>
+                                        <div class="adm-todo__meta">
+                                            { format!("涉及 {} 篇文章 · 待审 {} · 失败 {}", *tasks_total, pending_tasks_count, failed_tasks_count) }
+                                        </div>
+                                    </div>
+                                    <span class={classes!(
+                                        "adm-todo__count",
+                                        (pending_tasks_count + failed_tasks_count > 0).then_some("is-hot"),
+                                    )}>
+                                        { pending_tasks_count + failed_tasks_count }
+                                    </span>
+                                </a>
+
+                                <a class="adm-todo" href={admin_nav_href(AdminNav::MusicWishes)}
+                                    onclick={go_to(AdminNav::MusicWishes)}>
+                                    <span class="adm-todo__icon">
+                                        <i class="fas fa-music" aria-hidden="true"></i>
+                                    </span>
+                                    <div class="adm-todo__main">
+                                        <div class="adm-todo__title">{ "点歌心愿队列" }</div>
+                                        <div class="adm-todo__meta">
+                                            { format!("累计 {} 条 · 本页待审 {} · 失败 {}", *music_wish_total, pending_wishes_count, failed_wishes_count) }
+                                        </div>
+                                    </div>
+                                    <span class={classes!(
+                                        "adm-todo__count",
+                                        (pending_wishes_count + failed_wishes_count > 0).then_some("is-hot"),
+                                    )}>
+                                        { pending_wishes_count + failed_wishes_count }
+                                    </span>
+                                </a>
+
+                                <a class="adm-todo" href={admin_nav_href(AdminNav::ArticleRequests)}
+                                    onclick={go_to(AdminNav::ArticleRequests)}>
+                                    <span class="adm-todo__icon">
+                                        <i class="fas fa-file-import" aria-hidden="true"></i>
+                                    </span>
+                                    <div class="adm-todo__main">
+                                        <div class="adm-todo__title">{ "文章入库队列" }</div>
+                                        <div class="adm-todo__meta">
+                                            { format!(
+                                                "累计 {} 条 · 本页待审 {} · 失败 {} · 待补文章 {}",
+                                                *article_request_total,
+                                                pending_requests_count,
+                                                failed_requests_count,
+                                                orphan_done_requests_count
+                                            ) }
+                                        </div>
+                                    </div>
+                                    <span class={classes!(
+                                        "adm-todo__count",
+                                        (pending_requests_count + failed_requests_count + orphan_done_requests_count > 0).then_some("is-hot"),
+                                    )}>
+                                        { pending_requests_count + failed_requests_count + orphan_done_requests_count }
+                                    </span>
+                                </a>
+
+                                <a class="adm-todo" href={admin_nav_href(AdminNav::AuditLogs)}
+                                    onclick={go_to(AdminNav::AuditLogs)}>
+                                    <span class="adm-todo__icon">
+                                        <i class="fas fa-clock-rotate-left" aria-hidden="true"></i>
+                                    </span>
+                                    <div class="adm-todo__main">
+                                        <div class="adm-todo__title">{ "评论审计日志" }</div>
+                                        <div class="adm-todo__meta">{ "追溯每一次审批、修改、重试与清理记录" }</div>
+                                    </div>
+                                    <span class="adm-faint" aria-hidden="true">{ "→" }</span>
+                                </a>
+                            </div>
+                        </section>
+
+                        <section class="adm-card">
+                            <div class="adm-card__header">
+                                <div>
+                                    <h2 class="adm-card__title">{ "运行时摘要与运维工具" }</h2>
+                                    <p class="adm-card__sub">{ "当前生效的站点参数快照与独立子系统入口。" }</p>
+                                </div>
+                                <a class="adm-btn adm-btn--ghost adm-btn--sm"
+                                    href={admin_nav_href(AdminNav::SiteConfig)}
+                                    onclick={go_to(AdminNav::SiteConfig)}>
+                                    { "编辑配置 →" }
+                                </a>
+                            </div>
+                            <div class="adm-card__body adm-stack-sm">
+                                <dl class="adm-kv">
+                                    <div>
+                                        <dt>{ "浏览去重窗口" }</dt>
+                                        <dd class="adm-mono">
+                                            { (*view_config)
+                                                .as_ref()
+                                                .map(|c| format!("{}s（默认 {}d / 上限 {}d）", c.dedupe_window_seconds, c.trend_default_days, c.trend_max_days))
+                                                .unwrap_or_else(|| "—".to_string()) }
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt>{ "音乐播放去重" }</dt>
+                                        <dd class="adm-mono">
+                                            { (*music_config)
+                                                .as_ref()
+                                                .map(|c| format!("{}s · 评论限流 {}s", c.play_dedupe_window_seconds, c.comment_rate_limit_seconds))
+                                                .unwrap_or_else(|| "—".to_string()) }
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt>{ "API 行为保留" }</dt>
+                                        <dd class="adm-mono">
+                                            { (*behavior_config)
+                                                .as_ref()
+                                                .map(|c| format!("{}d · 批次 {} · {}s", c.retention_days, c.flush_batch_size, c.flush_interval_seconds))
+                                                .unwrap_or_else(|| "—".to_string()) }
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt>{ "Compaction 工作线程" }</dt>
+                                        <dd class="adm-mono">
+                                            { (*compaction_config)
+                                                .as_ref()
+                                                .map(|c| format!("{} workers · 清理 >{}h", c.worker_count, c.prune_older_than_hours))
+                                                .unwrap_or_else(|| "—".to_string()) }
+                                        </dd>
+                                    </div>
+                                </dl>
+
+                                <hr class="adm-divider" />
+
+                                <div class="adm-toolbar">
+                                    <a class="adm-btn adm-btn--secondary adm-btn--sm"
+                                        href={admin_nav_href(AdminNav::ApiBehavior)}
+                                        onclick={go_to(AdminNav::ApiBehavior)}>
+                                        <i class="fas fa-chart-line" aria-hidden="true"></i>
+                                        <span>{ "API 行为洞察" }</span>
+                                    </a>
+                                    <a class="adm-btn adm-btn--secondary adm-btn--sm"
+                                        href={admin_nav_href(AdminNav::RuntimeMemory)}
+                                        onclick={go_to(AdminNav::RuntimeMemory)}>
+                                        <i class="fas fa-memory" aria-hidden="true"></i>
+                                        <span>{ "运行时内存" }</span>
+                                    </a>
+                                    { local_media_overview_link }
+                                    <a class="adm-btn adm-btn--primary adm-btn--sm"
+                                        href={llm_console} target="_blank" rel="noopener noreferrer">
+                                        <span>{ "llm-access 控制台" }</span>
+                                        <span aria-hidden="true">{ "↗" }</span>
+                                    </a>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            }
+        },
+
+        AdminNav::CommentTasks => {
+            let mut sorted_counts: Vec<(String, usize)> = grouped_status_counts
+                .iter()
+                .map(|(k, v)| (k.clone(), *v))
+                .collect();
+            sorted_counts.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+
+            let quick_statuses: [(&str, &str); 6] = [
+                ("", "全部"),
+                ("pending", "待审核"),
+                ("approved", "已通过"),
+                ("running", "运行中"),
+                ("done", "已完成"),
+                ("failed", "失败"),
+            ];
+
+            html! {
+                <div class="adm-stack adm-enter">
+                    <AdminPageHeader
+                        eyebrow={Some(AttrValue::Static("内容审核"))}
+                        title={AttrValue::Static("评论任务")}
+                        description={Some(AttrValue::Static(
+                            "按文章聚合的读者评论与 AI 回复队列；点击任务 ID 可在右侧抽屉修订正文、添加备注或检视 AI 执行输出。"
+                        ))}
+                    >
+                        { refresh_btn(core_busy) }
+                    </AdminPageHeader>
+                    { error_banner.clone().unwrap_or_default() }
+
+                    <section class="adm-card">
+                        <div class="adm-card__header">
+                            <div class="adm-tabs" style="border-bottom: 0;" role="tablist" aria-label="任务状态快捷筛选">
+                                { for quick_statuses.into_iter().map(|(val, label)| {
+                                    let active = (*status_filter).trim() == val;
+                                    let count = if val.is_empty() {
+                                        Some(all_status_tasks_total)
+                                    } else {
+                                        grouped_status_counts.get(val).copied()
+                                    };
+                                    html! {
+                                        <button type="button" role="tab"
+                                            aria-selected={if active { "true" } else { "false" }}
+                                            class={classes!("adm-tab", active.then_some("is-active"))}
+                                            onclick={make_quick_status(val)}>
+                                            <span>{ label }</span>
+                                            if let Some(c) = count {
+                                                <span class="adm-tab__count">{ c }</span>
+                                            }
+                                        </button>
+                                    }
+                                }) }
+                            </div>
+                            <div class="adm-toolbar">
+                                <input
+                                    type="text"
+                                    value={(*status_filter).clone()}
+                                    oninput={on_filter_change}
+                                    placeholder="自定义状态过滤（如 pending）"
+                                    aria-label="按任务状态过滤"
+                                    class="adm-input adm-input--mono"
+                                    style="width: 210px;"
+                                />
+                                <button type="button" class="adm-btn adm-btn--secondary" onclick={on_tasks_apply}>
+                                    { "应用" }
+                                </button>
+                            </div>
+                        </div>
+                        if !sorted_counts.is_empty() {
+                            <div class="adm-card__footer">
+                                <div class="adm-toolbar">
+                                    <span class="adm-faint">
+                                        { format!("当前页 {} 篇文章 / {} 条任务", task_groups.len(), grouped_total_tasks) }
+                                    </span>
+                                    { for sorted_counts.into_iter().map(|(st, count)| html! {
+                                        <StatusBadge status={st.clone()} label={Some(AttrValue::from(format!("{st}: {count}")))} />
+                                    }) }
+                                </div>
+                                if core_busy {
+                                    <span class="adm-toolbar adm-faint" style="font-size: 12px;">
+                                        <LoadingSpinner size={SpinnerSize::Small} />
+                                        <span>{ "同步中…" }</span>
+                                    </span>
+                                }
+                            </div>
+                        }
+                    </section>
+
+                    if core_busy && task_groups.is_empty() {
+                        <section class="adm-card">{ table_skeleton(5) }</section>
+                    } else if task_groups.is_empty() {
+                        <section class="adm-card">
+                            <EmptyState
+                                icon="fa-inbox"
+                                title="暂无匹配的评论任务"
+                                hint="当读者提交新评论或调整上方状态筛选条件后，任务将在此处按文章分组展示。"
+                            />
+                        </section>
+                    } else {
+                        <div class="adm-stack">
+                            { for (*task_groups).iter().map(|group| {
+                                let mut g_counts: Vec<(String, usize)> = group
+                                    .status_counts
+                                    .iter()
+                                    .map(|(k, v)| (k.clone(), *v))
+                                    .collect();
+                                g_counts.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+
+                                html! {
+                                    <article class="adm-card">
+                                        <header class="adm-card__header">
+                                            <div class="adm-toolbar" style="min-width: 0;">
+                                                <span class="adm-eyebrow" style="margin: 0;">{ "ARTICLE" }</span>
+                                                <Link<Route>
+                                                    to={Route::ArticleDetail { id: group.article_id.clone() }}
+                                                    classes={classes!("adm-link", "adm-mono", "adm-trunc")}
+                                                >
+                                                    { format!("{} ↗", group.article_id) }
+                                                </Link<Route>>
+                                            </div>
+                                            <div class="adm-toolbar">
+                                                { for g_counts.into_iter().map(|(st, count)| html! {
+                                                    <StatusBadge status={st.clone()} label={Some(AttrValue::from(format!("{st}: {count}")))} />
+                                                }) }
+                                                <span class="adm-tag">{ format!("{} 条任务", group.total) }</span>
+                                            </div>
+                                        </header>
+                                        <div class="adm-card__body adm-card__body--flush">
+                                            <div class="adm-table-wrap">
+                                                <table class="adm-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>{ "任务 ID" }</th>
+                                                            <th>{ "评论摘要" }</th>
+                                                            <th>{ "状态" }</th>
+                                                            <th class="num">{ "尝试" }</th>
+                                                            <th class="num">{ "创建时间" }</th>
+                                                            <th class="actions">{ "操作" }</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        { for group.tasks.iter().map(|task| {
+                                                            let task_id = task.task_id.clone();
+                                                            let status = task.status.clone();
+                                                            let is_busy = task_action_inflight.contains(&task_id);
+                                                            let is_selected = (*selected_task_id).as_deref() == Some(task_id.as_str());
+                                                            let can_approve = !is_busy && (status == "pending" || status == "failed");
+                                                            let can_approve_run = !is_busy && (status == "pending" || status == "approved" || status == "failed");
+                                                            let can_retry = !is_busy && status == "failed";
+                                                            let can_reject = !is_busy && (status == "pending" || status == "approved" || status == "failed");
+                                                            let can_delete = !is_busy && status != "running";
+
+                                                            let select_click = {
+                                                                let on_select_task = on_select_task.clone();
+                                                                let task_id = task_id.clone();
+                                                                Callback::from(move |_| on_select_task.emit(task_id.clone()))
+                                                            };
+                                                            let approve_click = {
+                                                                let run_task_action = run_task_action.clone();
+                                                                let task_id = task_id.clone();
+                                                                Callback::from(move |_| run_task_action.emit((task_id.clone(), "approve".to_string())))
+                                                            };
+                                                            let approve_run_click = {
+                                                                let run_task_action = run_task_action.clone();
+                                                                let task_id = task_id.clone();
+                                                                Callback::from(move |_| run_task_action.emit((task_id.clone(), "approve_run".to_string())))
+                                                            };
+                                                            let retry_click = {
+                                                                let run_task_action = run_task_action.clone();
+                                                                let task_id = task_id.clone();
+                                                                Callback::from(move |_| run_task_action.emit((task_id.clone(), "retry".to_string())))
+                                                            };
+                                                            let reject_click = {
+                                                                let run_task_action = run_task_action.clone();
+                                                                let task_id = task_id.clone();
+                                                                Callback::from(move |_| run_task_action.emit((task_id.clone(), "reject".to_string())))
+                                                            };
+                                                            let delete_click = {
+                                                                let run_task_action = run_task_action.clone();
+                                                                let task_id = task_id.clone();
+                                                                Callback::from(move |_| run_task_action.emit((task_id.clone(), "delete".to_string())))
+                                                            };
+
+                                                            html! {
+                                                                <tr class={classes!(is_selected.then_some("is-selected"))}>
+                                                                    <td class="mono" style="max-width: 190px;">
+                                                                        <button type="button"
+                                                                            class="adm-link adm-mono adm-trunc"
+                                                                            style="border: 0; background: none; padding: 0; text-align: left;"
+                                                                            title={task.task_id.clone()}
+                                                                            onclick={select_click}>
+                                                                            { &task.task_id }
+                                                                        </button>
+                                                                    </td>
+                                                                    <td style="max-width: 280px;">
+                                                                        <span class="adm-trunc" title={task.comment_text.clone()}>
+                                                                            { &task.comment_text }
+                                                                        </span>
+                                                                        if let Some(reason) = task.failure_reason.as_deref().filter(|r| !r.is_empty()) {
+                                                                            <span class="adm-trunc" style="font-size: 11.5px; color: var(--err);" title={reason.to_string()}>
+                                                                                { reason }
+                                                                            </span>
+                                                                        }
+                                                                    </td>
+                                                                    <td><StatusBadge status={status} /></td>
+                                                                    <td class="num">{ task.attempt_count }</td>
+                                                                    <td class="num">{ format_ms(task.created_at) }</td>
+                                                                    <td class="actions">
+                                                                        <div class="adm-row-actions">
+                                                                            <button type="button" class="adm-btn adm-btn--ghost adm-btn--sm"
+                                                                                onclick={approve_click} disabled={!can_approve}>
+                                                                                { "通过" }
+                                                                            </button>
+                                                                            <button type="button" class="adm-btn adm-btn--primary adm-btn--sm"
+                                                                                onclick={approve_run_click} disabled={!can_approve_run}>
+                                                                                { "通过并运行" }
+                                                                            </button>
+                                                                            if can_retry {
+                                                                                <button type="button" class="adm-btn adm-btn--secondary adm-btn--sm"
+                                                                                    onclick={retry_click}>
+                                                                                    { "重试" }
+                                                                                </button>
+                                                                            }
+                                                                            <Link<Route>
+                                                                                to={Route::AdminCommentRuns { task_id: task.task_id.clone() }}
+                                                                                classes={classes!("adm-btn", "adm-btn--ghost", "adm-btn--sm")}
+                                                                            >
+                                                                                { "AI 流 ↗" }
+                                                                            </Link<Route>>
+                                                                            <button type="button" class="adm-btn adm-btn--ghost adm-btn--sm"
+                                                                                onclick={reject_click} disabled={!can_reject}>
+                                                                                { "驳回" }
+                                                                            </button>
+                                                                            <button type="button" class="adm-btn adm-btn--danger adm-btn--sm"
+                                                                                onclick={delete_click} disabled={!can_delete}>
+                                                                                { "删除" }
+                                                                            </button>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            }
+                                                        }) }
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </article>
+                                }
+                            }) }
+                        </div>
+                    }
+
+                    <div class="adm-pager">
+                        <span class="adm-pager__info">
+                            { format!(
+                                "第 {} / {} 页 · 共 {} 篇文章{}",
+                                *tasks_page,
+                                tasks_total_pages,
+                                *tasks_total,
+                                if *tasks_has_more { " · 仍有更多" } else { "" }
+                            ) }
+                        </span>
+                        <Pagination current_page={*tasks_page} total_pages={tasks_total_pages} on_page_change={on_tasks_page_change} />
+                    </div>
+
+                    <Drawer
+                        open={selected_task.is_some()}
+                        on_close={{
+                            let selected_task_id = selected_task_id.clone();
+                            let selected_task = selected_task.clone();
+                            let selected_task_ai_output = selected_task_ai_output.clone();
+                            Callback::from(move |_| {
+                                selected_task_id.set(None);
+                                selected_task.set(None);
+                                selected_task_ai_output.set(None);
+                            })
+                        }}
+                        title={(*selected_task).as_ref().map(|t| AttrValue::from(format!("任务详情 · {}", t.task_id))).unwrap_or_default()}
+                    >
+                        if let Some(task) = (*selected_task).clone() {
+                            <div class="adm-stack">
+                                <dl class="adm-kv">
+                                    <div>
+                                        <dt>{ "当前状态" }</dt>
+                                        <dd><StatusBadge status={task.status.clone()} /></dd>
+                                    </div>
+                                    <div>
+                                        <dt>{ "所属文章" }</dt>
+                                        <dd class="adm-mono">{ &task.article_id }</dd>
+                                    </div>
+                                    <div>
+                                        <dt>{ "来源归属" }</dt>
+                                        <dd class="adm-mono">{ format!("{} · {}", task.client_ip, task.ip_region) }</dd>
+                                    </div>
+                                    <div>
+                                        <dt>{ "尝试次数" }</dt>
+                                        <dd class="adm-mono">{ task.attempt_count }</dd>
+                                    </div>
+                                    <div>
+                                        <dt>{ "创建时间" }</dt>
+                                        <dd class="adm-mono">{ format_ms(task.created_at) }</dd>
+                                    </div>
+                                    <div>
+                                        <dt>{ "更新时间" }</dt>
+                                        <dd class="adm-mono">{ format_ms(task.updated_at) }</dd>
+                                    </div>
+                                </dl>
+
+                                if let Some(reason) = task.failure_reason.as_deref().filter(|s| !s.trim().is_empty()) {
+                                    <div class="adm-banner adm-banner--err">
+                                        <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
+                                        <div class="adm-banner__body">{ format!("失败原因：{reason}") }</div>
+                                    </div>
+                                }
+
+                                if let Some(selected) = task.selected_text.as_deref().filter(|s| !s.trim().is_empty()) {
+                                    <div class="adm-field">
+                                        <span class="adm-label">{ "划线引用片段 (selected_text)" }</span>
+                                        <pre class="adm-code">{ selected }</pre>
+                                    </div>
+                                }
+
+                                <label class="adm-field">
+                                    <span class="adm-label">{ "评论内容 (comment_text)" }</span>
+                                    <textarea
+                                        class="adm-textarea"
+                                        style="min-height: 120px;"
+                                        value={task.comment_text.clone()}
+                                        oninput={on_selected_task_comment_change}
+                                    />
+                                </label>
+
+                                <label class="adm-field">
+                                    <span class="adm-label">{ "管理员备注 (admin_note)" }</span>
+                                    <textarea
+                                        class="adm-textarea"
+                                        style="min-height: 84px;"
+                                        value={task.admin_note.clone().unwrap_or_default()}
+                                        oninput={on_selected_task_note_change}
+                                    />
+                                </label>
+
+                                <div class="adm-actions">
+                                    <button type="button" class="adm-btn adm-btn--primary" onclick={on_save_task}>
+                                        { "保存任务修改" }
+                                    </button>
+                                </div>
+
+                                if let Some(ai_output) = (*selected_task_ai_output).clone() {
+                                    <section class="adm-card adm-card--flat">
+                                        <div class="adm-card__header">
+                                            <div>
+                                                <h4 class="adm-card__title">
+                                                    { format!("AI 运行记录 ({})", ai_output.runs.len()) }
+                                                </h4>
+                                                <p class="adm-card__sub">
+                                                    { format!("已捕获流式片段：{} 条", ai_output.chunks.len()) }
+                                                </p>
+                                            </div>
+                                            <Link<Route>
+                                                to={Route::AdminCommentRuns { task_id: task.task_id.clone() }}
+                                                classes={classes!("adm-btn", "adm-btn--secondary", "adm-btn--sm")}
+                                            >
+                                                { "打开完整流式页 ↗" }
+                                            </Link<Route>>
+                                        </div>
+                                        <div class="adm-card__body adm-stack-sm">
+                                            if ai_output.runs.is_empty() {
+                                                <p class="adm-hint">{ "该任务尚无 AI 运行记录。" }</p>
+                                            } else {
+                                                <div class="adm-toolbar">
+                                                    { for ai_output.runs.iter().map(|run| {
+                                                        let run_id = run.run_id.clone();
+                                                        let selected = ai_output.selected_run_id.as_deref() == Some(run_id.as_str());
+                                                        let click = {
+                                                            let on_select_task_ai_run = on_select_task_ai_run.clone();
+                                                            let run_id = run_id.clone();
+                                                            Callback::from(move |_| on_select_task_ai_run.emit(run_id.clone()))
+                                                        };
+                                                        html! {
+                                                            <button type="button"
+                                                                class={classes!(
+                                                                    "adm-btn",
+                                                                    "adm-btn--sm",
+                                                                    "adm-mono",
+                                                                    if selected { "adm-btn--primary" } else { "adm-btn--secondary" }
+                                                                )}
+                                                                onclick={click}>
+                                                                { format!("{} · {}", run.status, run.run_id) }
+                                                            </button>
+                                                        }
+                                                    }) }
+                                                </div>
+                                            }
+
+                                            if !ai_output.chunks.is_empty() {
+                                                <div class="adm-stack-sm">
+                                                    { for ai_output.chunks.iter().rev().take(10).rev().map(|chunk| {
+                                                        let is_err = chunk.stream == "stderr";
+                                                        let pill_cls = if is_err {
+                                                            "adm-pill adm-pill--err"
+                                                        } else {
+                                                            "adm-pill adm-pill--info"
+                                                        };
+                                                        html! {
+                                                            <div class="adm-field">
+                                                                <div class="adm-toolbar">
+                                                                    <span class={pill_cls}>{ &chunk.stream }</span>
+                                                                    <span class="adm-mono adm-faint">{ format!("batch={}", chunk.batch_index) }</span>
+                                                                </div>
+                                                                <pre class="adm-code">{ &chunk.content }</pre>
+                                                            </div>
+                                                        }
+                                                    }) }
+                                                </div>
+                                            }
+                                        </div>
+                                    </section>
+                                }
+                            </div>
+                        }
+                    </Drawer>
+                </div>
+            }
+        },
+
+        AdminNav::PublishedComments => html! {
+            <div class="adm-stack adm-enter">
+                <AdminPageHeader
+                    eyebrow={Some(AttrValue::Static("内容审核"))}
+                    title={AttrValue::Static("已发布评论")}
+                    description={Some(AttrValue::Static(
+                        "已公开展示在文章底部的读者评论与 AI 回复，支持原位修订或删除撤回。"
+                    ))}
+                >
+                    { refresh_btn(core_busy) }
+                </AdminPageHeader>
+                { error_banner.clone().unwrap_or_default() }
+
+                <section class="adm-card">
+                    <div class="adm-card__header">
+                        <div>
+                            <h2 class="adm-card__title">{ "已发布评论列表" }</h2>
+                            <p class="adm-card__sub">
+                                { format!("当前页 {} 条 · 累计 {} 条", published_comments.len(), *published_total) }
+                            </p>
+                        </div>
+                        if core_busy && !published_comments.is_empty() {
+                            <span class="adm-toolbar adm-faint" style="font-size: 12px;">
+                                <LoadingSpinner size={SpinnerSize::Small} />
+                                <span>{ "同步中…" }</span>
+                            </span>
+                        }
+                    </div>
+
+                    if core_busy && published_comments.is_empty() {
+                        { table_skeleton(6) }
+                    } else if published_comments.is_empty() {
+                        <EmptyState
+                            icon="fa-comments"
+                            title="暂无已发布评论"
+                            hint="审核通过的评论与 AI 回复会公开展示并汇总在此处。"
+                        />
+                    } else {
+                        <div class="adm-card__body adm-card__body--flush">
+                            <div class="adm-table-wrap">
+                                <table class="adm-table">
+                                    <thead>
+                                        <tr>
+                                            <th>{ "评论 ID" }</th>
+                                            <th>{ "所属文章" }</th>
+                                            <th>{ "读者 / 正文摘要" }</th>
+                                            <th>{ "关联任务" }</th>
+                                            <th class="num">{ "发布时间" }</th>
+                                            <th class="actions">{ "操作" }</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        { for (*published_comments).iter().map(|comment| {
+                                            let is_selected = (*selected_published_id).as_deref() == Some(comment.comment_id.as_str());
+                                            let select_click = {
+                                                let on_select_published = on_select_published.clone();
+                                                let comment = comment.clone();
+                                                Callback::from(move |_| on_select_published.emit(comment.clone()))
+                                            };
+                                            let delete_click = {
+                                                let delete_published_action = delete_published_action.clone();
+                                                let comment_id = comment.comment_id.clone();
+                                                Callback::from(move |_| delete_published_action.emit(comment_id.clone()))
+                                            };
+                                            html! {
+                                                <tr class={classes!(is_selected.then_some("is-selected"))}>
+                                                    <td class="mono" style="max-width: 170px;">
+                                                        <span class="adm-trunc" title={comment.comment_id.clone()}>{ &comment.comment_id }</span>
+                                                    </td>
+                                                    <td class="mono" style="max-width: 200px;">
+                                                        <Link<Route>
+                                                            to={Route::ArticleDetail { id: comment.article_id.clone() }}
+                                                            classes={classes!("adm-link", "adm-mono", "adm-trunc")}
+                                                        >
+                                                            { format!("{} ↗", comment.article_id) }
+                                                        </Link<Route>>
+                                                    </td>
+                                                    <td style="max-width: 280px;">
+                                                        <span class="adm-trunc" title={comment.comment_text.clone()}>
+                                                            <strong>{ &comment.author_name }</strong>
+                                                            { format!(" · {}", comment.comment_text) }
+                                                        </span>
+                                                    </td>
+                                                    <td class="mono" style="max-width: 160px;">
+                                                        <span class="adm-trunc adm-faint" title={comment.task_id.clone()}>{ &comment.task_id }</span>
+                                                    </td>
+                                                    <td class="num">{ format_ms(comment.published_at) }</td>
+                                                    <td class="actions">
+                                                        <div class="adm-row-actions">
+                                                            <button type="button" class="adm-btn adm-btn--ghost adm-btn--sm" onclick={select_click}>
+                                                                { "编辑" }
+                                                            </button>
+                                                            <button type="button" class="adm-btn adm-btn--danger adm-btn--sm" onclick={delete_click}>
+                                                                { "删除" }
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        }) }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="adm-card__footer">
+                        <span class="adm-pager__info">
+                            { format!(
+                                "第 {} / {} 页 · 共 {} 条{}",
+                                *published_page,
+                                published_total_pages,
+                                *published_total,
+                                if *published_has_more { " · 仍有更多" } else { "" }
+                            ) }
+                        </span>
+                        <Pagination current_page={*published_page} total_pages={published_total_pages} on_page_change={on_published_page_change} />
+                    </div>
+                </section>
+
+                <Drawer
+                    open={selected_published.is_some()}
+                    on_close={{
+                        let selected_published_id = selected_published_id.clone();
+                        let selected_published = selected_published.clone();
+                        Callback::from(move |_| {
+                            selected_published_id.set(None);
+                            selected_published.set(None);
+                        })
+                    }}
+                    title={(*selected_published).as_ref().map(|c| AttrValue::from(format!("已发布详情 · {}", c.comment_id))).unwrap_or_default()}
+                >
+                    if let Some(comment) = (*selected_published).clone() {
+                        <div class="adm-stack">
+                            <dl class="adm-kv">
+                                <div>
+                                    <dt>{ "读者昵称" }</dt>
+                                    <dd>{ &comment.author_name }</dd>
+                                </div>
+                                <div>
+                                    <dt>{ "所属文章" }</dt>
+                                    <dd class="adm-mono">{ &comment.article_id }</dd>
+                                </div>
+                                <div>
+                                    <dt>{ "关联任务" }</dt>
+                                    <dd class="adm-mono">{ &comment.task_id }</dd>
+                                </div>
+                                <div>
+                                    <dt>{ "发布时间" }</dt>
+                                    <dd class="adm-mono">{ format_ms(comment.published_at) }</dd>
+                                </div>
+                            </dl>
+
+                            <label class="adm-field">
+                                <span class="adm-label">{ "评论正文 (comment_text)" }</span>
+                                <textarea
+                                    class="adm-textarea"
+                                    style="min-height: 110px;"
+                                    value={comment.comment_text.clone()}
+                                    oninput={on_selected_published_comment_change}
+                                />
+                            </label>
+
+                            <label class="adm-field">
+                                <span class="adm-label">{ "AI 回复 Markdown (ai_reply_markdown)" }</span>
+                                <textarea
+                                    class="adm-textarea adm-input--mono"
+                                    style="min-height: 180px;"
+                                    value={comment.ai_reply_markdown.clone().unwrap_or_default()}
+                                    oninput={on_selected_published_ai_change}
+                                />
+                            </label>
+
+                            <div class="adm-actions">
+                                <button type="button" class="adm-btn adm-btn--primary" onclick={on_save_published}>
+                                    { "保存已发布修订" }
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </Drawer>
+            </div>
+        },
+
+        AdminNav::AuditLogs => html! {
+            <div class="adm-stack adm-enter">
+                <AdminPageHeader
+                    eyebrow={Some(AttrValue::Static("内容审核"))}
+                    title={AttrValue::Static("审计日志")}
+                    description={Some(AttrValue::Static(
+                        "按时间倒序记录后台对评论任务的审批、修改、重试与删除轨迹。"
+                    ))}
+                >
+                    { refresh_btn(audit_busy) }
+                </AdminPageHeader>
+                { error_banner.clone().unwrap_or_default() }
+
+                <section class="adm-card">
+                    <div class="adm-card__header">
+                        <div>
+                            <h2 class="adm-card__title">{ "操作审计列表" }</h2>
+                            <p class="adm-card__sub">
+                                { format!("当前页 {} 条 · 累计 {} 条", audit_logs.len(), *audit_total) }
+                            </p>
+                        </div>
+                        <div class="adm-toolbar">
+                            <input
+                                type="text"
+                                value={(*audit_task_filter).clone()}
+                                oninput={on_audit_task_filter_change}
+                                placeholder="按 task_id 过滤"
+                                aria-label="按 task_id 过滤审计日志"
+                                class="adm-input adm-input--mono"
+                                style="width: 190px;"
+                            />
+                            <input
+                                type="text"
+                                value={(*audit_action_filter).clone()}
+                                oninput={on_audit_action_filter_change}
+                                placeholder="按 action 过滤"
+                                aria-label="按 action 过滤审计日志"
+                                class="adm-input adm-input--mono"
+                                style="width: 150px;"
+                            />
+                            <button type="button" class="adm-btn adm-btn--secondary" onclick={on_refresh_audit_click}>
+                                { "筛选" }
+                            </button>
+                        </div>
+                    </div>
+
+                    if audit_busy && audit_logs.is_empty() {
+                        { table_skeleton(6) }
+                    } else if audit_logs.is_empty() {
+                        <EmptyState
+                            icon="fa-clock-rotate-left"
+                            title="暂无审计记录"
+                            hint="对评论任务的审核、修订或删除操作会自动记录在此处。"
+                        />
+                    } else {
+                        <div class="adm-card__body adm-card__body--flush">
+                            <div class="adm-table-wrap">
+                                <table class="adm-table">
+                                    <thead>
+                                        <tr>
+                                            <th>{ "日志 ID" }</th>
+                                            <th>{ "任务 ID" }</th>
+                                            <th>{ "动作" }</th>
+                                            <th>{ "操作者" }</th>
+                                            <th class="num">{ "时间" }</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        { for (*audit_logs).iter().map(|log| html! {
+                                            <tr>
+                                                <td class="mono" style="max-width: 190px;">
+                                                    <span class="adm-trunc" title={log.log_id.clone()}>{ &log.log_id }</span>
+                                                </td>
+                                                <td class="mono" style="max-width: 190px;">
+                                                    <span class="adm-trunc" title={log.task_id.clone()}>{ &log.task_id }</span>
+                                                </td>
+                                                <td><StatusBadge status={log.action.clone()} /></td>
+                                                <td class="mono">{ &log.operator }</td>
+                                                <td class="num">{ format_ms(log.created_at) }</td>
+                                            </tr>
+                                        }) }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="adm-card__footer">
+                        <span class="adm-pager__info">
+                            { format!(
+                                "第 {} / {} 页 · 共 {} 条{}",
+                                *audit_page,
+                                audit_total_pages,
+                                *audit_total,
+                                if *audit_has_more { " · 仍有更多" } else { "" }
+                            ) }
+                        </span>
+                        <Pagination current_page={*audit_page} total_pages={audit_total_pages} on_page_change={on_audit_page_change} />
+                    </div>
+                </section>
+            </div>
+        },
+
+        AdminNav::MusicWishes => html! {
+            <div class="adm-stack adm-enter">
+                <AdminPageHeader
+                    eyebrow={Some(AttrValue::Static("共建队列"))}
+                    title={AttrValue::Static("点歌心愿")}
+                    description={Some(AttrValue::Static(
+                        "读者提交的曲目入库心愿；批准后自动触发检索、解密与 LanceDB 音乐库入库流程。"
+                    ))}
+                >
+                    { refresh_btn(wishes_busy) }
+                </AdminPageHeader>
+                { error_banner.clone().unwrap_or_default() }
+
+                <section class="adm-card">
+                    <div class="adm-card__header">
+                        <div style="flex: 1 1 280px; max-width: 420px;">
+                            <SearchBox
+                                value={(*music_wish_search).clone()}
+                                on_change={on_music_wish_search_change}
+                                placeholder={AttrValue::Static("搜索歌曲 / 歌手 / 昵称 / 留言 / 状态")}
+                            />
+                        </div>
+                        <div class="adm-toolbar adm-mono adm-faint" style="font-size: 12px;">
+                            if !music_wish_query_lower.is_empty() {
+                                <span>{ format!("当前页匹配 {}/{}", music_wish_matched, music_wishes.len()) }</span>
+                            } else {
+                                <span>{ format!("当前页 {} 条 · 累计 {} 条", music_wishes.len(), *music_wish_total) }</span>
+                            }
+                            if wishes_busy && !music_wishes.is_empty() {
+                                <LoadingSpinner size={SpinnerSize::Small} />
+                            }
+                        </div>
+                    </div>
+
+                    if wishes_busy && music_wishes.is_empty() {
+                        { table_skeleton(6) }
+                    } else if music_wishes.is_empty() {
+                        <EmptyState
+                            icon="fa-music"
+                            title="暂无点歌心愿"
+                            hint="还没有读者提交点歌心愿请求。"
+                        />
+                    } else if filtered_music_wishes.is_empty() {
+                        <EmptyState
+                            icon="fa-filter"
+                            title="没有匹配的点歌心愿"
+                            hint="当前搜索关键词在本页没有命中记录，请尝试清空或更换关键词。"
+                        />
+                    } else {
+                        <div class="adm-card__body adm-card__body--flush">
+                            <div class="adm-table-wrap">
+                                <table class="adm-table">
+                                    <thead>
+                                        <tr>
+                                            <th>{ "曲目 / 留言" }</th>
+                                            <th>{ "歌手提示" }</th>
+                                            <th>{ "昵称" }</th>
+                                            <th>{ "状态" }</th>
+                                            <th>{ "地区" }</th>
+                                            <th class="num">{ "提交时间" }</th>
+                                            <th class="actions">{ "操作" }</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        { for filtered_music_wishes.iter().map(|wish| {
+                                            let wid = wish.wish_id.clone();
+                                            let inflight = music_wish_action_inflight.contains(&wid);
+                                            html! {
+                                                <MusicWishRow
+                                                    wish={wish.clone()}
+                                                    inflight={inflight}
+                                                    on_action={on_music_wish_action.clone()}
+                                                />
+                                            }
+                                        }) }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="adm-card__footer">
+                        <span class="adm-pager__info">
+                            { format!(
+                                "第 {} / {} 页 · 共 {} 条{}",
+                                *music_wish_page,
+                                music_wish_total_pages,
+                                *music_wish_total,
+                                if *music_wish_has_more { " · 仍有更多" } else { "" }
+                            ) }
+                        </span>
+                        <Pagination current_page={*music_wish_page} total_pages={music_wish_total_pages} on_page_change={on_music_wish_page_change} />
+                    </div>
+                </section>
+            </div>
+        },
+
+        AdminNav::ArticleRequests => html! {
+            <div class="adm-stack adm-enter">
+                <AdminPageHeader
+                    eyebrow={Some(AttrValue::Static("共建队列"))}
+                    title={AttrValue::Static("文章入库")}
+                    description={Some(AttrValue::Static(
+                        "读者推荐的外部文章转载与双语翻译入库队列；批准后由后台 AI 抓取归一化并写入文库。"
+                    ))}
+                >
+                    { refresh_btn(requests_busy) }
+                </AdminPageHeader>
+                { error_banner.clone().unwrap_or_default() }
+
+                <section class="adm-card">
+                    <div class="adm-card__header">
+                        <div style="flex: 1 1 280px; max-width: 420px;">
+                            <SearchBox
+                                value={(*article_request_search).clone()}
+                                on_change={on_article_request_search_change}
+                                placeholder={AttrValue::Static("搜索 URL / 标题 / 昵称 / 留言 / 状态")}
+                            />
+                        </div>
+                        <div class="adm-toolbar adm-mono adm-faint" style="font-size: 12px;">
+                            if !article_request_query_lower.is_empty() {
+                                <span>{ format!("当前页匹配 {}/{}", article_request_matched, article_requests.len()) }</span>
+                            } else {
+                                <span>{ format!("当前页 {} 条 · 累计 {} 条", article_requests.len(), *article_request_total) }</span>
+                            }
+                            if requests_busy && !article_requests.is_empty() {
+                                <LoadingSpinner size={SpinnerSize::Small} />
+                            }
+                        </div>
+                    </div>
+
+                    if requests_busy && article_requests.is_empty() {
+                        { table_skeleton(6) }
+                    } else if article_requests.is_empty() {
+                        <EmptyState
+                            icon="fa-file-import"
+                            title="暂无文章入库请求"
+                            hint="还没有读者提交外部文章入库请求。"
+                        />
+                    } else if filtered_article_requests.is_empty() {
+                        <EmptyState
+                            icon="fa-filter"
+                            title="没有匹配的入库请求"
+                            hint="当前搜索关键词在本页没有命中记录，请尝试清空或更换关键词。"
+                        />
+                    } else {
+                        <div class="adm-card__body adm-card__body--flush">
+                            <div class="adm-table-wrap">
+                                <table class="adm-table">
+                                    <thead>
+                                        <tr>
+                                            <th>{ "原文链接 / 留言" }</th>
+                                            <th>{ "标题提示" }</th>
+                                            <th>{ "昵称" }</th>
+                                            <th>{ "状态" }</th>
+                                            <th>{ "地区" }</th>
+                                            <th class="num">{ "提交时间" }</th>
+                                            <th class="actions">{ "操作" }</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        { for filtered_article_requests.iter().map(|req| {
+                                            let rid = req.request_id.clone();
+                                            let inflight = article_request_action_inflight.contains(&rid);
+                                            html! {
+                                                <ArticleRequestRow
+                                                    request={req.clone()}
+                                                    inflight={inflight}
+                                                    on_action={on_article_request_action.clone()}
+                                                />
+                                            }
+                                        }) }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="adm-card__footer">
+                        <span class="adm-pager__info">
+                            { format!(
+                                "第 {} / {} 页 · 共 {} 条{}",
+                                *article_request_page,
+                                article_request_total_pages,
+                                *article_request_total,
+                                if *article_request_has_more { " · 仍有更多" } else { "" }
+                            ) }
+                        </span>
+                        <Pagination current_page={*article_request_page} total_pages={article_request_total_pages} on_page_change={on_article_request_page_change} />
+                    </div>
+                </section>
+            </div>
+        },
+
+        AdminNav::ApiBehavior => html! {
+            <div class="adm-stack adm-enter">
+                <AdminPageHeader
+                    eyebrow={Some(AttrValue::Static("运行洞察"))}
+                    title={AttrValue::Static("API 行为分析")}
+                    description={Some(AttrValue::Static(
+                        "按时间窗口、路径、页面、设备与状态码观察站点访问量、终端分布及接口响应耗时。"
+                    ))}
+                >
+                    <button type="button" class="adm-btn adm-btn--danger"
+                        onclick={{
+                            let pending_cleanup_logs = pending_cleanup_logs.clone();
+                            Callback::from(move |_| pending_cleanup_logs.set(true))
+                        }}>
+                        { "清理旧日志" }
+                    </button>
+                    { refresh_btn(behavior_busy) }
+                </AdminPageHeader>
+                { error_banner.clone().unwrap_or_default() }
+
+                <section class="adm-card">
+                    <div class="adm-card__body">
+                        <div class="adm-form-grid">
+                            <label class="adm-field">
+                                <span class="adm-label">{ "最近天数 (days)" }</span>
+                                <input
+                                    type="number"
+                                    value={(*behavior_days).clone()}
+                                    oninput={on_behavior_days_change}
+                                    placeholder="30"
+                                    aria-label="按最近天数筛选行为日志"
+                                    disabled={!(*behavior_date).is_empty()}
+                                    class="adm-input adm-input--mono"
+                                />
+                            </label>
+                            <label class="adm-field">
+                                <span class="adm-label">{ "指定日期 (覆盖天数)" }</span>
+                                <input
+                                    type="date"
+                                    value={(*behavior_date).clone()}
+                                    oninput={on_behavior_date_change}
+                                    aria-label="按具体日期筛选行为日志"
+                                    class="adm-input adm-input--mono"
+                                />
+                            </label>
+                            <label class="adm-field">
+                                <span class="adm-label">{ "接口路径包含" }</span>
+                                <input
+                                    type="text"
+                                    value={(*behavior_path_filter).clone()}
+                                    oninput={on_behavior_path_filter_change}
+                                    placeholder="/api/articles"
+                                    aria-label="按请求路径包含内容筛选"
+                                    class="adm-input adm-input--mono"
+                                />
+                            </label>
+                            <label class="adm-field">
+                                <span class="adm-label">{ "页面路径包含" }</span>
+                                <input
+                                    type="text"
+                                    value={(*behavior_page_filter).clone()}
+                                    oninput={on_behavior_page_filter_change}
+                                    placeholder="/posts/"
+                                    aria-label="按页面标识包含内容筛选"
+                                    class="adm-input adm-input--mono"
+                                />
+                            </label>
+                            <label class="adm-field">
+                                <span class="adm-label">{ "设备类型" }</span>
+                                <input
+                                    type="text"
+                                    value={(*behavior_device_filter).clone()}
+                                    oninput={on_behavior_device_filter_change}
+                                    placeholder="desktop / mobile"
+                                    aria-label="按设备筛选"
+                                    class="adm-input adm-input--mono"
+                                />
+                            </label>
+                            <label class="adm-field">
+                                <span class="adm-label">{ "HTTP 状态码" }</span>
+                                <input
+                                    type="number"
+                                    value={(*behavior_status_filter).clone()}
+                                    oninput={on_behavior_status_filter_change}
+                                    placeholder="200 / 404 / 500"
+                                    title="按 HTTP 状态码筛选，例如 200 / 404 / 500"
+                                    aria-label="按 HTTP 状态码筛选"
+                                    class="adm-input adm-input--mono"
+                                />
+                            </label>
+                        </div>
+                        <div class="adm-actions" style="margin-top: 14px;">
+                            <button type="button" class="adm-btn adm-btn--primary" onclick={on_behavior_apply}>
+                                { "应用筛选" }
+                            </button>
+                            if !(*behavior_date).is_empty() {
+                                <button type="button" class="adm-btn adm-btn--ghost adm-btn--sm"
+                                    onclick={{
+                                        let behavior_date = behavior_date.clone();
+                                        Callback::from(move |_| behavior_date.set(String::new()))
+                                    }}>
+                                    { "清除指定日期" }
+                                </button>
+                            }
+                        </div>
+                    </div>
+                </section>
+
+                if let Some(overview) = (*behavior_overview).clone() {
+                    <>
+                        <section class="adm-kpis" aria-label="API 行为核心指标">
+                            <div class="adm-kpi">
+                                <div class="adm-kpi__label">{ "事件总数" }</div>
+                                <div class="adm-kpi__value">{ overview.total_events }</div>
+                                <div class="adm-kpi__meta">{ "筛选时间窗口累计请求" }</div>
+                            </div>
+                            <div class="adm-kpi">
+                                <div class="adm-kpi__label">{ "独立访客 IP" }</div>
+                                <div class="adm-kpi__value">{ overview.unique_ips }</div>
+                                <div class="adm-kpi__meta">{ "去重客户端地址数" }</div>
+                            </div>
+                            <div class="adm-kpi">
+                                <div class="adm-kpi__label">{ "独立页面" }</div>
+                                <div class="adm-kpi__value">{ overview.unique_pages }</div>
+                                <div class="adm-kpi__meta">{ "被访问的前端路径数" }</div>
+                            </div>
+                            <div class="adm-kpi">
+                                <div class="adm-kpi__label">{ "平均延迟" }</div>
+                                <div class="adm-kpi__value">{ format!("{:.1} ms", overview.avg_latency_ms) }</div>
+                                <div class="adm-kpi__meta">{ "服务端响应均值" }</div>
+                            </div>
+                        </section>
+
+                        <section class="adm-card">
+                            <div class="adm-card__header">
+                                <h2 class="adm-card__title">{ "请求量趋势" }</h2>
+                            </div>
+                            <div class="adm-card__body">
+                                <ViewTrendChart
+                                    points={to_view_points(&overview.timeseries)}
+                                    empty_text={"暂无行为趋势数据".to_string()}
+                                />
+                            </div>
+                        </section>
+
+                        <div class="adm-grid-3">
+                            { behavior_distribution_card("热门接口 (Top Endpoints)", &overview.top_endpoints, true) }
+                            { behavior_distribution_card("热门页面 (Top Pages)", &overview.top_pages, true) }
+                            { behavior_distribution_card("设备分布", &overview.device_distribution, false) }
+                            { behavior_distribution_card("浏览器分布", &overview.browser_distribution, false) }
+                            { behavior_distribution_card("操作系统分布", &overview.os_distribution, false) }
+                            { behavior_distribution_card("地域分布", &overview.region_distribution, false) }
+                        </div>
+                    </>
+                } else if *behavior_overview_loading {
+                    <>
+                        { kpi_skeleton(4) }
+                        <div class="adm-grid-3" aria-hidden="true">
+                            { for (0..6).map(|_| html! {
+                                <div class="adm-card">
+                                    <div class="adm-card__body adm-stack-sm">
+                                        <span class="adm-skel" style="width: 45%;"></span>
+                                        <span class="adm-skel adm-skel--row"></span>
+                                        <span class="adm-skel adm-skel--row"></span>
+                                    </div>
+                                </div>
+                            }) }
+                        </div>
+                    </>
+                }
+
+                <section class="adm-card">
+                    <div class="adm-card__header">
+                        <div>
+                            <h2 class="adm-card__title">
+                                { if (*behavior_date).is_empty() {
+                                    "最近请求明细".to_string()
+                                } else {
+                                    format!("{} 请求明细", *behavior_date)
+                                } }
+                            </h2>
+                            <p class="adm-card__sub">
+                                { format!(
+                                    "显示第 {}–{} 条 / 共 {} 条",
+                                    if behavior_events.is_empty() { 0 } else { *behavior_offset + 1 },
+                                    *behavior_offset + behavior_events.len(),
+                                    *behavior_total
+                                ) }
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            class="adm-btn adm-btn--secondary adm-btn--sm"
+                            onclick={on_behavior_refresh_events}
+                            disabled={*behavior_events_loading}
+                        >
+                            <i class={classes!("fas", "fa-rotate-right", (*behavior_events_loading).then_some("fa-spin"))} aria-hidden="true"></i>
+                            <span>{ if *behavior_events_loading { "刷新中…" } else { "仅刷新事件" } }</span>
+                        </button>
+                    </div>
+
+                    if *behavior_events_loading && behavior_events.is_empty() {
+                        { table_skeleton(6) }
+                    } else if behavior_events.is_empty() {
+                        <EmptyState
+                            icon="fa-chart-line"
+                            title="暂无匹配的行为事件"
+                            hint="调整上方时间范围或路径/状态码条件后重新应用筛选。"
+                        />
+                    } else {
+                        <div class="adm-card__body adm-card__body--flush">
+                            <div class="adm-table-wrap">
+                                <table class="adm-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="num">{ "时间" }</th>
+                                            <th>{ "页面路径" }</th>
+                                            <th>{ "请求接口" }</th>
+                                            <th class="num">{ "状态" }</th>
+                                            <th>{ "设备" }</th>
+                                            <th>{ "浏览器 / 系统" }</th>
+                                            <th>{ "IP / 归属地" }</th>
+                                            <th class="num">{ "耗时" }</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        { for (*behavior_events).iter().map(|event| {
+                                            let full_api = if event.query.is_empty() {
+                                                format!("{} {}", event.method, event.path)
+                                            } else {
+                                                format!("{} {}?{}", event.method, event.path, event.query)
+                                            };
+                                            let ip_reg = format!("{} · {}", event.client_ip, event.ip_region);
+                                            html! {
+                                                <tr>
+                                                    <td class="num">{ format_ms(event.occurred_at) }</td>
+                                                    <td class="mono" style="max-width: 200px;">
+                                                        <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+                                                            <span class="adm-trunc" title={event.page_path.clone()}>{ &event.page_path }</span>
+                                                            <CopyButton text={event.page_path.clone()} />
+                                                        </div>
+                                                    </td>
+                                                    <td class="mono" style="max-width: 260px;">
+                                                        <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+                                                            <span class="adm-trunc" title={full_api.clone()}>
+                                                                { format!("{} {}", event.method, event.path) }
+                                                            </span>
+                                                            <CopyButton text={full_api} />
+                                                        </div>
+                                                    </td>
+                                                    <td class="num">{ http_status_pill(event.status_code) }</td>
+                                                    <td>{ &event.device_type }</td>
+                                                    <td class="adm-muted" style="white-space: nowrap;">
+                                                        { format!("{} / {}", event.browser_family, event.os_family) }
+                                                    </td>
+                                                    <td class="mono" style="white-space: nowrap;">
+                                                        <div style="display: inline-flex; align-items: center; gap: 6px;">
+                                                            <span>{ &ip_reg }</span>
+                                                            <CopyButton text={format!("{}/{}", event.client_ip, event.ip_region)} />
+                                                        </div>
+                                                    </td>
+                                                    <td class="num">{ format!("{} ms", event.latency_ms) }</td>
+                                                </tr>
+                                            }
+                                        }) }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="adm-card__footer">
+                        <span class="adm-pager__info">
+                            { format!(
+                                "第 {} / {} 页 · 共 {} 条{}",
+                                *behavior_page,
+                                behavior_total_pages,
+                                *behavior_total,
+                                if *behavior_has_more { " · 仍有更多" } else { "" }
+                            ) }
+                        </span>
+                        <Pagination current_page={*behavior_page} total_pages={behavior_total_pages} on_page_change={on_behavior_page_change} />
+                    </div>
+                </section>
+            </div>
+        },
+
+        AdminNav::RuntimeMemory => html! {
+            <div class="adm-stack adm-enter">
+                <AdminPageHeader
+                    eyebrow={Some(AttrValue::Static("运行洞察"))}
+                    title={AttrValue::Static("运行时内存剖析")}
+                    description={Some(
+                        (*memory_overview)
+                            .as_ref()
+                            .map(|ov| AttrValue::from(format!(
+                                "快照时间 {} · 进程运行 {}s · Top {}",
+                                format_ms(ov.generated_at_ms),
+                                ov.process_uptime_secs,
+                                memory_top.trim()
+                            )))
+                            .unwrap_or_else(|| AttrValue::Static(
+                                "后端进程堆分配采样、MiMalloc 分配器统计以及函数/模块/调用栈热点排行。"
+                            ))
+                    )}
+                >
+                    <input
+                        type="number"
+                        value={(*memory_top).clone()}
+                        oninput={on_memory_top_change}
+                        min="1"
+                        placeholder="Top N"
+                        aria-label="热点排行条数 Top N"
+                        class="adm-input adm-input--mono"
+                        style="width: 92px; height: 34px;"
+                    />
+                    <button type="button" class="adm-btn adm-btn--secondary" onclick={on_memory_refresh} disabled={memory_busy}>
+                        <i class={classes!("fas", "fa-rotate-right", memory_busy.then_some("fa-spin"))} aria-hidden="true"></i>
+                        <span>{ "刷新" }</span>
+                    </button>
+                    <button type="button" class="adm-btn adm-btn--secondary"
+                        onclick={on_memory_reset} disabled={*memory_action_loading}>
+                        { if *memory_action_loading { "执行中…" } else { "重置统计" } }
+                    </button>
+                    <button type="button" class="adm-btn adm-btn--primary"
+                        onclick={on_memory_save_config}
+                        disabled={*memory_action_loading || memory_config.is_none()}>
+                        { if *memory_action_loading { "保存中…" } else { "保存采样配置" } }
+                    </button>
+                </AdminPageHeader>
+                { error_banner.clone().unwrap_or_default() }
+
+                if let Some(overview) = (*memory_overview).clone() {
+                    <>
+                        <section class="adm-kpis" aria-label="进程与分配器内存指标">
+                            <div class="adm-kpi">
+                                <div class="adm-kpi__label">{ "活跃堆估算 (Live Heap)" }</div>
+                                <div class="adm-kpi__value">{ format_bytes(overview.total_live_bytes_estimate) }</div>
+                                <div class="adm-kpi__meta">
+                                    { format!("追踪分配 {} · 独立栈 {}", overview.tracked_allocations, overview.distinct_stacks) }
+                                </div>
+                            </div>
+                            <div class="adm-kpi">
+                                <div class="adm-kpi__label">{ "累计分配估算" }</div>
+                                <div class="adm-kpi__value">{ format_bytes(overview.total_alloc_bytes_estimate) }</div>
+                                <div class="adm-kpi__meta">
+                                    { format!("alloc={} free={} drop={}", overview.sampled_alloc_events, overview.sampled_dealloc_events, overview.dropped_allocations) }
+                                </div>
+                            </div>
+                            <div class="adm-kpi">
+                                <div class="adm-kpi__label">{ "进程常驻内存 (RSS)" }</div>
+                                <div class="adm-kpi__value">{ format_bytes(overview.process_rss_bytes) }</div>
+                                <div class="adm-kpi__meta">
+                                    { format!("虚拟内存 {}", format_bytes(overview.process_virtual_bytes)) }
+                                </div>
+                            </div>
+                            <div class="adm-kpi">
+                                <div class="adm-kpi__label">{ "MiMalloc RSS" }</div>
+                                <div class="adm-kpi__value">{ format_bytes(overview.mimalloc.current_rss_bytes) }</div>
+                                <div class="adm-kpi__meta">
+                                    { format!("峰值 {} · 缺页 {}", format_bytes(overview.mimalloc.peak_rss_bytes), overview.mimalloc.page_faults) }
+                                </div>
+                            </div>
+                            <div class="adm-kpi">
+                                <div class="adm-kpi__label">{ "MiMalloc Commit" }</div>
+                                <div class="adm-kpi__value">{ format_bytes(overview.mimalloc.current_commit_bytes) }</div>
+                                <div class="adm-kpi__meta">
+                                    { format!("峰值 {} · {} ms", format_bytes(overview.mimalloc.peak_commit_bytes), overview.mimalloc.elapsed_millis) }
+                                </div>
+                            </div>
+                        </section>
+                    </>
+                } else if memory_busy {
+                    { kpi_skeleton(5) }
+                }
+
+                if let Some(config) = (*memory_config).clone() {
+                    <section class="adm-card">
+                        <div class="adm-card__header">
+                            <div>
+                                <h2 class="adm-card__title">{ "采样器运行时配置 (Profiler Config)" }</h2>
+                                <p class="adm-card__sub">
+                                    { format!(
+                                        "修改后点击右上角「保存采样配置」生效 · stack_skip={} · max_stack_depth={}",
+                                        config.stack_skip, config.max_stack_depth
+                                    ) }
+                                </p>
+                            </div>
+                            <label class="adm-check">
+                                <input
+                                    type="checkbox"
+                                    checked={config.enabled}
+                                    onchange={on_memory_enabled_change}
+                                />
+                                <span>{ "启用分配采样 (enabled)" }</span>
+                            </label>
+                        </div>
+                        <div class="adm-card__body">
+                            <div class="adm-form-grid">
+                                <label class="adm-field">
+                                    <span class="adm-label">{ "采样步长 (sample_rate)" }</span>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        value={config.sample_rate.to_string()}
+                                        oninput={on_memory_sample_rate_change}
+                                        class="adm-input adm-input--mono"
+                                    />
+                                </label>
+                                <label class="adm-field">
+                                    <span class="adm-label">{ "最小采样字节 (min_alloc_bytes)" }</span>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        value={config.min_alloc_bytes.to_string()}
+                                        oninput={on_memory_min_alloc_change}
+                                        class="adm-input adm-input--mono"
+                                    />
+                                </label>
+                                <label class="adm-field">
+                                    <span class="adm-label">{ "最大追踪分配数 (max_tracked_allocations)" }</span>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        value={config.max_tracked_allocations.to_string()}
+                                        oninput={on_memory_max_tracked_change}
+                                        class="adm-input adm-input--mono"
+                                    />
+                                </label>
+                            </div>
+                        </div>
+                    </section>
+                }
+
+                <div class="adm-grid-3">
+                    <article class="admin-dist-card">
+                        <header class="admin-dist-card__header">
+                            <span>{ "热点函数 (Top Functions)" }</span>
+                            if let Some(report) = (*memory_functions).as_ref() {
+                                <span class="admin-dist-card__count">{ report.entries.len() }</span>
+                            }
+                        </header>
+                        if let Some(report) = (*memory_functions).as_ref() {
+                            if report.entries.is_empty() {
+                                <div class="adm-card__body adm-faint" style="font-size: 12.5px;">{ "暂无函数采样数据" }</div>
+                            } else {
+                                { memory_function_list(&report.entries) }
+                            }
+                        } else if memory_busy {
+                            { table_skeleton(4) }
+                        } else {
+                            <div class="adm-card__body adm-faint" style="font-size: 12.5px;">{ "数据不可用" }</div>
+                        }
+                    </article>
+
+                    <article class="admin-dist-card">
+                        <header class="admin-dist-card__header">
+                            <span>{ "热点模块 (Top Modules)" }</span>
+                            if let Some(report) = (*memory_modules).as_ref() {
+                                <span class="admin-dist-card__count">{ report.entries.len() }</span>
+                            }
+                        </header>
+                        if let Some(report) = (*memory_modules).as_ref() {
+                            if report.entries.is_empty() {
+                                <div class="adm-card__body adm-faint" style="font-size: 12.5px;">{ "暂无模块采样数据" }</div>
+                            } else {
+                                { memory_module_list(&report.entries) }
+                            }
+                        } else if memory_busy {
+                            { table_skeleton(4) }
+                        } else {
+                            <div class="adm-card__body adm-faint" style="font-size: 12.5px;">{ "数据不可用" }</div>
+                        }
+                    </article>
+
+                    <article class="admin-dist-card">
+                        <header class="admin-dist-card__header">
+                            <span>{ "热点调用栈 (Top Stacks)" }</span>
+                            if let Some(report) = (*memory_stacks).as_ref() {
+                                <span class="admin-dist-card__count">{ report.entries.len() }</span>
+                            }
+                        </header>
+                        if let Some(report) = (*memory_stacks).as_ref() {
+                            if report.entries.is_empty() {
+                                <div class="adm-card__body adm-faint" style="font-size: 12.5px;">{ "暂无调用栈采样数据" }</div>
+                            } else {
+                                { memory_stack_list(&report.entries) }
+                            }
+                        } else if memory_busy {
+                            { table_skeleton(4) }
+                        } else {
+                            <div class="adm-card__body adm-faint" style="font-size: 12.5px;">{ "数据不可用" }</div>
+                        }
+                    </article>
+                </div>
+            </div>
+        },
+
+        AdminNav::SiteConfig | AdminNav::LocalMedia => {
+            let configs_ready = view_config.is_some()
+                && comment_config.is_some()
+                && music_config.is_some()
+                && behavior_config.is_some()
+                && compaction_config.is_some();
+
+            html! {
+                <div class="adm-stack adm-enter">
+                    <AdminPageHeader
+                        eyebrow={Some(AttrValue::Static("站点配置"))}
+                        title={AttrValue::Static("全局运行时配置与维护")}
+                        description={Some(AttrValue::Static(
+                            "管理站点浏览统计、评论与音乐限流、行为日志落盘缓冲以及 LanceDB 后台自动压缩与数据清理。"
+                        ))}
+                    >
+                        { refresh_btn(core_busy) }
+                        <button type="button" class="adm-btn adm-btn--primary"
+                            onclick={on_save_configs}
+                            disabled={*saving || !configs_ready}>
+                            <i class="fas fa-floppy-disk" aria-hidden="true"></i>
+                            <span>{ if *saving { "保存中…" } else { "保存全部配置" } }</span>
+                        </button>
+                    </AdminPageHeader>
+                    { error_banner.clone().unwrap_or_default() }
+
+                    <div class="adm-grid-2">
+                        <section class="adm-card">
+                            <div class="adm-card__header">
+                                <div>
+                                    <h2 class="adm-card__title">{ "浏览统计 (View Analytics)" }</h2>
+                                    <p class="adm-card__sub">{ "控制阅读计数去重时间窗与趋势图跨度上限。" }</p>
+                                </div>
+                            </div>
+                            <div class="adm-card__body">
+                                if let Some(cfg) = (*view_config).clone() {
+                                    <div class="adm-stack-sm">
+                                        <label class="adm-field">
+                                            <span class="adm-label">{ "去重时间窗秒数 (dedupe_window_seconds)" }</span>
+                                            <input
+                                                type="number"
+                                                value={cfg.dedupe_window_seconds.to_string()}
+                                                class="adm-input adm-input--mono"
+                                                oninput={{
+                                                    let view_config = view_config.clone();
+                                                    Callback::from(move |event: InputEvent| {
+                                                        if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                                            if let Ok(v) = target.value().parse::<u64>() {
+                                                                let mut next = (*view_config).clone();
+                                                                if let Some(cfg) = next.as_mut() {
+                                                                    cfg.dedupe_window_seconds = v;
+                                                                }
+                                                                view_config.set(next);
+                                                            }
+                                                        }
+                                                    })
+                                                }}
+                                            />
+                                        </label>
+                                        <label class="adm-field">
+                                            <span class="adm-label">{ "趋势默认天数 (trend_default_days)" }</span>
+                                            <input
+                                                type="number"
+                                                value={cfg.trend_default_days.to_string()}
+                                                class="adm-input adm-input--mono"
+                                                oninput={{
+                                                    let view_config = view_config.clone();
+                                                    Callback::from(move |event: InputEvent| {
+                                                        if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                                            if let Ok(v) = target.value().parse::<usize>() {
+                                                                let mut next = (*view_config).clone();
+                                                                if let Some(cfg) = next.as_mut() {
+                                                                    cfg.trend_default_days = v;
+                                                                }
+                                                                view_config.set(next);
+                                                            }
+                                                        }
+                                                    })
+                                                }}
+                                            />
+                                        </label>
+                                        <label class="adm-field">
+                                            <span class="adm-label">{ "趋势最大天数 (trend_max_days)" }</span>
+                                            <input
+                                                type="number"
+                                                value={cfg.trend_max_days.to_string()}
+                                                class="adm-input adm-input--mono"
+                                                oninput={{
+                                                    let view_config = view_config.clone();
+                                                    Callback::from(move |event: InputEvent| {
+                                                        if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                                            if let Ok(v) = target.value().parse::<usize>() {
+                                                                let mut next = (*view_config).clone();
+                                                                if let Some(cfg) = next.as_mut() {
+                                                                    cfg.trend_max_days = v;
+                                                                }
+                                                                view_config.set(next);
+                                                            }
+                                                        }
+                                                    })
+                                                }}
+                                            />
+                                        </label>
+                                    </div>
+                                } else if core_busy {
+                                    { table_skeleton(3) }
+                                } else {
+                                    <p class="adm-hint">{ "配置暂不可用" }</p>
+                                }
+                            </div>
+                        </section>
+
+                        <section class="adm-card">
+                            <div class="adm-card__header">
+                                <div>
+                                    <h2 class="adm-card__title">{ "评论运行时 (Comment Runtime)" }</h2>
+                                    <p class="adm-card__sub">{ "控制评论提交限流、默认分页大小与清理保留天数。" }</p>
+                                </div>
+                            </div>
+                            <div class="adm-card__body">
+                                if let Some(cfg) = (*comment_config).clone() {
+                                    <div class="adm-stack-sm">
+                                        <label class="adm-field">
+                                            <span class="adm-label">{ "提交限流秒数 (submit_rate_limit_seconds)" }</span>
+                                            <input
+                                                type="number"
+                                                value={cfg.submit_rate_limit_seconds.to_string()}
+                                                class="adm-input adm-input--mono"
+                                                oninput={{
+                                                    let comment_config = comment_config.clone();
+                                                    Callback::from(move |event: InputEvent| {
+                                                        if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                                            if let Ok(v) = target.value().parse::<u64>() {
+                                                                let mut next = (*comment_config).clone();
+                                                                if let Some(cfg) = next.as_mut() {
+                                                                    cfg.submit_rate_limit_seconds = v;
+                                                                }
+                                                                comment_config.set(next);
+                                                            }
+                                                        }
+                                                    })
+                                                }}
+                                            />
+                                        </label>
+                                        <label class="adm-field">
+                                            <span class="adm-label">{ "列表默认条数 (list_default_limit)" }</span>
+                                            <input
+                                                type="number"
+                                                value={cfg.list_default_limit.to_string()}
+                                                class="adm-input adm-input--mono"
+                                                oninput={{
+                                                    let comment_config = comment_config.clone();
+                                                    Callback::from(move |event: InputEvent| {
+                                                        if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                                            if let Ok(v) = target.value().parse::<usize>() {
+                                                                let mut next = (*comment_config).clone();
+                                                                if let Some(cfg) = next.as_mut() {
+                                                                    cfg.list_default_limit = v;
+                                                                }
+                                                                comment_config.set(next);
+                                                            }
+                                                        }
+                                                    })
+                                                }}
+                                            />
+                                        </label>
+                                        <label class="adm-field">
+                                            <span class="adm-label">{ "默认清理保留天数 (cleanup_retention_days)" }</span>
+                                            <input
+                                                type="number"
+                                                value={cfg.cleanup_retention_days.to_string()}
+                                                class="adm-input adm-input--mono"
+                                                oninput={{
+                                                    let comment_config = comment_config.clone();
+                                                    Callback::from(move |event: InputEvent| {
+                                                        if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                                            if let Ok(v) = target.value().parse::<i64>() {
+                                                                let mut next = (*comment_config).clone();
+                                                                if let Some(cfg) = next.as_mut() {
+                                                                    cfg.cleanup_retention_days = v;
+                                                                }
+                                                                comment_config.set(next);
+                                                            }
+                                                        }
+                                                    })
+                                                }}
+                                            />
+                                        </label>
+                                    </div>
+                                } else if core_busy {
+                                    { table_skeleton(3) }
+                                } else {
+                                    <p class="adm-hint">{ "配置暂不可用" }</p>
+                                }
+                            </div>
+                        </section>
+
+                        <section class="adm-card">
+                            <div class="adm-card__header">
+                                <div>
+                                    <h2 class="adm-card__title">{ "音乐运行时 (Music Runtime)" }</h2>
+                                    <p class="adm-card__sub">{ "控制曲目播放去重窗口、乐评提交频率与默认列表上限。" }</p>
+                                </div>
+                            </div>
+                            <div class="adm-card__body">
+                                if let Some(cfg) = (*music_config).clone() {
+                                    <div class="adm-stack-sm">
+                                        <label class="adm-field">
+                                            <span class="adm-label">{ "播放去重秒数 (play_dedupe_window_seconds)" }</span>
+                                            <input
+                                                type="number"
+                                                value={cfg.play_dedupe_window_seconds.to_string()}
+                                                class="adm-input adm-input--mono"
+                                                oninput={{
+                                                    let music_config = music_config.clone();
+                                                    Callback::from(move |event: InputEvent| {
+                                                        if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                                            if let Ok(v) = target.value().parse::<u64>() {
+                                                                let mut next = (*music_config).clone();
+                                                                if let Some(cfg) = next.as_mut() {
+                                                                    cfg.play_dedupe_window_seconds = v;
+                                                                }
+                                                                music_config.set(next);
+                                                            }
+                                                        }
+                                                    })
+                                                }}
+                                            />
+                                        </label>
+                                        <label class="adm-field">
+                                            <span class="adm-label">{ "乐评限流秒数 (comment_rate_limit_seconds)" }</span>
+                                            <input
+                                                type="number"
+                                                value={cfg.comment_rate_limit_seconds.to_string()}
+                                                class="adm-input adm-input--mono"
+                                                oninput={{
+                                                    let music_config = music_config.clone();
+                                                    Callback::from(move |event: InputEvent| {
+                                                        if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                                            if let Ok(v) = target.value().parse::<u64>() {
+                                                                let mut next = (*music_config).clone();
+                                                                if let Some(cfg) = next.as_mut() {
+                                                                    cfg.comment_rate_limit_seconds = v;
+                                                                }
+                                                                music_config.set(next);
+                                                            }
+                                                        }
+                                                    })
+                                                }}
+                                            />
+                                        </label>
+                                        <label class="adm-field">
+                                            <span class="adm-label">{ "列表默认条数 (list_default_limit)" }</span>
+                                            <input
+                                                type="number"
+                                                value={cfg.list_default_limit.to_string()}
+                                                class="adm-input adm-input--mono"
+                                                oninput={{
+                                                    let music_config = music_config.clone();
+                                                    Callback::from(move |event: InputEvent| {
+                                                        if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                                            if let Ok(v) = target.value().parse::<usize>() {
+                                                                let mut next = (*music_config).clone();
+                                                                if let Some(cfg) = next.as_mut() {
+                                                                    cfg.list_default_limit = v;
+                                                                }
+                                                                music_config.set(next);
+                                                            }
+                                                        }
+                                                    })
+                                                }}
+                                            />
+                                        </label>
+                                    </div>
+                                } else if core_busy {
+                                    { table_skeleton(3) }
+                                } else {
+                                    <p class="adm-hint">{ "配置暂不可用" }</p>
+                                }
+                            </div>
+                        </section>
+
+                        <section class="adm-card">
+                            <div class="adm-card__header">
+                                <div>
+                                    <h2 class="adm-card__title">{ "LanceDB 自动整理 (Storage Maintenance)" }</h2>
+                                    <p class="adm-card__sub">{ "控制后台定时 compact / prune 调度器与并发工作线程。" }</p>
+                                </div>
+                                if let Some(cfg) = (*compaction_config).clone() {
+                                    <label class="adm-check">
+                                        <input
+                                            type="checkbox"
+                                            checked={cfg.enabled}
+                                            oninput={{
+                                                let compaction_config = compaction_config.clone();
+                                                Callback::from(move |event: InputEvent| {
+                                                    if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                                        let mut next = (*compaction_config).clone();
+                                                        if let Some(cfg) = next.as_mut() {
+                                                            cfg.enabled = target.checked();
+                                                        }
+                                                        compaction_config.set(next);
+                                                    }
+                                                })
+                                            }}
+                                        />
+                                        <span>{ "启用 (enabled)" }</span>
+                                    </label>
+                                }
+                            </div>
+                            <div class="adm-card__body">
+                                if let Some(cfg) = (*compaction_config).clone() {
+                                    <div class="adm-form-grid">
+                                        <label class="adm-field">
+                                            <span class="adm-label">{ "扫描间隔秒数 (scan_interval_seconds)" }</span>
+                                            <input
+                                                type="number"
+                                                value={cfg.scan_interval_seconds.to_string()}
+                                                class="adm-input adm-input--mono"
+                                                oninput={{
+                                                    let compaction_config = compaction_config.clone();
+                                                    Callback::from(move |event: InputEvent| {
+                                                        if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                                            if let Ok(v) = target.value().parse::<u64>() {
+                                                                let mut next = (*compaction_config).clone();
+                                                                if let Some(cfg) = next.as_mut() {
+                                                                    cfg.scan_interval_seconds = v;
+                                                                }
+                                                                compaction_config.set(next);
+                                                            }
+                                                        }
+                                                    })
+                                                }}
+                                            />
+                                        </label>
+                                        <label class="adm-field">
+                                            <span class="adm-label">{ "碎片数阈值 (fragment_threshold)" }</span>
+                                            <input
+                                                type="number"
+                                                value={cfg.fragment_threshold.to_string()}
+                                                class="adm-input adm-input--mono"
+                                                oninput={{
+                                                    let compaction_config = compaction_config.clone();
+                                                    Callback::from(move |event: InputEvent| {
+                                                        if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                                            if let Ok(v) = target.value().parse::<usize>() {
+                                                                let mut next = (*compaction_config).clone();
+                                                                if let Some(cfg) = next.as_mut() {
+                                                                    cfg.fragment_threshold = v;
+                                                                }
+                                                                compaction_config.set(next);
+                                                            }
+                                                        }
+                                                    })
+                                                }}
+                                            />
+                                        </label>
+                                        <label class="adm-field">
+                                            <span class="adm-label">{ "历史版本保留小时数 (prune_older_than_hours)" }</span>
+                                            <input
+                                                type="number"
+                                                value={cfg.prune_older_than_hours.to_string()}
+                                                class="adm-input adm-input--mono"
+                                                oninput={{
+                                                    let compaction_config = compaction_config.clone();
+                                                    Callback::from(move |event: InputEvent| {
+                                                        if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                                            if let Ok(v) = target.value().parse::<i64>() {
+                                                                let mut next = (*compaction_config).clone();
+                                                                if let Some(cfg) = next.as_mut() {
+                                                                    cfg.prune_older_than_hours = v;
+                                                                }
+                                                                compaction_config.set(next);
+                                                            }
+                                                        }
+                                                    })
+                                                }}
+                                            />
+                                        </label>
+                                        <label class="adm-field">
+                                            <span class="adm-label">{ "工作线程数 (worker_count)" }</span>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                value={cfg.worker_count.to_string()}
+                                                class="adm-input adm-input--mono"
+                                                oninput={{
+                                                    let compaction_config = compaction_config.clone();
+                                                    Callback::from(move |event: InputEvent| {
+                                                        if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                                            if let Ok(v) = target.value().parse::<usize>() {
+                                                                let mut next = (*compaction_config).clone();
+                                                                if let Some(cfg) = next.as_mut() {
+                                                                    cfg.worker_count = v.max(1);
+                                                                }
+                                                                compaction_config.set(next);
+                                                            }
+                                                        }
+                                                    })
+                                                }}
+                                            />
+                                        </label>
+                                    </div>
+                                } else if core_busy {
+                                    { table_skeleton(3) }
+                                } else {
+                                    <p class="adm-hint">{ "配置暂不可用" }</p>
+                                }
+                            </div>
+                        </section>
+                    </div>
+
+                    <section class="adm-card">
+                        <div class="adm-card__header">
+                            <div>
+                                <h2 class="adm-card__title">{ "API 行为采集与落盘缓冲 (API Behavior)" }</h2>
+                                <p class="adm-card__sub">{ "控制行为事件保留周期、查询窗口上限以及内存缓冲批量刷盘参数。" }</p>
+                            </div>
+                        </div>
+                        <div class="adm-card__body">
+                            if let Some(cfg) = (*behavior_config).clone() {
+                                <div class="adm-form-grid">
+                                    <label class="adm-field">
+                                        <span class="adm-label">{ "日志保留天数 (retention_days)" }</span>
+                                        <input
+                                            type="number"
+                                            value={cfg.retention_days.to_string()}
+                                            class="adm-input adm-input--mono"
+                                            oninput={{
+                                                let behavior_config = behavior_config.clone();
+                                                Callback::from(move |event: InputEvent| {
+                                                    if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                                        if let Ok(v) = target.value().parse::<i64>() {
+                                                            let mut next = (*behavior_config).clone();
+                                                            if let Some(cfg) = next.as_mut() {
+                                                                cfg.retention_days = v;
+                                                            }
+                                                            behavior_config.set(next);
+                                                        }
+                                                    }
+                                                })
+                                            }}
+                                        />
+                                    </label>
+                                    <label class="adm-field">
+                                        <span class="adm-label">{ "查询默认天数 (default_days)" }</span>
+                                        <input
+                                            type="number"
+                                            value={cfg.default_days.to_string()}
+                                            class="adm-input adm-input--mono"
+                                            oninput={{
+                                                let behavior_config = behavior_config.clone();
+                                                Callback::from(move |event: InputEvent| {
+                                                    if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                                        if let Ok(v) = target.value().parse::<usize>() {
+                                                            let mut next = (*behavior_config).clone();
+                                                            if let Some(cfg) = next.as_mut() {
+                                                                cfg.default_days = v;
+                                                            }
+                                                            behavior_config.set(next);
+                                                        }
+                                                    }
+                                                })
+                                            }}
+                                        />
+                                    </label>
+                                    <label class="adm-field">
+                                        <span class="adm-label">{ "查询最大天数 (max_days)" }</span>
+                                        <input
+                                            type="number"
+                                            value={cfg.max_days.to_string()}
+                                            class="adm-input adm-input--mono"
+                                            oninput={{
+                                                let behavior_config = behavior_config.clone();
+                                                Callback::from(move |event: InputEvent| {
+                                                    if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                                        if let Ok(v) = target.value().parse::<usize>() {
+                                                            let mut next = (*behavior_config).clone();
+                                                            if let Some(cfg) = next.as_mut() {
+                                                                cfg.max_days = v;
+                                                            }
+                                                            behavior_config.set(next);
+                                                        }
+                                                    }
+                                                })
+                                            }}
+                                        />
+                                    </label>
+                                    <label class="adm-field">
+                                        <span class="adm-label">{ "刷盘批次条数 (flush_batch_size)" }</span>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={cfg.flush_batch_size.to_string()}
+                                            class="adm-input adm-input--mono"
+                                            oninput={{
+                                                let behavior_config = behavior_config.clone();
+                                                Callback::from(move |event: InputEvent| {
+                                                    if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                                        if let Ok(v) = target.value().parse::<usize>() {
+                                                            let mut next = (*behavior_config).clone();
+                                                            if let Some(cfg) = next.as_mut() {
+                                                                cfg.flush_batch_size = v;
+                                                            }
+                                                            behavior_config.set(next);
+                                                        }
+                                                    }
+                                                })
+                                            }}
+                                        />
+                                    </label>
+                                    <label class="adm-field">
+                                        <span class="adm-label">{ "刷盘间隔秒数 (flush_interval_seconds)" }</span>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={cfg.flush_interval_seconds.to_string()}
+                                            class="adm-input adm-input--mono"
+                                            oninput={{
+                                                let behavior_config = behavior_config.clone();
+                                                Callback::from(move |event: InputEvent| {
+                                                    if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                                        if let Ok(v) = target.value().parse::<u64>() {
+                                                            let mut next = (*behavior_config).clone();
+                                                            if let Some(cfg) = next.as_mut() {
+                                                                cfg.flush_interval_seconds = v;
+                                                            }
+                                                            behavior_config.set(next);
+                                                        }
+                                                    }
+                                                })
+                                            }}
+                                        />
+                                    </label>
+                                    <label class="adm-field">
+                                        <span class="adm-label">{ "缓冲字节上限 (flush_max_buffer_bytes)" }</span>
+                                        <input
+                                            type="number"
+                                            min="1024"
+                                            value={cfg.flush_max_buffer_bytes.to_string()}
+                                            class="adm-input adm-input--mono"
+                                            oninput={{
+                                                let behavior_config = behavior_config.clone();
+                                                Callback::from(move |event: InputEvent| {
+                                                    if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
+                                                        if let Ok(v) = target.value().parse::<usize>() {
+                                                            let mut next = (*behavior_config).clone();
+                                                            if let Some(cfg) = next.as_mut() {
+                                                                cfg.flush_max_buffer_bytes = v;
+                                                            }
+                                                            behavior_config.set(next);
+                                                        }
+                                                    }
+                                                })
+                                            }}
+                                        />
+                                    </label>
+                                </div>
+                            } else if core_busy {
+                                { table_skeleton(2) }
+                            } else {
+                                <p class="adm-hint">{ "配置暂不可用" }</p>
+                            }
+                        </div>
+                    </section>
+
+                    <section class="adm-card">
+                        <div class="adm-card__header">
+                            <div>
+                                <h2 class="adm-card__title">{ "数据清理维护 (Maintenance Cleanup)" }</h2>
+                                <p class="adm-card__sub">{ "不可逆删除操作均需二次弹窗确认。" }</p>
+                            </div>
+                        </div>
+                        <div class="adm-card__body">
+                            <div class="adm-grid-2">
+                                <div class="adm-field">
+                                    <span class="adm-label">{ "清理失败评论任务（保留最近 N 天内失败项）" }</span>
+                                    <div class="adm-toolbar">
+                                        <input
+                                            type="number"
+                                            value={(*cleanup_days).clone()}
+                                            oninput={on_cleanup_days_change}
+                                            aria-label="失败评论任务保留天数"
+                                            class="adm-input adm-input--mono"
+                                            style="width: 140px;"
+                                        />
+                                        <button type="button" class="adm-btn adm-btn--danger"
+                                            onclick={{
+                                                let pending_cleanup_failed = pending_cleanup_failed.clone();
+                                                Callback::from(move |_| pending_cleanup_failed.set(true))
+                                            }}>
+                                            { "清理失败任务" }
+                                        </button>
+                                    </div>
+                                    <p class="adm-hint">{ "仅删除状态为 failed 且早于指定保留天数的评论任务。" }</p>
+                                </div>
+
+                                <div class="adm-field">
+                                    <span class="adm-label">{ "清理过期 API 行为日志" }</span>
+                                    <div class="adm-toolbar">
+                                        <button type="button" class="adm-btn adm-btn--danger"
+                                            disabled={behavior_config.is_none()}
+                                            onclick={{
+                                                let pending_cleanup_logs = pending_cleanup_logs.clone();
+                                                Callback::from(move |_| pending_cleanup_logs.set(true))
+                                            }}>
+                                            { "按保留期清理行为日志" }
+                                        </button>
+                                    </div>
+                                    <p class="adm-hint">
+                                        { (*behavior_config)
+                                            .as_ref()
+                                            .map(|c| format!("按当前 retention_days = {} 天清理过期事件记录。", c.retention_days))
+                                            .unwrap_or_else(|| "等待加载 API 行为配置…".to_string()) }
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            }
+        },
+    };
 
     html! {
-        <main class={classes!("container", "py-8")}>
+        <>
             <ConfirmModal
                 open={pending_delete_published.is_some()}
                 title="删除已发布评论"
@@ -2313,8 +4846,8 @@ pub fn admin_page() -> Html {
             />
             <ConfirmModal
                 open={pending_delete_task.is_some()}
-                title="删除 Comment Task"
-                message="确认删除这条 comment task？此操作不可撤销。"
+                title="删除评论任务"
+                message="确认删除这条评论任务记录？此操作不可撤销。"
                 danger=true
                 on_confirm={{
                     let pending_delete_task = pending_delete_task.clone();
@@ -2333,8 +4866,8 @@ pub fn admin_page() -> Html {
             />
             <ConfirmModal
                 open={pending_delete_wish.is_some()}
-                title="删除 Music Wish"
-                message="确认删除这条 music wish？此操作不可撤销。"
+                title="删除点歌心愿"
+                message="确认删除这条点歌心愿？此操作不可撤销。"
                 danger=true
                 on_confirm={{
                     let pending_delete_wish = pending_delete_wish.clone();
@@ -2353,8 +4886,8 @@ pub fn admin_page() -> Html {
             />
             <ConfirmModal
                 open={pending_delete_request.is_some()}
-                title="删除 Article Request"
-                message="确认删除这条 article request？此操作不可撤销。"
+                title="删除文章入库请求"
+                message="确认删除这条文章入库请求？此操作不可撤销。"
                 danger=true
                 on_confirm={{
                     let pending_delete_request = pending_delete_request.clone();
@@ -2373,8 +4906,8 @@ pub fn admin_page() -> Html {
             />
             <ConfirmModal
                 open={*pending_cleanup_failed}
-                title="清理失败任务"
-                message="确认删除全部失败的 comment task？此操作不可撤销。"
+                title="清理失败评论任务"
+                message="确认按保留天数删除失败的评论任务？此操作不可撤销。"
                 danger=true
                 on_confirm={{
                     let pending_cleanup_failed = pending_cleanup_failed.clone();
@@ -2391,7 +4924,7 @@ pub fn admin_page() -> Html {
             />
             <ConfirmModal
                 open={*pending_cleanup_logs}
-                title="清理旧日志"
+                title="清理过期行为日志"
                 message="确认按保留天数删除旧的 API 行为日志？此操作不可撤销。"
                 danger=true
                 on_confirm={{
@@ -2407,1606 +4940,10 @@ pub fn admin_page() -> Html {
                     Callback::from(move |_| pending_cleanup_logs.set(false))
                 }}
             />
-            <section class={classes!(
-                "bg-[var(--surface)]",
-                "border",
-                "border-[var(--border)]",
-                "rounded-[var(--radius)]",
-                "shadow-[var(--shadow)]",
-                "p-5",
-                "mb-5"
-            )}>
-                <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap")}>
-                    <div>
-                        <h1 class={classes!("m-0", "text-xl", "font-semibold")}>{ "Admin Console" }</h1>
-                        <p class={classes!("m-0", "text-sm", "text-[var(--muted)]")}>
-                            { "Manage global site runtime config, storage maintenance, comments, music, and API behavior analytics." }
-                        </p>
-                    </div>
-                    <div class={classes!("flex", "items-center", "gap-2", "flex-wrap")}>
-                        <Link<Route> to={Route::AdminLlmGateway} classes={classes!("btn-fluent-primary")}>
-                            <i class={classes!("fas", "fa-key", "mr-2")} aria-hidden="true"></i>
-                            { "LLM Gateway" }
-                        </Link<Route>>
-                        <Link<Route> to={Route::AdminLlmGatewayMonitor} classes={classes!("btn-fluent-secondary")}>
-                            <i class={classes!("fas", "fa-chart-line", "mr-2")} aria-hidden="true"></i>
-                            { "Gateway Monitor" }
-                        </Link<Route>>
-                        <Link<Route> to={Route::AdminKiroGateway} classes={classes!("btn-fluent-secondary")}>
-                            <i class={classes!("fas", "fa-bolt", "mr-2")} aria-hidden="true"></i>
-                            { "Kiro Gateway" }
-                        </Link<Route>>
-                        <Link<Route> to={Route::AdminGpt2ApiRs} classes={classes!("btn-fluent-secondary")}>
-                            <i class={classes!("fas", "fa-image", "mr-2")} aria-hidden="true"></i>
-                            { "gpt2api-rs" }
-                        </Link<Route>>
-                        { local_media_link }
-                        <button class={classes!("btn-fluent-secondary")} onclick={on_reload_click.clone()}>
-                            <i class={classes!("fas", "fa-rotate-right", "mr-2")} aria-hidden="true"></i>
-                            { if *loading { "Loading..." } else { "Refresh" } }
-                        </button>
-                    </div>
-                </div>
-                if let Some(err) = (*load_error).clone() {
-                    <div class={classes!(
-                        "mt-3",
-                        "rounded-[var(--radius)]",
-                        "border",
-                        "border-red-400/40",
-                        "bg-red-500/10",
-                        "px-3",
-                        "py-2",
-                        "text-sm",
-                        "text-red-700",
-                        "dark:text-red-200"
-                    )}>
-                        { err }
-                    </div>
-                }
-            </section>
 
-            <section class={classes!(
-                "bg-[var(--surface)]",
-                "border",
-                "border-[var(--border)]",
-                "rounded-[var(--radius)]",
-                "shadow-[var(--shadow)]",
-                "p-5",
-                "mb-5"
-            )}>
-                <div class={classes!("mb-4")}>
-                    <h2 class={classes!("m-0", "text-lg", "font-semibold")}>{ "Global Runtime Config" }</h2>
-                    <p class={classes!("m-0", "mt-1", "text-sm", "text-[var(--muted)]")}>
-                        { "Global site and storage knobs live here. Gateway-specific settings stay in the dedicated LLM Gateway and Kiro Gateway pages above." }
-                    </p>
-                </div>
-                <div class={classes!("grid", "gap-4", "md:grid-cols-2", "xl:grid-cols-4")}>
-                    <div class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-3")}>
-                        <h3 class={classes!("m-0", "mb-2", "text-sm", "uppercase", "tracking-[0.08em]", "text-[var(--muted)]")}>
-                            { "View Analytics" }
-                        </h3>
-                        if let Some(cfg) = (*view_config).clone() {
-                            <label class={classes!("block", "text-sm", "mb-2")}>
-                                { "dedupe_window_seconds" }
-                                <input
-                                    type="number"
-                                    value={cfg.dedupe_window_seconds.to_string()}
-                                    class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                    oninput={{
-                                        let view_config = view_config.clone();
-                                        Callback::from(move |event: InputEvent| {
-                                            if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                if let Ok(v) = target.value().parse::<u64>() {
-                                                    let mut next = (*view_config).clone();
-                                                    if let Some(cfg) = next.as_mut() {
-                                                        cfg.dedupe_window_seconds = v;
-                                                    }
-                                                    view_config.set(next);
-                                                }
-                                            }
-                                        })
-                                    }}
-                                />
-                            </label>
-                            <label class={classes!("block", "text-sm", "mb-2")}>
-                                { "trend_default_days" }
-                                <input
-                                    type="number"
-                                    value={cfg.trend_default_days.to_string()}
-                                    class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                    oninput={{
-                                        let view_config = view_config.clone();
-                                        Callback::from(move |event: InputEvent| {
-                                            if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                if let Ok(v) = target.value().parse::<usize>() {
-                                                    let mut next = (*view_config).clone();
-                                                    if let Some(cfg) = next.as_mut() {
-                                                        cfg.trend_default_days = v;
-                                                    }
-                                                    view_config.set(next);
-                                                }
-                                            }
-                                        })
-                                    }}
-                                />
-                            </label>
-                            <label class={classes!("block", "text-sm")}>
-                                { "trend_max_days" }
-                                <input
-                                    type="number"
-                                    value={cfg.trend_max_days.to_string()}
-                                    class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                    oninput={{
-                                        let view_config = view_config.clone();
-                                        Callback::from(move |event: InputEvent| {
-                                            if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                if let Ok(v) = target.value().parse::<usize>() {
-                                                    let mut next = (*view_config).clone();
-                                                    if let Some(cfg) = next.as_mut() {
-                                                        cfg.trend_max_days = v;
-                                                    }
-                                                    view_config.set(next);
-                                                }
-                                            }
-                                        })
-                                    }}
-                                />
-                            </label>
-                        } else {
-                            <p class={classes!("text-sm", "text-[var(--muted)]", "m-0")}>{ "Unavailable" }</p>
-                        }
-                    </div>
-
-                    <div class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-3")}>
-                        <h3 class={classes!("m-0", "mb-2", "text-sm", "uppercase", "tracking-[0.08em]", "text-[var(--muted)]")}>
-                            { "Comment Runtime" }
-                        </h3>
-                        if let Some(cfg) = (*comment_config).clone() {
-                            <label class={classes!("block", "text-sm", "mb-2")}>
-                                { "submit_rate_limit_seconds" }
-                                <input
-                                    type="number"
-                                    value={cfg.submit_rate_limit_seconds.to_string()}
-                                    class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                    oninput={{
-                                        let comment_config = comment_config.clone();
-                                        Callback::from(move |event: InputEvent| {
-                                            if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                if let Ok(v) = target.value().parse::<u64>() {
-                                                    let mut next = (*comment_config).clone();
-                                                    if let Some(cfg) = next.as_mut() {
-                                                        cfg.submit_rate_limit_seconds = v;
-                                                    }
-                                                    comment_config.set(next);
-                                                }
-                                            }
-                                        })
-                                    }}
-                                />
-                            </label>
-                            <label class={classes!("block", "text-sm", "mb-2")}>
-                                { "list_default_limit" }
-                                <input
-                                    type="number"
-                                    value={cfg.list_default_limit.to_string()}
-                                    class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                    oninput={{
-                                        let comment_config = comment_config.clone();
-                                        Callback::from(move |event: InputEvent| {
-                                            if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                if let Ok(v) = target.value().parse::<usize>() {
-                                                    let mut next = (*comment_config).clone();
-                                                    if let Some(cfg) = next.as_mut() {
-                                                        cfg.list_default_limit = v;
-                                                    }
-                                                    comment_config.set(next);
-                                                }
-                                            }
-                                        })
-                                    }}
-                                />
-                            </label>
-                            <label class={classes!("block", "text-sm")}>
-                                { "cleanup_retention_days" }
-                                <input
-                                    type="number"
-                                    value={cfg.cleanup_retention_days.to_string()}
-                                    class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                    oninput={{
-                                        let comment_config = comment_config.clone();
-                                        Callback::from(move |event: InputEvent| {
-                                            if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                if let Ok(v) = target.value().parse::<i64>() {
-                                                    let mut next = (*comment_config).clone();
-                                                    if let Some(cfg) = next.as_mut() {
-                                                        cfg.cleanup_retention_days = v;
-                                                    }
-                                                    comment_config.set(next);
-                                                }
-                                            }
-                                        })
-                                    }}
-                                />
-                            </label>
-                        } else {
-                            <p class={classes!("text-sm", "text-[var(--muted)]", "m-0")}>{ "Unavailable" }</p>
-                        }
-                    </div>
-
-                    <div class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-3")}>
-                        <h3 class={classes!("m-0", "mb-2", "text-sm", "uppercase", "tracking-[0.08em]", "text-[var(--muted)]")}>
-                            { "Music Runtime" }
-                        </h3>
-                        if let Some(cfg) = (*music_config).clone() {
-                            <label class={classes!("block", "text-sm", "mb-2")}>
-                                { "play_dedupe_window_seconds" }
-                                <input
-                                    type="number"
-                                    value={cfg.play_dedupe_window_seconds.to_string()}
-                                    class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                    oninput={{
-                                        let music_config = music_config.clone();
-                                        Callback::from(move |event: InputEvent| {
-                                            if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                if let Ok(v) = target.value().parse::<u64>() {
-                                                    let mut next = (*music_config).clone();
-                                                    if let Some(cfg) = next.as_mut() {
-                                                        cfg.play_dedupe_window_seconds = v;
-                                                    }
-                                                    music_config.set(next);
-                                                }
-                                            }
-                                        })
-                                    }}
-                                />
-                            </label>
-                            <label class={classes!("block", "text-sm", "mb-2")}>
-                                { "comment_rate_limit_seconds" }
-                                <input
-                                    type="number"
-                                    value={cfg.comment_rate_limit_seconds.to_string()}
-                                    class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                    oninput={{
-                                        let music_config = music_config.clone();
-                                        Callback::from(move |event: InputEvent| {
-                                            if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                if let Ok(v) = target.value().parse::<u64>() {
-                                                    let mut next = (*music_config).clone();
-                                                    if let Some(cfg) = next.as_mut() {
-                                                        cfg.comment_rate_limit_seconds = v;
-                                                    }
-                                                    music_config.set(next);
-                                                }
-                                            }
-                                        })
-                                    }}
-                                />
-                            </label>
-                            <label class={classes!("block", "text-sm")}>
-                                { "list_default_limit" }
-                                <input
-                                    type="number"
-                                    value={cfg.list_default_limit.to_string()}
-                                    class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                    oninput={{
-                                        let music_config = music_config.clone();
-                                        Callback::from(move |event: InputEvent| {
-                                            if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                if let Ok(v) = target.value().parse::<usize>() {
-                                                    let mut next = (*music_config).clone();
-                                                    if let Some(cfg) = next.as_mut() {
-                                                        cfg.list_default_limit = v;
-                                                    }
-                                                    music_config.set(next);
-                                                }
-                                            }
-                                        })
-                                    }}
-                                />
-                            </label>
-                        } else {
-                            <p class={classes!("text-sm", "text-[var(--muted)]", "m-0")}>{ "Unavailable" }</p>
-                        }
-                    </div>
-
-                    <div class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-3")}>
-                        <h3 class={classes!("m-0", "mb-2", "text-sm", "uppercase", "tracking-[0.08em]", "text-[var(--muted)]")}>
-                            { "API Behavior" }
-                        </h3>
-                        if let Some(cfg) = (*behavior_config).clone() {
-                            <label class={classes!("block", "text-sm", "mb-2")}>
-                                { "retention_days" }
-                                <input
-                                    type="number"
-                                    value={cfg.retention_days.to_string()}
-                                    class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                    oninput={{
-                                        let behavior_config = behavior_config.clone();
-                                        Callback::from(move |event: InputEvent| {
-                                            if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                if let Ok(v) = target.value().parse::<i64>() {
-                                                    let mut next = (*behavior_config).clone();
-                                                    if let Some(cfg) = next.as_mut() {
-                                                        cfg.retention_days = v;
-                                                    }
-                                                    behavior_config.set(next);
-                                                }
-                                            }
-                                        })
-                                    }}
-                                />
-                            </label>
-                            <label class={classes!("block", "text-sm", "mb-2")}>
-                                { "default_days" }
-                                <input
-                                    type="number"
-                                    value={cfg.default_days.to_string()}
-                                    class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                    oninput={{
-                                        let behavior_config = behavior_config.clone();
-                                        Callback::from(move |event: InputEvent| {
-                                            if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                if let Ok(v) = target.value().parse::<usize>() {
-                                                    let mut next = (*behavior_config).clone();
-                                                    if let Some(cfg) = next.as_mut() {
-                                                        cfg.default_days = v;
-                                                    }
-                                                    behavior_config.set(next);
-                                                }
-                                            }
-                                        })
-                                    }}
-                                />
-                            </label>
-                            <label class={classes!("block", "text-sm")}>
-                                { "max_days" }
-                                <input
-                                    type="number"
-                                    value={cfg.max_days.to_string()}
-                                    class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                    oninput={{
-                                        let behavior_config = behavior_config.clone();
-                                        Callback::from(move |event: InputEvent| {
-                                            if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                if let Ok(v) = target.value().parse::<usize>() {
-                                                    let mut next = (*behavior_config).clone();
-                                                    if let Some(cfg) = next.as_mut() {
-                                                        cfg.max_days = v;
-                                                    }
-                                                    behavior_config.set(next);
-                                                }
-                                            }
-                                        })
-                                    }}
-                                />
-                            </label>
-                            <label class={classes!("block", "text-sm", "mt-2")}>
-                                { "flush_batch_size" }
-                                <input
-                                    type="number"
-                                    min="1"
-                                    value={cfg.flush_batch_size.to_string()}
-                                    class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                    oninput={{
-                                        let behavior_config = behavior_config.clone();
-                                        Callback::from(move |event: InputEvent| {
-                                            if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                if let Ok(v) = target.value().parse::<usize>() {
-                                                    let mut next = (*behavior_config).clone();
-                                                    if let Some(cfg) = next.as_mut() {
-                                                        cfg.flush_batch_size = v;
-                                                    }
-                                                    behavior_config.set(next);
-                                                }
-                                            }
-                                        })
-                                    }}
-                                />
-                            </label>
-                            <label class={classes!("block", "text-sm", "mt-2")}>
-                                { "flush_interval_seconds" }
-                                <input
-                                    type="number"
-                                    min="1"
-                                    value={cfg.flush_interval_seconds.to_string()}
-                                    class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                    oninput={{
-                                        let behavior_config = behavior_config.clone();
-                                        Callback::from(move |event: InputEvent| {
-                                            if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                if let Ok(v) = target.value().parse::<u64>() {
-                                                    let mut next = (*behavior_config).clone();
-                                                    if let Some(cfg) = next.as_mut() {
-                                                        cfg.flush_interval_seconds = v;
-                                                    }
-                                                    behavior_config.set(next);
-                                                }
-                                            }
-                                        })
-                                    }}
-                                />
-                            </label>
-                            <label class={classes!("block", "text-sm", "mt-2")}>
-                                { "flush_max_buffer_bytes" }
-                                <input
-                                    type="number"
-                                    min="1024"
-                                    value={cfg.flush_max_buffer_bytes.to_string()}
-                                    class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                    oninput={{
-                                        let behavior_config = behavior_config.clone();
-                                        Callback::from(move |event: InputEvent| {
-                                            if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                if let Ok(v) = target.value().parse::<usize>() {
-                                                    let mut next = (*behavior_config).clone();
-                                                    if let Some(cfg) = next.as_mut() {
-                                                        cfg.flush_max_buffer_bytes = v;
-                                                    }
-                                                    behavior_config.set(next);
-                                                }
-                                            }
-                                        })
-                                    }}
-                                />
-                            </label>
-                        } else {
-                            <p class={classes!("text-sm", "text-[var(--muted)]", "m-0")}>{ "Unavailable" }</p>
-                        }
-                    </div>
-
-                    <div class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-3")}>
-                        <h3 class={classes!("m-0", "mb-2", "text-sm", "uppercase", "tracking-[0.08em]", "text-[var(--muted)]")}>
-                            { "Storage Maintenance" }
-                        </h3>
-                        <p class={classes!("m-0", "mb-3", "text-xs", "text-[var(--muted)]")}>
-                            { "Controls the global background compact/prune scheduler for Lance tables." }
-                        </p>
-                        if let Some(cfg) = (*compaction_config).clone() {
-                            <label class={classes!("mb-3", "flex", "items-center", "gap-2", "text-sm")}>
-                                <input
-                                    type="checkbox"
-                                    checked={cfg.enabled}
-                                    class={classes!("h-4", "w-4")}
-                                    oninput={{
-                                        let compaction_config = compaction_config.clone();
-                                        Callback::from(move |event: InputEvent| {
-                                            if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                let mut next = (*compaction_config).clone();
-                                                if let Some(cfg) = next.as_mut() {
-                                                    cfg.enabled = target.checked();
-                                                }
-                                                compaction_config.set(next);
-                                            }
-                                        })
-                                    }}
-                                />
-                                <span>{ "enabled" }</span>
-                            </label>
-                            <label class={classes!("block", "text-sm", "mb-2")}>
-                                { "scan_interval_seconds" }
-                                <input
-                                    type="number"
-                                    value={cfg.scan_interval_seconds.to_string()}
-                                    class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                    oninput={{
-                                        let compaction_config = compaction_config.clone();
-                                        Callback::from(move |event: InputEvent| {
-                                            if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                if let Ok(v) = target.value().parse::<u64>() {
-                                                    let mut next = (*compaction_config).clone();
-                                                    if let Some(cfg) = next.as_mut() {
-                                                        cfg.scan_interval_seconds = v;
-                                                    }
-                                                    compaction_config.set(next);
-                                                }
-                                            }
-                                        })
-                                    }}
-                                />
-                            </label>
-                            <label class={classes!("block", "text-sm", "mb-2")}>
-                                { "fragment_threshold" }
-                                <input
-                                    type="number"
-                                    value={cfg.fragment_threshold.to_string()}
-                                    class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                    oninput={{
-                                        let compaction_config = compaction_config.clone();
-                                        Callback::from(move |event: InputEvent| {
-                                            if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                if let Ok(v) = target.value().parse::<usize>() {
-                                                    let mut next = (*compaction_config).clone();
-                                                    if let Some(cfg) = next.as_mut() {
-                                                        cfg.fragment_threshold = v;
-                                                    }
-                                                    compaction_config.set(next);
-                                                }
-                                            }
-                                        })
-                                    }}
-                                />
-                            </label>
-                            <label class={classes!("block", "text-sm")}>
-                                { "prune_older_than_hours" }
-                                <input
-                                    type="number"
-                                    value={cfg.prune_older_than_hours.to_string()}
-                                    class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                    oninput={{
-                                        let compaction_config = compaction_config.clone();
-                                        Callback::from(move |event: InputEvent| {
-                                            if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                if let Ok(v) = target.value().parse::<i64>() {
-                                                    let mut next = (*compaction_config).clone();
-                                                    if let Some(cfg) = next.as_mut() {
-                                                        cfg.prune_older_than_hours = v;
-                                                    }
-                                                    compaction_config.set(next);
-                                                }
-                                            }
-                                        })
-                                    }}
-                                />
-                            </label>
-                            <label class={classes!("block", "text-sm", "mt-2")}>
-                                { "worker_count" }
-                                <input
-                                    type="number"
-                                    min="1"
-                                    value={cfg.worker_count.to_string()}
-                                    class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                    oninput={{
-                                        let compaction_config = compaction_config.clone();
-                                        Callback::from(move |event: InputEvent| {
-                                            if let Some(target) = event.target_dyn_into::<HtmlInputElement>() {
-                                                if let Ok(v) = target.value().parse::<usize>() {
-                                                    let mut next = (*compaction_config).clone();
-                                                    if let Some(cfg) = next.as_mut() {
-                                                        cfg.worker_count = v.max(1);
-                                                    }
-                                                    compaction_config.set(next);
-                                                }
-                                            }
-                                        })
-                                    }}
-                                />
-                            </label>
-                        } else {
-                            <p class={classes!("text-sm", "text-[var(--muted)]", "m-0")}>{ "Unavailable" }</p>
-                        }
-                    </div>
-                </div>
-                <div class={classes!("mt-4")}>
-                    <button class={classes!("btn-fluent-primary")} onclick={on_save_configs} disabled={*saving}>
-                        <i class={classes!("fas", "fa-floppy-disk", "mr-2")} aria-hidden="true"></i>
-                        { if *saving { "Saving..." } else { "Save Config" } }
-                    </button>
-                </div>
-            </section>
-
-            <section class={classes!(
-                "bg-[var(--surface)]",
-                "border",
-                "border-[var(--border)]",
-                "rounded-[var(--radius)]",
-                "shadow-[var(--shadow)]",
-                "p-5",
-                "mb-5"
-            )}>
-                <div class="admin-tab-bar mb-4" role="tablist" aria-label="管理控制台分区">
-                    <button role="tab" aria-selected={if *active_tab == Some(AdminTab::Tasks) { "true" } else { "false" }} class={if *active_tab == Some(AdminTab::Tasks) { "admin-tab admin-tab--active" } else { "admin-tab" }} onclick={tab_tasks}>
-                        <i class="fas fa-list-check text-xs" aria-hidden="true"></i>{ "Tasks" }
-                    </button>
-                    <button role="tab" aria-selected={if *active_tab == Some(AdminTab::Published) { "true" } else { "false" }} class={if *active_tab == Some(AdminTab::Published) { "admin-tab admin-tab--active" } else { "admin-tab" }} onclick={tab_published}>
-                        <i class="fas fa-check-circle text-xs" aria-hidden="true"></i>{ "Published" }
-                    </button>
-                    <button role="tab" aria-selected={if *active_tab == Some(AdminTab::Audit) { "true" } else { "false" }} class={if *active_tab == Some(AdminTab::Audit) { "admin-tab admin-tab--active" } else { "admin-tab" }} onclick={tab_audit}>
-                        <i class="fas fa-scroll text-xs" aria-hidden="true"></i>{ "Audit" }
-                    </button>
-                    <button role="tab" aria-selected={if *active_tab == Some(AdminTab::Behavior) { "true" } else { "false" }} class={if *active_tab == Some(AdminTab::Behavior) { "admin-tab admin-tab--active" } else { "admin-tab" }} onclick={tab_behavior}>
-                        <i class="fas fa-chart-line text-xs" aria-hidden="true"></i>{ "Behavior" }
-                    </button>
-                    <button role="tab" aria-selected={if *active_tab == Some(AdminTab::RuntimeMemory) { "true" } else { "false" }} class={if *active_tab == Some(AdminTab::RuntimeMemory) { "admin-tab admin-tab--active" } else { "admin-tab" }} onclick={tab_runtime_memory}>
-                        <i class="fas fa-memory text-xs" aria-hidden="true"></i>{ "Memory" }
-                    </button>
-                    <button role="tab" aria-selected={if *active_tab == Some(AdminTab::MusicWishes) { "true" } else { "false" }} class={if *active_tab == Some(AdminTab::MusicWishes) { "admin-tab admin-tab--active" } else { "admin-tab" }} onclick={tab_music_wishes}>
-                        <i class="fas fa-music text-xs" aria-hidden="true"></i>{ "Music" }
-                    </button>
-                    <button role="tab" aria-selected={if *active_tab == Some(AdminTab::ArticleRequests) { "true" } else { "false" }} class={if *active_tab == Some(AdminTab::ArticleRequests) { "admin-tab admin-tab--active" } else { "admin-tab" }} onclick={tab_article_requests}>
-                        <i class="fas fa-newspaper text-xs" aria-hidden="true"></i>{ "Articles" }
-                    </button>
-                </div>
-
-                if active_tab.is_none() {
-                    <div class={classes!("flex", "flex-col", "items-center", "justify-center", "py-16", "text-[var(--muted)]")}>
-                        <i class={classes!("fas", "fa-hand-pointer", "text-3xl", "mb-3", "opacity-40")} aria-hidden="true"></i>
-                        <p class={classes!("m-0", "text-sm")}>{ "Select a tab to get started" }</p>
-                    </div>
-                } else if *active_tab == Some(AdminTab::Tasks) {
-                    <div class="animate-[fadeIn_0.3s_ease]">
-                    if tab_loading.contains(&AdminTab::Tasks) && task_groups.is_empty() {
-                        <div class={classes!("flex", "justify-center", "py-8")}>
-                            <LoadingSpinner size={SpinnerSize::Small} />
-                        </div>
-                    } else {
-                    <>
-                        <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap", "mb-4")}>
-                            <h2 class={classes!("m-0", "text-lg", "font-semibold")}>
-                                { format!("Task Groups: {} articles / {} tasks", task_groups.len(), grouped_total_tasks) }
-                            </h2>
-                            <div class={classes!("flex", "items-center", "gap-2", "flex-wrap")}>
-                                <input
-                                    type="text"
-                                    value={(*status_filter).clone()}
-                                    oninput={on_filter_change}
-                                    placeholder="status filter: pending/approved/failed"
-                                    class={classes!("rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]", "text-sm", "w-full", "md:w-[280px]")}
-                                />
-                                <button class={classes!("btn-fluent-secondary")} onclick={on_tasks_apply}>{ "Apply" }</button>
-                            </div>
-                        </div>
-                        if tab_loading.contains(&AdminTab::Tasks) {
-                            <div class={classes!("mb-3", "inline-flex", "items-center", "gap-2", "text-xs", "text-[var(--muted)]")}>
-                                <LoadingSpinner size={SpinnerSize::Small} />
-                                <span>{ "Loading tasks..." }</span>
-                            </div>
-                        }
-
-                        <div class={classes!("mb-4", "text-sm", "text-[var(--muted)]", "flex", "gap-2", "flex-wrap")}>
-                            { for grouped_status_counts.iter().map(|(status, count)| html! {
-                                <StatusBadge status={status.clone()} label={Some(AttrValue::from(format!("{}: {}", status, count)))} />
-                            }) }
-                        </div>
-
-                        <div class={classes!("grid", "gap-4")}>
-                            { for (*task_groups).iter().map(|group| {
-                                html! {
-                                    <article class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-3")}>
-                                        <header class={classes!("mb-3", "flex", "items-center", "justify-between", "gap-2", "flex-wrap")}>
-                                            <h3 class={classes!("m-0", "text-sm", "font-semibold")}>{ format!("article_id: {}", group.article_id) }</h3>
-                                            <span class={classes!("text-xs", "text-[var(--muted)]")}>{ format!("{} tasks", group.total) }</span>
-                                        </header>
-                                        <div class={classes!("mb-3", "flex", "gap-2", "flex-wrap")}>
-                                            { for group.status_counts.iter().map(|(status, count)| html! {
-                                                <StatusBadge status={status.clone()} label={Some(AttrValue::from(format!("{}: {}", status, count)))} />
-                                            }) }
-                                        </div>
-                                        <div class={classes!("overflow-x-auto")}>
-                                            <table class={classes!("w-full", "text-sm")}>
-                                                <thead>
-                                                    <tr class={classes!("text-left", "text-[var(--muted)]")}>
-                                                        <th class={classes!("py-2", "pr-3")}>{ "Task" }</th>
-                                                        <th class={classes!("py-2", "pr-3")}>{ "Status" }</th>
-                                                        <th class={classes!("py-2", "pr-3")}>{ "Attempts" }</th>
-                                                        <th class={classes!("py-2", "pr-3")}>{ "Created" }</th>
-                                                        <th class={classes!("py-2", "pr-3")}>{ "Actions" }</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    { for group.tasks.iter().map(|task| {
-                                                        let task_id = task.task_id.clone();
-                                                        let status = task.status.clone();
-                                                        let is_busy = task_action_inflight.contains(&task_id);
-                                                        let can_approve = !is_busy && (status == "pending" || status == "failed");
-                                                        let can_approve_run = !is_busy && (status == "pending" || status == "approved" || status == "failed");
-                                                        let can_retry = !is_busy && status == "failed";
-                                                        let can_reject = !is_busy && (status == "pending" || status == "approved" || status == "failed");
-                                                        let can_delete = !is_busy && status != "running";
-
-                                                        let select_click = {
-                                                            let on_select_task = on_select_task.clone();
-                                                            let task_id = task_id.clone();
-                                                            Callback::from(move |_| on_select_task.emit(task_id.clone()))
-                                                        };
-                                                        let approve_click = {
-                                                            let run_task_action = run_task_action.clone();
-                                                            let task_id = task_id.clone();
-                                                            Callback::from(move |_| run_task_action.emit((task_id.clone(), "approve".to_string())))
-                                                        };
-                                                        let approve_run_click = {
-                                                            let run_task_action = run_task_action.clone();
-                                                            let task_id = task_id.clone();
-                                                            Callback::from(move |_| run_task_action.emit((task_id.clone(), "approve_run".to_string())))
-                                                        };
-                                                        let retry_click = {
-                                                            let run_task_action = run_task_action.clone();
-                                                            let task_id = task_id.clone();
-                                                            Callback::from(move |_| run_task_action.emit((task_id.clone(), "retry".to_string())))
-                                                        };
-                                                        let reject_click = {
-                                                            let run_task_action = run_task_action.clone();
-                                                            let task_id = task_id.clone();
-                                                            Callback::from(move |_| run_task_action.emit((task_id.clone(), "reject".to_string())))
-                                                        };
-                                                        let delete_click = {
-                                                            let run_task_action = run_task_action.clone();
-                                                            let task_id = task_id.clone();
-                                                            Callback::from(move |_| run_task_action.emit((task_id.clone(), "delete".to_string())))
-                                                        };
-
-                                                        html! {
-                                                            <tr class={classes!("border-t", "border-[var(--border)]")}>
-                                                                <td class={classes!("py-2", "pr-3")}>
-                                                                    <button class={classes!("text-[var(--primary)]", "underline")} onclick={select_click}>
-                                                                        { task.task_id.clone() }
-                                                                    </button>
-                                                                </td>
-                                                                <td class={classes!("py-2", "pr-3")}>
-                                                                    <StatusBadge status={status.clone()} />
-                                                                </td>
-                                                                <td class={classes!("py-2", "pr-3")}>{ task.attempt_count }</td>
-                                                                <td class={classes!("py-2", "pr-3")}>{ format_ms(task.created_at) }</td>
-                                                                <td class={classes!("py-2", "pr-3")}>
-                                                                    <div class={classes!("flex", "items-center", "gap-2", "flex-wrap")}>
-                                                                        <button class={classes!("btn-fluent-secondary", "!px-2", "!py-1", "!text-xs")} onclick={approve_click} disabled={!can_approve}>{ "Approve" }</button>
-                                                                        <button class={classes!("btn-fluent-primary", "!px-2", "!py-1", "!text-xs")} onclick={approve_run_click} disabled={!can_approve_run}>{ "Approve+Codex" }</button>
-                                                                        <button class={classes!("btn-fluent-secondary", "!px-2", "!py-1", "!text-xs")} onclick={retry_click} disabled={!can_retry}>{ "Retry" }</button>
-                                                                        <span class={classes!("mx-0.5", "h-4", "w-px", "bg-[var(--border)]")} aria-hidden="true" />
-                                                                        <button class={classes!("btn-fluent-secondary", "!px-2", "!py-1", "!text-xs")} onclick={reject_click} disabled={!can_reject}>{ "Reject" }</button>
-                                                                        <button class={classes!("btn-fluent-danger", "!px-2", "!py-1", "!text-xs")} onclick={delete_click} disabled={!can_delete}>{ "Delete" }</button>
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                        }
-                                                    }) }
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </article>
-                                }
-                            }) }
-                        </div>
-
-                        <Drawer
-                            open={selected_task.is_some()}
-                            on_close={{
-                                let selected_task_id = selected_task_id.clone();
-                                let selected_task = selected_task.clone();
-                                let selected_task_ai_output = selected_task_ai_output.clone();
-                                Callback::from(move |_| {
-                                    selected_task_id.set(None);
-                                    selected_task.set(None);
-                                    selected_task_ai_output.set(None);
-                                })
-                            }}
-                            title={(*selected_task).as_ref().map(|t| AttrValue::from(format!("任务详情 · {}", t.task_id))).unwrap_or_default()}
-                        >
-                            if let Some(task) = (*selected_task).clone() {
-                                <p class={classes!("m-0", "mb-2", "text-sm", "text-[var(--muted)]")}>
-                                    { format!("status={} created={} updated={}", task.status, format_ms(task.created_at), format_ms(task.updated_at)) }
-                                </p>
-                                <label class={classes!("block", "text-sm", "mb-2")}>
-                                    { "comment_text" }
-                                    <textarea
-                                        class={classes!("mt-1", "w-full", "min-h-[120px]", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                        value={task.comment_text.clone()}
-                                        oninput={on_selected_task_comment_change}
-                                    />
-                                </label>
-                                <label class={classes!("block", "text-sm", "mb-2")}>
-                                    { "admin_note" }
-                                    <textarea
-                                        class={classes!("mt-1", "w-full", "min-h-[90px]", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                        value={task.admin_note.clone().unwrap_or_default()}
-                                        oninput={on_selected_task_note_change}
-                                    />
-                                </label>
-                                <p class={classes!("m-0", "mb-2", "text-sm", "text-[var(--muted)]")}>{ format!("selected_text={}", task.selected_text.clone().unwrap_or_default()) }</p>
-                                <p class={classes!("m-0", "mb-3", "text-sm", "text-[var(--muted)]")}>{ format!("failure_reason={}", task.failure_reason.clone().unwrap_or_default()) }</p>
-                                <button class={classes!("btn-fluent-primary")} onclick={on_save_task}>{ "Save Task Update" }</button>
-
-                                if let Some(ai_output) = (*selected_task_ai_output).clone() {
-                                    <div class={classes!("mt-4", "rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-3")}>
-                                        <div class={classes!("mb-2", "flex", "items-center", "justify-between", "gap-2", "flex-wrap")}>
-                                            <h4 class={classes!("m-0", "text-sm", "uppercase", "tracking-[0.08em]", "text-[var(--muted)]")}>
-                                                { format!("AI Runs ({})", ai_output.runs.len()) }
-                                            </h4>
-                                            <Link<Route>
-                                                to={Route::AdminCommentRuns { task_id: task.task_id.clone() }}
-                                                classes={classes!("btn-fluent-secondary", "!px-2", "!py-1", "!text-xs")}
-                                            >
-                                                { "Open Stream Page" }
-                                            </Link<Route>>
-                                        </div>
-
-                                        if ai_output.runs.is_empty() {
-                                            <p class={classes!("m-0", "text-sm", "text-[var(--muted)]")}>
-                                                { "No AI run records for this task yet." }
-                                            </p>
-                                        } else {
-                                            <div class={classes!("mb-3", "flex", "gap-2", "flex-wrap")}>
-                                                { for ai_output.runs.iter().map(|run| {
-                                                    let run_id = run.run_id.clone();
-                                                    let selected = ai_output.selected_run_id.as_deref() == Some(run_id.as_str());
-                                                    let click = {
-                                                        let on_select_task_ai_run = on_select_task_ai_run.clone();
-                                                        let run_id = run_id.clone();
-                                                        Callback::from(move |_| on_select_task_ai_run.emit(run_id.clone()))
-                                                    };
-                                                    html! {
-                                                        <button
-                                                            class={if selected { classes!("btn-fluent-primary", "!px-2", "!py-1", "!text-xs") } else { classes!("btn-fluent-secondary", "!px-2", "!py-1", "!text-xs") }}
-                                                            onclick={click}
-                                                        >
-                                                            { format!("{} · {}", run.status, run.run_id) }
-                                                        </button>
-                                                    }
-                                                }) }
-                                            </div>
-                                        }
-
-                                        <p class={classes!("m-0", "mb-2", "text-xs", "text-[var(--muted)]")}>
-                                            { format!("stream chunks captured: {}", ai_output.chunks.len()) }
-                                        </p>
-                                        <ul class={classes!("m-0", "p-0", "list-none", "flex", "flex-col", "gap-2")}>
-                                            { for ai_output.chunks.iter().rev().take(10).rev().map(|chunk| {
-                                                let stream_badge = if chunk.stream == "stderr" {
-                                                    classes!("inline-flex", "rounded-full", "px-2", "py-0.5", "text-xs", "font-semibold", "bg-red-500/15", "text-red-700", "dark:text-red-200")
-                                                } else {
-                                                    classes!("inline-flex", "rounded-full", "px-2", "py-0.5", "text-xs", "font-semibold", "bg-sky-500/15", "text-sky-700", "dark:text-sky-200")
-                                                };
-                                                html! {
-                                                    <li class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-2")}>
-                                                        <div class={classes!("mb-1", "flex", "items-center", "gap-2", "flex-wrap")}>
-                                                            <span class={stream_badge}>{ chunk.stream.clone() }</span>
-                                                            <span class={classes!("text-xs", "text-[var(--muted)]")}>{ format!("batch={}", chunk.batch_index) }</span>
-                                                        </div>
-                                                        <pre class={classes!("m-0", "text-xs", "font-mono", "whitespace-pre-wrap", "break-words")}>{ chunk.content.clone() }</pre>
-                                                    </li>
-                                                }
-                                            }) }
-                                        </ul>
-                                    </div>
-                                }
-                            }
-                        </Drawer>
-                    </>
-                    }
-                    <div class={classes!("mt-4")}>
-                        <Pagination current_page={*tasks_page} total_pages={tasks_total_pages} on_page_change={on_tasks_page_change} />
-                    </div>
-                    </div>
-                } else if *active_tab == Some(AdminTab::Published) {
-                    <div class="animate-[fadeIn_0.3s_ease]">
-                    if tab_loading.contains(&AdminTab::Published) && published_comments.is_empty() {
-                        <div class={classes!("flex", "justify-center", "py-8")}>
-                            <LoadingSpinner size={SpinnerSize::Small} />
-                        </div>
-                    } else {
-                    <>
-                        <h2 class={classes!("m-0", "mb-3", "text-lg", "font-semibold")}>
-                            { format!("Published Comments ({})", published_comments.len()) }
-                        </h2>
-                        if tab_loading.contains(&AdminTab::Published) {
-                            <div class={classes!("mb-3", "inline-flex", "items-center", "gap-2", "text-xs", "text-[var(--muted)]")}>
-                                <LoadingSpinner size={SpinnerSize::Small} />
-                                <span>{ "Loading published comments..." }</span>
-                            </div>
-                        }
-                        if published_comments.is_empty() {
-                            <EmptyState icon="fa-comments" title="暂无已发布评论" hint="审核通过的评论会显示在这里。" />
-                        } else {
-                        <div class={classes!("overflow-x-auto")}>
-                            <table class={classes!("w-full", "text-sm")}>
-                                <thead>
-                                    <tr class={classes!("text-left", "text-[var(--muted)]")}>
-                                        <th class={classes!("py-2", "pr-3")}>{ "Comment" }</th>
-                                        <th class={classes!("py-2", "pr-3")}>{ "Article" }</th>
-                                        <th class={classes!("py-2", "pr-3")}>{ "Task" }</th>
-                                        <th class={classes!("py-2", "pr-3")}>{ "Published At" }</th>
-                                        <th class={classes!("py-2", "pr-3")}>{ "Actions" }</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    { for (*published_comments).iter().map(|comment| {
-                                        let select_click = {
-                                            let on_select_published = on_select_published.clone();
-                                            let comment = comment.clone();
-                                            Callback::from(move |_| on_select_published.emit(comment.clone()))
-                                        };
-                                        let delete_click = {
-                                            let delete_published_action = delete_published_action.clone();
-                                            let comment_id = comment.comment_id.clone();
-                                            Callback::from(move |_| delete_published_action.emit(comment_id.clone()))
-                                        };
-                                        html! {
-                                            <tr class={classes!("border-t", "border-[var(--border)]")}>
-                                                <td class={classes!("py-2", "pr-3")}>{ comment.comment_id.clone() }</td>
-                                                <td class={classes!("py-2", "pr-3")}>{ comment.article_id.clone() }</td>
-                                                <td class={classes!("py-2", "pr-3")}>{ comment.task_id.clone() }</td>
-                                                <td class={classes!("py-2", "pr-3")}>{ format_ms(comment.published_at) }</td>
-                                                <td class={classes!("py-2", "pr-3") }>
-                                                    <div class={classes!("flex", "gap-2", "flex-wrap")}>
-                                                        <button class={classes!("btn-fluent-secondary", "!px-2", "!py-1", "!text-xs")} onclick={select_click}>{ "Update" }</button>
-                                                        <button class={classes!("btn-fluent-danger", "!px-2", "!py-1", "!text-xs")} onclick={delete_click}>{ "Delete" }</button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        }
-                                    }) }
-                                </tbody>
-                            </table>
-                        </div>
-                        }
-
-                        <Drawer
-                            open={selected_published.is_some()}
-                            on_close={{
-                                let selected_published_id = selected_published_id.clone();
-                                let selected_published = selected_published.clone();
-                                Callback::from(move |_| {
-                                    selected_published_id.set(None);
-                                    selected_published.set(None);
-                                })
-                            }}
-                            title={(*selected_published).as_ref().map(|c| AttrValue::from(format!("已发布详情 · {}", c.comment_id))).unwrap_or_default()}
-                        >
-                            if let Some(comment) = (*selected_published).clone() {
-                                <label class={classes!("block", "text-sm", "mb-2")}>
-                                    { "comment_text" }
-                                    <textarea
-                                        class={classes!("mt-1", "w-full", "min-h-[100px]", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                        value={comment.comment_text.clone()}
-                                        oninput={on_selected_published_comment_change}
-                                    />
-                                </label>
-                                <label class={classes!("block", "text-sm", "mb-2")}>
-                                    { "ai_reply_markdown" }
-                                    <textarea
-                                        class={classes!("mt-1", "w-full", "min-h-[140px]", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                        value={comment.ai_reply_markdown.clone().unwrap_or_default()}
-                                        oninput={on_selected_published_ai_change}
-                                    />
-                                </label>
-                                <button class={classes!("btn-fluent-primary")} onclick={on_save_published}>{ "Save Published Update" }</button>
-                            }
-                        </Drawer>
-                    </>
-                    }
-                    <div class={classes!("mt-4")}>
-                        <Pagination current_page={*published_page} total_pages={published_total_pages} on_page_change={on_published_page_change} />
-                    </div>
-                    </div>
-                } else if *active_tab == Some(AdminTab::Audit) {
-                    <div class="animate-[fadeIn_0.3s_ease]">
-                    if tab_loading.contains(&AdminTab::Audit) && audit_logs.is_empty() {
-                        <div class={classes!("flex", "justify-center", "py-8")}>
-                            <LoadingSpinner size={SpinnerSize::Small} />
-                        </div>
-                    } else {
-                    <>
-                        <div class={classes!("flex", "flex-col", "md:flex-row", "md:items-center", "justify-between", "gap-2", "mb-3")}>
-                            <h2 class={classes!("m-0", "text-lg", "font-semibold")}>{ format!("Audit Logs ({})", audit_logs.len()) }</h2>
-                            <div class={classes!("flex", "flex-col", "md:flex-row", "md:items-center", "gap-2")}>
-                                <input
-                                    type="text"
-                                    value={(*audit_task_filter).clone()}
-                                    oninput={on_audit_task_filter_change}
-                                    placeholder="task_id"
-                                    class={classes!("rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]", "text-sm", "w-full", "md:w-[180px]")}
-                                />
-                                <input
-                                    type="text"
-                                    value={(*audit_action_filter).clone()}
-                                    oninput={on_audit_action_filter_change}
-                                    placeholder="action"
-                                    class={classes!("rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]", "text-sm", "w-full", "md:w-[150px]")}
-                                />
-                                <button class={classes!("btn-fluent-secondary")} onclick={on_refresh_audit_click}>{ "Apply" }</button>
-                            </div>
-                        </div>
-                        if tab_loading.contains(&AdminTab::Audit) {
-                            <div class={classes!("mb-3", "inline-flex", "items-center", "gap-2", "text-xs", "text-[var(--muted)]")}>
-                                <LoadingSpinner size={SpinnerSize::Small} />
-                                <span>{ "Loading audit logs..." }</span>
-                            </div>
-                        }
-
-                        if audit_logs.is_empty() {
-                            <EmptyState icon="fa-clipboard-list" title="暂无审计记录" hint="对任务的操作会记录在这里。" />
-                        } else {
-                        <div class={classes!("overflow-x-auto")}>
-                            <table class={classes!("w-full", "text-sm")}>
-                                <thead>
-                                    <tr class={classes!("text-left", "text-[var(--muted)]")}>
-                                        <th class={classes!("py-2", "pr-3")}>{ "Log" }</th>
-                                        <th class={classes!("py-2", "pr-3")}>{ "Task" }</th>
-                                        <th class={classes!("py-2", "pr-3")}>{ "Action" }</th>
-                                        <th class={classes!("py-2", "pr-3")}>{ "Operator" }</th>
-                                        <th class={classes!("py-2", "pr-3")}>{ "Created" }</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    { for (*audit_logs).iter().map(|log| html! {
-                                        <tr class={classes!("border-t", "border-[var(--border)]")}>
-                                            <td class={classes!("py-2", "pr-3")}>{ log.log_id.clone() }</td>
-                                            <td class={classes!("py-2", "pr-3")}>{ log.task_id.clone() }</td>
-                                            <td class={classes!("py-2", "pr-3")}><StatusBadge status={log.action.clone()} /></td>
-                                            <td class={classes!("py-2", "pr-3")}>{ log.operator.clone() }</td>
-                                            <td class={classes!("py-2", "pr-3")}>{ format_ms(log.created_at) }</td>
-                                        </tr>
-                                    }) }
-                                </tbody>
-                            </table>
-                        </div>
-                        }
-                    </>
-                    }
-                    <div class={classes!("mt-4")}>
-                        <Pagination current_page={*audit_page} total_pages={audit_total_pages} on_page_change={on_audit_page_change} />
-                    </div>
-                    </div>
-                } else if *active_tab == Some(AdminTab::Behavior) {
-                    <div class="animate-[fadeIn_0.3s_ease]">
-                        <div class={classes!("flex", "flex-col", "md:flex-row", "md:items-center", "justify-between", "gap-2", "flex-wrap", "mb-3")}>
-                            <h2 class={classes!("m-0", "text-lg", "font-semibold")}>{ "API Behavior Analytics" }</h2>
-                            <div class={classes!("grid", "grid-cols-2", "md:flex", "md:items-center", "gap-2", "md:flex-wrap")}>
-                                <input
-                                    type="number"
-                                    value={(*behavior_days).clone()}
-                                    oninput={on_behavior_days_change}
-                                    placeholder="days"
-                                    aria-label="按最近天数筛选行为日志"
-                                    disabled={!(*behavior_date).is_empty()}
-                                    class={classes!("rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]", "text-sm", "w-full", "md:w-[110px]")}
-                                />
-                                <input
-                                    type="date"
-                                    value={(*behavior_date).clone()}
-                                    oninput={on_behavior_date_change}
-                                    aria-label="按具体日期筛选行为日志"
-                                    class={classes!("rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]", "text-sm", "w-full", "md:w-[160px]")}
-                                />
-                                <input
-                                    type="text"
-                                    value={(*behavior_path_filter).clone()}
-                                    oninput={on_behavior_path_filter_change}
-                                    placeholder="path contains"
-                                    aria-label="按请求路径包含内容筛选"
-                                    class={classes!("rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]", "text-sm", "w-full", "md:w-[170px]")}
-                                />
-                                <input
-                                    type="text"
-                                    value={(*behavior_page_filter).clone()}
-                                    oninput={on_behavior_page_filter_change}
-                                    placeholder="page contains"
-                                    aria-label="按页面标识包含内容筛选"
-                                    class={classes!("rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]", "text-sm", "w-full", "md:w-[170px]")}
-                                />
-                                <input
-                                    type="text"
-                                    value={(*behavior_device_filter).clone()}
-                                    oninput={on_behavior_device_filter_change}
-                                    placeholder="device"
-                                    aria-label="按设备筛选"
-                                    class={classes!("rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]", "text-sm", "w-full", "md:w-[120px]")}
-                                />
-                                <input
-                                    type="number"
-                                    value={(*behavior_status_filter).clone()}
-                                    oninput={on_behavior_status_filter_change}
-                                    placeholder="HTTP 状态码 (200)"
-                                    title="按 HTTP 状态码筛选，例如 200 / 404 / 500"
-                                    aria-label="按 HTTP 状态码筛选"
-                                    class={classes!("rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]", "text-sm", "w-full", "md:w-[150px]")}
-                                />
-                                <button class={classes!("btn-fluent-secondary")} onclick={on_behavior_apply.clone()}>{ "Apply" }</button>
-                                <button class={classes!("btn-fluent-danger")} onclick={{
-                                    let pending_cleanup_logs = pending_cleanup_logs.clone();
-                                    Callback::from(move |_| pending_cleanup_logs.set(true))
-                                }}>{ "Cleanup Old Logs" }</button>
-                            </div>
-                        </div>
-
-                        if let Some(overview) = (*behavior_overview).clone() {
-                            <div class={classes!("grid", "gap-3", "md:grid-cols-4", "mb-4")}>
-                                <article class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-3")}>
-                                    <p class={classes!("m-0", "text-xs", "uppercase", "text-[var(--muted)]")}>{ "Events" }</p>
-                                    <p class={classes!("m-0", "text-lg", "font-semibold")}>{ overview.total_events }</p>
-                                </article>
-                                <article class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-3")}>
-                                    <p class={classes!("m-0", "text-xs", "uppercase", "text-[var(--muted)]")}>{ "Unique IPs" }</p>
-                                    <p class={classes!("m-0", "text-lg", "font-semibold")}>{ overview.unique_ips }</p>
-                                </article>
-                                <article class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-3")}>
-                                    <p class={classes!("m-0", "text-xs", "uppercase", "text-[var(--muted)]")}>{ "Unique Pages" }</p>
-                                    <p class={classes!("m-0", "text-lg", "font-semibold")}>{ overview.unique_pages }</p>
-                                </article>
-                                <article class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-3")}>
-                                    <p class={classes!("m-0", "text-xs", "uppercase", "text-[var(--muted)]")}>{ "Avg Latency" }</p>
-                                    <p class={classes!("m-0", "text-lg", "font-semibold")}>{ format!("{:.1} ms", overview.avg_latency_ms) }</p>
-                                </article>
-                            </div>
-
-                            <ViewTrendChart points={to_view_points(&overview.timeseries)} empty_text={"No behavior trend data".to_string()} />
-
-                            <div class={classes!("grid", "gap-3", "md:grid-cols-2", "xl:grid-cols-3", "mt-4", "mb-4")}>
-                                { behavior_distribution_card("Top Endpoints", &overview.top_endpoints, true) }
-                                { behavior_distribution_card("Top Pages", &overview.top_pages, true) }
-                                { behavior_distribution_card("Device Distribution", &overview.device_distribution, false) }
-                                { behavior_distribution_card("Browser Distribution", &overview.browser_distribution, false) }
-                                { behavior_distribution_card("OS Distribution", &overview.os_distribution, false) }
-                                { behavior_distribution_card("Region Distribution", &overview.region_distribution, false) }
-                            </div>
-                        } else if *behavior_overview_loading {
-                            // Skeleton for overview cards
-                            <div class={classes!("grid", "gap-3", "md:grid-cols-4", "mb-4")}>
-                                { for (0..4).map(|_| html! {
-                                    <article class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-3")}>
-                                        <div class="h-3 w-16 bg-[var(--border)] rounded animate-pulse mb-2"></div>
-                                        <div class="h-5 w-24 bg-[var(--border)] rounded animate-pulse"></div>
-                                    </article>
-                                }) }
-                            </div>
-                            // Skeleton for distribution cards
-                            <div class={classes!("grid", "gap-3", "md:grid-cols-2", "xl:grid-cols-3", "mt-4", "mb-4")}>
-                                { for (0..6).map(|_| html! {
-                                    <article class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-3")}>
-                                        <div class="h-4 w-28 bg-[var(--border)] rounded animate-pulse mb-3"></div>
-                                        { for (0..4).map(|_| html! {
-                                            <div class="h-3 w-full bg-[var(--border)] rounded animate-pulse mb-2"></div>
-                                        }) }
-                                    </article>
-                                }) }
-                            </div>
-                        } else {
-                            <p class={classes!("m-0", "text-sm", "text-[var(--muted)]", "mb-4")}>{ "Behavior overview unavailable." }</p>
-                        }
-
-                        <div class={classes!("mb-2", "flex", "items-center", "justify-between", "gap-2", "flex-wrap")}>
-                            <h3 class={classes!("m-0", "text-sm", "uppercase", "tracking-[0.08em]", "text-[var(--muted)]")}>
-                                {
-                                    if (*behavior_date).is_empty() {
-                                        format!("Recent Events ({}/{})", behavior_events.len(), *behavior_total)
-                                    } else {
-                                        format!("Events for {} ({}/{})", *behavior_date, behavior_events.len(), *behavior_total)
-                                    }
-                                }
-                            </h3>
-                            <button
-                                class={classes!("btn-fluent-secondary", "!px-2", "!py-1", "!text-xs")}
-                                onclick={on_behavior_refresh_events}
-                                disabled={*behavior_events_loading}
-                            >
-                                <i class={classes!("fas", "fa-rotate-right", "mr-1")} aria-hidden="true"></i>
-                                { if *behavior_events_loading { "Refreshing..." } else { "Refresh Events" } }
-                            </button>
-                        </div>
-                        if *behavior_events_loading {
-                            <div class={classes!("mb-2", "inline-flex", "items-center", "gap-2", "text-xs", "text-[var(--muted)]")}>
-                                <LoadingSpinner size={SpinnerSize::Small} />
-                                <span>{ "Loading events..." }</span>
-                            </div>
-                        }
-                        if *behavior_events_loading && behavior_events.is_empty() {
-                            <div class={classes!("flex", "justify-center", "py-8")}>
-                                <LoadingSpinner size={SpinnerSize::Small} />
-                            </div>
-                        } else {
-                        <div class={classes!("overflow-x-auto")}>
-                            <table class={classes!("w-full", "text-sm")}>
-                                <thead>
-                                    <tr class={classes!("text-left", "text-[var(--muted)]")}>
-                                        <th class={classes!("py-2", "pr-3")}>{ "Time" }</th>
-                                        <th class={classes!("py-2", "pr-3")}>{ "Page" }</th>
-                                        <th class={classes!("py-2", "pr-3")}>{ "API" }</th>
-                                        <th class={classes!("py-2", "pr-3")}>{ "Status" }</th>
-                                        <th class={classes!("py-2", "pr-3")}>{ "Device" }</th>
-                                        <th class={classes!("py-2", "pr-3")}>{ "Browser/OS" }</th>
-                                        <th class={classes!("py-2", "pr-3")}>{ "IP/Region" }</th>
-                                        <th class={classes!("py-2", "pr-3")}>{ "Latency" }</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    { for (*behavior_events).iter().map(|event| {
-                                        html! {
-                                            <tr class={classes!("border-t", "border-[var(--border)]")}>
-                                                <td class={classes!("py-2", "pr-3", "whitespace-nowrap")}>{ format_ms(event.occurred_at) }</td>
-                                                <td class={classes!("py-2", "pr-3", "max-w-[220px]")}>
-                                                    <div class={classes!("flex", "items-center", "gap-1")}>
-                                                        <span class={classes!("truncate")} title={event.page_path.clone()}>{ event.page_path.clone() }</span>
-                                                        <CopyButton text={event.page_path.clone()} />
-                                                    </div>
-                                                </td>
-                                                <td class={classes!("py-2", "pr-3", "max-w-[260px]")}>
-                                                    <div class={classes!("flex", "items-center", "gap-1")}>
-                                                        <span class={classes!("truncate")} title={format!("{} {}?{}", event.method, event.path, event.query)}>{ format!("{} {}", event.method, event.path) }</span>
-                                                        <CopyButton text={format!("{} {}?{}", event.method, event.path, event.query)} />
-                                                    </div>
-                                                </td>
-                                                <td class={classes!("py-2", "pr-3")}>{ event.status_code }</td>
-                                                <td class={classes!("py-2", "pr-3")}>{ event.device_type.clone() }</td>
-                                                <td class={classes!("py-2", "pr-3", "whitespace-nowrap")}>{ format!("{}/{}", event.browser_family, event.os_family) }</td>
-                                                <td class={classes!("py-2", "pr-3", "whitespace-nowrap")}>
-                                                    <div class={classes!("flex", "items-center", "gap-1")}>
-                                                        <span>{ format!("{}/{}", event.client_ip, event.ip_region) }</span>
-                                                        <CopyButton text={format!("{}/{}", event.client_ip, event.ip_region)} />
-                                                    </div>
-                                                </td>
-                                                <td class={classes!("py-2", "pr-3", "whitespace-nowrap")}>{ format!("{} ms", event.latency_ms) }</td>
-                                            </tr>
-                                        }
-                                    }) }
-                                </tbody>
-                            </table>
-                        </div>
-                        }
-                        <div class={classes!("mt-4")}>
-                            <Pagination current_page={*behavior_page} total_pages={behavior_total_pages} on_page_change={on_behavior_page_change} />
-                        </div>
-                    </div>
-                } else if *active_tab == Some(AdminTab::RuntimeMemory) {
-                    <div class="animate-[fadeIn_0.3s_ease]">
-                        <div class={classes!("flex", "flex-col", "md:flex-row", "md:items-center", "justify-between", "gap-3", "mb-4")}>
-                            <div>
-                                <h2 class={classes!("m-0", "text-lg", "font-semibold")}>{ "Runtime Memory Profiler" }</h2>
-                                if let Some(overview) = (*memory_overview).clone() {
-                                    <p class={classes!("m-0", "text-xs", "text-[var(--muted)]")}>
-                                        { format!(
-                                            "generated={} · uptime={}s · top={}",
-                                            format_ms(overview.generated_at_ms),
-                                            overview.process_uptime_secs,
-                                            memory_top.trim()
-                                        ) }
-                                    </p>
-                                }
-                            </div>
-                            <div class={classes!("grid", "grid-cols-2", "md:flex", "md:items-center", "gap-2")}>
-                                <input
-                                    type="number"
-                                    value={(*memory_top).clone()}
-                                    oninput={on_memory_top_change}
-                                    min="1"
-                                    placeholder="top"
-                                    class={classes!("rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]", "text-sm", "w-full", "md:w-[110px]")}
-                                />
-                                <button class={classes!("btn-fluent-secondary")} onclick={on_memory_refresh}>{ "Refresh" }</button>
-                                <button class={classes!("btn-fluent-secondary")} onclick={on_memory_reset} disabled={*memory_action_loading}>
-                                    { if *memory_action_loading { "Working..." } else { "Reset Stats" } }
-                                </button>
-                                <button class={classes!("btn-fluent-primary")} onclick={on_memory_save_config} disabled={*memory_action_loading || memory_config.is_none()}>
-                                    { if *memory_action_loading { "Saving..." } else { "Save Config" } }
-                                </button>
-                            </div>
-                        </div>
-
-                        if tab_loading.contains(&AdminTab::RuntimeMemory) {
-                            <div class={classes!("mb-3", "inline-flex", "items-center", "gap-2", "text-xs", "text-[var(--muted)]")}>
-                                <LoadingSpinner size={SpinnerSize::Small} />
-                                <span>{ "Loading memory profiler data..." }</span>
-                            </div>
-                        }
-
-                        if let Some(overview) = (*memory_overview).clone() {
-                            <div class={classes!("grid", "gap-3", "md:grid-cols-2", "xl:grid-cols-4", "mb-4")}>
-                                <article class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-3")}>
-                                    <p class={classes!("m-0", "text-xs", "uppercase", "text-[var(--muted)]")}>{ "Live Heap (est)" }</p>
-                                    <p class={classes!("m-0", "text-lg", "font-semibold")}>{ format_bytes(overview.total_live_bytes_estimate) }</p>
-                                </article>
-                                <article class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-3")}>
-                                    <p class={classes!("m-0", "text-xs", "uppercase", "text-[var(--muted)]")}>{ "Alloc Total (est)" }</p>
-                                    <p class={classes!("m-0", "text-lg", "font-semibold")}>{ format_bytes(overview.total_alloc_bytes_estimate) }</p>
-                                </article>
-                                <article class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-3")}>
-                                    <p class={classes!("m-0", "text-xs", "uppercase", "text-[var(--muted)]")}>{ "Process RSS" }</p>
-                                    <p class={classes!("m-0", "text-lg", "font-semibold")}>{ format_bytes(overview.process_rss_bytes) }</p>
-                                </article>
-                                <article class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-3")}>
-                                    <p class={classes!("m-0", "text-xs", "uppercase", "text-[var(--muted)]")}>{ "Virtual Memory" }</p>
-                                    <p class={classes!("m-0", "text-lg", "font-semibold")}>{ format_bytes(overview.process_virtual_bytes) }</p>
-                                </article>
-                            </div>
-
-                            <div class={classes!("grid", "gap-3", "md:grid-cols-2", "xl:grid-cols-4", "mb-4")}>
-                                <article class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-3")}>
-                                    <p class={classes!("m-0", "text-xs", "uppercase", "text-[var(--muted)]")}>{ "Tracked Allocs" }</p>
-                                    <p class={classes!("m-0", "text-lg", "font-semibold")}>{ overview.tracked_allocations }</p>
-                                    <p class={classes!("m-0", "text-xs", "text-[var(--muted)]")}>{ format!("distinct stacks={}", overview.distinct_stacks) }</p>
-                                </article>
-                                <article class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-3")}>
-                                    <p class={classes!("m-0", "text-xs", "uppercase", "text-[var(--muted)]")}>{ "Sampled Events" }</p>
-                                    <p class={classes!("m-0", "text-sm", "font-semibold")}>{ format!("alloc={} free={} realloc={}", overview.sampled_alloc_events, overview.sampled_dealloc_events, overview.sampled_realloc_events) }</p>
-                                    <p class={classes!("m-0", "text-xs", "text-[var(--muted)]")}>{ format!("dropped={}", overview.dropped_allocations) }</p>
-                                </article>
-                                <article class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-3")}>
-                                    <p class={classes!("m-0", "text-xs", "uppercase", "text-[var(--muted)]")}>{ "MiMalloc RSS" }</p>
-                                    <p class={classes!("m-0", "text-sm", "font-semibold")}>{ format!("current={} peak={}", format_bytes(overview.mimalloc.current_rss_bytes), format_bytes(overview.mimalloc.peak_rss_bytes)) }</p>
-                                    <p class={classes!("m-0", "text-xs", "text-[var(--muted)]")}>{ format!("faults={}", overview.mimalloc.page_faults) }</p>
-                                </article>
-                                <article class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-3")}>
-                                    <p class={classes!("m-0", "text-xs", "uppercase", "text-[var(--muted)]")}>{ "MiMalloc Commit" }</p>
-                                    <p class={classes!("m-0", "text-sm", "font-semibold")}>{ format!("current={} peak={}", format_bytes(overview.mimalloc.current_commit_bytes), format_bytes(overview.mimalloc.peak_commit_bytes)) }</p>
-                                    <p class={classes!("m-0", "text-xs", "text-[var(--muted)]")}>{ format!("elapsed={} ms", overview.mimalloc.elapsed_millis) }</p>
-                                </article>
-                            </div>
-                        } else {
-                            <p class={classes!("m-0", "mb-4", "text-sm", "text-[var(--muted)]")}>{ "Memory overview unavailable." }</p>
-                        }
-
-                        if let Some(config) = (*memory_config).clone() {
-                            <article class={classes!("rounded-[var(--radius)]", "border", "border-[var(--border)]", "p-4", "mb-4")}>
-                                <h3 class={classes!("m-0", "mb-3", "text-sm", "uppercase", "tracking-[0.08em]", "text-[var(--muted)]")}>
-                                    { "Profiler Config" }
-                                </h3>
-                                <div class={classes!("grid", "gap-3", "md:grid-cols-2", "xl:grid-cols-4")}>
-                                    <label class={classes!("flex", "items-center", "gap-2", "text-sm")}>
-                                        <input
-                                            type="checkbox"
-                                            checked={config.enabled}
-                                            onchange={on_memory_enabled_change}
-                                        />
-                                        { "enabled" }
-                                    </label>
-                                    <label class={classes!("block", "text-sm")}>
-                                        { "sample_rate" }
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            value={config.sample_rate.to_string()}
-                                            oninput={on_memory_sample_rate_change}
-                                            class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                        />
-                                    </label>
-                                    <label class={classes!("block", "text-sm")}>
-                                        { "min_alloc_bytes" }
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            value={config.min_alloc_bytes.to_string()}
-                                            oninput={on_memory_min_alloc_change}
-                                            class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                        />
-                                    </label>
-                                    <label class={classes!("block", "text-sm")}>
-                                        { "max_tracked_allocations" }
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            value={config.max_tracked_allocations.to_string()}
-                                            oninput={on_memory_max_tracked_change}
-                                            class={classes!("mt-1", "w-full", "rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]")}
-                                        />
-                                    </label>
-                                </div>
-                                <p class={classes!("m-0", "mt-3", "text-xs", "text-[var(--muted)]")}>
-                                    { format!("stack_skip={} · max_stack_depth={}", config.stack_skip, config.max_stack_depth) }
-                                </p>
-                            </article>
-                        }
-
-                        <div class={classes!("grid", "gap-4", "md:grid-cols-2", "xl:grid-cols-3")}>
-                            <article class={classes!("admin-dist-card", "overflow-hidden", "min-w-0")}>
-                                <header class="admin-dist-card__header">
-                                    <h3 class={classes!("m-0", "text-sm", "font-semibold")}>{ "Top Functions" }</h3>
-                                    if let Some(report) = (*memory_functions).clone() {
-                                        <span class="admin-dist-card__count">{ report.entries.len() }</span>
-                                    }
-                                </header>
-                                if let Some(report) = (*memory_functions).clone() {
-                                    if report.entries.is_empty() {
-                                        <p class={classes!("m-0", "text-xs", "text-[var(--muted)]")}>{ "No sampled function data." }</p>
-                                    } else {
-                                        { memory_function_list(&report.entries) }
-                                    }
-                                } else {
-                                    <p class={classes!("m-0", "text-sm", "text-[var(--muted)]")}>{ "Unavailable" }</p>
-                                }
-                            </article>
-
-                            <article class={classes!("admin-dist-card", "overflow-hidden", "min-w-0")}>
-                                <header class="admin-dist-card__header">
-                                    <h3 class={classes!("m-0", "text-sm", "font-semibold")}>{ "Top Modules" }</h3>
-                                    if let Some(report) = (*memory_modules).clone() {
-                                        <span class="admin-dist-card__count">{ report.entries.len() }</span>
-                                    }
-                                </header>
-                                if let Some(report) = (*memory_modules).clone() {
-                                    if report.entries.is_empty() {
-                                        <p class={classes!("m-0", "text-xs", "text-[var(--muted)]")}>{ "No sampled module data." }</p>
-                                    } else {
-                                        { memory_module_list(&report.entries) }
-                                    }
-                                } else {
-                                    <p class={classes!("m-0", "text-sm", "text-[var(--muted)]")}>{ "Unavailable" }</p>
-                                }
-                            </article>
-
-                            <article class={classes!("admin-dist-card", "overflow-hidden", "min-w-0")}>
-                                <header class="admin-dist-card__header">
-                                    <h3 class={classes!("m-0", "text-sm", "font-semibold")}>{ "Top Stacks" }</h3>
-                                    if let Some(report) = (*memory_stacks).clone() {
-                                        <span class="admin-dist-card__count">{ report.entries.len() }</span>
-                                    }
-                                </header>
-                                if let Some(report) = (*memory_stacks).clone() {
-                                    if report.entries.is_empty() {
-                                        <p class={classes!("m-0", "text-xs", "text-[var(--muted)]")}>{ "No sampled stack data." }</p>
-                                    } else {
-                                        { memory_stack_list(&report.entries) }
-                                    }
-                                } else {
-                                    <p class={classes!("m-0", "text-sm", "text-[var(--muted)]")}>{ "Unavailable" }</p>
-                                }
-                            </article>
-                        </div>
-                    </div>
-                } else if *active_tab == Some(AdminTab::MusicWishes) {
-                    <div class="animate-[fadeIn_0.3s_ease]">
-                    if tab_loading.contains(&AdminTab::MusicWishes) && music_wishes.is_empty() {
-                        <div class={classes!("flex", "justify-center", "py-8")}>
-                            <LoadingSpinner size={SpinnerSize::Small} />
-                        </div>
-                    } else {
-                    <>
-                        <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap", "mb-4")}>
-                            <h2 class={classes!("m-0", "text-lg", "font-semibold")}>
-                                { format!("Music Wishes ({})", music_wishes.len()) }
-                            </h2>
-                            <button class={classes!("btn-fluent-secondary")} onclick={
-                                let r = refresh_music_wishes.clone();
-                                Callback::from(move |_| r.emit(None))
-                            }>{ "Refresh" }</button>
-                        </div>
-                        <div class={classes!("mb-3", "max-w-md")}>
-                            <SearchBox
-                                value={(*music_wish_search).clone()}
-                                on_change={on_music_wish_search_change.clone()}
-                                placeholder={AttrValue::Static("搜索歌曲 / 歌手 / 昵称 / 留言 / 状态")}
-                            />
-                        </div>
-                        if !music_wish_query_lower.is_empty() {
-                            <p class={classes!("mb-2", "text-xs", "text-[var(--muted)]", "font-mono")}>
-                                { format!("当前页匹配 {}/{}", music_wish_matched, music_wishes.len()) }
-                            </p>
-                        }
-                        if tab_loading.contains(&AdminTab::MusicWishes) {
-                            <div class={classes!("mb-3", "inline-flex", "items-center", "gap-2", "text-xs", "text-[var(--muted)]")}>
-                                <LoadingSpinner size={SpinnerSize::Small} />
-                                <span>{ "Loading music wishes..." }</span>
-                            </div>
-                        }
-                        if music_wishes.is_empty() {
-                            <EmptyState icon="fa-music" title="暂无点歌" hint="还没有用户提交点歌请求。" />
-                        } else if filtered_music_wishes.is_empty() {
-                            <EmptyState icon="fa-filter" title="没有匹配项" hint="当前过滤条件下没有匹配的点歌，试试调整搜索。" />
-                        } else {
-                            <div class={classes!("overflow-x-auto")}>
-                                <table class={classes!("w-full", "text-sm")}>
-                                    <thead>
-                                        <tr class={classes!("text-left", "text-[var(--muted)]")}>
-                                            <th class={classes!("py-2", "pr-3")}>{ "Song" }</th>
-                                            <th class={classes!("py-2", "pr-3")}>{ "Artist" }</th>
-                                            <th class={classes!("py-2", "pr-3")}>{ "Nickname" }</th>
-                                            <th class={classes!("py-2", "pr-3")}>{ "Status" }</th>
-                                            <th class={classes!("py-2", "pr-3")}>{ "Region" }</th>
-                                            <th class={classes!("py-2", "pr-3")}>{ "Created" }</th>
-                                            <th class={classes!("py-2", "pr-3")}>{ "Actions" }</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        { for filtered_music_wishes.iter().map(|wish| {
-                                            let wid = wish.wish_id.clone();
-                                            let inflight = music_wish_action_inflight.contains(&wid);
-                                            html! {
-                                                <MusicWishRow
-                                                    wish={wish.clone()}
-                                                    inflight={inflight}
-                                                    on_action={on_music_wish_action.clone()}
-                                                />
-                                            }
-                                        }) }
-                                    </tbody>
-                                </table>
-                            </div>
-                        }
-                    </>
-                    }
-                    <div class={classes!("mt-4")}>
-                        <Pagination current_page={*music_wish_page} total_pages={music_wish_total_pages} on_page_change={on_music_wish_page_change} />
-                    </div>
-                    </div>
-                } else if *active_tab == Some(AdminTab::ArticleRequests) {
-                    <div class="animate-[fadeIn_0.3s_ease]">
-                    if tab_loading.contains(&AdminTab::ArticleRequests) && article_requests.is_empty() {
-                        <div class={classes!("flex", "justify-center", "py-8")}>
-                            <LoadingSpinner size={SpinnerSize::Small} />
-                        </div>
-                    } else {
-                    <>
-                        <div class={classes!("flex", "items-center", "justify-between", "gap-3", "flex-wrap", "mb-4")}>
-                            <h2 class={classes!("m-0", "text-lg", "font-semibold")}>
-                                { format!("Article Requests ({})", article_requests.len()) }
-                            </h2>
-                            <button class={classes!("btn-fluent-secondary")} onclick={
-                                let r = refresh_article_requests.clone();
-                                Callback::from(move |_| r.emit(None))
-                            }>{ "Refresh" }</button>
-                        </div>
-                        <div class={classes!("mb-3", "max-w-md")}>
-                            <SearchBox
-                                value={(*article_request_search).clone()}
-                                on_change={on_article_request_search_change.clone()}
-                                placeholder={AttrValue::Static("搜索 URL / 标题 / 昵称 / 留言 / 状态")}
-                            />
-                        </div>
-                        if !article_request_query_lower.is_empty() {
-                            <p class={classes!("mb-2", "text-xs", "text-[var(--muted)]", "font-mono")}>
-                                { format!("当前页匹配 {}/{}", article_request_matched, article_requests.len()) }
-                            </p>
-                        }
-                        if tab_loading.contains(&AdminTab::ArticleRequests) {
-                            <div class={classes!("mb-3", "inline-flex", "items-center", "gap-2", "text-xs", "text-[var(--muted)]")}>
-                                <LoadingSpinner size={SpinnerSize::Small} />
-                                <span>{ "Loading article requests..." }</span>
-                            </div>
-                        }
-                        if article_requests.is_empty() {
-                            <EmptyState icon="fa-file-lines" title="暂无投稿请求" hint="还没有用户提交文章投稿请求。" />
-                        } else if filtered_article_requests.is_empty() {
-                            <EmptyState icon="fa-filter" title="没有匹配项" hint="当前过滤条件下没有匹配的请求，试试调整搜索。" />
-                        } else {
-                            <div class={classes!("overflow-x-auto")}>
-                                <table class={classes!("w-full", "text-sm")}>
-                                    <thead>
-                                        <tr class={classes!("text-left", "text-[var(--muted)]")}>
-                                            <th class={classes!("py-2", "pr-3")}>{ "URL" }</th>
-                                            <th class={classes!("py-2", "pr-3")}>{ "Title Hint" }</th>
-                                            <th class={classes!("py-2", "pr-3")}>{ "Nickname" }</th>
-                                            <th class={classes!("py-2", "pr-3")}>{ "Status" }</th>
-                                            <th class={classes!("py-2", "pr-3")}>{ "Region" }</th>
-                                            <th class={classes!("py-2", "pr-3")}>{ "Created" }</th>
-                                            <th class={classes!("py-2", "pr-3")}>{ "Actions" }</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        { for filtered_article_requests.iter().map(|req| {
-                                            let rid = req.request_id.clone();
-                                            let inflight = article_request_action_inflight.contains(&rid);
-                                            html! {
-                                                <ArticleRequestRow
-                                                    request={req.clone()}
-                                                    inflight={inflight}
-                                                    on_action={on_article_request_action.clone()}
-                                                />
-                                            }
-                                        }) }
-                                    </tbody>
-                                </table>
-                            </div>
-                        }
-                    </>
-                    }
-                    <div class={classes!("mt-4")}>
-                        <Pagination current_page={*article_request_page} total_pages={article_request_total_pages} on_page_change={on_article_request_page_change} />
-                    </div>
-                    </div>
-                }
-            </section>
-
-            <section class={classes!(
-                "bg-[var(--surface)]",
-                "border",
-                "border-[var(--border)]",
-                "rounded-[var(--radius)]",
-                "shadow-[var(--shadow)]",
-                "p-5"
-            )}>
-                <h2 class={classes!("m-0", "mb-3", "text-lg", "font-semibold")}>{ "Cleanup" }</h2>
-                <div class={classes!("flex", "items-center", "gap-2", "flex-wrap")}>
-                    <input
-                        type="number"
-                        value={(*cleanup_days).clone()}
-                        oninput={on_cleanup_days_change}
-                        class={classes!("rounded-lg", "border", "border-[var(--border)]", "px-3", "py-2", "bg-[var(--surface)]", "text-[var(--text)]", "w-full", "md:w-[180px]")}
-                    />
-                    <button class={classes!("btn-fluent-danger")} onclick={{
-                        let pending_cleanup_failed = pending_cleanup_failed.clone();
-                        Callback::from(move |_| pending_cleanup_failed.set(true))
-                    }}>
-                        { "Cleanup Failed Tasks" }
-                    </button>
-                </div>
-            </section>
-        </main>
+            <AdminShell active={*active_section} badges={sidebar_badges}>
+                { section_view }
+            </AdminShell>
+        </>
     }
 }
