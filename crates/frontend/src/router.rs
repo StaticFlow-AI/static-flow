@@ -573,7 +573,7 @@ fn app_router_inner() -> Html {
         });
     }
 
-    let immersive = matches!(route, Some(Route::Home | Route::Worldlines));
+    let immersive = matches!(route, Some(Route::Worldlines));
     html! {
         <div class="flex flex-col bg-[var(--bg)]" style="min-height: 100vh; min-height: 100svh;">
             if !immersive { <Header /> }

@@ -50,6 +50,7 @@ pub mod categories;
 pub mod category_detail;
 pub mod coming_soon;
 pub mod home;
+pub mod home_hero;
 pub mod image_library;
 pub mod interactive_article;
 pub mod kiro_access;

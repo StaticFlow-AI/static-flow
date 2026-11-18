@@ -81,9 +81,6 @@ pub enum Panel {
     Phone,
     Talk(&'static str, &'static str),
     Leap,
-    Journal,
-    Help,
-    Restart,
 }
 #[derive(Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Story {

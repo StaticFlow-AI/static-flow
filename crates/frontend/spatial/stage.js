@@ -1,4 +1,4 @@
-import { WebGLRenderer, Scene, PerspectiveCamera, SRGBColorSpace, ACESFilmicToneMapping } from 'three';
+import { WebGLRenderer, Scene, PerspectiveCamera, SRGBColorSpace } from 'three';
 
 export function stage(host, signal, notify) {
   const canvas = document.createElement('canvas');
@@ -11,10 +11,11 @@ export function stage(host, signal, notify) {
     stencil: false
   });
   engine.outputColorSpace = SRGBColorSpace;
-  engine.toneMapping = ACESFilmicToneMapping;
   host.append(canvas);
   const scene = new Scene(),
-    camera = new PerspectiveCamera(55, 1, 0.04, 230);
+    camera = new PerspectiveCamera(72, 1, 0.045, 150);
+  const overlay = new Scene(),
+    handCamera = new PerspectiveCamera();
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   let frame = 0,
     previous = 0,
@@ -33,7 +34,13 @@ export function stage(host, signal, notify) {
     previous = now;
     const moving = paint(dt, reduced.matches);
     engine.render(scene, camera);
-    if (moving || !reduced.matches) request();
+    // The hand has its own depth buffer, including correct occlusion between the fingers and tool.
+    handCamera.projectionMatrix.copy(camera.projectionMatrix);
+    engine.autoClear = false;
+    engine.clearDepth();
+    engine.render(overlay, handCamera);
+    engine.autoClear = true;
+    if (moving) request();
   }
   function resize() {
     const w = Math.max(1, host.clientWidth),
@@ -85,15 +92,18 @@ export function stage(host, signal, notify) {
     size.disconnect();
     intersection.disconnect();
     const assets = new Set();
-    scene.traverse((o) => {
-      if (o.geometry) assets.add(o.geometry);
-      for (const m of [].concat(o.material || [])) {
-        assets.add(m);
-        for (const v of Object.values(m)) if (v?.isTexture) assets.add(v);
-      }
-    });
+    for (const layer of [scene, overlay])
+      layer.traverse((o) => {
+        if (o.shadow) o.shadow.dispose();
+        if (o.geometry) assets.add(o.geometry);
+        for (const m of [].concat(o.material || [])) {
+          assets.add(m);
+          for (const v of Object.values(m)) if (v?.isTexture) assets.add(v);
+        }
+      });
     for (const asset of assets) asset.dispose();
     scene.clear();
+    overlay.clear();
     engine.dispose();
     engine.forceContextLoss();
     canvas.remove();
@@ -102,6 +112,7 @@ export function stage(host, signal, notify) {
   signal.addEventListener('abort', dispose, { once: true });
   return {
     scene,
+    overlay,
     camera,
     canvas,
     engine,

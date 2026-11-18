@@ -7,12 +7,11 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const out = path.join(root, 'static/sf-space');
 const result = await build({
   absWorkingDir: root,
-  entryPoints: { galaxy: 'spatial/galaxy.js', lab: 'spatial/lab.js' },
+  entryPoints: { lab: 'spatial/lab.js' },
   outdir: out,
   entryNames: '[name]-[hash]',
   chunkNames: 'shared-[hash]',
   assetNames: '[name]-[hash]',
-  loader: { '.glb': 'file', '.webp': 'file' },
   bundle: true,
   format: 'esm',
   splitting: true,
@@ -43,10 +42,8 @@ const entries = {};
 for (const [file, info] of Object.entries(result.metafile.outputs)) {
   if (info.entryPoint) entries[path.basename(info.entryPoint, '.js')] = path.basename(file);
 }
-await writeChanged(
-  path.join(root, 'spatial/entries.generated.js'),
-  'window.sfSpatialEntries=' + JSON.stringify(entries) + ';\n'
-);
+await writeChanged(path.join(out, 'manifest.json'), JSON.stringify(entries));
+generated.add('manifest.json');
 for (const file of await readdir(out)) {
   if (!generated.has(file)) await unlink(path.join(out, file));
 }

@@ -409,9 +409,9 @@ pub fn apply_route_seo(route: Option<&Route>) {
         },
         Route::Worldlines => {
             apply_common_seo(
-                "未来道具研究所 · 逆时投递 · StaticFlow",
-                "在第一人称三维研究所中启动电话微波炉、用手机发送 \
-                 D-Mail，把记忆带回过去，寻找两个人都能归来的世界线。",
+                "方块研究所 · 世界线生存沙盒 · StaticFlow",
+                "在像素方块世界采矿、合成、建造，从未来道具研究所发出 \
+                 D-Mail，寻找两个人都能回来的世界线。",
                 &canonical_url,
                 "website",
                 "index,follow,max-image-preview:large",
