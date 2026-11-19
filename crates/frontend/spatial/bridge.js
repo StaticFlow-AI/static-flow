@@ -1,38 +1,30 @@
-// The Yew route owns the WASM simulation for the lifetime of a mounted game.
-export function startGame(host, base, game, module, bindingsURL, notify) {
+// The router owns both the native match and the WebGL scene for this visit.
+export function startFreight(host, base, sim, notify) {
   const controller = new AbortController();
   let view;
-  host.classList.add('voxel-loading');
-  const report = (status) => {
-    if (controller.signal.aborted) return;
-    host.classList.toggle('voxel-loading', status === 'loading');
-    notify(status);
-  };
+  const url = new URL(base + 'sf-space/manifest.json', document.baseURI);
   async function load() {
-    const manifest = new URL(base + 'manifest.json', document.baseURI);
-    const response = await fetch(manifest, { signal: controller.signal, cache: 'no-cache' });
-    if (!response.ok) throw new Error('Game manifest unavailable');
-    const { lab: entry, worker } = await response.json();
-    if (!entry || !worker) throw new Error('Game bundle missing');
-    const { mount } = await import(new URL(entry, manifest).href);
+    const response = await fetch(url, { signal: controller.signal, cache: 'no-cache' });
+    if (!response.ok) throw Error('Missing game manifest');
+    const { freight } = await response.json();
+    if (!freight) throw Error('Missing freight entry');
+    const { mount } = await import(new URL(freight, url).href);
     if (controller.signal.aborted) return;
-    view = mount(host, game, controller.signal, report, {
-      workerURL: new URL(worker, manifest),
-      module,
-      bindingsURL
-    });
+    view = await mount(host, sim, new URL(base + 'freight/', document.baseURI), controller.signal);
+    if (controller.signal.aborted) view?.dispose();
+    else notify('ready');
   }
   load().catch((error) => {
     if (!controller.signal.aborted) {
-      console.error('Block laboratory', error);
-      report('error');
+      console.error('Freight deck', error);
+      notify('error');
     }
   });
   return {
     dispose() {
-      view?.dispose();
       controller.abort();
-      game.free();
+      view?.dispose();
+      sim.free();
     }
   };
 }

@@ -31,6 +31,10 @@ pub enum Route {
     #[at("/static_flow/studio")]
     Studio,
 
+    #[cfg_attr(not(feature = "mock"), at("/play/freight"))]
+    #[cfg_attr(feature = "mock", at("/static_flow/play/freight"))]
+    Freight,
+
     #[cfg(not(feature = "mock"))]
     #[at("/lab/worldlines")]
     Worldlines,
@@ -369,7 +373,7 @@ fn switch(route: Route) -> Html {
         Route::Home => html! { <pages::home::HomePage /> },
         Route::LatestArticles => html! { <pages::latest_articles::LatestArticlesPage /> },
         Route::Studio => html! { <pages::studio::StudioPage /> },
-        Route::Worldlines => html! { <pages::worldlines::WorldlinesGame /> },
+        Route::Freight | Route::Worldlines => html! { <pages::freight::FreightGame /> },
         Route::Posts => html! { <pages::PostsPage /> },
         Route::ArticleDetail {
             id,
@@ -565,7 +569,7 @@ fn app_router_inner() -> Html {
         });
     }
 
-    let immersive = matches!(route, Some(Route::Worldlines));
+    let immersive = matches!(route, Some(Route::Freight | Route::Worldlines));
     html! {
         <div class="flex flex-col bg-[var(--bg)]" style="min-height: 100vh; min-height: 100svh;">
             if !immersive { <Header /> }

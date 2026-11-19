@@ -47,9 +47,5 @@ fn app() -> Html {
 }
 
 fn main() {
-    // The voxel mesh worker instantiates the same compiled module with independent
-    // memory.
-    if web_sys::window().is_some() {
-        yew::Renderer::<App>::new().render();
-    }
+    yew::Renderer::<App>::new().render();
 }

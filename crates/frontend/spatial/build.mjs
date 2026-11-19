@@ -7,7 +7,7 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const out = path.join(root, 'static/sf-space');
 const result = await build({
   absWorkingDir: root,
-  entryPoints: { lab: 'spatial/lab.js', worker: 'spatial/worker.js' },
+  entryPoints: { freight: 'spatial/freight.js' },
   outdir: out,
   entryNames: '[name]-[hash]',
   chunkNames: 'shared-[hash]',
