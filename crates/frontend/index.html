@@ -182,15 +182,177 @@
           } catch (_) { }
         };
 
+        window.__sfBuildMermaidConfig = function (themeName) {
+          var isDark = themeName === 'dark';
+          var fontSans = '"Inter", "Styrene B", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif';
+          return {
+            startOnLoad: false,
+            theme: 'base',
+            fontFamily: fontSans,
+            themeVariables: isDark ? {
+              darkMode: true,
+              background: '#191816',
+              fontFamily: fontSans,
+              fontSize: '13.5px',
+              primaryColor: '#22211E',
+              primaryTextColor: '#FAF9F5',
+              primaryBorderColor: '#3E3B35',
+              secondaryColor: '#2D201B',
+              secondaryTextColor: '#F9EBE5',
+              secondaryBorderColor: '#D97757',
+              tertiaryColor: '#262420',
+              tertiaryTextColor: '#D8D5CB',
+              tertiaryBorderColor: '#45423A',
+              lineColor: '#949186',
+              textColor: '#FAF9F5',
+              mainBkg: '#22211E',
+              nodeBorder: '#3E3B35',
+              clusterBkg: '#21201C',
+              clusterBorder: '#45423A',
+              defaultLinkColor: '#949186',
+              titleColor: '#FAF9F5',
+              edgeLabelBackground: '#181715',
+              actorBkg: '#24231F',
+              actorBorder: '#48453D',
+              actorTextColor: '#FAF9F5',
+              actorLineColor: '#55524A',
+              signalColor: '#949186',
+              signalTextColor: '#FAF9F5',
+              labelBoxBkgColor: '#2B2924',
+              labelBoxBorderColor: '#45423A',
+              labelTextColor: '#B8B5AB',
+              loopTextColor: '#B8B5AB',
+              noteBkgColor: '#2A211C',
+              noteBorderColor: '#754E3E',
+              noteTextColor: '#F4E1D9',
+              activationBkgColor: '#36241E',
+              activationBorderColor: '#D97757',
+              sequenceNumberColor: '#141413',
+              git0: '#D97757',
+              git1: '#8FAF7F',
+              git2: '#7BA3BA',
+              git3: '#D4A853',
+              git4: '#AE8FB9',
+              git5: '#E07A6E',
+              git6: '#A5A58D',
+              git7: '#C29B78',
+              commitLabelColor: '#B8B5AB',
+              commitLabelBackground: '#181715'
+            } : {
+              darkMode: false,
+              background: '#F3F0E8',
+              fontFamily: fontSans,
+              fontSize: '13.5px',
+              primaryColor: '#FFFFFF',
+              primaryTextColor: '#141413',
+              primaryBorderColor: '#CFC8B9',
+              secondaryColor: '#F7EAE3',
+              secondaryTextColor: '#2C160E',
+              secondaryBorderColor: '#C96442',
+              tertiaryColor: '#EAE4D8',
+              tertiaryTextColor: '#3D3D3A',
+              tertiaryBorderColor: '#C2BAAA',
+              lineColor: '#6C6960',
+              textColor: '#141413',
+              mainBkg: '#FFFFFF',
+              nodeBorder: '#CFC8B9',
+              clusterBkg: '#ECE7DB',
+              clusterBorder: '#C2BAAA',
+              defaultLinkColor: '#6C6960',
+              titleColor: '#141413',
+              edgeLabelBackground: '#FAF9F5',
+              actorBkg: '#FFFFFF',
+              actorBorder: '#C2BAAA',
+              actorTextColor: '#141413',
+              actorLineColor: '#ABA598',
+              signalColor: '#6C6960',
+              signalTextColor: '#141413',
+              labelBoxBkgColor: '#EAE4D7',
+              labelBoxBorderColor: '#C2BAAA',
+              labelTextColor: '#4F4E49',
+              loopTextColor: '#4F4E49',
+              noteBkgColor: '#F6ECE4',
+              noteBorderColor: '#D8A792',
+              noteTextColor: '#38231B',
+              activationBkgColor: '#F3DFD6',
+              activationBorderColor: '#C96442',
+              sequenceNumberColor: '#FFFFFF',
+              git0: '#C96442',
+              git1: '#5A7A4F',
+              git2: '#4A7288',
+              git3: '#B7862F',
+              git4: '#7A5C85',
+              git5: '#B5443A',
+              git6: '#6B705C',
+              git7: '#7F5539',
+              commitLabelColor: '#4F4E49',
+              commitLabelBackground: '#FAF9F5'
+            },
+            flowchart: {
+              htmlLabels: true,
+              curve: 'basis',
+              nodeSpacing: 36,
+              rankSpacing: 44,
+              diagramPadding: 12,
+              padding: 12,
+              wrappingWidth: 210
+            },
+            sequence: {
+              diagramMarginX: 16,
+              diagramMarginY: 12,
+              actorMargin: 42,
+              width: 146,
+              height: 44,
+              boxMargin: 10,
+              boxTextMargin: 6,
+              noteMargin: 10,
+              messageMargin: 32,
+              mirrorActors: false,
+              bottomMarginAdj: 4,
+              useMaxWidth: true,
+              actorFontFamily: fontSans,
+              actorFontSize: 13,
+              actorFontWeight: 600,
+              noteFontFamily: fontSans,
+              noteFontSize: 12.5,
+              noteFontWeight: 400,
+              messageFontFamily: fontSans,
+              messageFontSize: 12.5,
+              messageFontWeight: 400
+            },
+            state: {
+              dividerMargin: 8,
+              sizeUnit: 5,
+              padding: 10,
+              textHeight: 11,
+              titleShift: -12,
+              noteMargin: 10
+            },
+            gantt: {
+              titleTopMargin: 16,
+              barHeight: 22,
+              barGap: 6,
+              topPadding: 40,
+              leftPadding: 92,
+              gridLineStartPadding: 24,
+              fontSize: 12,
+              sectionFontSize: 12.5
+            },
+            gitGraph: {
+              showBranches: true,
+              showCommitLabel: true,
+              mainBranchName: 'main',
+              rotateCommitLabel: true
+            }
+          };
+        };
+
         var applyDomThemeSilent = function (next) {
           root.setAttribute('data-theme', next);
           setHighlightTheme(next);
           if (window.mermaid && typeof window.mermaid.initialize === 'function') {
             try {
-              window.mermaid.initialize({
-                startOnLoad: false,
-                theme: next === 'dark' ? 'dark' : 'default'
-              });
+              window.mermaid.initialize(window.__sfBuildMermaidConfig(next));
             } catch (_) { }
           }
         };
@@ -624,10 +786,12 @@
           .then(function (mod) {
             var mermaid = mod.default || mod;
             window.mermaid = mermaid;
-            mermaid.initialize({
-              startOnLoad: false,
-              theme: document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
-            });
+            var currentTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+            mermaid.initialize(
+              typeof window.__sfBuildMermaidConfig === 'function'
+                ? window.__sfBuildMermaidConfig(currentTheme)
+                : { startOnLoad: false, theme: 'base' }
+            );
             return mermaid;
           })
           .catch(function (err) {
@@ -1092,13 +1256,20 @@
           .trim();
       }
 
+      function cleanRawMermaidSource(source) {
+        return String(source || '')
+          .replace(/\r\n?/g, '\n')
+          .replace(/^```mermaid\s*/i, '')
+          .replace(/```$/g, '')
+          .trim();
+      }
+
       function shouldNormalizeFlowchartLabels(source) {
-        const lines = String(source || '').split('\n');
+        const stripped = String(source || '').replace(/%%\{[\s\S]*?\}%%/g, '');
+        const lines = stripped.split('\n');
         for (const rawLine of lines) {
           const line = rawLine.trim();
           if (!line) continue;
-          // Skip Mermaid directives/comments when detecting diagram type.
-          if (line.startsWith('%%{') && line.endsWith('}%%')) continue;
           if (line.startsWith('%%')) continue;
           return /^(graph|flowchart)\b/i.test(line);
         }
@@ -1111,14 +1282,14 @@
       //   A[text]   -> A["text"]
       //   A{text}   -> A{"text"}
       function normalizeMermaidDefinition(source) {
-        let text = String(source || '').replace(/\r\n?/g, '\n').trim();
+        let text = cleanRawMermaidSource(source);
         if (!text) return text;
 
-        // Strip accidental fence remnants if they leaked into code content.
-        text = text
-          .replace(/^```mermaid\s*/i, '')
-          .replace(/```$/g, '')
-          .trim();
+        // Strip legacy per-diagram theme/themeVariables directives so platform
+        // light/dark editorial tokens remain consistent and legible.
+        text = text.replace(/%%\{\s*init\s*:[\s\S]*?\}%%/gi, (directive) => {
+          return /\btheme(Variables)?\b/i.test(directive) ? '' : directive;
+        }).trim();
 
         // Only normalize flowchart/graph diagrams.
         // Other Mermaid dialects (e.g. stateDiagram) use different token rules.
@@ -1127,16 +1298,301 @@
         }
 
         text = text.replace(/(\b[A-Za-z][\w-]*)\s*\[([^\]\n"]+)\]/g, (match, id, label) => {
+          const trimmed = label.trim();
+          // Preserve cylinder [(...)], stadium ([...]), subroutine [[...]], trapezoid/parallelogram [/.../]
+          if (/^[(\[/\\]/.test(trimmed)) return match;
           const normalized = escapeMermaidLabel(label);
           return normalized ? `${id}["${normalized}"]` : match;
         });
 
         text = text.replace(/(\b[A-Za-z][\w-]*)\s*\{([^}\n"]+)\}/g, (match, id, label) => {
+          const trimmed = label.trim();
+          // Preserve hexagon {{...}}
+          if (trimmed.startsWith('{')) return match;
           const normalized = escapeMermaidLabel(label);
           return normalized ? `${id}{"${normalized}"}` : match;
         });
 
         return text;
+      }
+
+      const BUILTIN_MERMAID_CLASSES = new Set([
+        'node', 'cluster', 'edgeLabel', 'edgePath', 'flowchart-link', 'label', 'labelBkg',
+        'marker', 'arrowheadPath', 'error-icon', 'error-text', 'actor', 'actor-top',
+        'actor-bottom', 'actor-line', 'note', 'noteText', 'loopLine', 'labelBox',
+        'labelText', 'loopText', 'messageLine0', 'messageLine1', 'messageText',
+        'sequenceNumber', 'statediagram-state', 'stateGroup', 'state-note', 'state-start',
+        'state-end', 'end-state-inner', 'fork-join', 'transition', 'section', 'section0',
+        'section1', 'section2', 'section3', 'grid', 'tick', 'today', 'task',
+        'mermaid-main-font', 'flowchartTitleText', 'titleText', 'default', 'basic',
+        'label-container', 'root', 'clusters', 'edgePaths', 'edgeLabels', 'nodes'
+      ]);
+
+      function parseCssColorToHsl(raw) {
+        const str = String(raw || '').replace(/!important/gi, '').trim().toLowerCase();
+        if (!str || str === 'none' || str === 'transparent' || str === 'inherit' || str.startsWith('var(') || str.startsWith('url(')) {
+          return null;
+        }
+        let r = NaN, g = NaN, b = NaN;
+        const hexMatch = str.match(/^#([0-9a-f]{3,8})$/i);
+        if (hexMatch) {
+          const hex = hexMatch[1];
+          if (hex.length === 3 || hex.length === 4) {
+            r = parseInt(hex[0] + hex[0], 16);
+            g = parseInt(hex[1] + hex[1], 16);
+            b = parseInt(hex[2] + hex[2], 16);
+          } else if (hex.length === 6 || hex.length === 8) {
+            r = parseInt(hex.slice(0, 2), 16);
+            g = parseInt(hex.slice(2, 4), 16);
+            b = parseInt(hex.slice(4, 6), 16);
+          }
+        } else {
+          const rgbMatch = str.match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/);
+          if (rgbMatch) {
+            r = parseFloat(rgbMatch[1]);
+            g = parseFloat(rgbMatch[2]);
+            b = parseFloat(rgbMatch[3]);
+          } else {
+            const hslMatch = str.match(/^hsla?\(\s*(-?[\d.]+)(?:deg)?\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%/);
+            if (hslMatch) {
+              const h = ((parseFloat(hslMatch[1]) % 360) + 360) % 360;
+              const s = Math.max(0, Math.min(1, parseFloat(hslMatch[2]) / 100));
+              const l = Math.max(0, Math.min(1, parseFloat(hslMatch[3]) / 100));
+              return { h, s, l };
+            }
+          }
+        }
+        if (!Number.isFinite(r) || !Number.isFinite(g) || !Number.isFinite(b)) return null;
+        r /= 255; g /= 255; b /= 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        const l = (max + min) / 2;
+        let h = 0, s = 0;
+        if (max !== min) {
+          const d = max - min;
+          s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+          switch (max) {
+            case r: h = ((g - b) / d + (g < b ? 6 : 0)) * 60; break;
+            case g: h = ((b - r) / d + 2) * 60; break;
+            default: h = ((r - g) / d + 4) * 60; break;
+          }
+        }
+        return { h, s, l };
+      }
+
+      function classifyEditorialMermaidTone(fillRaw, strokeRaw) {
+        const fill = parseCssColorToHsl(fillRaw);
+        const stroke = parseCssColorToHsl(strokeRaw);
+        let c = null;
+        if (fill) {
+          if (fill.l > 0.94 && fill.s < 0.12) {
+            if (stroke && stroke.s >= 0.18) {
+              c = stroke;
+            } else {
+              return null;
+            }
+          } else {
+            c = fill;
+          }
+        } else if (stroke && stroke.s >= 0.18) {
+          c = stroke;
+        }
+        if (!c) return null;
+        if (c.l < 0.28 && c.s < 0.18) return 'ink';
+        if (c.s < 0.13) return c.l < 0.92 ? 'stone' : null;
+        const h = c.h;
+        if (h >= 10 && h < 35) return 'terracotta';
+        if (h >= 35 && h < 69) return 'ochre';
+        if (h >= 69 && h < 169) return 'sage';
+        if (h >= 169 && h < 236) return 'slate';
+        if (h >= 236 && h < 331) return 'plum';
+        return 'brick';
+      }
+
+      function extractStyleProp(cssBody, propName) {
+        const re = new RegExp('(?:^|;)\\s*' + propName + '\\s*:\\s*([^;]+)', 'i');
+        const m = String(cssBody || '').match(re);
+        return m ? m[1].trim() : '';
+      }
+
+      function stripColorPropsFromCssBody(cssBody) {
+        return String(cssBody || '')
+          .split(';')
+          .map((decl) => decl.trim())
+          .filter((decl) => decl && !/^(fill|stroke|stroke-width|color)\s*:/i.test(decl))
+          .join('; ');
+      }
+
+      function polishMermaidSvg(svg) {
+        if (!svg) return;
+
+        // 0. Preserve invisible layout links (`~~~`) before CSS connector rules apply
+        svg.querySelectorAll('.edgePath .path, .flowchart-link, .transition').forEach((pathEl) => {
+          const inlineStyle = (pathEl.getAttribute('style') || '').toLowerCase();
+          if (
+            /stroke-width\s*:\s*0(?![0-9.])/.test(inlineStyle) ||
+            /stroke\s*:\s*(none|transparent)/.test(inlineStyle) ||
+            /opacity\s*:\s*0(?![0-9.])/.test(inlineStyle)
+          ) {
+            pathEl.dataset.sfInvisibleEdge = 'true';
+            pathEl.removeAttribute('marker-end');
+            pathEl.removeAttribute('marker-start');
+          }
+        });
+
+        // 1. Harmonize custom classDef rules inside Mermaid's <style> block
+        const styleEl = svg.querySelector('style');
+        if (styleEl && styleEl.textContent) {
+          const classTones = new Map();
+          styleEl.textContent = styleEl.textContent.replace(
+            /(#[A-Za-z0-9_-]+\s+\.([A-Za-z0-9_-]+)[^{]*)\{([^}]*)\}/g,
+            (full, selector, cls, body) => {
+              if (
+                BUILTIN_MERMAID_CLASSES.has(cls) ||
+                /^(commit|branch-label|label\d|arrow\d|sectionTitle|active\d|done\d|crit\d|task\d|activation\d)/.test(cls)
+              ) {
+                return full;
+              }
+              // Only intercept custom node classes if matching .node.<cls> exists
+              const matchingNodes = svg.querySelectorAll('.node.' + CSS.escape(cls));
+              if (matchingNodes.length === 0) return full;
+              const fillVal = extractStyleProp(body, 'fill');
+              const strokeVal = extractStyleProp(body, 'stroke');
+              const tone = classifyEditorialMermaidTone(fillVal, strokeVal);
+              if (tone && !classTones.has(cls)) {
+                classTones.set(cls, tone);
+              }
+              const cleaned = stripColorPropsFromCssBody(body);
+              return `${selector}{${cleaned}}`;
+            }
+          );
+          classTones.forEach((tone, cls) => {
+            svg.querySelectorAll('.node.' + CSS.escape(cls)).forEach((node) => {
+              node.dataset.sfTone = tone;
+            });
+          });
+        }
+
+        // 2. Harmonize inline `style A fill:...` declarations on nodes
+        svg.querySelectorAll('.node').forEach((node) => {
+          let detectedTone = node.dataset.sfTone || null;
+          const styledTargets = [node, ...node.querySelectorAll('rect, circle, ellipse, polygon, path, .label, span, text')];
+          styledTargets.forEach((el) => {
+            const inlineStyle = el.getAttribute('style');
+            if (!inlineStyle) return;
+            if (!detectedTone) {
+              const fillVal = extractStyleProp(inlineStyle, 'fill');
+              const strokeVal = extractStyleProp(inlineStyle, 'stroke');
+              detectedTone = classifyEditorialMermaidTone(fillVal, strokeVal);
+            }
+            const cleaned = stripColorPropsFromCssBody(inlineStyle);
+            if (cleaned) {
+              el.setAttribute('style', cleaned);
+            } else {
+              el.removeAttribute('style');
+            }
+          });
+          if (detectedTone) {
+            node.dataset.sfTone = detectedTone;
+          }
+        });
+
+        // 3. Tag unstyled decision diamonds for subtle terracotta accent
+        svg.querySelectorAll('.node:not([data-sf-tone]) > polygon').forEach((poly) => {
+          const parentNode = poly.closest('.node');
+          if (parentNode) {
+            parentNode.dataset.sfShape = 'diamond';
+          }
+        });
+
+        // 4. Tag non-empty edge labels so empty connectors never show empty pill borders
+        svg.querySelectorAll('.labelBkg').forEach((bkg) => {
+          if ((bkg.textContent || '').trim().length > 0) {
+            bkg.dataset.sfHasLabel = 'true';
+          }
+        });
+        svg.querySelectorAll('g.edgeLabel').forEach((edgeLabelG) => {
+          const labelText = (edgeLabelG.textContent || '').trim();
+          if (!labelText) return;
+          edgeLabelG.dataset.sfHasLabel = 'true';
+          const fo = edgeLabelG.querySelector('foreignObject');
+          const labelG = edgeLabelG.querySelector('g.label');
+          if (fo) {
+            const w = parseFloat(fo.getAttribute('width') || '0');
+            const h = parseFloat(fo.getAttribute('height') || '0');
+            if (w > 0 && h > 0) {
+              const nextW = Math.ceil(w + 18);
+              const nextH = Math.ceil(h + 8);
+              fo.setAttribute('width', String(nextW));
+              fo.setAttribute('height', String(nextH));
+              fo.style.overflow = 'visible';
+              if (labelG) {
+                labelG.setAttribute('transform', `translate(${-nextW / 2}, ${-nextH / 2})`);
+              }
+              const innerDiv = fo.firstElementChild;
+              if (innerDiv) {
+                innerDiv.style.display = 'inline-flex';
+                innerDiv.style.alignItems = 'center';
+                innerDiv.style.justifyContent = 'center';
+                innerDiv.style.width = '100%';
+                innerDiv.style.height = '100%';
+              }
+            }
+          }
+        });
+
+        // 5. Editorial rounded geometry across diagram primitives
+        svg.querySelectorAll('.node rect, .statediagram-state rect.basic').forEach((rect) => {
+          const rx = parseFloat(rect.getAttribute('rx') || '0');
+          if (!(rx > 6)) {
+            rect.setAttribute('rx', '8');
+            rect.setAttribute('ry', '8');
+          }
+        });
+        svg.querySelectorAll('.cluster > rect, .stateGroup > rect').forEach((rect) => {
+          rect.setAttribute('rx', '12');
+          rect.setAttribute('ry', '12');
+        });
+        svg.querySelectorAll('rect.actor').forEach((rect) => {
+          rect.setAttribute('rx', '8');
+          rect.setAttribute('ry', '8');
+        });
+        svg.querySelectorAll('rect.note, rect.state-note').forEach((rect) => {
+          rect.setAttribute('rx', '6');
+          rect.setAttribute('ry', '6');
+        });
+        svg.querySelectorAll('rect[class^="activation"]').forEach((rect) => {
+          rect.setAttribute('rx', '2');
+          rect.setAttribute('ry', '2');
+        });
+        svg.querySelectorAll('rect.task').forEach((rect) => {
+          const rx = parseFloat(rect.getAttribute('rx') || '0');
+          if (!(rx > 4)) {
+            rect.setAttribute('rx', '4');
+            rect.setAttribute('ry', '4');
+          }
+        });
+        svg.querySelectorAll('.er.relationshipLabelBox').forEach((rect) => {
+          rect.setAttribute('rx', '5');
+          rect.setAttribute('ry', '5');
+        });
+
+        // 6. Responsive scale bounds: never upscale small diagrams, protect ultra-wide readability
+        const vb = svg.viewBox && svg.viewBox.baseVal;
+        if (vb && vb.width > 0 && vb.height > 0) {
+          const nw = Math.ceil(vb.width);
+          const nh = Math.ceil(vb.height);
+          svg.dataset.sfNaturalWidth = String(nw);
+          svg.dataset.sfNaturalHeight = String(nh);
+          svg.removeAttribute('height');
+          svg.style.width = '100%';
+          svg.style.height = 'auto';
+          svg.style.maxWidth = `${nw}px`;
+          if (nw > 760) {
+            svg.style.minWidth = `${Math.round(nw * 0.48)}px`;
+          } else {
+            svg.style.removeProperty('min-width');
+          }
+        }
       }
 
       function markMermaidPending(node) {
@@ -1149,7 +1605,7 @@
         // Failsafe: if Mermaid rendering is stuck, fallback to code block so users never see a permanent blank state.
         node._sfMermaidPendingTimer = setTimeout(() => {
           if (!node.isConnected || !node.classList.contains('mermaid-pending')) return;
-          const source = node.dataset.sfMermaidSource || normalizeMermaidDefinition(node.textContent || '');
+          const source = node.dataset.sfMermaidRawSource || node.dataset.sfMermaidSource || cleanRawMermaidSource(node.textContent || '');
           node.dataset.sfMermaidRendered = 'true';
           clearMermaidPending(node);
           replaceMermaidWithCodeBlock(node, source);
@@ -1188,8 +1644,10 @@
       articleContent.querySelectorAll('pre code.language-mermaid').forEach((block) => {
         const pre = block.parentElement;
         const mermaidDiv = document.createElement('div');
-        const source = normalizeMermaidDefinition(block.textContent || '');
+        const rawSource = cleanRawMermaidSource(block.textContent || '');
+        const source = normalizeMermaidDefinition(rawSource);
         mermaidDiv.className = 'mermaid mermaid-pending';
+        mermaidDiv.dataset.sfMermaidRawSource = rawSource;
         mermaidDiv.dataset.sfMermaidSource = source;
         mermaidDiv.dataset.sfMermaidRendered = 'false';
         mermaidDiv.setAttribute('aria-busy', 'true');
@@ -1228,8 +1686,10 @@
           clearMermaidPending(node);
           return false;
         }
-        const normalized = normalizeMermaidDefinition(node.textContent || '');
+        const rawSource = node.dataset.sfMermaidRawSource || cleanRawMermaidSource(node.textContent || '');
+        const normalized = normalizeMermaidDefinition(rawSource);
         node.textContent = normalized;
+        node.dataset.sfMermaidRawSource = rawSource;
         node.dataset.sfMermaidSource = normalized;
         markMermaidPending(node);
         return true;
@@ -1237,54 +1697,64 @@
       if (mermaidNodes.length > 0 && typeof window.__sfEnsureMermaid === 'function') {
         window.__sfEnsureMermaid()
           .then(async (mermaid) => {
-            const validNodes = [];
-            for (const node of mermaidNodes) {
-              const source = node.dataset.sfMermaidSource || normalizeMermaidDefinition(node.textContent || '');
-              node.dataset.sfMermaidSource = source;
-              node.textContent = source;
-              markMermaidPending(node);
-
-              if (typeof mermaid.parse === 'function') {
-                try {
-                  await mermaid.parse(source);
-                  validNodes.push(node);
-                } catch (_) {
-                  node.dataset.sfMermaidRendered = 'true';
-                  clearMermaidPending(node);
-                  replaceMermaidWithCodeBlock(node, source);
-                }
-              } else {
-                validNodes.push(node);
-              }
+            const currentTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+            if (typeof window.__sfBuildMermaidConfig === 'function') {
+              try { mermaid.initialize(window.__sfBuildMermaidConfig(currentTheme)); } catch (_) {}
             }
-            return { mermaid, validNodes };
-          })
-          .then((ctx) => {
-            if (!ctx || !ctx.validNodes || ctx.validNodes.length === 0) return;
-            return ctx.mermaid.run({
-              nodes: ctx.validNodes,
-              suppressErrors: true
-            }).then(() => {
-              ctx.validNodes.forEach((node) => {
-                const renderedText = String(node.textContent || '').toLowerCase();
-                if (renderedText.includes('syntax error in text')) {
-                  const source = node.dataset.sfMermaidSource || '';
-                  clearMermaidPending(node);
+            let seq = 0;
+            for (const node of mermaidNodes) {
+              if (!node.isConnected) continue;
+              const rawSource = node.dataset.sfMermaidRawSource || node.dataset.sfMermaidSource || cleanRawMermaidSource(node.textContent || '');
+              const source = node.dataset.sfMermaidSource || normalizeMermaidDefinition(node.textContent || '');
+              node.dataset.sfMermaidRawSource = rawSource;
+              node.dataset.sfMermaidSource = source;
+              markMermaidPending(node);
+              const renderId = `sf-mermaid-${Date.now()}-${++seq}`;
+              const measureWidth = Math.max(580, Math.round((node.clientWidth || 720) - 48));
+              const measureHost = document.createElement('div');
+              measureHost.style.cssText = `position:fixed;left:-10000px;top:0;width:${measureWidth}px;visibility:hidden;pointer-events:none;overflow:visible;`;
+              document.body.appendChild(measureHost);
+              try {
+                if (typeof mermaid.parse === 'function') {
+                  await mermaid.parse(source);
+                }
+                const rendered = await mermaid.render(renderId, source, measureHost);
+                const svgHtml = rendered && rendered.svg ? rendered.svg : '';
+                if (!svgHtml || svgHtml.toLowerCase().includes('syntax error in text')) {
                   node.dataset.sfMermaidRendered = 'true';
-                  replaceMermaidWithCodeBlock(node, source);
-                  return;
+                  clearMermaidPending(node);
+                  replaceMermaidWithCodeBlock(node, rawSource);
+                  continue;
+                }
+                node.innerHTML = svgHtml;
+                const svgEl = node.querySelector('svg');
+                polishMermaidSvg(svgEl);
+                if (rendered && typeof rendered.bindFunctions === 'function') {
+                  rendered.bindFunctions(node);
                 }
                 node.dataset.sfMermaidRendered = 'true';
                 clearMermaidPending(node);
-              });
-            });
+              } catch (_) {
+                node.dataset.sfMermaidRendered = 'true';
+                clearMermaidPending(node);
+                replaceMermaidWithCodeBlock(node, rawSource);
+              } finally {
+                const tempSandbox = document.getElementById('d' + renderId);
+                if (tempSandbox && tempSandbox.parentNode) {
+                  tempSandbox.parentNode.removeChild(tempSandbox);
+                }
+                if (measureHost.parentNode) {
+                  measureHost.parentNode.removeChild(measureHost);
+                }
+              }
+            }
           })
           .catch(() => {
             mermaidNodes.forEach((node) => {
-              const source = node.dataset.sfMermaidSource || normalizeMermaidDefinition(node.textContent || '');
+              const rawSource = node.dataset.sfMermaidRawSource || node.dataset.sfMermaidSource || cleanRawMermaidSource(node.textContent || '');
               node.dataset.sfMermaidRendered = 'true';
               clearMermaidPending(node);
-              replaceMermaidWithCodeBlock(node, source);
+              replaceMermaidWithCodeBlock(node, rawSource);
             });
           })
           .finally(() => {
@@ -1383,8 +1853,13 @@
     // Add copy buttons to code blocks
     function addCopyButtonsToCodeBlocks(root) {
       (root || document).querySelectorAll('pre:not(.code-wrapper)').forEach((pre) => {
-        // Skip if already wrapped
-        if (pre.parentElement.classList.contains('code-wrapper')) {
+        // Skip if already wrapped or inside a Mermaid source toggle view
+        if (
+          !pre.parentElement ||
+          pre.parentElement.classList.contains('code-wrapper') ||
+          pre.classList.contains('mermaid-source-view') ||
+          pre.closest('.mermaid-wrapper')
+        ) {
           return;
         }
 
@@ -1622,6 +2097,158 @@
     });
 
     // Add copy buttons to mermaid diagrams
+    const MERMAID_ICONS = {
+      source: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>',
+      diagram: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="6" rx="1.5"></rect><rect x="14" y="15" width="7" height="6" rx="1.5"></rect><path d="M10 6h4a2 2 0 0 1 2 2v7"></path></svg>',
+      copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>',
+      download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>',
+      expand: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>',
+      zoomIn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>',
+      zoomOut: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>',
+      fit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>',
+      actualSize: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M8 10v4"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10v4"></path></svg>',
+      check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>',
+      error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>'
+    };
+
+    function buildStandaloneStyledSvg(liveSvg) {
+      const clone = liveSvg.cloneNode(true);
+      const liveNodes = [liveSvg, ...liveSvg.querySelectorAll('*')];
+      const cloneNodes = [clone, ...clone.querySelectorAll('*')];
+      const VISUAL_PROPS = [
+        'fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'opacity',
+        'color', 'background-color',
+        'border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width',
+        'border-top-style', 'border-right-style', 'border-bottom-style', 'border-left-style',
+        'border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color',
+        'border-radius', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+        'display', 'align-items', 'justify-content', 'line-height', 'white-space', 'box-sizing',
+        'font-family', 'font-size', 'font-weight', 'letter-spacing', 'text-align', 'overflow'
+      ];
+      for (let i = 0; i < liveNodes.length; i++) {
+        const src = liveNodes[i];
+        const dst = cloneNodes[i];
+        if (!src || !dst || src.tagName === 'STYLE' || src.tagName === 'DEFS') continue;
+        const cs = window.getComputedStyle(src);
+        let styleBuf = dst.getAttribute('style') || '';
+        if (styleBuf && !styleBuf.trim().endsWith(';')) styleBuf += ';';
+        for (const prop of VISUAL_PROPS) {
+          const val = cs.getPropertyValue(prop);
+          if (val) {
+            styleBuf += `${prop}:${val};`;
+          }
+        }
+        if (styleBuf) dst.setAttribute('style', styleBuf);
+      }
+      clone.querySelectorAll('style').forEach((s) => s.remove());
+
+      const vb = liveSvg.viewBox && liveSvg.viewBox.baseVal;
+      const vbX = vb && Number.isFinite(vb.x) ? vb.x : 0;
+      const vbY = vb && Number.isFinite(vb.y) ? vb.y : 0;
+      const vbW = (vb && vb.width > 0 ? vb.width : parseFloat(liveSvg.getAttribute('width') || '800')) || 800;
+      const vbH = (vb && vb.height > 0 ? vb.height : parseFloat(liveSvg.getAttribute('height') || '600')) || 600;
+      const pad = 28;
+      const outW = Math.ceil(vbW + pad * 2);
+      const outH = Math.ceil(vbH + pad * 2);
+
+      const rootStyles = window.getComputedStyle(document.documentElement);
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const canvasBg = (rootStyles.getPropertyValue('--sf-m-canvas-bg') || '').trim() || (isDark ? '#191816' : '#F3F0E8');
+
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      clone.setAttribute('viewBox', `${vbX - pad} ${vbY - pad} ${outW} ${outH}`);
+      clone.setAttribute('width', String(outW));
+      clone.setAttribute('height', String(outH));
+      clone.setAttribute('style', `width:${outW}px;height:${outH}px;max-width:none;background:${canvasBg};`);
+
+      const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      bgRect.setAttribute('x', String(vbX - pad));
+      bgRect.setAttribute('y', String(vbY - pad));
+      bgRect.setAttribute('width', String(outW));
+      bgRect.setAttribute('height', String(outH));
+      bgRect.setAttribute('fill', canvasBg);
+      clone.insertBefore(bgRect, clone.firstChild);
+
+      const xml = new XMLSerializer().serializeToString(clone);
+      return { xml, width: outW, height: outH, canvasBg };
+    }
+
+    function exportMermaidDiagram(liveSvg, btn, defaultIconHtml) {
+      if (!liveSvg) return;
+      const downloadFallbackSvg = (xml) => {
+        const blob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `mermaid-diagram-${Date.now()}.svg`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      };
+
+      try {
+        const { xml, width, height, canvasBg } = buildStandaloneStyledSvg(liveSvg);
+        const scale = Math.min(3, Math.max(2, Math.ceil(window.devicePixelRatio || 2)));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(width * scale);
+        canvas.height = Math.round(height * scale);
+        const ctx = canvas.getContext('2d');
+        ctx.scale(scale, scale);
+        ctx.fillStyle = canvasBg;
+        ctx.fillRect(0, 0, width, height);
+
+        const img = new Image();
+        const dataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
+        img.onload = () => {
+          try {
+            ctx.drawImage(img, 0, 0, width, height);
+            canvas.toBlob((blob) => {
+              if (!blob) {
+                downloadFallbackSvg(xml);
+              } else {
+                const downloadUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = `mermaid-diagram-${Date.now()}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(downloadUrl);
+              }
+              if (btn) {
+                btn.innerHTML = MERMAID_ICONS.check;
+                btn.classList.add('copied');
+                setTimeout(() => {
+                  btn.innerHTML = defaultIconHtml;
+                  btn.classList.remove('copied');
+                }, 1800);
+              }
+            }, 'image/png');
+          } catch (_) {
+            downloadFallbackSvg(xml);
+            if (btn) {
+              btn.innerHTML = MERMAID_ICONS.check;
+              btn.classList.add('copied');
+              setTimeout(() => {
+                btn.innerHTML = defaultIconHtml;
+                btn.classList.remove('copied');
+              }, 1800);
+            }
+          }
+        };
+        img.onerror = () => {
+          downloadFallbackSvg(xml);
+        };
+        img.src = dataUrl;
+      } catch (_) {
+        if (btn) {
+          btn.innerHTML = MERMAID_ICONS.error;
+          setTimeout(() => { btn.innerHTML = defaultIconHtml; }, 1800);
+        }
+      }
+    }
+
     function addCopyButtonsToMermaid(root) {
       const copyTextToClipboard = async (text) => {
         if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
@@ -1646,6 +2273,10 @@
       };
 
       const getMermaidSourceText = (mermaidDiv) => {
+        const rawSource = (mermaidDiv.dataset.sfMermaidRawSource || '').trim();
+        if (rawSource) {
+          return rawSource;
+        }
         const datasetSource = (mermaidDiv.dataset.sfMermaidSource || '').trim();
         if (datasetSource) {
           return datasetSource;
@@ -1670,10 +2301,43 @@
         mermaidDiv.parentNode.insertBefore(wrapper, mermaidDiv);
         wrapper.appendChild(mermaidDiv);
 
+        const sourcePre = document.createElement('pre');
+        sourcePre.className = 'mermaid-source-view';
+        const sourceCode = document.createElement('code');
+        sourceCode.textContent = getMermaidSourceText(mermaidDiv);
+        sourcePre.appendChild(sourceCode);
+        wrapper.appendChild(sourcePre);
+
+        const toolbar = document.createElement('div');
+        toolbar.className = 'mermaid-toolbar';
+        toolbar.setAttribute('role', 'toolbar');
+        toolbar.setAttribute('aria-label', '图表操作');
+
+        // Toggle diagram / raw Mermaid source inline
+        const viewSourceBtn = document.createElement('button');
+        viewSourceBtn.className = 'mermaid-tool-btn mermaid-view-button';
+        viewSourceBtn.innerHTML = MERMAID_ICONS.source;
+        viewSourceBtn.title = '查看 Mermaid 源码';
+        viewSourceBtn.setAttribute('type', 'button');
+        viewSourceBtn.setAttribute('aria-label', '查看 Mermaid 源码');
+        viewSourceBtn.setAttribute('aria-pressed', 'false');
+        viewSourceBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          sourceCode.textContent = getMermaidSourceText(mermaidDiv);
+          const nextSourceMode = !wrapper.classList.contains('is-source-mode');
+          wrapper.classList.toggle('is-source-mode', nextSourceMode);
+          viewSourceBtn.classList.toggle('is-active', nextSourceMode);
+          viewSourceBtn.setAttribute('aria-pressed', nextSourceMode ? 'true' : 'false');
+          viewSourceBtn.innerHTML = nextSourceMode ? MERMAID_ICONS.diagram : MERMAID_ICONS.source;
+          viewSourceBtn.title = nextSourceMode ? '返回图表视图' : '查看 Mermaid 源码';
+          viewSourceBtn.setAttribute('aria-label', viewSourceBtn.title);
+        });
+
         // Create source-copy button
         const copySourceBtn = document.createElement('button');
         copySourceBtn.className = 'copy-button mermaid-source-button';
-        copySourceBtn.innerHTML = '<i class="fas fa-code"></i>';
+        copySourceBtn.innerHTML = MERMAID_ICONS.copy;
         copySourceBtn.title = '复制 Mermaid 原文';
         copySourceBtn.setAttribute('type', 'button');
         copySourceBtn.setAttribute('aria-label', '复制 Mermaid 原文');
@@ -1684,10 +2348,10 @@
 
           const sourceText = getMermaidSourceText(mermaidDiv);
           if (!sourceText) {
-            copySourceBtn.innerHTML = '<i class="fas fa-times"></i>';
+            copySourceBtn.innerHTML = MERMAID_ICONS.error;
             copySourceBtn.title = '未找到 Mermaid 原文';
             setTimeout(() => {
-              copySourceBtn.innerHTML = '<i class="fas fa-code"></i>';
+              copySourceBtn.innerHTML = MERMAID_ICONS.copy;
               copySourceBtn.title = '复制 Mermaid 原文';
             }, 2000);
             return;
@@ -1695,157 +2359,52 @@
 
           try {
             await copyTextToClipboard(sourceText);
-            copySourceBtn.innerHTML = '<i class="fas fa-check"></i>';
+            copySourceBtn.innerHTML = MERMAID_ICONS.check;
             copySourceBtn.classList.add('copied');
             copySourceBtn.title = '已复制 Mermaid 原文';
             setTimeout(() => {
-              copySourceBtn.innerHTML = '<i class="fas fa-code"></i>';
+              copySourceBtn.innerHTML = MERMAID_ICONS.copy;
               copySourceBtn.classList.remove('copied');
               copySourceBtn.title = '复制 Mermaid 原文';
             }, 2000);
           } catch (err) {
             console.error('Failed to copy Mermaid source:', err);
-            copySourceBtn.innerHTML = '<i class="fas fa-times"></i>';
+            copySourceBtn.innerHTML = MERMAID_ICONS.error;
             copySourceBtn.title = '复制失败';
             setTimeout(() => {
-              copySourceBtn.innerHTML = '<i class="fas fa-code"></i>';
+              copySourceBtn.innerHTML = MERMAID_ICONS.copy;
               copySourceBtn.title = '复制 Mermaid 原文';
             }, 2000);
           }
         });
 
-        wrapper.appendChild(copySourceBtn);
-
         // Create download button
         const downloadBtn = document.createElement('button');
-        downloadBtn.className = 'copy-button';
-        downloadBtn.innerHTML = '<i class="fas fa-download"></i>';
-        downloadBtn.title = '下载图表';
+        downloadBtn.className = 'copy-button mermaid-download-button';
+        downloadBtn.innerHTML = MERMAID_ICONS.download;
+        downloadBtn.title = '下载高清图表 (PNG)';
         downloadBtn.setAttribute('type', 'button');
+        downloadBtn.setAttribute('aria-label', '下载高清图表');
 
-        downloadBtn.addEventListener('click', async (e) => {
+        downloadBtn.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
-
           const svg = mermaidDiv.querySelector('svg');
           if (!svg) {
-            console.error('No SVG found in mermaid diagram');
-            downloadBtn.innerHTML = '<i class="fas fa-times"></i>';
-            setTimeout(() => {
-              downloadBtn.innerHTML = '<i class="fas fa-download"></i>';
-            }, 2000);
+            downloadBtn.innerHTML = MERMAID_ICONS.error;
+            setTimeout(() => { downloadBtn.innerHTML = MERMAID_ICONS.download; }, 1800);
             return;
           }
-
-          try {
-            // Clone SVG and set white background
-            const svgClone = svg.cloneNode(true);
-            const svgData = new XMLSerializer().serializeToString(svgClone);
-
-            // Create canvas and draw
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-
-            // Get SVG dimensions
-            const svgWidth = svg.width.baseVal.value || svg.viewBox.baseVal.width || 800;
-            const svgHeight = svg.height.baseVal.value || svg.viewBox.baseVal.height || 600;
-
-            canvas.width = svgWidth;
-            canvas.height = svgHeight;
-
-            // Draw white background
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Create image from SVG
-            const img = new Image();
-            const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-            const url = URL.createObjectURL(svgBlob);
-
-            img.onload = () => {
-              try {
-                ctx.drawImage(img, 0, 0);
-                URL.revokeObjectURL(url);
-
-                // Convert canvas to blob and download
-                canvas.toBlob((blob) => {
-                  if (!blob) {
-                    console.error('Failed to create blob');
-                    downloadSvgDirectly(svgData);
-                    return;
-                  }
-
-                  // Create download link
-                  const downloadUrl = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = downloadUrl;
-                  a.download = `mermaid-diagram-${Date.now()}.png`;
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                  URL.revokeObjectURL(downloadUrl);
-
-                  // Success feedback
-                  downloadBtn.innerHTML = '<i class="fas fa-check"></i>';
-                  downloadBtn.classList.add('copied');
-                  setTimeout(() => {
-                    downloadBtn.innerHTML = '<i class="fas fa-download"></i>';
-                    downloadBtn.classList.remove('copied');
-                  }, 2000);
-                }, 'image/png');
-              } catch (err) {
-                console.error('Canvas tainted, falling back to SVG download:', err);
-                URL.revokeObjectURL(url);
-                downloadSvgDirectly(svgData);
-              }
-            };
-
-            img.onerror = () => {
-              console.error('Failed to load image, falling back to SVG download');
-              URL.revokeObjectURL(url);
-              downloadSvgDirectly(svgData);
-            };
-
-            img.src = url;
-          } catch (err) {
-            console.error('Failed to download diagram:', err);
-            downloadBtn.innerHTML = '<i class="fas fa-times"></i>';
-            setTimeout(() => {
-              downloadBtn.innerHTML = '<i class="fas fa-download"></i>';
-            }, 2000);
-          }
+          exportMermaidDiagram(svg, downloadBtn, MERMAID_ICONS.download);
         });
-
-        // Helper function: download SVG directly
-        function downloadSvgDirectly(svgData) {
-          const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `mermaid-diagram-${Date.now()}.svg`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-
-          downloadBtn.innerHTML = '<i class="fas fa-check"></i>';
-          downloadBtn.classList.add('copied');
-          downloadBtn.title = '已下载 SVG';
-          setTimeout(() => {
-            downloadBtn.innerHTML = '<i class="fas fa-download"></i>';
-            downloadBtn.classList.remove('copied');
-            downloadBtn.title = '下载图表';
-          }, 2000);
-        }
-
-        wrapper.appendChild(downloadBtn);
 
         // Create fullscreen button
         const fullscreenBtn = document.createElement('button');
         fullscreenBtn.className = 'copy-button fullscreen-button';
-        fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
+        fullscreenBtn.innerHTML = MERMAID_ICONS.expand;
         fullscreenBtn.title = '全屏查看';
         fullscreenBtn.setAttribute('type', 'button');
+        fullscreenBtn.setAttribute('aria-label', '全屏查看');
 
         fullscreenBtn.addEventListener('click', (e) => {
           e.preventDefault();
@@ -1853,7 +2412,20 @@
           openMermaidFullscreen(mermaidDiv);
         });
 
-        wrapper.appendChild(fullscreenBtn);
+        toolbar.appendChild(viewSourceBtn);
+        toolbar.appendChild(copySourceBtn);
+        toolbar.appendChild(downloadBtn);
+        toolbar.appendChild(fullscreenBtn);
+        wrapper.appendChild(toolbar);
+
+        // Click diagram stage to inspect in fullscreen pan/zoom viewer
+        mermaidDiv.addEventListener('click', (e) => {
+          if (mermaidDiv.dataset.sfMermaidRendered !== 'true') return;
+          if (e.target && e.target.closest && e.target.closest('a, button, .clickable')) return;
+          const sel = window.getSelection && window.getSelection();
+          if (sel && String(sel).trim().length > 0) return;
+          openMermaidFullscreen(mermaidDiv);
+        });
       });
     }
 
@@ -1881,26 +2453,47 @@
       const toolbar = document.createElement('div');
       toolbar.className = 'mermaid-fullscreen-toolbar';
 
+      const hint = document.createElement('span');
+      hint.className = 'mermaid-fullscreen-toolbar-hint';
+      hint.textContent = '滚轮缩放 · 拖拽平移 · 0 适应窗口 · Esc 关闭';
+
+      const actions = document.createElement('div');
+      actions.className = 'mermaid-fullscreen-toolbar-actions';
+
       const zoomOutBtn = document.createElement('button');
       zoomOutBtn.className = 'mermaid-fullscreen-tool-btn';
-      zoomOutBtn.innerHTML = '<i class="fas fa-search-minus"></i>';
-      zoomOutBtn.title = '缩小';
+      zoomOutBtn.innerHTML = MERMAID_ICONS.zoomOut;
+      zoomOutBtn.title = '缩小 (-)';
       zoomOutBtn.setAttribute('type', 'button');
       zoomOutBtn.setAttribute('aria-label', '缩小图表');
 
       const zoomInBtn = document.createElement('button');
       zoomInBtn.className = 'mermaid-fullscreen-tool-btn';
-      zoomInBtn.innerHTML = '<i class="fas fa-search-plus"></i>';
-      zoomInBtn.title = '放大';
+      zoomInBtn.innerHTML = MERMAID_ICONS.zoomIn;
+      zoomInBtn.title = '放大 (+)';
       zoomInBtn.setAttribute('type', 'button');
       zoomInBtn.setAttribute('aria-label', '放大图表');
 
       const resetZoomBtn = document.createElement('button');
       resetZoomBtn.className = 'mermaid-fullscreen-tool-btn';
-      resetZoomBtn.innerHTML = '<i class="fas fa-rotate-left"></i>';
-      resetZoomBtn.title = '重置缩放';
+      resetZoomBtn.innerHTML = MERMAID_ICONS.fit;
+      resetZoomBtn.title = '适应窗口 (0)';
       resetZoomBtn.setAttribute('type', 'button');
-      resetZoomBtn.setAttribute('aria-label', '重置缩放');
+      resetZoomBtn.setAttribute('aria-label', '适应窗口');
+
+      const actualSizeBtn = document.createElement('button');
+      actualSizeBtn.className = 'mermaid-fullscreen-tool-btn';
+      actualSizeBtn.innerHTML = MERMAID_ICONS.actualSize;
+      actualSizeBtn.title = '1:1 原始比例 (1)';
+      actualSizeBtn.setAttribute('type', 'button');
+      actualSizeBtn.setAttribute('aria-label', '1:1 原始比例');
+
+      const exportBtn = document.createElement('button');
+      exportBtn.className = 'mermaid-fullscreen-tool-btn';
+      exportBtn.innerHTML = MERMAID_ICONS.download;
+      exportBtn.title = '下载高清 PNG';
+      exportBtn.setAttribute('type', 'button');
+      exportBtn.setAttribute('aria-label', '下载高清 PNG');
 
       const zoomValue = document.createElement('span');
       zoomValue.className = 'mermaid-fullscreen-zoom-value';
@@ -1909,16 +2502,20 @@
 
       const closeBtn = document.createElement('button');
       closeBtn.className = 'mermaid-fullscreen-tool-btn close-btn';
-      closeBtn.innerHTML = '<i class="fas fa-times"></i>';
-      closeBtn.title = '关闭';
+      closeBtn.innerHTML = MERMAID_ICONS.error;
+      closeBtn.title = '关闭 (Esc)';
       closeBtn.setAttribute('type', 'button');
       closeBtn.setAttribute('aria-label', '关闭全屏图表');
 
-      toolbar.appendChild(zoomOutBtn);
-      toolbar.appendChild(zoomInBtn);
-      toolbar.appendChild(resetZoomBtn);
-      toolbar.appendChild(zoomValue);
-      toolbar.appendChild(closeBtn);
+      actions.appendChild(zoomOutBtn);
+      actions.appendChild(zoomValue);
+      actions.appendChild(zoomInBtn);
+      actions.appendChild(resetZoomBtn);
+      actions.appendChild(actualSizeBtn);
+      actions.appendChild(exportBtn);
+      actions.appendChild(closeBtn);
+      toolbar.appendChild(hint);
+      toolbar.appendChild(actions);
 
       const viewport = document.createElement('div');
       viewport.className = 'mermaid-fullscreen-viewport';
@@ -1983,6 +2580,10 @@
       let minScale = 0.2;
       let maxScale = 6;
       let naturalSize = getSvgNaturalSize(clonedSvg);
+      clonedSvg.style.width = `${Math.ceil(naturalSize.width)}px`;
+      clonedSvg.style.height = `${Math.ceil(naturalSize.height)}px`;
+      clonedSvg.style.maxWidth = 'none';
+      clonedSvg.style.minWidth = '0';
       let panX = 0;
       let panY = 0;
       let dragging = false;
@@ -1997,12 +2598,8 @@
       };
 
       const updatePanMode = () => {
-        const canPan = currentScale > fitScale * PAN_ENABLED_SCALE_RATIO;
+        const canPan = true;
         viewport.classList.toggle('can-pan', canPan);
-        if (!canPan) {
-          panX = 0;
-          panY = 0;
-        }
       };
 
       const applyTransform = () => {
@@ -2087,24 +2684,24 @@
 
         if (event.key === '0') {
           event.preventDefault();
+          panX = 0;
+          panY = 0;
           applyScale(fitScale);
+          return;
+        }
+
+        if (event.key === '1') {
+          event.preventDefault();
+          panX = 0;
+          panY = 0;
+          applyScale(1);
         }
       };
 
       const handleWheel = (event) => {
-        if (event.ctrlKey || event.metaKey) {
-          event.preventDefault();
-          const direction = event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
-          applyScale(currentScale * direction);
-          return;
-        }
-
-        if (currentScale > fitScale * PAN_ENABLED_SCALE_RATIO) {
-          event.preventDefault();
-          panX -= event.deltaX;
-          panY -= event.deltaY;
-          applyTransform();
-        }
+        event.preventDefault();
+        const factor = event.deltaY < 0 ? 1.12 : 1 / 1.12;
+        applyScale(currentScale * factor);
       };
 
       const handleResize = () => {
@@ -2115,7 +2712,6 @@
 
       const handlePointerDown = (event) => {
         if (event.button !== 0) return;
-        if (!(currentScale > fitScale * PAN_ENABLED_SCALE_RATIO)) return;
         dragging = true;
         dragStartX = event.clientX;
         dragStartY = event.clientY;
@@ -2153,7 +2749,23 @@
       resetZoomBtn.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
+        panX = 0;
+        panY = 0;
         applyScale(fitScale);
+      });
+
+      actualSizeBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        panX = 0;
+        panY = 0;
+        applyScale(1);
+      });
+
+      exportBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        exportMermaidDiagram(svg, exportBtn, MERMAID_ICONS.download);
       });
 
       closeBtn.addEventListener('click', (event) => {

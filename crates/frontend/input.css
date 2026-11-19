@@ -3094,56 +3094,201 @@ button[aria-current="page"]:hover {
   color: var(--on-primary) !important;
 }
 
-/* Mermaid diagrams — warm sunken surface */
+/* ========================================
+   Mermaid Diagrams — Anthropic Editorial Figure System
+   Warm parchment & obsidian surfaces, hairline strokes, terracotta & mineral semantic tones
+   ======================================== */
+
+:root {
+  --sf-m-canvas-bg: #F3F0E8;
+  --sf-m-dot: rgba(20, 20, 19, 0.052);
+  --sf-m-node-bg: #FFFFFF;
+  --sf-m-node-border: #CFC8B9;
+  --sf-m-node-text: #141413;
+  --sf-m-muted-text: #4F4E49;
+  --sf-m-diamond-bg: #F7EAE3;
+  --sf-m-diamond-border: #C96442;
+  --sf-m-diamond-text: #2C160E;
+  --sf-m-cluster-bg: rgba(232, 226, 214, 0.56);
+  --sf-m-cluster-border: #C2BAAA;
+  --sf-m-cluster-text: #3D3D3A;
+  --sf-m-line: #6C6960;
+  --sf-m-line-muted: #ABA598;
+  --sf-m-label-bg: #FAF9F5;
+  --sf-m-label-border: #DDD6C8;
+  --sf-m-actor-bg: #FFFFFF;
+  --sf-m-actor-border: #C2BAAA;
+  --sf-m-note-bg: #F6ECE4;
+  --sf-m-note-border: #D8A792;
+  --sf-m-note-text: #38231B;
+  --sf-m-activation-bg: #F3DFD6;
+  --sf-m-activation-border: #C96442;
+  --sf-m-label-box-bg: #EAE4D7;
+
+  /* Editorial semantic node tones (harmonized across author style/classDef) */
+  --sf-m-terracotta-bg: #F7E7DF;
+  --sf-m-terracotta-border: #C96442;
+  --sf-m-terracotta-text: #2F170F;
+  --sf-m-ochre-bg: #F6EFE0;
+  --sf-m-ochre-border: #B7862F;
+  --sf-m-ochre-text: #2E230D;
+  --sf-m-sage-bg: #E7EFE3;
+  --sf-m-sage-border: #5A7A4F;
+  --sf-m-sage-text: #182615;
+  --sf-m-slate-bg: #E6EEF3;
+  --sf-m-slate-border: #4A7288;
+  --sf-m-slate-text: #152530;
+  --sf-m-plum-bg: #EFE8F2;
+  --sf-m-plum-border: #7A5C85;
+  --sf-m-plum-text: #261A2B;
+  --sf-m-brick-bg: #F6E3E0;
+  --sf-m-brick-border: #B5443A;
+  --sf-m-brick-text: #321411;
+  --sf-m-stone-bg: #ECE8DE;
+  --sf-m-stone-border: #8C877C;
+  --sf-m-stone-text: #141413;
+  --sf-m-ink-bg: #262522;
+  --sf-m-ink-border: #141413;
+  --sf-m-ink-text: #FAF9F5;
+
+  /* GitGraph editorial branch palette */
+  --sf-m-git-0: #C96442;
+  --sf-m-git-1: #5A7A4F;
+  --sf-m-git-2: #4A7288;
+  --sf-m-git-3: #B7862F;
+  --sf-m-git-4: #7A5C85;
+  --sf-m-git-5: #B5443A;
+  --sf-m-git-6: #6B705C;
+  --sf-m-git-7: #7F5539;
+}
+
+[data-theme="dark"],
+[theme="dark"] {
+  --sf-m-canvas-bg: #191816;
+  --sf-m-dot: rgba(250, 249, 245, 0.045);
+  --sf-m-node-bg: #22211E;
+  --sf-m-node-border: #3E3B35;
+  --sf-m-node-text: #FAF9F5;
+  --sf-m-muted-text: #B8B5AB;
+  --sf-m-diamond-bg: #2D201B;
+  --sf-m-diamond-border: #D97757;
+  --sf-m-diamond-text: #F9EBE5;
+  --sf-m-cluster-bg: rgba(38, 36, 32, 0.62);
+  --sf-m-cluster-border: #45423A;
+  --sf-m-cluster-text: #D8D5CB;
+  --sf-m-line: #949186;
+  --sf-m-line-muted: #55524A;
+  --sf-m-label-bg: #181715;
+  --sf-m-label-border: #34322C;
+  --sf-m-actor-bg: #24231F;
+  --sf-m-actor-border: #48453D;
+  --sf-m-note-bg: #2A211C;
+  --sf-m-note-border: #754E3E;
+  --sf-m-note-text: #F4E1D9;
+  --sf-m-activation-bg: #36241E;
+  --sf-m-activation-border: #D97757;
+  --sf-m-label-box-bg: #2B2924;
+
+  --sf-m-terracotta-bg: #2E201A;
+  --sf-m-terracotta-border: #D97757;
+  --sf-m-terracotta-text: #F9EAE3;
+  --sf-m-ochre-bg: #2B2518;
+  --sf-m-ochre-border: #D4A853;
+  --sf-m-ochre-text: #F6EEDB;
+  --sf-m-sage-bg: #1D271B;
+  --sf-m-sage-border: #8FAF7F;
+  --sf-m-sage-text: #E6EFE2;
+  --sf-m-slate-bg: #1B242B;
+  --sf-m-slate-border: #7BA3BA;
+  --sf-m-slate-text: #E5EFF5;
+  --sf-m-plum-bg: #261E29;
+  --sf-m-plum-border: #AE8FB9;
+  --sf-m-plum-text: #F0E9F3;
+  --sf-m-brick-bg: #2E1C1A;
+  --sf-m-brick-border: #E07A6E;
+  --sf-m-brick-text: #F8E5E2;
+  --sf-m-stone-bg: #282723;
+  --sf-m-stone-border: #7A786F;
+  --sf-m-stone-text: #FAF9F5;
+  --sf-m-ink-bg: #32302B;
+  --sf-m-ink-border: #949186;
+  --sf-m-ink-text: #FAF9F5;
+
+  --sf-m-git-0: #D97757;
+  --sf-m-git-1: #8FAF7F;
+  --sf-m-git-2: #7BA3BA;
+  --sf-m-git-3: #D4A853;
+  --sf-m-git-4: #AE8FB9;
+  --sf-m-git-5: #E07A6E;
+  --sf-m-git-6: #A5A58D;
+  --sf-m-git-7: #C29B78;
+}
+
 .mermaid {
-  padding: 1.5rem;
+  padding: 1.75rem 1.5rem;
   text-align: center;
-  background: var(--surface-sunk);
+  background-color: var(--sf-m-canvas-bg);
+  background-image: radial-gradient(var(--sf-m-dot) 0.8px, transparent 0.8px);
+  background-size: 18px 18px;
+  background-position: -1px -1px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   overflow-x: auto;
   overflow-y: hidden;
   width: 100%;
   max-width: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+  transition: border-color var(--motion-fast) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out);
+}
+
+.mermaid[data-sf-mermaid-rendered="true"] {
+  cursor: zoom-in;
+}
+
+.mermaid-wrapper.is-source-mode .mermaid {
+  display: none !important;
 }
 
 .mermaid.mermaid-pending {
   position: relative;
-  min-height: 210px;
+  min-height: 196px;
   user-select: none;
+  cursor: default;
 }
 
 .mermaid.mermaid-pending::before {
   content: "";
   position: absolute;
-  top: calc(50% - 1.15rem);
+  top: calc(50% - 1.1rem);
   left: 50%;
   z-index: 2;
-  width: 2rem;
-  height: 2rem;
-  margin-left: -1rem;
+  width: 1.65rem;
+  height: 1.65rem;
+  margin-left: -0.825rem;
   border-radius: 999px;
-  border: 2px solid var(--border-strong);
+  border: 1.5px solid var(--border-strong);
   border-top-color: var(--primary);
   animation: mermaid-loader-spin 0.92s linear infinite;
   pointer-events: none;
 }
 
 .mermaid.mermaid-pending::after {
-  content: "Rendering Mermaid diagram...";
+  content: "Rendering diagram…";
   position: absolute;
   inset: 0;
   z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-top: 3.2rem;
-  background: var(--surface-sunk);
-  color: var(--muted);
+  padding-top: 2.9rem;
+  background: var(--sf-m-canvas-bg);
+  color: var(--faint);
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   line-height: 1;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
   white-space: normal;
   pointer-events: none;
 }
@@ -3155,17 +3300,553 @@ button[aria-current="page"]:hover {
 }
 
 .mermaid svg {
-  width: auto !important;
-  height: auto !important;
-  max-width: 100% !important;
-  max-height: 100vh !important;
+  height: auto;
+  max-width: 100%;
   display: block;
   margin: 0 auto;
+  font-family: var(--font-sans) !important;
+  overflow: visible;
+}
+
+/* Typography & base ink inside Mermaid SVGs */
+.mermaid svg text,
+.mermaid svg span,
+.mermaid svg p,
+.mermaid svg .label,
+.mermaid svg .nodeLabel,
+.mermaid svg .flowchartTitleText,
+.mermaid svg .titleText {
+  font-family: var(--font-sans) !important;
+  color: var(--sf-m-node-text) !important;
+  fill: var(--sf-m-node-text) !important;
+}
+
+.mermaid svg .flowchartTitleText,
+.mermaid svg .titleText {
+  font-family: var(--font-serif) !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em;
+}
+
+/* Flowchart & State step cards */
+.mermaid svg .node rect,
+.mermaid svg .node circle,
+.mermaid svg .node ellipse,
+.mermaid svg .node polygon,
+.mermaid svg .node path,
+.mermaid svg .statediagram-state rect.basic {
+  fill: var(--sf-m-node-bg) !important;
+  stroke: var(--sf-m-node-border) !important;
+  stroke-width: 1.15px !important;
+}
+
+.mermaid svg .node .katex path {
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* Decision diamonds */
+.mermaid svg .node[data-sf-shape="diamond"] polygon {
+  fill: var(--sf-m-diamond-bg) !important;
+  stroke: var(--sf-m-diamond-border) !important;
+  stroke-width: 1.2px !important;
+}
+
+.mermaid svg .node[data-sf-shape="diamond"] .nodeLabel,
+.mermaid svg .node[data-sf-shape="diamond"] text,
+.mermaid svg .node[data-sf-shape="diamond"] span {
+  color: var(--sf-m-diamond-text) !important;
+  fill: var(--sf-m-diamond-text) !important;
+  font-weight: 500;
+}
+
+/* State diagram start/end markers */
+.mermaid svg .node circle.state-start,
+.mermaid svg .node .fork-join {
+  fill: var(--primary) !important;
+  stroke: var(--primary) !important;
+}
+
+.mermaid svg .node circle.state-end {
+  fill: var(--sf-m-node-bg) !important;
+  stroke: var(--primary) !important;
+  stroke-width: 1.6px !important;
+}
+
+.mermaid svg .end-state-inner {
+  fill: var(--primary) !important;
+  stroke: none !important;
+}
+
+/* Harmonized editorial semantic tones for custom author styles */
+.mermaid svg .node[data-sf-tone="terracotta"] rect,
+.mermaid svg .node[data-sf-tone="terracotta"] circle,
+.mermaid svg .node[data-sf-tone="terracotta"] ellipse,
+.mermaid svg .node[data-sf-tone="terracotta"] polygon,
+.mermaid svg .node[data-sf-tone="terracotta"] path {
+  fill: var(--sf-m-terracotta-bg) !important;
+  stroke: var(--sf-m-terracotta-border) !important;
+  stroke-width: 1.25px !important;
+}
+.mermaid svg .node[data-sf-tone="terracotta"] .nodeLabel,
+.mermaid svg .node[data-sf-tone="terracotta"] text,
+.mermaid svg .node[data-sf-tone="terracotta"] span {
+  color: var(--sf-m-terracotta-text) !important;
+  fill: var(--sf-m-terracotta-text) !important;
+}
+
+.mermaid svg .node[data-sf-tone="ochre"] rect,
+.mermaid svg .node[data-sf-tone="ochre"] circle,
+.mermaid svg .node[data-sf-tone="ochre"] ellipse,
+.mermaid svg .node[data-sf-tone="ochre"] polygon,
+.mermaid svg .node[data-sf-tone="ochre"] path {
+  fill: var(--sf-m-ochre-bg) !important;
+  stroke: var(--sf-m-ochre-border) !important;
+  stroke-width: 1.25px !important;
+}
+.mermaid svg .node[data-sf-tone="ochre"] .nodeLabel,
+.mermaid svg .node[data-sf-tone="ochre"] text,
+.mermaid svg .node[data-sf-tone="ochre"] span {
+  color: var(--sf-m-ochre-text) !important;
+  fill: var(--sf-m-ochre-text) !important;
+}
+
+.mermaid svg .node[data-sf-tone="sage"] rect,
+.mermaid svg .node[data-sf-tone="sage"] circle,
+.mermaid svg .node[data-sf-tone="sage"] ellipse,
+.mermaid svg .node[data-sf-tone="sage"] polygon,
+.mermaid svg .node[data-sf-tone="sage"] path {
+  fill: var(--sf-m-sage-bg) !important;
+  stroke: var(--sf-m-sage-border) !important;
+  stroke-width: 1.25px !important;
+}
+.mermaid svg .node[data-sf-tone="sage"] .nodeLabel,
+.mermaid svg .node[data-sf-tone="sage"] text,
+.mermaid svg .node[data-sf-tone="sage"] span {
+  color: var(--sf-m-sage-text) !important;
+  fill: var(--sf-m-sage-text) !important;
+}
+
+.mermaid svg .node[data-sf-tone="slate"] rect,
+.mermaid svg .node[data-sf-tone="slate"] circle,
+.mermaid svg .node[data-sf-tone="slate"] ellipse,
+.mermaid svg .node[data-sf-tone="slate"] polygon,
+.mermaid svg .node[data-sf-tone="slate"] path {
+  fill: var(--sf-m-slate-bg) !important;
+  stroke: var(--sf-m-slate-border) !important;
+  stroke-width: 1.25px !important;
+}
+.mermaid svg .node[data-sf-tone="slate"] .nodeLabel,
+.mermaid svg .node[data-sf-tone="slate"] text,
+.mermaid svg .node[data-sf-tone="slate"] span {
+  color: var(--sf-m-slate-text) !important;
+  fill: var(--sf-m-slate-text) !important;
+}
+
+.mermaid svg .node[data-sf-tone="plum"] rect,
+.mermaid svg .node[data-sf-tone="plum"] circle,
+.mermaid svg .node[data-sf-tone="plum"] ellipse,
+.mermaid svg .node[data-sf-tone="plum"] polygon,
+.mermaid svg .node[data-sf-tone="plum"] path {
+  fill: var(--sf-m-plum-bg) !important;
+  stroke: var(--sf-m-plum-border) !important;
+  stroke-width: 1.25px !important;
+}
+.mermaid svg .node[data-sf-tone="plum"] .nodeLabel,
+.mermaid svg .node[data-sf-tone="plum"] text,
+.mermaid svg .node[data-sf-tone="plum"] span {
+  color: var(--sf-m-plum-text) !important;
+  fill: var(--sf-m-plum-text) !important;
+}
+
+.mermaid svg .node[data-sf-tone="brick"] rect,
+.mermaid svg .node[data-sf-tone="brick"] circle,
+.mermaid svg .node[data-sf-tone="brick"] ellipse,
+.mermaid svg .node[data-sf-tone="brick"] polygon,
+.mermaid svg .node[data-sf-tone="brick"] path {
+  fill: var(--sf-m-brick-bg) !important;
+  stroke: var(--sf-m-brick-border) !important;
+  stroke-width: 1.25px !important;
+}
+.mermaid svg .node[data-sf-tone="brick"] .nodeLabel,
+.mermaid svg .node[data-sf-tone="brick"] text,
+.mermaid svg .node[data-sf-tone="brick"] span {
+  color: var(--sf-m-brick-text) !important;
+  fill: var(--sf-m-brick-text) !important;
+}
+
+.mermaid svg .node[data-sf-tone="stone"] rect,
+.mermaid svg .node[data-sf-tone="stone"] circle,
+.mermaid svg .node[data-sf-tone="stone"] ellipse,
+.mermaid svg .node[data-sf-tone="stone"] polygon,
+.mermaid svg .node[data-sf-tone="stone"] path {
+  fill: var(--sf-m-stone-bg) !important;
+  stroke: var(--sf-m-stone-border) !important;
+  stroke-width: 1.2px !important;
+}
+.mermaid svg .node[data-sf-tone="stone"] .nodeLabel,
+.mermaid svg .node[data-sf-tone="stone"] text,
+.mermaid svg .node[data-sf-tone="stone"] span {
+  color: var(--sf-m-stone-text) !important;
+  fill: var(--sf-m-stone-text) !important;
+}
+
+.mermaid svg .node[data-sf-tone="ink"] rect,
+.mermaid svg .node[data-sf-tone="ink"] circle,
+.mermaid svg .node[data-sf-tone="ink"] ellipse,
+.mermaid svg .node[data-sf-tone="ink"] polygon,
+.mermaid svg .node[data-sf-tone="ink"] path {
+  fill: var(--sf-m-ink-bg) !important;
+  stroke: var(--sf-m-ink-border) !important;
+  stroke-width: 1.25px !important;
+}
+.mermaid svg .node[data-sf-tone="ink"] .nodeLabel,
+.mermaid svg .node[data-sf-tone="ink"] text,
+.mermaid svg .node[data-sf-tone="ink"] span {
+  color: var(--sf-m-ink-text) !important;
+  fill: var(--sf-m-ink-text) !important;
+}
+
+/* Subgraphs & composite containers — dashed architectural boundary */
+.mermaid svg .cluster rect,
+.mermaid svg .stateGroup .composit {
+  fill: var(--sf-m-cluster-bg) !important;
+  stroke: var(--sf-m-cluster-border) !important;
+  stroke-width: 1.1px !important;
+  stroke-dasharray: 5 3.5 !important;
+}
+
+.mermaid svg .cluster-label text,
+.mermaid svg .cluster-label span,
+.mermaid svg .cluster-label .nodeLabel,
+.mermaid svg g.stateGroup .state-title {
+  color: var(--sf-m-cluster-text) !important;
+  fill: var(--sf-m-cluster-text) !important;
+  font-weight: 600 !important;
+  font-size: 12.5px !important;
+  letter-spacing: 0.015em;
+}
+
+/* Edges, connectors & arrowheads */
+.mermaid svg .edgePath .path:not([data-sf-invisible-edge="true"]),
+.mermaid svg .flowchart-link:not([data-sf-invisible-edge="true"]),
+.mermaid svg .transition:not([data-sf-invisible-edge="true"]),
+.mermaid svg .er.relationshipLine,
+.mermaid svg .relation,
+.mermaid svg .messageLine0,
+.mermaid svg .messageLine1 {
+  stroke: var(--sf-m-line) !important;
+  stroke-width: 1.38px !important;
+}
+
+.mermaid svg .flowchart-link.edge-thickness-thick:not([data-sf-invisible-edge="true"]) {
+  stroke-width: 2.15px !important;
+}
+
+.mermaid svg [data-sf-invisible-edge="true"] {
+  stroke: none !important;
+  stroke-width: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.mermaid svg .edgePath .path,
+.mermaid svg .flowchart-link,
+.mermaid svg .transition,
+.mermaid svg .er.relationshipLine,
+.mermaid svg .relation {
+  fill: none !important;
+}
+
+.mermaid svg .marker,
+.mermaid svg .arrowheadPath,
+.mermaid svg defs #statediagram-barbEnd,
+.mermaid svg defs #arrowhead path,
+.mermaid svg defs #filled-head path,
+.mermaid svg marker[id$="arrowhead"] path,
+.mermaid svg marker[id$="filled-head"] path,
+.mermaid svg defs marker.composition path,
+.mermaid svg defs marker.dependency path {
+  fill: var(--sf-m-line) !important;
+  stroke: var(--sf-m-line) !important;
+}
+
+.mermaid svg defs #crosshead path,
+.mermaid svg marker[id$="crosshead"] path,
+.mermaid svg .marker.cross,
+.mermaid svg defs marker[id*="ONE"] path,
+.mermaid svg defs marker[id*="MORE"] path {
+  stroke: var(--sf-m-line) !important;
+  fill: none !important;
+}
+
+.mermaid svg defs marker[id*="ONE"] circle,
+.mermaid svg defs marker[id*="MORE"] circle,
+.mermaid svg defs marker.extension path,
+.mermaid svg defs marker.aggregation path {
+  stroke: var(--sf-m-line) !important;
+  fill: var(--sf-m-canvas-bg) !important;
+}
+
+/* Edge label pills */
+.mermaid svg g.edgeLabel foreignObject {
+  overflow: visible;
+}
+
+.mermaid svg .edgeLabel,
+.mermaid svg .edgeLabel p,
+.mermaid svg .edgeLabel span {
+  background-color: transparent !important;
+  color: var(--sf-m-muted-text) !important;
+  fill: var(--sf-m-muted-text) !important;
+  font-size: 12px !important;
+  font-weight: 500;
+}
+
+.mermaid svg .labelBkg {
+  background-color: transparent !important;
+}
+
+.mermaid svg g.edgeLabel[data-sf-has-label="true"] span.edgeLabel,
+.mermaid svg .labelBkg[data-sf-has-label="true"] {
+  background-color: var(--sf-m-label-bg) !important;
+  border: 1px solid var(--sf-m-label-border);
+  border-radius: 999px;
+  padding: 1px 7.5px;
+  line-height: 1.35;
+  display: inline-block;
+  box-sizing: border-box;
+}
+
+.mermaid svg .edgeLabel rect,
+.mermaid svg .stateLabel .box,
+.mermaid svg .er.relationshipLabelBox {
+  fill: var(--sf-m-label-bg) !important;
+  stroke: var(--sf-m-label-border) !important;
+  stroke-width: 1px !important;
+  opacity: 0.96 !important;
+  rx: 5px;
+  ry: 5px;
+}
+
+/* Sequence diagram actors, lifelines, notes, loops & terracotta autonumbers */
+.mermaid svg rect.actor {
+  fill: var(--sf-m-actor-bg) !important;
+  stroke: var(--sf-m-actor-border) !important;
+  stroke-width: 1.2px !important;
+}
+
+.mermaid svg text.actor,
+.mermaid svg text.actor > tspan {
+  fill: var(--sf-m-node-text) !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+}
+
+.mermaid svg line[id^="actor"],
+.mermaid svg .actor-line {
+  stroke: var(--sf-m-line-muted) !important;
+  stroke-width: 1px !important;
+  stroke-dasharray: 4 3 !important;
+}
+
+.mermaid svg .messageText {
+  fill: var(--sf-m-node-text) !important;
+  stroke: none !important;
+  font-size: 12.5px !important;
+}
+
+.mermaid svg rect.note,
+.mermaid svg .state-note {
+  fill: var(--sf-m-note-bg) !important;
+  stroke: var(--sf-m-note-border) !important;
+  stroke-width: 1.1px !important;
+}
+
+.mermaid svg .noteText,
+.mermaid svg .noteText > tspan,
+.mermaid svg .state-note text {
+  fill: var(--sf-m-note-text) !important;
+  font-size: 12.25px !important;
+}
+
+.mermaid svg rect[class^="activation"] {
+  fill: var(--sf-m-activation-bg) !important;
+  stroke: var(--sf-m-activation-border) !important;
+  stroke-width: 1.1px !important;
+}
+
+.mermaid svg .loopLine {
+  stroke: var(--sf-m-cluster-border) !important;
+  stroke-width: 1.1px !important;
+  stroke-dasharray: 4 3 !important;
+}
+
+.mermaid svg .labelBox {
+  fill: var(--sf-m-label-box-bg) !important;
+  stroke: var(--sf-m-cluster-border) !important;
+  stroke-width: 1.1px !important;
+}
+
+.mermaid svg .labelText,
+.mermaid svg .labelText > tspan {
+  fill: var(--sf-m-muted-text) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+
+.mermaid svg .loopText,
+.mermaid svg .loopText > tspan {
+  fill: var(--sf-m-muted-text) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
+.mermaid svg defs #sequencenumber circle,
+.mermaid svg marker[id$="sequencenumber"] circle {
+  fill: var(--primary) !important;
+  stroke: none !important;
+}
+
+.mermaid svg .sequenceNumber {
+  fill: var(--on-primary) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+}
+
+/* Gantt & GitGraph harmonization */
+.mermaid svg .section0,
+.mermaid svg .section2 {
+  fill: var(--sf-m-cluster-bg) !important;
+  opacity: 0.75 !important;
+}
+
+.mermaid svg .section1,
+.mermaid svg .section3 {
+  fill: transparent !important;
+}
+
+.mermaid svg .grid .tick line {
+  stroke: var(--sf-m-cluster-border) !important;
+  stroke-dasharray: 2 3;
+  opacity: 0.55 !important;
+}
+
+.mermaid svg .grid .tick text {
+  fill: var(--sf-m-muted-text) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 11px !important;
+}
+
+.mermaid svg rect.task {
+  fill: var(--sf-m-node-bg) !important;
+  stroke: var(--sf-m-stone-border) !important;
+  stroke-width: 1.15px !important;
+}
+
+.mermaid svg rect[class*="active"] {
+  fill: var(--sf-m-terracotta-bg) !important;
+  stroke: var(--sf-m-terracotta-border) !important;
+}
+
+.mermaid svg rect[class*="done"] {
+  fill: var(--sf-m-sage-bg) !important;
+  stroke: var(--sf-m-sage-border) !important;
+}
+
+.mermaid svg rect[class*="crit"] {
+  fill: var(--sf-m-brick-bg) !important;
+  stroke: var(--sf-m-brick-border) !important;
+}
+
+.mermaid svg .taskText,
+.mermaid svg .taskTextOutsideRight,
+.mermaid svg .taskTextOutsideLeft {
+  fill: var(--sf-m-node-text) !important;
+  font-size: 11.5px !important;
+}
+
+.mermaid svg .commit-id,
+.mermaid svg .commit-msg {
+  fill: var(--sf-m-muted-text) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 11px !important;
+}
+
+.mermaid svg .commit-label-bkg {
+  fill: var(--sf-m-label-bg) !important;
+  stroke: var(--sf-m-label-border) !important;
+  opacity: 0.95 !important;
+}
+
+.mermaid svg .commit0, .mermaid svg .label0 { fill: var(--sf-m-git-0) !important; stroke: var(--sf-m-git-0) !important; }
+.mermaid svg .arrow0 { stroke: var(--sf-m-git-0) !important; }
+.mermaid svg .commit1, .mermaid svg .label1 { fill: var(--sf-m-git-1) !important; stroke: var(--sf-m-git-1) !important; }
+.mermaid svg .arrow1 { stroke: var(--sf-m-git-1) !important; }
+.mermaid svg .commit2, .mermaid svg .label2 { fill: var(--sf-m-git-2) !important; stroke: var(--sf-m-git-2) !important; }
+.mermaid svg .arrow2 { stroke: var(--sf-m-git-2) !important; }
+.mermaid svg .commit3, .mermaid svg .label3 { fill: var(--sf-m-git-3) !important; stroke: var(--sf-m-git-3) !important; }
+.mermaid svg .arrow3 { stroke: var(--sf-m-git-3) !important; }
+.mermaid svg .commit4, .mermaid svg .label4 { fill: var(--sf-m-git-4) !important; stroke: var(--sf-m-git-4) !important; }
+.mermaid svg .arrow4 { stroke: var(--sf-m-git-4) !important; }
+.mermaid svg .commit5, .mermaid svg .label5 { fill: var(--sf-m-git-5) !important; stroke: var(--sf-m-git-5) !important; }
+.mermaid svg .arrow5 { stroke: var(--sf-m-git-5) !important; }
+.mermaid svg .commit6, .mermaid svg .label6 { fill: var(--sf-m-git-6) !important; stroke: var(--sf-m-git-6) !important; }
+.mermaid svg .arrow6 { stroke: var(--sf-m-git-6) !important; }
+.mermaid svg .commit7, .mermaid svg .label7 { fill: var(--sf-m-git-7) !important; stroke: var(--sf-m-git-7) !important; }
+.mermaid svg .arrow7 { stroke: var(--sf-m-git-7) !important; }
+
+.mermaid svg [class^="branch-label"],
+.mermaid svg [class*=" branch-label"] {
+  fill: #FFFFFF !important;
+  color: #FFFFFF !important;
+  font-family: var(--font-mono) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+
+/* ER Diagram & Class Diagram editorial surfaces */
+.mermaid svg .er.entityBox,
+.mermaid svg g.classGroup rect {
+  fill: var(--sf-m-node-bg) !important;
+  stroke: var(--sf-m-node-border) !important;
+  stroke-width: 1.2px !important;
+}
+
+.mermaid svg .er.attributeBoxOdd {
+  fill: var(--sf-m-canvas-bg) !important;
+  stroke: var(--sf-m-node-border) !important;
+  stroke-width: 1px !important;
+}
+
+.mermaid svg .er.attributeBoxEven {
+  fill: var(--sf-m-node-bg) !important;
+  stroke: var(--sf-m-node-border) !important;
+  stroke-width: 1px !important;
+}
+
+.mermaid svg g.classGroup line {
+  stroke: var(--sf-m-node-border) !important;
+  stroke-width: 1px !important;
+}
+
+.mermaid svg .er.entityLabel,
+.mermaid svg g.classGroup .title {
+  fill: var(--sf-m-node-text) !important;
+  font-weight: 600 !important;
+}
+
+.mermaid svg .er.relationshipLabel,
+.mermaid svg .classLabel .label {
+  fill: var(--sf-m-muted-text) !important;
+  font-size: 11.5px !important;
 }
 
 @media (max-width: 768px) {
   .mermaid {
-    padding: 1rem;
+    padding: 1.15rem 0.9rem;
   }
 
   .mermaid.mermaid-pending {
@@ -3173,7 +3854,7 @@ button[aria-current="page"]:hover {
   }
 
   .mermaid.mermaid-pending::after {
-    font-size: 0.74rem;
+    font-size: 0.72rem;
   }
 }
 
@@ -3212,13 +3893,120 @@ button[aria-current="page"]:hover {
   width: 100%;
   max-width: 100%;
   display: flex;
+  flex-direction: column;
   justify-content: center;
-  align-items: flex-start;
+  align-items: stretch;
+}
+
+.mermaid-wrapper:hover > .mermaid {
+  border-color: var(--border-strong);
 }
 
 .mermaid-wrapper .mermaid {
   margin: 0;
   display: block;
+}
+
+/* Inline source view toggled inside .mermaid-wrapper */
+.mermaid-source-view {
+  display: none;
+  margin: 0 !important;
+  padding: 2.6rem 1.25rem 1.1rem !important;
+  background: var(--sf-m-canvas-bg) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: var(--radius-lg) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 0.8125rem !important;
+  line-height: 1.65 !important;
+  color: var(--text-2) !important;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.mermaid-wrapper.is-source-mode .mermaid-source-view {
+  display: block;
+}
+
+/* Unified Anthropic floating pill toolbar for diagrams */
+.mermaid-toolbar {
+  position: absolute;
+  top: 0.625rem;
+  right: 0.625rem;
+  z-index: 12;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out);
+}
+
+.mermaid-wrapper:hover .mermaid-toolbar,
+.mermaid-wrapper:focus-within .mermaid-toolbar,
+.mermaid-wrapper.is-source-mode .mermaid-toolbar {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.mermaid-toolbar .copy-button,
+.mermaid-toolbar .mermaid-tool-btn {
+  position: static !important;
+  top: auto !important;
+  right: auto !important;
+  opacity: 1 !important;
+  width: 1.85rem;
+  height: 1.85rem;
+  min-width: 1.85rem;
+  min-height: 1.85rem;
+  padding: 0 !important;
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out),
+    color var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out);
+}
+
+.mermaid-toolbar .copy-button:hover,
+.mermaid-toolbar .mermaid-tool-btn:hover {
+  background: var(--surface-alt);
+  color: var(--text);
+  border-color: transparent;
+}
+
+.mermaid-toolbar .mermaid-tool-btn.is-active {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.mermaid-toolbar .copy-button.copied {
+  background: var(--ok-soft);
+  color: var(--ok);
+  border-color: transparent;
+}
+
+.mermaid-toolbar svg {
+  width: 14px !important;
+  height: 14px !important;
+  max-width: none !important;
+  margin: 0 !important;
+  display: block;
+  pointer-events: none;
 }
 
 .copy-button {
@@ -3243,16 +4031,20 @@ button[aria-current="page"]:hover {
 }
 
 .code-wrapper:hover .copy-button,
-.mermaid-wrapper:hover .copy-button {
+.code-wrapper:focus-within .copy-button {
   opacity: 1;
 }
 
 @media (hover: none) {
-  .code-wrapper .copy-button,
-  .mermaid-wrapper .copy-button {
+  .code-wrapper .copy-button {
     opacity: 1;
     min-width: var(--hit-size);
     min-height: 2.25rem;
+  }
+
+  .mermaid-toolbar {
+    opacity: 1;
+    transform: none;
   }
 }
 
@@ -3286,23 +4078,22 @@ button[aria-current="page"]:hover {
 }
 
 @media (max-width: 768px) {
-  .copy-button {
+  .code-wrapper .copy-button {
     opacity: 1;
     padding: 0.35rem 0.58rem;
     font-size: 0.72rem;
+  }
+
+  .mermaid-toolbar {
+    opacity: 1;
+    transform: none;
+    top: 0.45rem;
+    right: 0.45rem;
   }
 }
 
 .code-wrapper pre code {
   padding-right: 3rem;
-}
-
-.fullscreen-button {
-  right: 3.5rem !important;
-}
-
-.mermaid-source-button {
-  right: 6.5rem !important;
 }
 
 /* ========================================
@@ -3354,8 +4145,24 @@ button[aria-current="page"]:hover {
 .mermaid-fullscreen-toolbar {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 0.45rem;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.mermaid-fullscreen-toolbar-hint {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  color: var(--faint);
+  padding-left: 0.25rem;
+  user-select: none;
+}
+
+.mermaid-fullscreen-toolbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   flex-wrap: wrap;
 }
 
@@ -3396,22 +4203,37 @@ button[aria-current="page"]:hover {
   color: var(--primary);
 }
 
+.mermaid-fullscreen-tool-btn.copied {
+  background: var(--ok-soft);
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
 .mermaid-fullscreen-tool-btn.close-btn {
   width: 2.75rem;
   color: var(--err);
 }
 
+.mermaid-fullscreen-tool-btn svg {
+  width: 15px;
+  height: 15px;
+  pointer-events: none;
+}
+
 .mermaid-fullscreen-viewport {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   border-radius: 10px;
   border: 1px solid var(--border);
-  background: var(--surface-sunk);
+  background-color: var(--sf-m-canvas-bg);
+  background-image: radial-gradient(var(--sf-m-dot) 0.8px, transparent 0.8px);
+  background-size: 18px 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1rem;
+  cursor: grab;
 }
 
 .mermaid-fullscreen-viewport.can-pan {
@@ -3433,29 +4255,30 @@ button[aria-current="page"]:hover {
   will-change: transform;
 }
 
+.mermaid-fullscreen-viewport.is-dragging .mermaid-fullscreen-canvas {
+  transition: none;
+}
+
 .mermaid-fullscreen {
-  background: var(--surface) !important;
-  padding: 1.25rem !important;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
+  background: transparent !important;
+  background-image: none !important;
+  padding: 1rem !important;
+  border: none !important;
   box-shadow: none;
   width: max-content !important;
   max-width: none !important;
   max-height: none !important;
   overflow: visible !important;
-  min-width: 320px;
-  min-height: 220px;
   margin: 0 !important;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  cursor: inherit !important;
 }
 
 .mermaid-fullscreen svg {
   max-width: none !important;
   max-height: none !important;
-  width: max-content !important;
-  height: max-content !important;
   display: block !important;
   visibility: visible !important;
   margin: 0 !important;
@@ -3467,6 +4290,10 @@ button[aria-current="page"]:hover {
     height: 94vh;
     padding: 0.75rem;
     gap: 0.5rem;
+  }
+
+  .mermaid-fullscreen-toolbar-hint {
+    display: none;
   }
 
   .mermaid-fullscreen-toolbar {
