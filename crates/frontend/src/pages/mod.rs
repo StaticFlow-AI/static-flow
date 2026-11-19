@@ -48,7 +48,6 @@ pub mod article_raw;
 pub mod categories;
 pub mod category_detail;
 pub mod coming_soon;
-pub mod freight;
 pub mod home;
 pub mod home_hero;
 pub mod image_library;
@@ -68,5 +67,6 @@ pub mod search;
 pub mod studio;
 pub mod tag_detail;
 pub mod tags;
+pub mod worldlines;
 
 pub use posts::PostsPage;

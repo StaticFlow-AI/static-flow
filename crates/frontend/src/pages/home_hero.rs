@@ -659,7 +659,7 @@ pub fn personal_hero(props: &PersonalHeroProps) -> Html {
                                 <span class="sf-tl__note">{ "Rust · Yew · WebAssembly · LanceDB" }</span>
                             </span>
                             <div class="sf-tl__actions">
-                                <Link<Route> to={Route::Freight}>{ "运输船 · 甲板交锋 →" }</Link<Route>>
+                                <Link<Route> to={Route::Worldlines}>{ "进入方块研究所 →" }</Link<Route>>
                                 <Link<Route> to={Route::LlmAccess}>{ "免费 LLM Key 🦞" }</Link<Route>>
                                 <a href={crate::config::asset_path("standalone/github-wrapped-2025.html")} target="_blank" rel="noopener noreferrer">{ "2025 GitHub Wrapped" }</a>
                                 <a href="https://github.com/acking-you/static_flow" target="_blank" rel="noopener noreferrer">{ "本站源码" }</a>

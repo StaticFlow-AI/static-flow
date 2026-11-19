@@ -261,7 +261,7 @@ fn route_path_for(route: &Route) -> String {
         Route::Home => config::route_path("/"),
         Route::LatestArticles => config::route_path("/latest"),
         Route::Studio => config::route_path("/studio"),
-        Route::Freight | Route::Worldlines => config::route_path("/play/freight"),
+        Route::Worldlines => config::route_path("/lab/worldlines"),
         Route::Posts => config::route_path("/posts"),
         Route::ArticleDetail {
             id,
@@ -406,10 +406,11 @@ pub fn apply_route_seo(route: Option<&Route>) {
             );
             apply_default_hreflang(&canonical_url);
         },
-        Route::Freight | Route::Worldlines => {
+        Route::Worldlines => {
             apply_common_seo(
-                "运输船 · 甲板交锋 · StaticFlow",
-                "空降海上运输船，在集装箱甲板上展开第一人称团队竞技。",
+                "方块研究所 · 世界线生存沙盒 · StaticFlow",
+                "在像素方块世界采矿、合成、建造，从未来道具研究所发出 \
+                 D-Mail，寻找两个人都能回来的世界线。",
                 &canonical_url,
                 "website",
                 "index,follow,max-image-preview:large",
