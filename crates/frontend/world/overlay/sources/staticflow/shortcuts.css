@@ -1,3 +1,11 @@
+.world-driving-frame {
+    position: fixed; width: 1px; height: 1px; top: 0; left: 0;
+    border: 0; opacity: 0; pointer-events: none;
+}
+.binding-capture {
+    position: absolute; width: 1px; height: 1px; clip-path: inset(50%);
+    overflow: hidden; pointer-events: none;
+}
 .world-bindings {
     color-scheme: dark; width: min(27rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem);
     overflow: auto; margin: auto; box-sizing: border-box; padding: 1.2rem;

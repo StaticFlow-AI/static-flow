@@ -49,13 +49,24 @@ function replace(source, anchor, replacement) {
 }
 
 const opening = `
-    <a class="world-return" href="../../" aria-label="返回 StaticFlow 博客首页">
-        <span class="arrow" aria-hidden="true">←</span> 返回博客
-    </a>
+    <nav class="world-navigation" aria-label="世界导航">
+        <a class="world-return" href="../../" aria-label="返回 StaticFlow 博客首页">
+            <span class="arrow" aria-hidden="true">←</span> 返回博客
+        </a>
+        <button type="button" data-world-fullscreen hidden aria-label="进入全屏" title="进入全屏 (Alt + Enter)" aria-keyshortcuts="Alt+Enter">
+            <i class="screen-corners" aria-hidden="true"></i>
+        </button>
+        <span class="screen-feedback" role="status" hidden></span>
+    </nav>
     <section class="world-brief" aria-labelledby="world-title">
         <h1 id="world-title">StaticFlow 漫游志</h1>
         <p id="world-status" role="status">正在接入未来道具实验室…</p>
-        <button id="world-drive" type="button" hidden>开始驾驶</button>
+        <p class="screen-hint">推荐全屏驾驶。<span>按 <kbd>Alt</kbd> + <kbd>Enter</kbd> 切换全屏。</span></p>
+        <div class="world-entry-actions">
+            <button id="world-fullscreen" type="button" aria-keyshortcuts="Alt+Enter"><i class="screen-corners" aria-hidden="true"></i><span>全屏驾驶</span></button>
+            <button id="world-drive" type="button" hidden title="使用窗口模式开始驾驶">开始驾驶</button>
+        </div>
+        <p class="screen-feedback" role="status" hidden></p>
         <button id="world-retry" type="button" hidden onclick="location.reload()">重新载入</button>
         <noscript><p>请启用 JavaScript 进入 3D 世界。</p></noscript>
     </section>`
@@ -85,6 +96,8 @@ export default async function adaptUI(root) {
         await writeFile(filename, update(await readFile(filename, 'utf8')))
     }
 
+    // The first click can arrive before Vite downloads the game module.
+    const fullscreen = await readFile(new URL('./fullscreen.js', import.meta.url), 'utf8')
     await edit('index.html', source => {
         let html = replace(source, '<html lang="en">', '<html lang="zh-CN">')
         html = replace(html, /<title>[\s\S]*?(?=<link rel="stylesheet" href="\.\/style\/index\.styl">)/,
@@ -93,7 +106,7 @@ export default async function adaptUI(root) {
             '<link rel="stylesheet" href="./staticflow/world.css">\n    <link rel="icon" href="./favicon.ico">\n    ')
         html = replace(html, /<!-- Analytics -->[\s\S]*?<\/script>\s*<script>[\s\S]*?<\/script>/, '')
         html = html.replaceAll('rel="preload" href="/', 'rel="preload" href="./')
-        html = replace(html, '<body>', '<body>' + opening)
+        html = replace(html, '<body>', () => '<body>' + opening + '<script>\n' + fullscreen + '\n</script>')
         html = replace(html, '<canvas class="js-canvas"></canvas>', '<canvas aria-label="可驾驶的博客 3D 世界" class="js-canvas"></canvas>')
         html = replace(html, /<div class="title">Bruno's Home[\s\S]*?And don't break anything!<\/p>/, home)
         html = replace(html, /<div class="title">Behind the scene[\s\S]*?— Bruno\s*<\/p>/, reading)
@@ -175,12 +188,17 @@ export default async function adaptUI(root) {
         })`))
     await edit('Game/Reveal.js', source => {
         source = replace(source, 'const next = () =>', "const startButton = document.getElementById('world-drive')\n                    const next = () =>")
+        source = replace(source, 'else if(step === 1)\n        {', "else if(step === 1)\n        {\n            document.documentElement.classList.add('world-entered')")
+        source = replace(source, 'this.updateStep(1)\n                        this.game.inputs.events.off', `if (document.documentElement.classList.contains('world-entered')) return
+                        this.updateStep(1)
+                        this.game.inputs.events.off`)
         source = replace(source, 'this.game.rayCursor.removeIntersect(intersect)', "this.game.rayCursor.removeIntersect(intersect)\n                        startButton.removeEventListener('click', next)\n                        startButton.hidden = true")
         return replace(source, "this.game.inputs.events.on('introStart', inputCallback)", `this.game.inputs.events.on('introStart', inputCallback)
                     document.getElementById('world-status').textContent = matchMedia('(pointer: coarse)').matches
                         ? '单指拖动驾驶。打开地图，从世界线观测站开始。' : '方向键驾驶 · 回车互动 · 按 M 打开地图，从世界线观测站开始。'
                     startButton.hidden = false
-                    startButton.addEventListener('click', next)`)
+                    startButton.addEventListener('click', next)
+                    window.dispatchEvent(new Event('world-drive-ready'))`)
     })
     await edit('data/achievements.js', localizeAchievements)
     await edit('Game/Achievements.js', source => source.replace("'Are you sure?'", "'确定清除？'")

@@ -6,21 +6,41 @@
     --sf-sans: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 html, body, .game, .modals, .menu { font-family: var(--sf-sans); }
-.world-return {
+.world-navigation {
     position: fixed; z-index: 10; top: max(16px, env(safe-area-inset-top));
     left: max(16px, env(safe-area-inset-left));
-    display: flex; align-items: center; gap: .65em; padding: .65em 1em;
+    display: flex; align-items: center; gap: 6px;
+}
+.world-return, [data-world-fullscreen] {
+    display: flex; align-items: center; justify-content: center; gap: .65em; padding: .65em 1em;
     border: 1px solid #f7da9e66; border-radius: 50px; color: var(--sf-paper);
     background: #211b21dc; text-decoration: none;
     font: 600 13px var(--sf-sans);
 }
 .world-return .arrow { font: normal 1.2em Georgia, serif; }
-.world-return:hover { background: #362a2b; }
-.input-filter-menu .world-return, .input-filter-modal .world-return { display: none; }
+.world-return:hover, [data-world-fullscreen]:hover { background: #362a2b; }
+[data-world-fullscreen] { align-self: stretch; padding-inline: .8em; cursor: pointer; }
+[data-world-fullscreen][hidden], html:not(.world-entered) [data-world-fullscreen],
+html:is(.input-filter-menu, .input-filter-modal) .world-navigation { display: none; }
+.screen-corners {
+    display: inline-block; width: 15px; height: 13px;
+    background:
+        linear-gradient(currentColor 0 0) left top / 6px 2px,
+        linear-gradient(currentColor 0 0) left top / 2px 6px,
+        linear-gradient(currentColor 0 0) right top / 6px 2px,
+        linear-gradient(currentColor 0 0) right top / 2px 6px,
+        linear-gradient(currentColor 0 0) left bottom / 6px 2px,
+        linear-gradient(currentColor 0 0) left bottom / 2px 6px,
+        linear-gradient(currentColor 0 0) right bottom / 6px 2px,
+        linear-gradient(currentColor 0 0) right bottom / 2px 6px;
+    background-repeat: no-repeat;
+}
 .world-brief {
     position: fixed; z-index: 3; pointer-events: none; color: var(--sf-paper);
     bottom: max(7vh, env(safe-area-inset-bottom)); left: clamp(20px, 5vw, 96px);
-    max-width: calc(100% - 40px); text-shadow: 0 2px 12px #150e15;
+    box-sizing: border-box; max-width: min(32rem, calc(100% - 40px));
+    padding: clamp(14px, 2vw, 24px); border-left: 2px solid var(--sf-gold);
+    border-radius: 0 5px 5px 0; background: #211c20e8;
 }
 .world-brief h1 {
     font: 500 clamp(28px, 5vw, 60px)/1.12 var(--sf-serif); letter-spacing: -.035em;
@@ -28,6 +48,21 @@ html, body, .game, .modals, .menu { font-family: var(--sf-sans); }
 .world-brief p, .world-brief button { font: 500 14px/1.55 var(--sf-sans); margin-top: 12px; }
 .world-brief button { pointer-events: auto; padding: 10px 19px; border: 1px solid var(--sf-gold); border-radius: 4px; color: var(--sf-ink); background: var(--sf-paper); }
 .world-brief [hidden] { display: none; }
+.world-brief .screen-hint { color: var(--sf-gold); }
+.screen-hint kbd { font: 600 .9em ui-monospace, monospace; }
+.world-entry-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.world-entry-actions button { cursor: pointer; min-height: 42px; }
+.world-entry-actions button:disabled { cursor: default; opacity: .7; }
+#world-fullscreen { display: inline-flex; gap: .65em; align-items: center; font-weight: 650; }
+#world-drive { background: transparent; color: var(--sf-paper); border-color: #f7da9e75; }
+html.world-entered .world-brief, html.world-failed .world-entry-actions,
+html.world-failed .world-brief .screen-hint { display: none; }
+html:not(.world-entered) .world-navigation .screen-feedback { display: none; }
+.world-navigation .screen-feedback:not([hidden]) {
+    padding: .65em; border-radius: 4px; background: var(--sf-ink); color: var(--sf-paper);
+    font: 500 13px var(--sf-sans);
+}
+@media (pointer: coarse) { .screen-hint span { display: none; } }
 .input-filter-wandering .world-brief, .input-filter-menu .world-brief, .input-filter-modal .world-brief, .input-filter-cinematic .world-brief, .input-filter-racing .world-brief { display: none; }
 .world-failed .world-brief { display: block; }
 .world-failed .game { visibility: hidden; }
@@ -54,7 +89,7 @@ html, body, .game, .modals, .menu { font-family: var(--sf-sans); }
 :where(a, button, input, [contenteditable]):focus-visible { outline: 2px solid var(--sf-gold); outline-offset: 2px; }
 html:not(.is-server-online) .whispers-content form { display: none; }
 @media (max-width: 600px) {
-    .world-return { left: 10px; top: max(10px, env(safe-area-inset-top)); }
+    .world-navigation { left: max(10px, env(safe-area-inset-left)); top: max(10px, env(safe-area-inset-top)); }
     .world-brief { left: 20px; bottom: max(36px, env(safe-area-inset-bottom)); }
 }
 [data-sf-gallery] { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: .7em; }

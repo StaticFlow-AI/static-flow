@@ -39,7 +39,13 @@ and locked npm dependencies. Later builds reuse the verified inputs under
 The blog serves the models, engine, decoders and sounds when visitors enter the world.
 To build this document alone, run `node world/build.mjs /tmp/staticflow-world-preview`
 from this directory.
+To run the Playwright driving regression from this directory, set
+`STATICFLOW_WORLD_URL` to the preview's `/static/world/index.html` URL and run
+`node --test tests/driving_world.test.mjs`.
 
+Visitors can select fullscreen driving while the opening scene loads. Alt+Enter
+toggles fullscreen during play. The live minimap opens by default, shows the car
+and the current worldline destination, and remembers its collapsed state.
 The radio shows the current track and seek bar. Its keyboard button opens
 bindings for driving, playback, track selection and seeking. At the worldline
 observatory, tune α to recover an archived D-Mail or β to intercept a radio

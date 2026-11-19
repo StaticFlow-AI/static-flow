@@ -16,15 +16,18 @@ export default async function adaptMusic(root) {
         audio.slice(0, start) + mount + audio.slice(end)
     const focus = /        \/\/ Tab focus \/ blur[\s\S]+?(?=\n    \}\n\n    update\(\))/
     if (!focus.test(source)) throw new Error('Missing Folio music focus handling')
-    source = source.replace(focus, `        // Keep background simulation inaudible and preserve the listener's pause.
-        window.addEventListener('blur', () => {
-            Howler.mute(true)
-            this.radio?.setSuspended(true)
-        })
-        window.addEventListener('focus', () => {
-            Howler.mute(this.mute.active)
-            this.radio?.setSuspended(false)
-        })\n`)
+    source = source.replace(focus, `        // The driving frame and the surrounding HUD share one audio session.
+        // Wait for focus to settle across the two windows before suspending it.
+        const syncAudioFocus = () => {
+            const suspended = document.hidden || !document.hasFocus()
+            Howler.mute(suspended || this.mute.active)
+            this.radio?.setSuspended(suspended)
+        }
+        for (const context of [window, this.game.inputs.keyboard.frame.contentWindow]) {
+            context.addEventListener('focus', syncAudioFocus)
+            context.addEventListener('blur', () => setTimeout(syncAudioFocus, 0))
+        }
+        document.addEventListener('visibilitychange', syncAudioFocus)\n`)
     await writeFile(audioPath, source)
 
     const bowlingPath = join(root, 'sources/Game/World/Areas/BowlingArea.js')

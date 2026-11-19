@@ -5,6 +5,8 @@ export default async function adaptInput(root) {
     const files = [
         ['Game/Inputs/Inputs.js', [
             ['new Keyboard()', 'new Keyboard(this)\n        this.game.debug.bindKeyboard?.(this.keyboard)'],
+            ['document.documentElement.classList.add(`input-filter-${event.value}`)',
+                'document.documentElement.classList.add(`input-filter-${event.value}`)\n                this.keyboard.onFilterChange()'],
             ["this.keyboard.events.on('down', (key, code) =>", "this.keyboard.events.on('down', key =>"],
             ["this.keyboard.events.on('up', (key, code) =>", "this.keyboard.events.on('up', key =>"],
             ['\n            this.start(`Keyboard.${code}`)', ''],
@@ -15,6 +17,9 @@ export default async function adaptInput(root) {
             if (event.pointerType === 'touch') this.updateMode(Inputs.MODE_TOUCH)
         }, { capture: true, passive: true })`],
         ]],
+        ['Game/Menu.js', [['item.mainFocus.focus()', 'if(item.isOpen) item.mainFocus.focus()']]],
+        ['Game/Modals.js', [['if(item.mainFocus)\n                        item.mainFocus.focus()',
+            'if(item.isOpen && item.mainFocus)\n                        item.mainFocus.focus()']]],
         ['Game/Debug.js', [[
             "addEventListener('keydown', (event) =>",
             "this.bindKeyboard = keyboard => keyboard.events.on('sequence', (event) =>"

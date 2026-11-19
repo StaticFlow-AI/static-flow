@@ -39,6 +39,15 @@ export class Shortcuts {
           <p>选中键位后按下新键。方向键始终可以驾驶。</p>
           <div class="binding-groups"></div><footer><button type="button" data-reset>恢复默认</button><span role="status"></span></footer>`
         this.notice = dialog.querySelector('[role=status]')
+        this.captureField = document.createElement('input')
+        this.captureField.className = 'binding-capture'
+        this.captureField.readOnly = true
+        this.captureField.inputMode = 'none'
+        this.captureField.tabIndex = -1
+        window.addEventListener('keyup', event => {
+            if (event.target === this.captureField && !this.pending)
+                this.captureField.previousElementSibling.focus()
+        }, true)
         for (const [label, group] of [['驾驶', driving], ['电台', radio]]) {
             const fieldset = document.createElement('fieldset')
             const legend = document.createElement('legend')
@@ -54,6 +63,11 @@ export class Shortcuts {
                     this.pending = id
                     this.notice.textContent = title + ' · 按新键，Esc 取消'
                     this.refresh()
+                    // Media shortcuts also see the recording press. Keep a
+                    // real form control focused while waiting for the new key.
+                    this.captureField.setAttribute('aria-label', this.notice.textContent)
+                    button.after(this.captureField)
+                    this.captureField.focus({ preventScroll: true })
                 }
                 this.buttons.set(id, button)
                 fieldset.append(button)
@@ -99,10 +113,12 @@ export class Shortcuts {
 
     capture(event) {
         if (!this.pending) return false
+        const button = this.buttons.get(this.pending)
         if (event.code === 'Tab') {
             this.pending = null
             this.notice.textContent = ''
             this.refresh()
+            button.focus()
             return false
         }
         if (event.code === 'Escape') {
