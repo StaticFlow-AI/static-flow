@@ -44,7 +44,11 @@ To run the Playwright driving regression from this directory, set
 `node --test tests/driving_world.test.mjs`.
 
 Visitors can select fullscreen driving while the opening scene loads. Alt+Enter
-toggles fullscreen during play. The live minimap opens by default, shows the car
+toggles fullscreen during play. Press C or tap **第一人称** to switch between
+the driver's seat and the overhead view while driving or racing. The key is
+configurable in the driving controls. On a controller, tap the right stick to
+switch perspective or hold it to zoom the overhead view.
+The live minimap opens by default, shows the car
 and the current worldline destination, and remembers its collapsed state.
 The radio shows the current track and seek bar. Its keyboard button opens
 bindings for driving, playback, track selection and seeking. At the worldline

@@ -30,7 +30,7 @@ const labels = {
     'Interact / Exit': '互动或退出', Accelerate: '前进', 'Backward accelerate': '倒车',
     Hydraulics: '悬挂', 'Joystick Left': '左摇杆', 'Joystick Left (press)': '按下左摇杆',
     'Joystick Right': '右摇杆', 'Joystick Right (press)': '按下右摇杆', 'Turn wheels': '转向',
-    'Zoom in/out': '缩放', Pause: '暂停', Achievements: '探索成就', Rewards: '解锁涂装',
+    'Zoom in/out': '轻按切换驾驶视角，按住缩放俯视图', Pause: '暂停', Achievements: '探索成就', Rewards: '解锁涂装',
     'Unlock at': '所需成就', 'Reset achievements': '清除探索记录', Circuit: '赛道排行榜',
     "Server currently offline. Scores can't be saved.": '当前为单人模式。圈速仅在本次驾驶中显示。',
     'No score yet today': '今天还没有圈速记录', 'Resets in': '距离下一次重置',
@@ -56,6 +56,9 @@ const opening = `
         <button type="button" data-world-fullscreen hidden aria-label="进入全屏" title="进入全屏 (Alt + Enter)" aria-keyshortcuts="Alt+Enter">
             <i class="screen-corners" aria-hidden="true"></i>
         </button>
+        <button type="button" data-driving-view aria-label="第一人称驾驶" aria-pressed="false" title="切换第一人称与俯视驾驶">
+            第一人称 <kbd data-camera-key aria-hidden="true">C</kbd>
+        </button>
         <span class="screen-feedback" role="status" hidden></span>
     </nav>
     <section class="world-brief" aria-labelledby="world-title">
@@ -73,7 +76,7 @@ const opening = `
 
 const home = `<div class="title">驾驶营地</div>
     <p class="text">实验室收到了一封缺页的 D-Mail。在观测站调谐 α，你能从文章工坊的 IBN 5100 读到旧档案；调谐 β，广播会馆会收到另一段录音。你会记得两条世界线发生过的事。</p>
-    <p class="text">用 <span data-driving-keys>W A S D</span> 或方向键驾驶，靠近标记后按回车。触屏上可单指拖动，轻点浮出的按钮互动。打开地图，选择地名即可传送。</p>
+    <p class="text">用 <span data-driving-keys>W A S D</span> 或方向键驾驶，靠近标记后按回车。按 <kbd data-camera-key>C</kbd> 或点左上角「第一人称」切换视角。触屏上可单指拖动，轻点浮出的按钮互动。打开地图，选择地名即可传送。</p>
     <p class="text">当前变动率 <output data-observatory-reading></output>。地图上的发光标记指向下一处收信地点。</p>
     <nav class="world-links text" aria-label="博客馆藏">
         <a href="../../posts">浏览知识库 ↗</a><a href="../../media/audio">进入曲库 ↗</a>

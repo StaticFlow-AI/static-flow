@@ -7,11 +7,13 @@ const radio = [
     ['next', '下一首', 'BracketRight'], ['rewind', '后退 5 秒', 'Comma'],
     ['advance', '快进 5 秒', 'Period']
 ]
-const commands = [...driving, ...radio]
+const perspective = ['drivingView', '切换驾驶视角', 'KeyC']
+const drivingControls = [...driving, perspective]
+const commands = [...drivingControls, ...radio]
 const defaults = Object.fromEntries(commands.map(([id, , code]) => [id, code]))
 const store = 'staticflow.world.shortcuts.v1'
 const reserved = new Set(['KeyB', 'KeyE', 'KeyF', 'KeyH', 'KeyL', 'KeyM', 'KeyR', 'KeyT', 'KeyV'])
-const printable = { BracketLeft: '[', BracketRight: ']', Comma: ',', Period: '.', Slash: '/', Semicolon: ';', Quote: "'", Minus: '−', Equal: '=' }
+const printable = { BracketLeft: '[', BracketRight: ']', Comma: ',', Period: '.', Slash: '/', Backslash: '\\', Semicolon: ';', Quote: "'", Minus: '−', Equal: '=' }
 
 function keyLabel(code) { return printable[code] || code.replace(/^(Key|Digit)/, '') }
 function assignable(code) {
@@ -21,6 +23,10 @@ function assignable(code) {
 function load() {
     try {
         const saved = JSON.parse(localStorage.getItem(store))
+        // Backslash was unavailable in the old controls. Keep an existing
+        // assignment to C when adding the camera to a visitor's saved layout.
+        if (!Object.hasOwn(saved, 'drivingView'))
+            saved.drivingView = Object.values(saved).includes(perspective[2]) ? 'Backslash' : perspective[2]
         const keys = commands.map(([id]) => saved[id])
         if (keys.every(assignable) && new Set(keys).size === keys.length)
             return Object.fromEntries(commands.map(([id]) => [id, saved[id]]))
@@ -48,7 +54,7 @@ export class Shortcuts {
             if (event.target === this.captureField && !this.pending)
                 this.captureField.previousElementSibling.focus()
         }, true)
-        for (const [label, group] of [['驾驶', driving], ['电台', radio]]) {
+        for (const [label, group] of [['驾驶', drivingControls], ['电台', radio]]) {
             const fieldset = document.createElement('fieldset')
             const legend = document.createElement('legend')
             legend.textContent = label
@@ -101,6 +107,9 @@ export class Shortcuts {
         }
         const movement = driving.map(([id]) => keyLabel(this.keys[id])).join(' ')
         document.querySelectorAll('[data-driving-keys]').forEach(node => { node.textContent = movement })
+        const cameraKey = keyLabel(this.keys.drivingView)
+        document.querySelectorAll('[data-camera-key]').forEach(node => { node.textContent = cameraKey })
+        document.querySelector('[data-driving-view]').setAttribute('aria-keyshortcuts', cameraKey)
     }
 
     save(message) {
@@ -139,11 +148,10 @@ export class Shortcuts {
     }
 
     resolve(code) {
-        const drive = driving.find(([id]) => this.keys[id] === code)
+        const drive = drivingControls.find(([id]) => this.keys[id] === code)
         if (drive) return { code: drive[2] }
         const media = radio.find(([id]) => this.keys[id] === code)
         if (media) return { radio: media[0] }
-        // A remapped physical WASD key is no longer a driving alias.
-        return { code: driving.some(([, , original]) => original === code) ? null : code }
+        return { code: drivingControls.some(([, , original]) => original === code) ? null : code }
     }
 }

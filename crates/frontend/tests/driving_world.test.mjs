@@ -20,7 +20,7 @@ test('driving keeps the keyboard after using fullscreen, the minimap and binding
             window.mediaKeys = []
             for (const type of ['keydown', 'keyup']) {
                 window.addEventListener(type, event => {
-                    if (/^Key[WASDI]$/.test(event.code) && !event.target.closest?.('input, textarea, [contenteditable]'))
+                    if (/^Key[WASDIC]$/.test(event.code) && !event.target.closest?.('input, textarea, [contenteditable]'))
                         window.mediaKeys.push([type, event.code])
                 }, true)
             }
@@ -33,6 +33,17 @@ test('driving keeps the keyboard after using fullscreen, the minimap and binding
         await screen.click()
         await page.keyboard.press('d')
         await page.waitForFunction(() => !document.fullscreenElement)
+
+        const view = page.getByRole('button', { name: '第一人称驾驶' })
+        assert.equal(await view.getAttribute('aria-pressed'), 'false')
+        await page.keyboard.down('w')
+        await page.keyboard.down('c')
+        await page.keyboard.down('c')
+        await page.keyboard.up('c')
+        assert.equal(await view.getAttribute('aria-pressed'), 'true')
+        await view.click()
+        assert.equal(await view.getAttribute('aria-pressed'), 'false')
+        await page.keyboard.up('w')
 
         const minimap = page.locator('[data-minimap-toggle]')
         assert.equal(await minimap.getAttribute('aria-expanded'), 'true')

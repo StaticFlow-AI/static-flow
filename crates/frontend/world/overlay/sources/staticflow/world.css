@@ -11,15 +11,20 @@ html, body, .game, .modals, .menu { font-family: var(--sf-sans); }
     left: max(16px, env(safe-area-inset-left));
     display: flex; align-items: center; gap: 6px;
 }
-.world-return, [data-world-fullscreen] {
+.world-return, .world-navigation button {
     display: flex; align-items: center; justify-content: center; gap: .65em; padding: .65em 1em;
     border: 1px solid #f7da9e66; border-radius: 50px; color: var(--sf-paper);
     background: #211b21dc; text-decoration: none;
     font: 600 13px var(--sf-sans);
 }
 .world-return .arrow { font: normal 1.2em Georgia, serif; }
-.world-return:hover, [data-world-fullscreen]:hover { background: #362a2b; }
-[data-world-fullscreen] { align-self: stretch; padding-inline: .8em; cursor: pointer; }
+.world-return:hover, .world-navigation button:hover { background: #362a2b; }
+.world-navigation button { align-self: stretch; padding-inline: .8em; cursor: pointer; }
+html:not(:is(.input-filter-wandering, .input-filter-racing)) [data-driving-view],
+html:has(dialog[open]) [data-driving-view] { display: none; }
+.world-navigation [data-driving-view][aria-pressed="true"] { background: var(--sf-gold); border-color: var(--sf-gold); color: var(--sf-ink); }
+[data-driving-view] kbd { font: 600 11px/1 ui-monospace, monospace; border: 1px solid currentColor; padding: 2px 3px; border-radius: 3px; }
+@media (pointer: coarse) { [data-driving-view] kbd { display: none; } }
 [data-world-fullscreen][hidden], html:not(.world-entered) [data-world-fullscreen],
 html:is(.input-filter-menu, .input-filter-modal) .world-navigation { display: none; }
 .screen-corners {
@@ -91,6 +96,20 @@ html:not(.is-server-online) .whispers-content form { display: none; }
 @media (max-width: 600px) {
     .world-navigation { left: max(10px, env(safe-area-inset-left)); top: max(10px, env(safe-area-inset-top)); }
     .world-brief { left: 20px; bottom: max(36px, env(safe-area-inset-bottom)); }
+}
+/* Keep driving notifications clear of the camera switch, radio and minimap. */
+@media (max-width: 600px), (pointer: coarse) and (max-width: 800px) {
+    html:is(.input-filter-wandering, .input-filter-racing) .notifications {
+        top: calc(max(16px, env(safe-area-inset-top)) + 151px);
+        left: max(10px, env(safe-area-inset-left));
+        width: min(288px, calc(100% - 128px - env(safe-area-inset-left) - env(safe-area-inset-right)));
+    }
+    html:is(.input-filter-wandering, .input-filter-racing) .notifications .notification {
+        transform: none;
+        transition: opacity .2s ease;
+    }
+    html:is(.input-filter-wandering, .input-filter-racing) .notifications .notification:not(.is-visible),
+    html:is(.input-filter-wandering, .input-filter-racing) .notifications .notification.is-leaving { opacity: 0; }
 }
 [data-sf-gallery] { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: .7em; }
 [data-sf-gallery] img { display: block; width: 100%; aspect-ratio: 1.5; object-fit: cover; }

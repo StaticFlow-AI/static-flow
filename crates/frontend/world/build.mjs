@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import adaptUI from './adapt-ui.mjs';
 import adaptContent from './adapt-content.mjs';
 import adaptInput from './adapt-input.mjs';
+import adaptCamera from './adapt-camera.mjs';
 import adaptMinimap from './adapt-minimap.mjs';
 import adaptPlaza from './adapt-plaza.mjs';
 import adaptHearth from './adapt-hearth.mjs';
@@ -68,6 +69,7 @@ try {
   await adaptContent(work);
   await adaptShared(work);
   await adaptInput(work);
+  await adaptCamera(work);
   await adaptMinimap(work);
   await adaptPlaza(work);
   await adaptHearth(work);

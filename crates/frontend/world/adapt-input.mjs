@@ -3,6 +3,14 @@ import { join } from 'node:path'
 
 export default async function adaptInput(root) {
     const files = [
+        ['Game/Game.js', [
+            ["import { View } from './View.js'", "import { View } from './View.js'\nimport { bindDrivingView } from '../staticflow/driving-view-control.js'"],
+            ['this.view = new View()', 'this.view = new View()\n        bindDrivingView(this)'],
+        ]],
+        ['Game/View.js', [
+            ["import { Inputs } from './Inputs/Inputs.js'", "import { Inputs } from './Inputs/Inputs.js'\nimport { bindViewStick } from '../staticflow/driving-view-control.js'"],
+            ["this.game.inputs.events.on('zoomToggle', (action) =>", "bindViewStick(this.game.inputs, (action) =>"],
+        ]],
         ['Game/Inputs/Inputs.js', [
             ['new Keyboard()', 'new Keyboard(this)\n        this.game.debug.bindKeyboard?.(this.keyboard)'],
             ['document.documentElement.classList.add(`input-filter-${event.value}`)',
