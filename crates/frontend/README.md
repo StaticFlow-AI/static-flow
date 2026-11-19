@@ -40,6 +40,14 @@ The blog serves the models, engine, decoders and sounds when visitors enter the 
 To build this document alone, run `node world/build.mjs /tmp/staticflow-world-preview`
 from this directory.
 
+The radio shows the current track and seek bar. Its keyboard button opens
+bindings for driving, playback, track selection and seeking. At the worldline
+observatory, tune α to recover an archived D-Mail or β to intercept a radio
+transmission. The map marks the next receiver. Both messages unlock the final
+transmission at the laboratory. The browser remembers the observer's messages
+across visits. The public calibration counter is shared. The meter and the
+homepage use the same entries in `world-lines.json`.
+
 The exhibits read the existing public catalog APIs. The Axum route `/api/world`
 stores the daily race leaderboard, the latest 30 roadside messages and shared
 counters in a SQLite file beside the configured content database. For a content

@@ -44,6 +44,13 @@ html, body, .game, .modals, .menu { font-family: var(--sf-sans); }
 [data-sf-articles] { font-size: .8rem; line-height: 1.6; }
 [data-sf-articles] a { display: block; margin-bottom: .5em; }
 .map .location:focus-visible .name { transform: scale(1); }
+.map .location.is-worldline-signal .pin {
+    background: var(--signal-color, #91fff2);
+    border-color: #144842;
+    outline: 2px solid var(--signal-color, #91fff2);
+    outline-offset: 3px;
+    box-shadow: 0 0 12px #0e524e;
+}
 :where(a, button, input, [contenteditable]):focus-visible { outline: 2px solid var(--sf-gold); outline-offset: 2px; }
 html:not(.is-server-online) .whispers-content form { display: none; }
 @media (max-width: 600px) {

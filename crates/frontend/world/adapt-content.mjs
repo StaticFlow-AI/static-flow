@@ -74,10 +74,4 @@ export default async function adaptContent(root) {
             "const screenTextures = this.years.map(year => inscription('GitHub · ' + year))"],
         ['collideIndex++', 'collideIndex++\n                this.archiveIndex = collideIndex % this.years.length'],
     ], "import { sitePath } from '../../../staticflow/blog.js'\nimport { inscription } from '../../../staticflow/blogBoards.js'\n")
-    await edit('Game/Audio.js', [
-        ['this.playlist.index = (Math.floor', 'this.playlist.songs.push(...playlist)\n        this.playlist.index = (Math.floor'],
-        ['src: [ song.path ],', 'src: [ song.path ],\n                format: song.format ? [song.format] : undefined,\n                html5: Boolean(song.format),'],
-        ['const html = /* html */`\n                    <div class="top">\n                        <div class="title">Now playing', 'const escaped = document.createElement(\'span\')\n                escaped.textContent = this.playlist.current.name\n                const html = /* html */`\n                    <div class="top">\n                        <div class="title">正在播放'],
-        ['${this.playlist.current.name}', '${escaped.innerHTML}'],
-    ], "import { playlist } from '../staticflow/blog.js'\n")
 }

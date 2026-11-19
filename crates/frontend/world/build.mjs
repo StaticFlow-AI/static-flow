@@ -7,6 +7,12 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import adaptUI from './adapt-ui.mjs';
 import adaptContent from './adapt-content.mjs';
+import adaptInput from './adapt-input.mjs';
+import adaptPlaza from './adapt-plaza.mjs';
+import adaptHearth from './adapt-hearth.mjs';
+import adaptInsignia from './adapt-insignia.mjs';
+import adaptObservatory from './adapt-observatory.mjs';
+import adaptMusic from './adapt-music.mjs';
 import adaptShared from './adapt-shared.mjs';
 
 const worldDir = dirname(fileURLToPath(import.meta.url));
@@ -60,6 +66,12 @@ try {
   await adaptUI(work);
   await adaptContent(work);
   await adaptShared(work);
+  await adaptInput(work);
+  await adaptPlaza(work);
+  await adaptHearth(work);
+  await adaptInsignia(work);
+  await adaptObservatory(work);
+  await adaptMusic(work);
   for (const dir of ['projects/images', 'lab/images', 'career', 'timeMachine']) {
     await rm(join(work, 'static', dir), { recursive: true });
   }

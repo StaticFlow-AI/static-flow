@@ -20,14 +20,7 @@ use crate::{
 };
 
 /// Famous world lines (Steins;Gate). The first one is where the meter rests.
-const WORLD_LINES: &[(&str, &str)] = &[
-    ("1.048596", "Steins;Gate 世界线"),
-    ("0.571024", "α 世界线 · 起点"),
-    ("0.337187", "α 世界线 · SERN"),
-    ("1.130205", "β 世界线"),
-    ("0.523299", "α 世界线 · 分歧"),
-    ("1.382733", "β 世界线 · 第三次世界大战"),
-];
+const WORLD_LINES: &[[&str; 2]] = &include!("../../world-lines.json");
 
 const MOTTO_LINES: &[&str] = &["El Psy Kongroo", "Rustacean", "痴迷底层黑魔法的 Database 练习生"];
 
@@ -252,16 +245,16 @@ pub fn personal_hero(props: &PersonalHeroProps) -> Html {
     let world_idx = use_state(|| 0usize);
     let meter_text = use_state(|| {
         if reduced_motion {
-            WORLD_LINES[0].0.to_string()
+            WORLD_LINES[0][0].to_string()
         } else {
-            scramble(WORLD_LINES[0].0)
+            scramble(WORLD_LINES[0][0])
         }
     });
     // Bumped to re-run the flicker for the current target world line.
     let meter_epoch = use_state(|| 0u32);
     {
         let meter_text = meter_text.clone();
-        let target = WORLD_LINES[*world_idx % WORLD_LINES.len()].0;
+        let target = WORLD_LINES[*world_idx % WORLD_LINES.len()][0];
         use_effect_with((*meter_epoch, *world_idx), move |_| {
             let interval = if reduced_motion {
                 meter_text.set(target.to_string());
@@ -299,7 +292,7 @@ pub fn personal_hero(props: &PersonalHeroProps) -> Html {
             meter_epoch.set(meter_epoch.wrapping_add(1));
         })
     };
-    let world_label = WORLD_LINES[*world_idx % WORLD_LINES.len()].1;
+    let world_label = WORLD_LINES[*world_idx % WORLD_LINES.len()][1];
 
     // ---- Typewriter terminal ---------------------------------------------
     let script = build_script(props);

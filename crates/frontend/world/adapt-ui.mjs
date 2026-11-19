@@ -5,15 +5,15 @@ import { join } from 'node:path'
 import { localizeAchievements } from './achievements-zh.mjs'
 
 const destinations = {
-    'Achievements': '成就殿堂', 'Altar': '祭坛', 'Behind<br /> the scene': '阅读室',
+    'Achievements': '成就殿堂', 'Altar': '世界线观测站', 'Behind<br /> the scene': '阅读室',
     'Bowling': '保龄球场', 'Career': '分类长廊', 'Circuit': '赛道', 'Cookie': '饼干屋',
-    'Lab': '唱片实验室', 'Landing': '驾驶营地', 'Projects': '文章工坊',
-    'Social': '站内导航', 'Time Machine': '年度回顾',
+    'Lab': '唱片实验室', 'Landing': '未来道具实验室', 'Projects': '文章工坊',
+    'Social': '广播会馆', 'Time Machine': '时光档案 · 年度回顾',
 }
 
 const tabLabels = {
     home: '驾驶营地', options: '设置', controls: '驾驶指南', achievements: '探索成就',
-    circuit: '赛道', whispers: '路边留言', behindTheScene: '阅读室',
+    circuit: '赛道', whispers: 'D-Mail 留言', behindTheScene: '阅读室',
 }
 
 const labels = {
@@ -34,8 +34,8 @@ const labels = {
     'Unlock at': '所需成就', 'Reset achievements': '清除探索记录', Circuit: '赛道排行榜',
     "Server currently offline. Scores can't be saved.": '当前为单人模式。圈速仅在本次驾驶中显示。',
     'No score yet today': '今天还没有圈速记录', 'Resets in': '距离下一次重置',
-    Restart: '重新起跑', End: '结束比赛', Controls: '驾驶指南', 'Leave a whisper': '留下一句话',
-    'Whispers are messages left by visitors.': '把留言留在小车停靠的地方，经过的驾驶员可以读到它。',
+    Restart: '重新起跑', End: '结束比赛', Controls: '驾驶指南', 'Leave a whisper': '发送 D-Mail 留言',
+    'Whispers are messages left by visitors.': '将这条 D-Mail 留在停车的位置，下一位经过的驾驶员就能读到。',
     'Server currently offline': '留言服务当前未连接。', 'Your message here': '在这里留言',
     'No result': '没有找到', 'Your time': '本圈用时', Submit: '提交', or: '或',
     "Sorry, you didn't make it to the top 10.": '这次未进前十，再跑一圈试试？',
@@ -54,15 +54,16 @@ const opening = `
     </a>
     <section class="world-brief" aria-labelledby="world-title">
         <h1 id="world-title">StaticFlow 漫游志</h1>
-        <p id="world-status" role="status">正在装载驾驶营地…</p>
+        <p id="world-status" role="status">正在接入未来道具实验室…</p>
         <button id="world-drive" type="button" hidden>开始驾驶</button>
         <button id="world-retry" type="button" hidden onclick="location.reload()">重新载入</button>
         <noscript><p>请启用 JavaScript 进入 3D 世界。</p></noscript>
     </section>`
 
 const home = `<div class="title">驾驶营地</div>
-    <p class="text">这里是 ackingliu 的博客。开过营地的篝火，去文章工坊翻阅最新的工程手记，也可以在唱片实验室找首歌听。</p>
-    <p class="text">用 WASD 或方向键驾驶，靠近标记后按回车。触屏上可单指拖动，轻点浮出的按钮互动。打开地图，选择地名即可传送。</p>
+    <p class="text">实验室收到了一封缺页的 D-Mail。在观测站调谐 α，你能从文章工坊的 IBN 5100 读到旧档案；调谐 β，广播会馆会收到另一段录音。你会记得两条世界线发生过的事。</p>
+    <p class="text">用 <span data-driving-keys>W A S D</span> 或方向键驾驶，靠近标记后按回车。触屏上可单指拖动，轻点浮出的按钮互动。打开地图，选择地名即可传送。</p>
+    <p class="text">当前变动率 <output data-observatory-reading></output>。地图上的发光标记指向下一处收信地点。</p>
     <nav class="world-links text" aria-label="博客馆藏">
         <a href="../../posts">浏览知识库 ↗</a><a href="../../media/audio">进入曲库 ↗</a>
     </nav>
@@ -130,6 +131,8 @@ export default async function adaptUI(root) {
         for (const [name, display] of Object.entries(destinations))
             source = replace(source, `name: '${name}'`, `name: '${display}'`)
         return replace(source, "document.createElement('div')", "document.createElement('button')")
+            .replace("respawnName: 'altar', offset: { x: 0, y: -0.05 }", "respawnName: 'altar', offset: { x: 0, y: 0.015 }")
+            .replace("element.classList.add('location')", "element.classList.add('location')\n            element.dataset.station = item.respawnName")
             .replace(/\s*element.addEventListener\('keydown',[\s\S]*?\n        }\)/, '')
     })
     await edit('Game/Menu.js', source => replace(source, /\s*element.addEventListener\('keydown',[\s\S]*?\n        }\)/, ''))
@@ -161,7 +164,7 @@ export default async function adaptUI(root) {
     await edit('Game/World/Areas/LandingArea.js', source => {
         source = "import { installCampSign } from '../../../staticflow/camp-sign.js'\n" + source
         return replace(source, 'super(model)', 'installCampSign(model)\n        super(model)')
-            .replace("'Map'", "'地图'").replace("'Controls'", "'驾驶指南'").replace("'Res(e)t'", "'篝火复位'")
+            .replace("'Map'", "'地图'").replace("'Controls'", "'驾驶指南'").replace("'Res(e)t'", "'电话微波炉 · 物件复位'")
     })
     await edit('Game/Game.js', source => replace(source, 'this.init()', `this.init().catch(error => {
             console.error('StaticFlow world initialization failed', error)
@@ -175,7 +178,7 @@ export default async function adaptUI(root) {
         source = replace(source, 'this.game.rayCursor.removeIntersect(intersect)', "this.game.rayCursor.removeIntersect(intersect)\n                        startButton.removeEventListener('click', next)\n                        startButton.hidden = true")
         return replace(source, "this.game.inputs.events.on('introStart', inputCallback)", `this.game.inputs.events.on('introStart', inputCallback)
                     document.getElementById('world-status').textContent = matchMedia('(pointer: coarse)').matches
-                        ? '单指拖动驾驶，轻点小车跳跃。' : 'WASD 驾驶 · 空格跳跃 · 回车互动 · M 地图'
+                        ? '单指拖动驾驶。打开地图，从世界线观测站开始。' : '方向键驾驶 · 回车互动 · 按 M 打开地图，从世界线观测站开始。'
                     startButton.hidden = false
                     startButton.addEventListener('click', next)`)
     })
