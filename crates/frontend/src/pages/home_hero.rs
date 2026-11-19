@@ -521,6 +521,10 @@ pub fn personal_hero(props: &PersonalHeroProps) -> Html {
                         <Link<Route> to={Route::MediaAudio} classes="sf-hero__cta sf-hero__cta--ghost">
                             { "听听曲库" }
                         </Link<Route>>
+                        <a href={crate::config::asset_path("static/world/index.html")} class="sf-hero__cta sf-hero__cta--ghost">
+                            <i class="fas fa-car-side" aria-hidden="true" />
+                            { "开车逛 3D 博客" }
+                        </a>
                     </div>
 
                     <div class="sf-hero__social">

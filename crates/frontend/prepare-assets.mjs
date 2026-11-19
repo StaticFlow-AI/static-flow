@@ -53,6 +53,8 @@ switch (process.argv[2]) {
         pruneRemoved(join(source, entry.name), join(output, entry.name));
       }
     }
+    // The world has its own content-hashed Vite chunks and decoders.
+    pruneRemoved(join(source, 'static/world'), join(output, 'static/world'));
     const snippets = join(output, 'snippets');
     if (existsSync(snippets)) {
       for (const name of readdirSync(snippets)) {

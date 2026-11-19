@@ -204,6 +204,7 @@ pub struct RuntimeMetadata {
 
 #[derive(Clone)]
 pub struct AppState {
+    pub(crate) world_db_path: PathBuf,
     pub(crate) store: Arc<StaticFlowDataStore>,
     pub(crate) comment_store: Arc<CommentDataStore>,
     pub(crate) geoip: GeoIpResolver,
@@ -354,6 +355,7 @@ impl AppState {
         tracing::info!("application state initialized successfully");
 
         Ok(Self {
+            world_db_path: PathBuf::from(content_db_uri).with_extension("world.sqlite3"),
             store,
             comment_store,
             geoip,

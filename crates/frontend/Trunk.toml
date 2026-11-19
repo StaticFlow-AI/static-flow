@@ -34,3 +34,8 @@ command_arguments = ["@tailwindcss/cli", "-i", "input.css", "-o", "static/styles
 stage = "post_build"
 command = "node"
 command_arguments = ["prepare-assets.mjs", "distribution"]
+
+[[hooks]]
+stage = "post_build"
+command = "node"
+command_arguments = ["world/build.mjs"]

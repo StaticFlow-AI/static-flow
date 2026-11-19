@@ -19,6 +19,7 @@ mod routes;
 mod seo;
 mod state;
 mod table_maintenance;
+mod world;
 
 use std::{env, net::SocketAddr, time::Duration};
 

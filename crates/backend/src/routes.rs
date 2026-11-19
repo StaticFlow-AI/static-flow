@@ -620,6 +620,7 @@ pub fn create_router(state: AppState) -> Router {
 
     // Merge: API first, then SEO, then static files, then SPA index fallback
     api_router
+        .merge(crate::world::router(behavior_state.world_db_path.clone()))
         .merge(seo_router)
         .merge(gpt2api_frontend_router)
         .fallback_service(spa_fallback.fallback(get(seo::seo_spa_shell).with_state(spa_state)))
@@ -673,7 +674,10 @@ async fn static_cache_control_middleware(request: Request, next: Next) -> Respon
         return response;
     }
 
-    if path.starts_with("/static/") {
+    if path.starts_with("/static/")
+        && path != "/static/world/index.html"
+        && path != "/static/world/"
+    {
         response
             .headers_mut()
             .insert(header::CACHE_CONTROL, HeaderValue::from_static("public, max-age=3600"));

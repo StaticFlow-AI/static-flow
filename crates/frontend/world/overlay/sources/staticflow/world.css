@@ -1,0 +1,68 @@
+:root {
+    --sf-paper: #fff0ce;
+    --sf-gold: #efc889;
+    --sf-ink: #211c20;
+    --sf-serif: Georgia, "Songti SC", "Noto Serif CJK SC", SimSun, serif;
+    --sf-sans: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+html, body, .game, .modals, .menu { font-family: var(--sf-sans); }
+.world-return {
+    position: fixed; z-index: 10; top: max(16px, env(safe-area-inset-top));
+    left: max(16px, env(safe-area-inset-left));
+    display: flex; align-items: center; gap: .65em; padding: .65em 1em;
+    border: 1px solid #f7da9e66; border-radius: 50px; color: var(--sf-paper);
+    background: #211b21dc; text-decoration: none;
+    font: 600 13px var(--sf-sans);
+}
+.world-return .arrow { font: normal 1.2em Georgia, serif; }
+.world-return:hover { background: #362a2b; }
+.input-filter-menu .world-return, .input-filter-modal .world-return { display: none; }
+.world-brief {
+    position: fixed; z-index: 3; pointer-events: none; color: var(--sf-paper);
+    bottom: max(7vh, env(safe-area-inset-bottom)); left: clamp(20px, 5vw, 96px);
+    max-width: calc(100% - 40px); text-shadow: 0 2px 12px #150e15;
+}
+.world-brief h1 {
+    font: 500 clamp(28px, 5vw, 60px)/1.12 var(--sf-serif); letter-spacing: -.035em;
+}
+.world-brief p, .world-brief button { font: 500 14px/1.55 var(--sf-sans); margin-top: 12px; }
+.world-brief button { pointer-events: auto; padding: 10px 19px; border: 1px solid var(--sf-gold); border-radius: 4px; color: var(--sf-ink); background: var(--sf-paper); }
+.world-brief [hidden] { display: none; }
+.input-filter-wandering .world-brief, .input-filter-menu .world-brief, .input-filter-modal .world-brief, .input-filter-cinematic .world-brief, .input-filter-racing .world-brief { display: none; }
+.world-failed .world-brief { display: block; }
+.world-failed .game { visibility: hidden; }
+.menu .contents .title, .modal .title { font: 600 1.55rem/1.35 var(--sf-serif); }
+.menu .contents h2.title { font-size: 1.05rem; margin-top: 1.2em; }
+.menu .contents .text { font-size: .83rem; line-height: 1.7; }
+.menu .previews, .menu .contents, .menu .contents .content { background: #261f24; }
+.menu .previews::after, .menu-trigger .button-inner::after { border-color: var(--sf-gold); }
+.menu .home-preview { background: #32262a; }
+.menu .home-preview img { object-position: center; }
+.menu .contents .content-inner > .title:first-child { color: var(--sf-paper); }
+.menu .contents .world-links { display: grid; gap: .5rem; margin: .9rem 0; }
+.world-links a, [data-sf-articles] a { color: var(--sf-paper); text-underline-offset: .22em; overflow-wrap: anywhere; }
+[data-sf-articles] { font-size: .8rem; line-height: 1.6; }
+[data-sf-articles] a { display: block; margin-bottom: .5em; }
+.map .location:focus-visible .name { transform: scale(1); }
+:where(a, button, input, [contenteditable]):focus-visible { outline: 2px solid var(--sf-gold); outline-offset: 2px; }
+html:not(.is-server-online) .whispers-content form { display: none; }
+@media (max-width: 600px) {
+    .world-return { left: 10px; top: max(10px, env(safe-area-inset-top)); }
+    .world-brief { left: 20px; bottom: max(36px, env(safe-area-inset-bottom)); }
+}
+[data-sf-gallery] { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: .7em; }
+[data-sf-gallery] img { display: block; width: 100%; aspect-ratio: 1.5; object-fit: cover; }
+/* Reserve a separate hit target for close even on a short landscape screen. */
+.menu .navigation { left: 0; right: 58px; gap: 2px; }
+.menu .navigation .item { flex: 0 1 50px; min-width: 0; }
+.menu .inner > .close { right: 0; top: auto; bottom: 100%; transform: none; }
+.map > .close { right: 8px; top: 8px; bottom: auto; z-index: 1001; transform: none; }
+/* Menu taps can precede the first canvas gesture on a touch device. */
+@media (hover: none) and (pointer: coarse) {
+    .map .location .name-container .name { transform: scale(.74); font: 600 14px var(--sf-sans); }
+}
+/* Let the active menu keep its hit targets when a driving achievement arrives. */
+html:is(.input-filter-menu, .input-filter-modal) .notifications .notification:not(.is-world-sync) {
+    visibility: hidden;
+}
+html:is(.input-filter-menu, .input-filter-modal) .notifications { pointer-events: none; }

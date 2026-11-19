@@ -9,6 +9,7 @@ Codex/Kiro/LLM operator pages (`/admin/llm-gateway*`, `/admin/kiro-gateway*`) ar
 - **Rust** toolchain pinned by the repository `rust-toolchain.toml` (currently `nightly-2026-08-21`)
 - **wasm32-unknown-unknown** target: `rustup target add wasm32-unknown-unknown`
 - **Trunk** CLI for bundling and serving (`cargo install trunk`)
+- **Node.js 24**, npm, curl and tar for the driving world build
 - Optional: a local backend on `http://127.0.0.1:39080` for API proxy during development
 
 ## Common Commands
@@ -27,6 +28,24 @@ rustfmt src/changed_file.rs
 # Lint with Clippy (fail on warnings by default)
 cargo clippy -- -D warnings
 ```
+
+## 3D blog world
+
+The homepage link **开车逛 3D 博客** opens `/static/world/index.html`. Trunk runs
+`world/build.mjs` to assemble the pinned [Folio 2025](https://github.com/brunosimon/folio-2025/tree/70764a94756cc4de564e493c8ba46c4b5fe03ed1)
+client and StaticFlow adaptations. The first build downloads the upstream archive
+and locked npm dependencies. Later builds reuse the verified inputs under
+`$XDG_CACHE_HOME/staticflow/world` (by default `~/.cache/staticflow/world`).
+The blog serves the models, engine, decoders and sounds when visitors enter the world.
+To build this document alone, run `node world/build.mjs /tmp/staticflow-world-preview`
+from this directory.
+
+The exhibits read the existing public catalog APIs. The Axum route `/api/world`
+stores the daily race leaderboard, the latest 30 roadside messages and shared
+counters in a SQLite file beside the configured content database. For a content
+database named `lancedb`, the file is `lancedb.world.sqlite3`. Both blue/green
+backend slots use the same file. Static hosting without that endpoint supports
+solo driving.
 
 ## Directory Structure
 
