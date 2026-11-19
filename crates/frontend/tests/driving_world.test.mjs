@@ -4,7 +4,7 @@ import { chromium } from 'playwright'
 
 const worldUrl = process.env.STATICFLOW_WORLD_URL
 
-test('driving keeps the keyboard after using fullscreen, the minimap and bindings', {
+test('driving controls steer the cockpit and keep focus across the HUD', {
     skip: !worldUrl && 'Set STATICFLOW_WORLD_URL to a running world preview',
     timeout: 120_000,
 }, async () => {
@@ -16,6 +16,12 @@ test('driving keeps the keyboard after using fullscreen, the minimap and binding
         const page = await browser.newPage()
         await page.addInitScript(() => {
             if (window !== window.top) return
+            // Three's inspector hook observes the same scene the visitor sees.
+            window.worldScenes = []
+            window.__THREE_DEVTOOLS__ = new EventTarget()
+            window.__THREE_DEVTOOLS__.addEventListener('observe', ({ detail }) => {
+                if (detail.isScene) window.worldScenes.push(detail)
+            })
             // Media shortcut handlers can register before the game loads.
             window.mediaKeys = []
             for (const type of ['keydown', 'keyup']) {
@@ -41,8 +47,28 @@ test('driving keeps the keyboard after using fullscreen, the minimap and binding
         await page.keyboard.down('c')
         await page.keyboard.up('c')
         assert.equal(await view.getAttribute('aria-pressed'), 'true')
+        await page.keyboard.up('w')
+        await page.waitForFunction(() => window.worldScenes.some(scene => scene.getObjectByName('driver-cockpit')?.visible))
+        const cockpit = await page.evaluateHandle(() =>
+            window.worldScenes.map(scene => scene.getObjectByName('driver-cockpit')).find(group => group?.visible))
+        const gripHeights = () => cockpit.evaluate(group => ['grip-left', 'grip-right'].map(name => {
+            const hand = group.getObjectByName(name)
+            return group.worldToLocal(hand.getWorldPosition(hand.position.clone())).y
+        }))
+        await page.keyboard.down('a')
+        await page.waitForFunction(group => group.getObjectByName('steering-wheel').rotation.z > .2, cockpit)
+        const turningLeft = await gripHeights()
+        await page.keyboard.up('a')
+        await page.keyboard.down('d')
+        await page.waitForFunction(group => group.getObjectByName('steering-wheel').rotation.z < -.2, cockpit)
+        const turningRight = await gripHeights()
+        assert.ok(turningLeft[0] < turningRight[0] && turningLeft[1] > turningRight[1])
+        await page.keyboard.up('d')
+        await page.waitForFunction(group => Math.abs(group.getObjectByName('steering-wheel').rotation.z) < .03, cockpit)
+        await page.keyboard.down('w')
         await view.click()
         assert.equal(await view.getAttribute('aria-pressed'), 'false')
+        await page.waitForFunction(group => !group.visible, cockpit)
         await page.keyboard.up('w')
 
         const minimap = page.locator('[data-minimap-toggle]')

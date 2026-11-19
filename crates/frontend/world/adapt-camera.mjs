@@ -40,6 +40,19 @@ export default async function adaptCamera(root) {
             this.material.seeThroughPosition.value.copy(this.game.world.visualVehicle.screenPosition)
         }`],
         ]],
+        ['World/VisualVehicle.js', [
+            ['        this.parts.chassis.position.copy(physicalVehicle.position)', `        const showExterior = !this.game.view.firstPerson.hideExterior
+        this.parts.chassis.visible = showExterior
+        if (this.antenna) this.antenna.head.visible = showExterior
+        this.parts.chassis.position.copy(physicalVehicle.position)`],
+        ]],
+        ['Physics/PhysicsVehicle.js', [
+            ['        this.position.copy(position)\n    }\n\n    updatePrePhysics()', `        this.position.copy(position)
+        this.events.trigger('teleport')
+    }
+
+    updatePrePhysics()`],
+        ]],
         ['Passes/cheapDOF.js', [
             ['this.size = uniform(2)', 'this.size = uniform(2)\n        this.strength = uniform(1.5)\n        this.overview = uniform(1)'],
             ['.smoothstep(this.start, this.end)', '.smoothstep(this.start, this.end).mul(this.strength.div(1.5)).mul(this.overview)'],

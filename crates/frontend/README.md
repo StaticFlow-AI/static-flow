@@ -45,7 +45,9 @@ To run the Playwright driving regression from this directory, set
 
 Visitors can select fullscreen driving while the opening scene loads. Alt+Enter
 toggles fullscreen during play. Press C or tap **第一人称** to switch between
-the driver's seat and the overhead view while driving or racing. The key is
+the driver's seat and the overhead view while driving or racing. From the
+driver's seat, both hands grip the steering wheel and follow the front wheels
+as you turn. The key is
 configurable in the driving controls. On a controller, tap the right stick to
 switch perspective or hold it to zoom the overhead view.
 The live minimap opens by default, shows the car
