@@ -32,13 +32,6 @@ pub enum Route {
     Studio,
 
     #[cfg(not(feature = "mock"))]
-    #[at("/lab/worldlines")]
-    Worldlines,
-    #[cfg(feature = "mock")]
-    #[at("/static_flow/lab/worldlines")]
-    Worldlines,
-
-    #[cfg(not(feature = "mock"))]
     #[at("/posts")]
     Posts,
     #[cfg(feature = "mock")]
@@ -369,7 +362,6 @@ fn switch(route: Route) -> Html {
         Route::Home => html! { <pages::home::HomePage /> },
         Route::LatestArticles => html! { <pages::latest_articles::LatestArticlesPage /> },
         Route::Studio => html! { <pages::studio::StudioPage /> },
-        Route::Worldlines => html! { <pages::worldlines::WorldlinesGame /> },
         Route::Posts => html! { <pages::PostsPage /> },
         Route::ArticleDetail {
             id,
@@ -565,14 +557,13 @@ fn app_router_inner() -> Html {
         });
     }
 
-    let immersive = matches!(route, Some(Route::Worldlines));
     html! {
         <div class="flex flex-col bg-[var(--bg)]" style="min-height: 100vh; min-height: 100svh;">
-            if !immersive { <Header /> }
-            <div class={classes!("flex-1", "min-w-0", (!immersive).then_some("pt-[var(--space-sm)]"))}>
+            <Header />
+            <div class="flex-1 min-w-0 pt-[var(--space-sm)]">
                 <Switch<Route> render={switch} />
             </div>
-            if !immersive { <Footer /> }
+            <Footer />
             <crate::components::persistent_audio::PersistentAudio />
             <crate::components::mini_player::MiniPlayer />
         </div>

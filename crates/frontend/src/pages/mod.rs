@@ -67,6 +67,5 @@ pub mod search;
 pub mod studio;
 pub mod tag_detail;
 pub mod tags;
-pub mod worldlines;
 
 pub use posts::PostsPage;

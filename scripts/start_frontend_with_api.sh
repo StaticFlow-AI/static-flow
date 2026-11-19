@@ -136,7 +136,7 @@ ensure_frontend_deps() {
     need_install="true"
   elif [[ ! -d "$FRONTEND_DIR/node_modules/@tailwindcss/cli" ]]; then
     need_install="true"
-  elif [[ ! -d "$FRONTEND_DIR/node_modules/tailwindcss" || ! -d "$FRONTEND_DIR/node_modules/three" || ! -d "$FRONTEND_DIR/node_modules/esbuild" ]]; then
+  elif [[ ! -d "$FRONTEND_DIR/node_modules/tailwindcss" ]]; then
     need_install="true"
   fi
 

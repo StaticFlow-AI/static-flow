@@ -23,9 +23,14 @@ backend = "http://127.0.0.1:39080/api"
 [[hooks]]
 stage = "pre_build"
 command = "node"
-command_arguments = ["spatial/build.mjs"]
+command_arguments = ["prepare-assets.mjs", "snippets"]
 
 [[hooks]]
 stage = "pre_build"
 command = "npx"
 command_arguments = ["@tailwindcss/cli", "-i", "input.css", "-o", "static/styles.css", "--minify", "--content", "src/**/*.rs"]
+
+[[hooks]]
+stage = "post_build"
+command = "node"
+command_arguments = ["prepare-assets.mjs", "distribution"]

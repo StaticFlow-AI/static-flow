@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "./worldlines.css";
 
 /* Drive Tailwind's `dark:` variant from the app's own theme switch
    (`<html data-theme="dark">`) instead of the default

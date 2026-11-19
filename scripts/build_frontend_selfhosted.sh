@@ -57,7 +57,7 @@ command -v trunk >/dev/null 2>&1 || fail "trunk not found. Install with: cargo i
 
 # Ensure npm deps
 if [[ "$SKIP_NPM" != "true" ]]; then
-  if [[ ! -d "$FRONTEND_DIR/node_modules/@tailwindcss/cli" || ! -d "$FRONTEND_DIR/node_modules/three" || ! -d "$FRONTEND_DIR/node_modules/esbuild" ]]; then
+  if [[ ! -d "$FRONTEND_DIR/node_modules/@tailwindcss/cli" ]]; then
     log "Installing frontend npm dependencies..."
     mkdir -p "$NPM_CACHE_DIR"
     (cd "$FRONTEND_DIR" && NPM_CONFIG_CACHE="$NPM_CACHE_DIR" npm install)
@@ -190,7 +190,9 @@ log "Build complete: $FRONTEND_DIR/dist/"
 # Optional: copy to custom output dir
 if [[ -n "$OUTPUT_DIR" ]]; then
   mkdir -p "$OUTPUT_DIR"
-  cp -r "$FRONTEND_DIR/dist/"* "$OUTPUT_DIR/"
+  if [[ ! "$OUTPUT_DIR" -ef "$FRONTEND_DIR/dist" ]]; then
+    node "$FRONTEND_DIR/prepare-assets.mjs" distribution "$FRONTEND_DIR/dist" "$OUTPUT_DIR"
+  fi
   log "Copied to: $OUTPUT_DIR/"
 fi
 
