@@ -44,9 +44,18 @@ export default async function adaptCamera(root) {
         ]],
         ['Fog.js', [
             ['this.game.dayCycles.properties.fogFarRatio.value * amplitude', `this.game.dayCycles.properties.fogFarRatio.value * amplitude
+        const view = this.game.view
+        if (view.camera.aspect < 1 && view.focusPoint.isTracking && !view.freeMode.enabled && !view.cinematic.progress) {
+            // The portrait chase camera pulls back to frame the road. Keep the
+            // vehicle within the first quarter of the fog ramp (16% opacity),
+            // even at night. The far shore still fades into the sky.
+            const carDepth = view.spherical.radius.current
+            const depthToHorizon = this.far.value - carDepth
+            if (depthToHorizon > 0) this.near.value = Math.max(this.near.value, carDepth - depthToHorizon / 3)
+        }
         // The overview fog distances describe the slant range from above.
         // At eye level, blend the horizon into fog inside the streamed floor.
-        const weight = this.game.view.firstPerson.weight
+        const weight = view.firstPerson.weight
         if (weight > 0) {
             const radius = this.game.view.optimalArea.radius
             const nearRatio = this.game.dayCycles.properties.fogNearRatio.value

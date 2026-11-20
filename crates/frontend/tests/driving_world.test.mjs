@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { chromium } from 'playwright'
+import { chromium, devices } from 'playwright'
 
 const worldUrl = process.env.STATICFLOW_WORLD_URL
 
@@ -105,6 +105,70 @@ test('driving controls steer the cockpit and keep focus across the HUD', {
         await page.keyboard.up('i')
         assert.deepEqual(await page.evaluate(() => window.mediaKeys), [])
         assert.deepEqual(errors, [])
+    } finally {
+        await browser.close()
+    }
+})
+
+test('a compatibility-only phone draws the driving world without HDR color targets', {
+    skip: !worldUrl && 'Set STATICFLOW_WORLD_URL to a running world preview',
+    timeout: 120_000,
+}, async t => {
+    const browser = await chromium.launch({
+        channel: process.env.PLAYWRIGHT_CHANNEL,
+        args: ['--enable-unsafe-webgpu', '--force-webgpu-compat', '--use-webgpu-adapter=opengles',
+            '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
+    })
+    try {
+        const page = await browser.newPage({ ...devices['Pixel 7'], viewport: { width: 400, height: 792 } })
+        const framebufferErrors = []
+        page.on('console', message => {
+            if (message.text().includes('GL_INVALID_FRAMEBUFFER_OPERATION')) framebufferErrors.push(message.text())
+        })
+        await page.addInitScript(() => {
+            const prototype = WebGL2RenderingContext.prototype
+            const getExtension = prototype.getExtension
+            const getSupported = prototype.getSupportedExtensions
+            const hdr = new Set(['EXT_color_buffer_float', 'EXT_color_buffer_half_float'])
+            prototype.getExtension = function (name) {
+                return hdr.has(name) ? null : getExtension.call(this, name)
+            }
+            prototype.getSupportedExtensions = function () {
+                return getSupported.call(this)?.filter(name => !hdr.has(name)) ?? null
+            }
+        })
+        await page.goto(worldUrl, { waitUntil: 'domcontentloaded' })
+        const compatibilityOnly = await page.evaluate(async () => {
+            if (!navigator.gpu) return false
+            const compat = await navigator.gpu.requestAdapter({ featureLevel: 'compatibility' })
+            const core = await navigator.gpu.requestAdapter({ featureLevel: 'core', powerPreference: 'high-performance' })
+            return compat && !core?.features.has('core-features-and-limits')
+        })
+        if (!compatibilityOnly) return t.skip('This Chromium build does not expose a compatibility-only GPU adapter')
+        // The world requests shared state when the opening animation finishes.
+        await Promise.all([page.waitForRequest('**/api/world', { timeout: 90_000 }),
+            page.locator('#world-drive').tap({ timeout: 90_000 })])
+        assert.ok(await page.locator('canvas.experience').evaluate(canvas => !!canvas.getContext('webgl2')))
+
+        // Sample the main road, excluding DOM controls. A sky gradient alone
+        // can span many colors; edges distinguish actual geometry from fog.
+        const shot = await page.screenshot({ clip: { x: 40, y: 250, width: 320, height: 330 }, scale: 'css' })
+        const edges = await page.evaluate(async png => {
+            const image = new Image()
+            image.src = 'data:image/png;base64,' + png
+            await image.decode()
+            const ctx = new OffscreenCanvas(96, 96).getContext('2d')
+            ctx.drawImage(image, 0, 0, 96, 96)
+            const { data } = ctx.getImageData(0, 0, 96, 96)
+            let edges = 0
+            for (let i = 4; i < data.length; i += 4) {
+                if ((i / 4) % 96 === 0) continue
+                if (Math.max(...[0, 1, 2].map(c => Math.abs(data[i + c] - data[i + c - 4]))) > 16) edges++
+            }
+            return edges
+        }, shot.toString('base64'))
+        assert.ok(edges > 96 * 95 * .025, `expected visible terrain and car, found ${edges} edges`)
+        assert.deepEqual(framebufferErrors, [])
     } finally {
         await browser.close()
     }

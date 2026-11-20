@@ -9,6 +9,7 @@ import adaptUI from './adapt-ui.mjs';
 import adaptContent from './adapt-content.mjs';
 import adaptInput from './adapt-input.mjs';
 import adaptCamera from './adapt-camera.mjs';
+import adaptWorldBuffers from './adapt-world-buffers.mjs';
 import adaptMinimap from './adapt-minimap.mjs';
 import adaptPlaza from './adapt-plaza.mjs';
 import adaptHearth from './adapt-hearth.mjs';
@@ -70,6 +71,7 @@ try {
   await adaptShared(work);
   await adaptInput(work);
   await adaptCamera(work);
+  await adaptWorldBuffers(work);
   await adaptMinimap(work);
   await adaptPlaza(work);
   await adaptHearth(work);
