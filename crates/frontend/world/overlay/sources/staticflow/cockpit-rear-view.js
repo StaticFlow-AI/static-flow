@@ -1,4 +1,5 @@
 import { Color, Euler, LinearFilter, LinearSRGBColorSpace, PerspectiveCamera, Quaternion, RenderTarget, Vector3 } from 'three/webgpu'
+import { createRearViewInstances } from './rear-view-instances.js'
 
 // A camera fixed to the rearward sightline of the cab. The glass reverses
 // the horizontal UV; doing that in the projection would invert winding too.
@@ -25,6 +26,8 @@ export function createRearView(game, setTexture, cockpitGroup) {
     const { renderer } = game.rendering
     const { world } = game
     const floor = world.floor
+    const scene = game.scene
+    const instances = createRearViewInstances(world, scene)
     // The water surface takes a screen/depth copy for its refraction. The
     // underlying floor still includes the water-depth colour in the mirror.
     // Windscreen-space streaks, front-streamed particles and the mirror's own
@@ -83,6 +86,7 @@ export function createRearView(game, setTexture, cockpitGroup) {
         const previousFace = renderer.getActiveCubeFace()
         const previousMip = renderer.getActiveMipmapLevel()
         const previousMRT = renderer.getMRT()
+        const updateWorldMatrices = scene.matrixWorldAutoUpdate
         const shadow = game.lighting.light.shadow
         const autoShadow = shadow.autoUpdate, pendingShadow = shadow.needsUpdate
         const tile = floor.mesh.position
@@ -111,6 +115,11 @@ export function createRearView(game, setTexture, cockpitGroup) {
             const ahead = Math.min(9,floor.size * .24)
             tile.x = Math.round((camera.position.x + ahead * rearward.x) / floor.cellSize) * floor.cellSize
             tile.z = Math.round((camera.position.z + ahead * rearward.z) / floor.cellSize) * floor.cellSize
+            // The main pass has just updated every world matrix, including
+            // streamed-out buildings. Only the rear floor tile moved since.
+            floor.mesh.updateWorldMatrix(false, false)
+            scene.matrixWorldAutoUpdate = false
+            instances.show(camera, hide)
             // Pinned Three's WebGPU renderer (including its WebGL2 backend)
             // tests these per-light flags for each camera. Reuse the existing
             // shadow texture and leave the main camera's pending update intact.
@@ -122,10 +131,13 @@ export function createRearView(game, setTexture, cockpitGroup) {
         } finally {
             renderer.setRenderTarget(previousTarget,previousFace,previousMip)
             renderer.setMRT(previousMRT)
+            instances.group.visible = false
             shadow.autoUpdate = autoShadow
             shadow.needsUpdate = pendingShadow
             tile.x = oldX
             tile.z = oldZ
+            floor.mesh.updateWorldMatrix(false, false)
+            scene.matrixWorldAutoUpdate = updateWorldMatrices
             for (const object of revealed) object.visible = false
             for (const object of hidden) object.visible = true
             revealed.length = hidden.length = 0

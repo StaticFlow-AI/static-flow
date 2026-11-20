@@ -1,10 +1,26 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
+// Three applies the mesh's instance matrix to both position and normal before
+// the material's positionNode. This also lets a mirror batch share the material
+// while using only the instance matrices inside its own field of view.
+function nativeVegetationInstances(material) {
+    return [/^    setInstancedMesh\(\)\n    \{[\s\S]*?^    \}/m, `    setInstancedMesh()
+    {
+        this.mesh = new THREE.InstancedMesh(this.geometry, ${material}, this.transformMatrices.length)
+        this.transformMatrices.forEach((matrix, index) => this.mesh.setMatrixAt(index, matrix))
+        this.mesh.instanceMatrix.needsUpdate = true
+        this.mesh.castShadow = true
+        this.mesh.receiveShadow = true
+        this.mesh.frustumCulled = false
+        this.game.scene.add(this.mesh)
+    }`]
+}
+
 export default async function adaptCamera(root) {
     const files = [
         ['Rendering.js', [
-            ['        this.postProcessing.render()', '        this.game.view.firstPerson.updateMirror()\n        this.postProcessing.render()'],
+            ['        this.postProcessing.render()', '        this.postProcessing.render()\n        this.game.view.firstPerson.updateMirror()'],
         ]],
         ['World/Areas/CircuitArea.js', [
             ['PI, positionGeometry, positionWorld', 'PI, positionGeometry, positionView, positionWorld'],
@@ -40,6 +56,9 @@ export default async function adaptCamera(root) {
         ]],
         ['World/Foliage.js', [
             ["import { alea }", "import { driverFoliage } from '../../staticflow/driver-view.js'\nimport { alea }"],
+            ['Fn, instance, mix', 'Fn, mix'],
+            [/^        \/\/ Position\n        this\.material\.instance\.positionNode = Fn\([\s\S]*?^        \}\)\(\)\n\n/m, ''],
+            nativeVegetationInstances('this.material.instance'),
             ['        this.material.seeThroughPosition.value.copy(this.game.world.visualVehicle.screenPosition)', `        if (this.game.view.firstPerson.weight > .5) {
             this.driverGeometry ??= driverFoliage(this.geometry)
             this.mesh.geometry = this.driverGeometry
@@ -50,6 +69,12 @@ export default async function adaptCamera(root) {
             this.mesh.geometry = this.geometry
             this.material.seeThroughPosition.value.copy(this.game.world.visualVehicle.screenPosition)
         }`],
+        ]],
+        ['World/Flowers.js', [
+            [/^import \{[^\n]+\} from 'three\/tsl'/m, "import { color, positionLocal, uniform, vec3 } from 'three/tsl'"],
+            [/^        this\.material\.positionNode = Fn\([\s\S]*?^        \}\)\(\)/m,
+                '        this.material.positionNode = positionLocal.add(vec3(wind.x, 0, wind.y).mul(multiplier))'],
+            nativeVegetationInstances('this.material'),
         ]],
         ['World/VisualVehicle.js', [
             ['        this.parts.chassis.position.copy(physicalVehicle.position)', `        const showExterior = !this.game.view.firstPerson.hideExterior
@@ -96,7 +121,8 @@ export default async function adaptCamera(root) {
         const path = join(root, 'sources/Game', file)
         let source = await readFile(path, 'utf8')
         for (const [anchor, replacement] of edits) {
-            if (!source.includes(anchor)) throw new Error('Missing driver camera integration in ' + file + ': ' + anchor)
+            const found = typeof anchor === 'string' ? source.includes(anchor) : anchor.test(source)
+            if (!found) throw new Error('Missing driver camera integration in ' + file + ': ' + anchor)
             source = source.replace(anchor, replacement)
         }
         await writeFile(path, source)
