@@ -3,20 +3,19 @@ import './world-radio.css'
 
 const transport = `
     <div class="radio-head">
-        <span class="radio-label"><i aria-hidden="true"></i>车载电台</span>
-        <span class="radio-status" aria-live="polite"></span>
+        <div class="radio-title" aria-live="polite"></div>
         <div class="radio-buttons">
             <button type="button" data-action="previous" aria-label="上一首" title="上一首"><i class="radio-back" aria-hidden="true"></i></button>
             <button type="button" data-action="toggle" aria-label="播放音乐"><i class="radio-play" aria-hidden="true"></i></button>
             <button type="button" data-action="next" aria-label="下一首" title="下一首"><i class="radio-next" aria-hidden="true"></i></button>
         </div>
-        <button type="button" id="world-key-settings" aria-label="设置快捷键" title="设置快捷键"><span class="radio-keyboard" aria-hidden="true"></span></button>
     </div>
-    <div class="radio-title" aria-live="polite"></div>
+    <span class="radio-status" aria-live="polite"></span>
     <div class="radio-tuning">
         <span class="radio-elapsed"></span>
         <input type="range" class="radio-range" min="0" max="0" value="0" step="1" aria-label="音乐进度">
         <span class="radio-duration"></span>
+        <button type="button" id="world-key-settings" aria-label="设置快捷键" title="设置快捷键"><span class="radio-keyboard" aria-hidden="true"></span></button>
     </div>`
 
 function clock(seconds) {
@@ -213,7 +212,6 @@ export class WorldRadio {
     }
 
     paint() {
-        this.element.dataset.playing = this.wantsPlay && !this.suspended && this.sound.playing()
         let status = ''
         if (this.error) status = this.error
         else if (this.audio.mute.active) status = '已静音'

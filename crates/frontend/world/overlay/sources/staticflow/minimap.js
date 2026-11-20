@@ -25,7 +25,7 @@ export class WorldMinimap {
         this.root.setAttribute('aria-label', '小地图')
         this.root.innerHTML = `
             <button type="button" data-minimap-toggle aria-controls="world-minimap-view">
-                <span>小地图</span><i aria-hidden="true"></i>
+                <i aria-hidden="true"></i>
             </button>
             <button type="button" id="world-minimap-view" data-minimap-open aria-label="打开完整地图">
                 <span class="minimap-field">
@@ -34,7 +34,6 @@ export class WorldMinimap {
                     <i data-minimap-goal hidden></i>
                     <img data-minimap-player src="ui/minimap/player.webp" alt="" draggable="false">
                 </span>
-                <span class="minimap-caption"></span>
             </button>`
         this.game.domElement.append(this.root)
         this.toggle = this.root.querySelector('[data-minimap-toggle]')
@@ -44,7 +43,6 @@ export class WorldMinimap {
         this.terrain.element.style.width = (zoom * 100) + '%'
         this.player = { element: this.root.querySelector('[data-minimap-player]') }
         this.goal = { element: this.root.querySelector('[data-minimap-goal]') }
-        this.caption = this.root.querySelector('.minimap-caption')
 
         let expanded = true
         try { expanded = localStorage.getItem(storageKey) !== 'hidden' } catch { /* Current visit only. */ }
@@ -137,8 +135,8 @@ export class WorldMinimap {
             this.goal.element.hidden = complete
             this.root.dataset.signal = target || 'observatory'
             const name = labels[route.signal]
-            this.caption.textContent = complete ? 'Steins Gate' : name
-            this.view.setAttribute('aria-label', complete ? '打开完整地图' : `打开完整地图，目的地：${name}`)
+            this.view.title = complete ? '打开完整地图' : `打开完整地图 · ${name}`
+            this.view.setAttribute('aria-label', this.view.title)
             this.destination = complete ? null : map.worldToMap(route.stations[target]?.base || observatory)
         }
         if (!this.destination || (!moved && !goalChanged)) return

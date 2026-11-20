@@ -1,63 +1,29 @@
-// Camera-local interior. The dial, hands and sleeves are separate moving
-// assemblies; static pieces of each assembly share one vertex-coloured mesh.
+// The wheel and gloves rotate about the steering column. The elbows stay at
+// the seat while each sleeve tracks its wrist.
 import {
     BoxGeometry, BufferAttribute, BufferGeometry, Color, CylinderGeometry,
-    ExtrudeGeometry, Group, MathUtils, Mesh, MeshBasicMaterial, Shape,
+    ExtrudeGeometry, Group, MathUtils, MeshBasicMaterial, Path, Shape,
     SphereGeometry, TorusGeometry, Vector3,
 } from 'three/webgpu'
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
+import { createCockpitCabin } from './cockpit-cabin.js'
+import { createCockpitInstruments } from './cockpit-instruments.js'
+import { assemble, paintPart } from './cockpit-mesh.js'
 
 const up = new Vector3(0, 1, 0)
 const wheelRadius = .170
 const gripAngle = Math.PI / 8
 
-function part(parts, geometry, color) {
-    const g = geometry.index ? geometry.toNonIndexed() : geometry
-    g.deleteAttribute('uv')
-    g.computeVertexNormals()
-    const n = g.getAttribute('normal')
-    const colors = new Float32Array(n.count * 3)
-    const base = new Color(color)
-    for (let i = 0; i < n.count; i++) {
-        // Broad, cool windscreen light across the console. The interior is
-        // legible even when the outside sun passes behind the vehicle.
-        const light = .63 + .39 * Math.max(0, n.getX(i) * -.36 + n.getY(i) * .67 + n.getZ(i) * .65)
-        colors[i * 3] = base.r * light
-        colors[i * 3 + 1] = base.g * light
-        colors[i * 3 + 2] = base.b * light
-    }
-    g.setAttribute('color', new BufferAttribute(colors, 3))
-    g.deleteAttribute('normal')
-    if (g !== geometry) geometry.dispose()
-    parts.push(g)
-}
-
-function assemble(parts, material) {
-    const geometry = mergeGeometries(parts)
-    for (const piece of parts) piece.dispose()
-    return new Mesh(geometry, material)
-}
-
 function box(parts, color, x, y, z, w, h, depth, tilt = 0) {
-    part(parts, new BoxGeometry(w, h, depth).rotateZ(tilt).translate(x, y, z), color)
-}
-
-function plate(parts, color, outline, depth, x, y, z, angle = 0) {
-    const shape = new Shape()
-    shape.moveTo(...outline[0])
-    for (const point of outline.slice(1)) shape.lineTo(...point)
-    shape.closePath()
-    const geometry = new ExtrudeGeometry(shape, { depth, bevelEnabled: false })
-    part(parts, geometry.rotateZ(angle).translate(x, y, z), color)
+    paintPart(parts, new BoxGeometry(w, h, depth).rotateZ(tilt).translate(x, y, z), color)
 }
 
 function disc(parts, color, x, y, z, radius, depth, sides = 32) {
-    part(parts, new CylinderGeometry(radius, radius, depth, sides)
+    paintPart(parts, new CylinderGeometry(radius, radius, depth, sides)
         .rotateX(Math.PI / 2).translate(x, y, z), color)
 }
 
 function oval(parts, color, x, y, z, rx, ry, rz, angle = 0) {
-    part(parts, new SphereGeometry(1, 10, 6).scale(rx, ry, rz).rotateZ(angle).translate(x, y, z), color)
+    paintPart(parts, new SphereGeometry(1, 10, 6).scale(rx, ry, rz).rotateZ(angle).translate(x, y, z), color)
 }
 
 // Sweep a tapered polygon around the centerline of a curved finger, so the
@@ -92,7 +58,7 @@ function finger(parts, color, path) {
     const geometry = new BufferGeometry()
     geometry.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3))
     geometry.setIndex(indices)
-    part(parts, geometry, color)
+    paintPart(parts, geometry, color)
 }
 
 function handMesh(material) {
@@ -114,6 +80,16 @@ function handMesh(material) {
         [-.013, .029, .017, .0045],
     ])
     oval(parts, '#ecc1a8', -.012, .020, .031, .0058, .008, .003, -.12)
+    // Fingerless driving gloves expose the fingertips around the back of the
+    // rim. The inset knuckle openings catch light against the dark leather.
+    oval(parts, '#413630', .019, -.004, .030, .021, .040, .014, -.18)
+    oval(parts, '#493d35', .030, -.041, .041, .021, .033, .017, .38)
+    for (const [x, y] of [[.022,.022],[.026,.009],[.027,-.005],[.026,-.018]]) {
+        oval(parts, '#211f20', x, y, .043, .0048, .0042, .002)
+        oval(parts, skin, x, y, .045, .0034, .0030, .0016)
+    }
+    oval(parts, '#282b2c', .039, -.061, .050, .023, .013, .014, .38)
+    disc(parts, '#ae9070', .033, -.058, .064, .0043, .002, 10)
     return assemble(parts, material)
 }
 
@@ -129,72 +105,68 @@ function sleeveMesh(material) {
         [.95, .030, 1, .026, '#313b3c'],
     ]
     for (const [start, lower, end, upper, tone] of bands) {
-        part(parts, new CylinderGeometry(upper, lower, end - start, 9).translate(0, (start + end) / 2, 0), tone)
+        paintPart(parts, new CylinderGeometry(upper, lower, end - start, 9).translate(0, (start + end) / 2, 0), tone)
     }
     return assemble(parts, material)
 }
 
 function wheelMesh(material) {
     const parts = []
-    part(parts, new TorusGeometry(wheelRadius, .015, 8, 48), '#383632')
-    const spoke = [[-.016,.022],[.038,.023],[.142,.012],[.158,.005],[.150,-.013],[.053,-.009],[.020,-.023]]
-    for (const rotation of [0, Math.PI, -Math.PI / 2]) {
-        plate(parts, '#676b69', spoke, .010, 0, 0, -.008, rotation)
-        const r = .095
-        box(parts, '#303331', r * Math.cos(rotation), r * Math.sin(rotation), .003, .053, .005, .002, rotation)
+    paintPart(parts, new TorusGeometry(wheelRadius, .015, 8, 48), '#383632')
+    // Stamped aluminium spokes are dished back from the grip. Actual holes
+    // leave little glimpses of the cluster as the driver turns the wheel.
+    const spoke = new Shape()
+    spoke.moveTo(.023, .021)
+    spoke.quadraticCurveTo(.095, .020, .159, .012)
+    spoke.lineTo(.159, -.011)
+    spoke.quadraticCurveTo(.076, -.011, .026, -.025)
+    spoke.closePath()
+    for (const [x, radius] of [[.070, .009], [.101, .0075], [.128, .006]]) {
+        const hole = new Path()
+        hole.absarc(x, .0015, radius, 0, Math.PI * 2, true)
+        spoke.holes.push(hole)
     }
-    disc(parts, '#302d2a', 0, 0, .010, .048, .028, 12)
-    disc(parts, '#866b49', 0, 0, .026, .031, .005, 12)
-    disc(parts, '#292b2b', 0, 0, .030, .026, .005, 12)
-    for (const angle of [-.49, .49]) {
-        box(parts, '#deb579', .004 * Math.sign(angle), 0, .034, .003, .017, .002, angle)
+    for (const rotation of [.12, Math.PI - .12, -Math.PI / 2]) {
+        const g = new ExtrudeGeometry(spoke, { depth: .005, bevelEnabled: true,
+            bevelSegments: 1, bevelSize: .0014, bevelThickness: .0014, curveSegments: 6 })
+        paintPart(parts, g.rotateY(-.085).translate(0, 0, -.014).rotateZ(rotation), '#8d9794')
     }
-    // Brass twelve-o'clock band makes even a slight turn easy to read.
-    part(parts, new TorusGeometry(wheelRadius, .016, 8, 4, .080)
-        .rotateZ(Math.PI / 2 - .040), '#d8a65f')
+    disc(parts, '#282b2c', 0, 0, -.012, .047, .037)
+    disc(parts, '#697478', 0, 0, .003, .043, .010)
+    disc(parts, '#23272a', 0, 0, .011, .032, .009)
+    disc(parts, '#4a4940', 0, 0, .018, .025, .008)
+    for (let i = 0; i < 6; i++) {
+        const a = i * Math.PI / 3 + Math.PI / 6
+        const x = Math.cos(a) * .037, y = Math.sin(a) * .037
+        disc(parts, '#a4a79e', x, y, .010, .0039, .003, 8)
+        disc(parts, '#343434', x, y, .013, .0018, .0008, 6)
+    }
+    for (const angle of [-.49, .49])
+        box(parts, '#e9c68d', .004 * Math.sign(angle), 0, .024, .003, .018, .002, angle)
+
+    // Paired leather grips, a stitched inside seam and the woven centre mark.
+    for (const angle of [-.57, Math.PI - .57])
+        paintPart(parts, new TorusGeometry(wheelRadius, .019, 10, 14, 1.14).rotateZ(angle), '#312e2c')
+    for (let i = 0; i < 56; i++) {
+        const a = i * Math.PI / 28
+        box(parts, '#8e7360', .164 * Math.cos(a), .164 * Math.sin(a), .0135,
+            .0042, .0009, .0014, a + 1.20)
+    }
+    paintPart(parts, new TorusGeometry(wheelRadius, .016, 10, 5, .085)
+        .rotateZ(Math.PI / 2 - .0425), '#efad55')
     return assemble(parts, material)
 }
 
-function dashboard(material) {
+function steeringColumn(material) {
     const parts = []
-    const outline = [[-3,-.52],[3,-.52],[3,-.012],[.34,.016],[.23,.045],[-.20,.045],[-.30,.018],[-3,-.012]]
-    plate(parts, '#49443e', outline, .15, 0, -.415, -1.01)
-    // The dash cap slopes away to the windscreen seal. Its bright top and
-    // shadowed front edge give the road a fixed frame at the driver's eye.
-    const cap = new BufferGeometry()
-    const sections = [[-3,-.368,-.404],[-.45,-.354,-.393],[-.24,-.354,-.372],
-        [.24,-.354,-.372],[.45,-.354,-.393],[3,-.368,-.404]]
-    const corners = []
-    for (const [x, front, back] of sections) corners.push(x, front, -1.11, x, back, -.855)
-    cap.setAttribute('position', new BufferAttribute(new Float32Array(corners), 3))
-    const faces = []
-    for (let i = 0; i < sections.length - 1; i++) {
-        const n = i * 2
-        faces.push(n, n + 1, n + 2, n + 1, n + 3, n + 2)
-    }
-    cap.setIndex(faces)
-    part(parts, cap, '#655c51')
-    box(parts, '#373735', 0, -.355, -1.115, 3, .009, .018)
-    box(parts, '#7e6150', 0, -.429, -.855, 5, .008, .006)
-    // A raised binnacle behind the wheel, a mechanical steering indicator
-    // on the left, and a bank of louvers on the passenger side.
-    const binnacle = [[-.168,-.113],[.175,-.113],[.168,-.016],[.125,.033],[-.113,.033],[-.162,-.011]]
-    plate(parts, '#252a2c', binnacle, .040, .025, -.281, -.915)
-    disc(parts, '#8f795b', .025, -.299, -.874, .049, .007)
-    disc(parts, '#151d20', .025, -.299, -.867, .045, .005)
-    for (let i = 0; i < 13; i++) {
-        const a = Math.PI * (i - 6) / 9
-        const r = .036
-        const long = i % 3 === 0
-        box(parts, long ? '#ffcc7e' : '#ac9274', .025 + Math.sin(a) * r,
-            -.299 + Math.cos(a) * r, -.861, long ? .0025 : .0016, long ? .008 : .005, .002, -a)
-    }
-    box(parts, '#8ebcb5', -.077, -.294, -.873, .019, .007, .003)
-    box(parts, '#c39a58', -.049, -.294, -.873, .013, .007, .003)
-    for (const x of [-.35, .36]) {
-        box(parts, '#242729', x, -.401, -.850, .12, .035, .008)
-        for (const y of [-.009, 0, .009])
-            box(parts, '#645f53', x, -.401 + y, -.842, .103, .0025, .002)
+    disc(parts, '#24292c', 0, 0, -.082, .041, .15, 20)
+    for (const z of [-.058, -.047, -.036])
+        disc(parts, '#414749', 0, 0, z, .044, .006, 20)
+    for (const side of [-1, 1]) {
+        box(parts, '#434a48', side * .095, .006, -.055, .131, .008, .010, side * .14)
+        oval(parts, '#2d3336', side * .157, .016, -.054, .034, .009, .012, side * .14)
+        for (const x of [.175, .180])
+            box(parts, '#807e6f', side * x, .020, -.043, .0018, .009, .001, side * .14)
     }
     return assemble(parts, material)
 }
@@ -203,20 +175,16 @@ export function createDriverCockpit() {
     const material = new MeshBasicMaterial({ vertexColors: true, fog: false })
     const group = new Group()
     group.name = 'driver-cockpit'
-    group.add(dashboard(material))
-
-    const needle = new Group()
-    needle.position.set(.025, -.299, -.856)
-    const parts = []
-    box(parts, '#f4ad50', 0, .014, 0, .0035, .029, .003)
-    disc(parts, '#a48966', 0, 0, .002, .006, .003)
-    needle.add(assemble(parts, material))
-    group.add(needle)
-
+    const cabin = createCockpitCabin()
+    const instruments = createCockpitInstruments()
+    const controls = new Group()
+    group.add(cabin.group, controls)
+    controls.add(instruments.group)
     const column = new Group()
     column.position.set(0, -.308, -.745)
     column.rotation.x = -.21
-    group.add(column)
+    controls.add(column)
+    column.add(steeringColumn(material))
     const wheel = new Group()
     wheel.name = 'steering-wheel'
     wheel.add(wheelMesh(material))
@@ -244,18 +212,22 @@ export function createDriverCockpit() {
     const axis = new Vector3(0, 0, 1)
     const end = new Vector3()
     let lastAngle
-    return { group, update(steeringAngle, aspect, fov) {
+    const white = new Color(0xffffff)
+    return { group, setRearViewTexture: cabin.setRearViewTexture, update(steeringAngle, aspect, fov, telemetry) {
+        cabin.update(aspect, fov, telemetry)
+        instruments.update(telemetry)
+        material.color.lerpColors(white, telemetry.daylight, .48)
+        cabin.shellMaterial.color.copy(material.color)
         // Keep the eye-to-wheel proportions across different vertical FOVs;
         // on tall screens pull the assembly in far enough to see both hands.
         const lens = Math.tan(MathUtils.degToRad(fov) / 2) / Math.tan(MathUtils.degToRad(68) / 2)
         const fit = Math.min(1, aspect / .62)
-        group.scale.set(.45 * lens * fit, .45 * lens * fit, .45)
-        group.position.y = -.45 * lens * .36 * (1 - fit)
+        controls.scale.set(.45 * lens * fit, .45 * lens * fit, .45)
+        controls.position.y = -.45 * lens * .36 * (1 - fit)
         const angle = MathUtils.clamp(steeringAngle * 2.15, -1.22, 1.22)
         if (angle === lastAngle) return
         lastAngle = angle
         wheel.rotation.z = angle
-        needle.rotation.z = angle
         for (const { arm, wrist } of arms) {
             end.copy(wrist).applyAxisAngle(axis, angle).sub(arm.position)
             arm.scale.y = end.length()

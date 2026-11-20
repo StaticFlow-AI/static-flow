@@ -15,6 +15,9 @@
 }
 
 html:is(.input-filter-wandering,.input-filter-racing):not(.world-failed):not(:has(dialog[open])) #world-minimap { display: flex; }
+/* The chart itself opens the atlas. Keep the upstream map shortcut in modes
+   without navigation, where it is still the way into the atlas. */
+html:is(.input-filter-wandering,.input-filter-racing):has(#world-minimap) .map-trigger { display: none; }
 #world-minimap[data-signal="beta"] { --signal: #ffb058; }
 #world-minimap[data-signal="gate"] { --signal: #fff0bb; }
 #world-minimap button {
@@ -29,33 +32,55 @@ html:is(.input-filter-wandering,.input-filter-racing):not(.world-failed):not(:ha
 #world-minimap button:hover { border-color: #e5ba7c; }
 #world-minimap [hidden] { display: none; }
 #world-minimap [data-minimap-toggle] {
-    padding: 0 8px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 9px;
-    min-height: 30px;
-    border-radius: 4px;
-    letter-spacing: .07em;
+    position: absolute;
+    z-index: 2;
+    top: 0;
+    right: 0;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    color: #ffedcc;
+    background: #242328f2;
+    border-radius: 50%;
 }
 #world-minimap [aria-expanded="true"] {
-    width: var(--map-size);
-    border-radius: 4px 4px 0 0;
-    border-bottom: none;
+    border: 0;
+    border-radius: 0 9px 0 50%;
+    background: linear-gradient(225deg, #191a21cf 35%, #191a2126 78%, transparent);
+    box-shadow: none;
 }
-#world-minimap [data-minimap-toggle] i {
-    width: 6px;
-    height: 6px;
-    transform: rotate(45deg);
-    border-right: 1px solid currentColor;
-    border-bottom: 1px solid currentColor;
+#world-minimap [aria-expanded="true"] i {
+    width: 10px;
+    height: 2px;
+    border-radius: 1px;
+    background: currentColor;
+    box-shadow: 0 1px 2px #000;
 }
-#world-minimap [aria-expanded="true"] i { transform: rotate(225deg); }
+#world-minimap [aria-expanded="false"] i {
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+}
+#world-minimap [aria-expanded="false"] i::after {
+    content: '';
+    width: 5px;
+    height: 13px;
+    background: linear-gradient(to bottom, #ffdfa5 50%, #967e68 50%);
+    clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+    transform: rotate(35deg);
+}
 #world-minimap [data-minimap-open] {
     width: var(--map-size);
-    border-radius: 0 0 4px 4px;
+    border: 1px solid #d2b788c7;
+    border-radius: 9px;
+    overflow: hidden;
     padding: 2px;
-    text-align: left;
+    background: #29282a;
+    box-shadow: 0 2px 10px #15101866;
 }
 #world-minimap .minimap-field {
     position: relative;
@@ -65,6 +90,7 @@ html:is(.input-filter-wandering,.input-filter-racing):not(.world-failed):not(:ha
     overflow: hidden;
     width: 100%;
     aspect-ratio: 1;
+    border-radius: 6px;
     background: #302b32;
 }
 #world-minimap [data-minimap-terrain] {
@@ -78,8 +104,8 @@ html:is(.input-filter-wandering,.input-filter-racing):not(.world-failed):not(:ha
 }
 #world-minimap .minimap-north {
     position: absolute;
-    top: 3px;
-    right: 4px;
+    top: 4px;
+    left: 6px;
     font: bold 10px/1 monospace;
     color: #fff8e1;
     text-shadow: 0 1px 3px #17151a, 0 0 2px #17151a;
@@ -110,24 +136,10 @@ html:is(.input-filter-wandering,.input-filter-racing):not(.world-failed):not(:ha
     border-radius: 0;
     clip-path: polygon(0 0, 100% 50%, 0 100%, 22% 50%);
 }
-#world-minimap .minimap-caption {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 5px 3px;
-    font-size: 11px;
-}
-#world-minimap .minimap-caption::before {
-    content: '';
-    width: 5px;
-    height: 5px;
-    transform: rotate(45deg);
-    background: var(--signal);
-}
 @media (max-width: 600px), (max-height: 510px) {
     #world-minimap { --map-size: 105px; }
     #world-minimap [data-minimap-player] { width: 22px; }
 }
 @media (max-width: 490px) {
-    #world-minimap { --map-size: 100px; top: calc(max(16px, env(safe-area-inset-top)) + 151px); right: max(8px, env(safe-area-inset-right)); }
+    #world-minimap { --map-size: 100px; top: calc(max(16px, env(safe-area-inset-top)) + 44px); right: max(8px, env(safe-area-inset-right)); }
 }

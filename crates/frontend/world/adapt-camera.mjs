@@ -3,6 +3,17 @@ import { join } from 'node:path'
 
 export default async function adaptCamera(root) {
     const files = [
+        ['Rendering.js', [
+            ['        this.postProcessing.render()', '        this.game.view.firstPerson.updateMirror()\n        this.postProcessing.render()'],
+        ]],
+        ['World/Areas/CircuitArea.js', [
+            ['PI, positionGeometry, positionWorld', 'PI, positionGeometry, positionView, positionWorld'],
+            // A checkpoint is a marker on the road. Fade it out before the
+            // driver passes through its plane and its stripes cross the cab.
+            ['baseUv.y.oneMinus().mul(stripes)', 'baseUv.y.oneMinus().mul(stripes).mul(positionView.z.negate().smoothstep(1.05, 4))'],
+            ['material.outputNode = doorOutputColor(this.checkpoints.doorTarget', 'material.depthWrite = false\n            material.outputNode = doorOutputColor(this.checkpoints.doorTarget'],
+            ['material.outputNode = doorOutputColor(this.checkpoints.doorReached', 'material.depthWrite = false\n            material.outputNode = doorOutputColor(this.checkpoints.doorReached'],
+        ]],
         ['View.js', [
             ["import CameraControls", "import { DriverView } from '../staticflow/driver-view.js'\nimport CameraControls"],
             ['        this.setMapControls()', '        this.firstPerson = new DriverView(this)\n        this.setMapControls()'],

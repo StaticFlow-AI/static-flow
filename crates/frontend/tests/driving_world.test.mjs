@@ -14,6 +14,8 @@ test('driving controls steer the cockpit and keep focus across the HUD', {
     })
     try {
         const page = await browser.newPage()
+        const errors = []
+        page.on('pageerror', error => errors.push(error.message))
         await page.addInitScript(() => {
             if (window !== window.top) return
             // Three's inspector hook observes the same scene the visitor sees.
@@ -51,6 +53,10 @@ test('driving controls steer the cockpit and keep focus across the HUD', {
         await page.waitForFunction(() => window.worldScenes.some(scene => scene.getObjectByName('driver-cockpit')?.visible))
         const cockpit = await page.evaluateHandle(() =>
             window.worldScenes.map(scene => scene.getObjectByName('driver-cockpit')).find(group => group?.visible))
+        await page.waitForFunction(group => {
+            const mirror = group.getObjectByName('rear-window-reflection')
+            return mirror?.visible && mirror.material.map?.isRenderTargetTexture
+        }, cockpit)
         const gripHeights = () => cockpit.evaluate(group => ['grip-left', 'grip-right'].map(name => {
             const hand = group.getObjectByName(name)
             return group.worldToLocal(hand.getWorldPosition(hand.position.clone())).y
@@ -66,6 +72,13 @@ test('driving controls steer the cockpit and keep focus across the HUD', {
         await page.keyboard.up('d')
         await page.waitForFunction(group => Math.abs(group.getObjectByName('steering-wheel').rotation.z) < .03, cockpit)
         await page.keyboard.down('w')
+        await page.waitForFunction(group =>
+            group.getObjectByName('speed-readout').userData.speedKmh > 2 &&
+            group.getObjectByName('gear-display').userData.drive === 'D' &&
+            group.getObjectByName('throttle-indicator').scale.x > 0, cockpit)
+        await page.keyboard.down('b')
+        await page.waitForFunction(group => group.getObjectByName('brake-indicator').scale.x > 0, cockpit)
+        await page.keyboard.up('b')
         await view.click()
         assert.equal(await view.getAttribute('aria-pressed'), 'false')
         await page.waitForFunction(group => !group.visible, cockpit)
@@ -91,6 +104,7 @@ test('driving controls steer the cockpit and keep focus across the HUD', {
         await page.waitForFunction(start => document.querySelector('[data-minimap-terrain]').style.transform !== start, start)
         await page.keyboard.up('i')
         assert.deepEqual(await page.evaluate(() => window.mediaKeys), [])
+        assert.deepEqual(errors, [])
     } finally {
         await browser.close()
     }
