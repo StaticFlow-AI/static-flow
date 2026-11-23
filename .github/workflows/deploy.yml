@@ -56,12 +56,13 @@ jobs:
 
       - name: Install wasm-opt (from binaryen)
         run: |
-          wget https://github.com/WebAssembly/binaryen/releases/download/version_116/binaryen-version_116-x86_64-linux.tar.gz
-          tar -xzf binaryen-version_116-x86_64-linux.tar.gz
-          mkdir -p ~/.cache/trunk/wasm-opt-version_116/bin
-          cp binaryen-version_116/bin/wasm-opt ~/.cache/trunk/wasm-opt-version_116/bin/
-          chmod +x ~/.cache/trunk/wasm-opt-version_116/bin/wasm-opt
-          ~/.cache/trunk/wasm-opt-version_116/bin/wasm-opt --version
+          wget https://github.com/WebAssembly/binaryen/releases/download/version_133/binaryen-version_133-x86_64-linux.tar.gz
+          tar -xzf binaryen-version_133-x86_64-linux.tar.gz
+          sudo install -m 0755 binaryen-version_133/bin/wasm-opt /usr/local/bin/wasm-opt
+          mkdir -p ~/.cache/trunk/wasm-opt-version_133/bin
+          cp binaryen-version_133/bin/wasm-opt ~/.cache/trunk/wasm-opt-version_133/bin/
+          chmod +x ~/.cache/trunk/wasm-opt-version_133/bin/wasm-opt
+          wasm-opt --version
 
       - name: Build frontend (production)
         run: scripts/build_frontend_selfhosted.sh --skip-npm
@@ -73,7 +74,7 @@ jobs:
         run: cp 404.html dist/404.html
 
       - name: Deploy to User Pages (acking-you.github.io)
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           personal_token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           external_repository: acking-you/acking-you.github.io
