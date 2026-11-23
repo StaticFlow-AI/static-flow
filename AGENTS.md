@@ -196,18 +196,19 @@ reasoning continuity over conversational progress reports.
 When generating Xiaohongshu (`小红书`) cards/copy or publishing notes via
 Creator Center (`xiaohongshu-tech-note-publisher`), strictly prevent
 off-platform traffic-diversion throttling (`站外引流限流`):
-- **No diversion/link comments**: Never post or pin comments containing URLs,
-  domain names (`ackingliu.top`, `staticflow.cc`, `.com`, `.top`, `.cc`, `.io`),
-  blog links, or obfuscated prompts ("原文链接", "个人博客", "点主页", "搜同名",
-  "私信领"). Stop once the note is published in Creator Center.
-- **No diversion wording in title or body**: Never write `个人博客`,
-  `已导入博客`, `全文见博客`, `链接放评论区`, `评论区置顶`, `见评论区`,
-  `点击主页`, `私信获取`, or external URLs/domains in the title or body copy;
+- **No link mentions or diversion wording in title or body**: Never write
+  `个人博客`, `已导入博客`, `全文见博客`, `链接放评论区`, `评论区置顶`, `见评论区`,
+  `点击主页`, `私信获取`, or any external URLs/domains in the title or body copy;
   close the post naturally as a self-contained technical note.
 - **No domains or diversion text on slide images (OCR gate)**: Never render
-  `ackingliu.top`, `staticflow.cc`, any `.top`/`.com`/`.cc` domain, QR codes,
-  or phrases like `完整精翻入库` / `链接见评论区置顶` anywhere on slide headers,
-  badges, or footers.
+  `ackingliu.top`, `staticflow.cc`, any `.top`/`.com`/`.cc`/`.gg` domain, QR
+  codes, or phrases like `完整精翻入库` / `链接见评论区` anywhere on slides.
+- **Comment-section link format (natural paragraph, no `https://`, no ad tone)**:
+  When posting the full-article address in comments, never post a bare URL,
+  never include `https://` or `http://`, and avoid promotional/salesy symbols or
+  slogans (`🔗`, "速戳", "必看"); weave the protocol-free path
+  (`ackingliu.top/posts/<slug>`) naturally inside a calm, conversational
+  paragraph noting full translation and clean reading layout.
 
 ## Repo-Local Instruction Precedence (Hard Rule)
 - When a generic/global agent habit conflicts with a narrower rule in this
@@ -438,9 +439,11 @@ Use the following skill (`skills/<name>/SKILL.md`, symlinked under
   `article-bilingual-translation-publisher`
 - Regenerating or improving `detailed_summary.zh/en` only:
   `article-summary-architect`
+- Writing, restructuring, or auditing source-verified original technical blog posts (default blog writing skill):
+  `technical-blog-writer`
 - Writing mechanism-first technical implementation documentation/specs:
   `tech-impl-deep-dive-writer`
-- Writing or reviewing source-verified long-form deep-dive blog posts in the author's voice:
+- Writing or reviewing book-length source-verified deep-dive monographs in the author's voice:
   `deep-dive-blog-style`
 - Ingesting music files (Netease search/download, NCM decrypt, local mp3/flac):
   `music-ingestion-publisher`
@@ -479,7 +482,7 @@ Use the following skill (`skills/<name>/SKILL.md`, symlinked under
   `codex-session-history`
 - Drafting GitHub PR titles, bodies, and maintainer comments:
   `github-pr-message-writer`
-- Generating Xiaohongshu (小红书) 3:4 cards/copy or publishing notes in Creator Center (strict zero external-link / zero diversion compliance):
+- Generating Xiaohongshu (小红书) 3:4 Swiss editorial cards/copy or publishing notes in Creator Center:
   `xiaohongshu-tech-note-publisher`
 
 If multiple skills apply, use the smallest set that fully covers the task.
