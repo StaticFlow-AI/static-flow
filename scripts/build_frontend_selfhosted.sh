@@ -64,7 +64,8 @@ if [[ "$SKIP_NPM" != "true" ]]; then
   fi
 fi
 
-log "Building frontend for self-hosted mode (API_BASE=/api)..."
+EFFECTIVE_API_BASE="${STATICFLOW_API_BASE:-/api}"
+log "Building frontend (STATICFLOW_API_BASE=${EFFECTIVE_API_BASE})..."
 
 cd "$FRONTEND_DIR"
 TRUNK_ARGS=(build --release)
@@ -83,10 +84,12 @@ if [[ -n "$EFFECTIVE_FEATURES" ]]; then
   TRUNK_ARGS+=(--features "$EFFECTIVE_FEATURES")
 fi
 NPM_CONFIG_CACHE="$NPM_CACHE_DIR" \
-STATICFLOW_API_BASE="/api" \
+STATICFLOW_API_BASE="$EFFECTIVE_API_BASE" \
 trunk "${TRUNK_ARGS[@]}"
 
-# Optimize WASM binary size via wasm-opt (-Oz --all-features --strip-debug --strip-dwarf --strip-producers)
+# Optimize WASM binary size via wasm-opt (-Oz --strip-debug --strip-dwarf --strip-producers).
+# Do NOT pass --all-features: modern Binaryen enables unshipped proposals such as
+# compact-imports (import kind 0x7f / 127), which browsers reject at instantiateStreaming().
 WASM_OPT_BIN=""
 if command -v wasm-opt >/dev/null 2>&1; then
   WASM_OPT_BIN="$(command -v wasm-opt)"
@@ -101,7 +104,7 @@ if [[ -n "$WASM_OPT_BIN" ]]; then
   for wasm_file in "$FRONTEND_DIR"/dist/*_bg.wasm; do
     [[ -f "$wasm_file" ]] || continue
     before_bytes="$(wc -c < "$wasm_file")"
-    "$WASM_OPT_BIN" -Oz --all-features --strip-debug --strip-dwarf --strip-producers "$wasm_file" -o "${wasm_file}.opt"
+    "$WASM_OPT_BIN" -Oz --strip-debug --strip-dwarf --strip-producers "$wasm_file" -o "${wasm_file}.opt"
     mv "${wasm_file}.opt" "$wasm_file"
     after_bytes="$(wc -c < "$wasm_file")"
     if command -v node >/dev/null 2>&1 && [[ -f "$FRONTEND_DIR/dist/index.html" ]]; then
@@ -112,8 +115,11 @@ const path = require('path');
 
 const wasmFile = process.env.WASM_FILE;
 const indexPath = process.env.INDEX_HTML;
+const wasmBytes = fs.readFileSync(wasmFile);
+// Fail fast if wasm-opt emitted experimental encodings rejected by standard V8.
+new WebAssembly.Module(wasmBytes);
 const wasmName = path.basename(wasmFile).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const digest = 'sha384-' + crypto.createHash('sha384').update(fs.readFileSync(wasmFile)).digest('base64');
+const digest = 'sha384-' + crypto.createHash('sha384').update(wasmBytes).digest('base64');
 const html = fs.readFileSync(indexPath, 'utf8');
 const tagRe = new RegExp(`(<link\\b[^>]*\\bhref="/?${wasmName}"[^>]*\\bintegrity=")sha384-[^"]+(")`, 'g');
 const updated = html.replace(tagRe, `$1${digest}$2`);
@@ -122,7 +128,7 @@ if (updated !== html) {
 }
 NODE
     fi
-    log "wasm-opt -Oz: $(basename "$wasm_file") ${before_bytes} -> ${after_bytes} bytes (SRI synced)"
+    log "wasm-opt -Oz: $(basename "$wasm_file") ${before_bytes} -> ${after_bytes} bytes (V8 validated, SRI synced)"
   done
 else
   log "WARN: wasm-opt not found; skipping post-link WASM size optimization"

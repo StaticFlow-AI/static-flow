@@ -67,6 +67,7 @@ jobs:
       - name: Build frontend (production)
         run: scripts/build_frontend_selfhosted.sh --skip-npm
         env:
+          STATICFLOW_API_BASE: ${{ vars.STATICFLOW_API_BASE || 'https://ackingliu.top/api' }}
           TRUNK_SKIP_VERSION_CHECK: "true"
 
       - name: Copy 404.html to dist root (GitHub Pages SPA routing)
